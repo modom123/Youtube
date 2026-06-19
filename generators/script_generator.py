@@ -20,7 +20,13 @@ class ContentScript:
     thumbnail_prompt: str
 
 
-def _build_prompt(topic: str, content_type: str, target_duration: int, audience: str) -> str:
+def _build_prompt(
+    topic: str,
+    content_type: str,
+    target_duration: int,
+    audience: str,
+    research_context: str = "",
+) -> str:
     type_instructions = {
         "short": f"Create a punchy, viral SHORT video script (~{target_duration} seconds). Hook in first 3 seconds. Fast-paced, engaging.",
         "long": f"Create a comprehensive LONG-FORM video script (~{target_duration} seconds / {target_duration//60} minutes). Educational and thorough.",
@@ -28,12 +34,21 @@ def _build_prompt(topic: str, content_type: str, target_duration: int, audience:
         "reel": f"Create an Instagram REEL script (~{target_duration} seconds). Visually driven, trend-aware, highly shareable.",
     }
 
-    return f"""You are a professional social media content creator and scriptwriter.
+    research_block = ""
+    if research_context:
+        research_block = f"""
+VERIFIED RESEARCH DATA (use these REAL facts in the script — do NOT make up or change numbers/names):
+{research_context}
+
+IMPORTANT: Base the narration on the verified facts above. Include specific names, numbers, and data points from the research. The audience expects accurate, real information.
+"""
+
+    return f"""You are a professional social media content creator and scriptwriter with expertise in making factual content highly engaging.
 
 Topic: {topic}
 Content Type: {type_instructions.get(content_type, type_instructions["short"])}
 Target Audience: {audience}
-
+{research_block}
 Generate a complete content package. Return ONLY valid JSON in this exact structure:
 
 {{
@@ -60,11 +75,12 @@ def generate_script(
     target_duration: int = 60,
     audience: str = "general public",
     custom_instructions: Optional[str] = None,
+    research_context: str = "",
 ) -> ContentScript:
-    """Generate a complete content script using Claude."""
+    """Generate a complete content script using Claude, optionally grounded with research."""
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
-    prompt = _build_prompt(topic, content_type, target_duration, audience)
+    prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
     if custom_instructions:
         prompt += f"\n\nAdditional instructions: {custom_instructions}"
 

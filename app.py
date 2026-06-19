@@ -157,6 +157,7 @@ def api_create():
         return jsonify({"error": "Topic is required"}), 400
 
     platforms = data.get("platforms", [])
+    skip_research = data.get("skip_research", False)
     job_id = db.create_job(
         topic=topic,
         format=data.get("format", "short"),
@@ -165,6 +166,7 @@ def api_create():
         voice=data.get("voice") or config.DEFAULT_VOICE,
         style=data.get("style", "fire"),
         privacy=data.get("privacy", "private"),
+        skip_research=skip_research,
     )
 
     params = {
@@ -178,6 +180,7 @@ def api_create():
         "custom_instructions": data.get("instructions"),
         "dry_run": data.get("dry_run", False),
         "cleanup": data.get("cleanup", False),
+        "skip_research": skip_research,
     }
 
     t = threading.Thread(target=_run_job_thread, args=(job_id, params), daemon=True)
@@ -235,6 +238,31 @@ def job_detail(job_id):
     if not job:
         return redirect("/jobs")
     return render_template("job_detail.html", job=job)
+
+
+@app.route("/api/jobs/<int:job_id>/research")
+def get_research(job_id):
+    job = db.get_job(job_id)
+    if not job or not job.get("research_path"):
+        # Try manifest
+        if job and job.get("manifest_path"):
+            try:
+                import json as _json
+                with open(job["manifest_path"]) as f:
+                    m = _json.load(f)
+                rpath = m.get("files", {}).get("research")
+                if rpath:
+                    with open(rpath) as f:
+                        return jsonify(_json.load(f))
+            except Exception:
+                pass
+        return jsonify({"error": "Research not available"}), 404
+    try:
+        import json as _json
+        with open(job["research_path"]) as f:
+            return jsonify(_json.load(f))
+    except Exception:
+        return jsonify({"error": "Could not load research file"}), 404
 
 
 @app.route("/api/jobs/<int:job_id>/download")
@@ -569,6 +597,26 @@ def clear_contacts():
 @app.route("/settings")
 def settings_page():
     return render_template("settings.html")
+
+
+@app.route("/api/research/preview", methods=["POST"])
+def api_research_preview():
+    """Quick research preview — called live as user types a topic."""
+    topic = (request.json or {}).get("topic", "").strip()
+    if not topic or len(topic) < 4:
+        return jsonify({"facts": [], "sources": [], "data_points": []})
+    try:
+        from generators.researcher import research_topic, brief_to_context
+        brief = research_topic(topic)
+        return jsonify({
+            "summary": brief.summary[:400] if brief.summary else "",
+            "key_facts": brief.key_facts[:10],
+            "data_points": brief.data_points[:10],
+            "sources": brief.sources,
+            "related_topics": brief.related_topics[:5],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "facts": [], "sources": [], "data_points": []})
 
 
 @app.route("/api/settings/check")

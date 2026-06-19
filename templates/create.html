@@ -117,6 +117,16 @@
       </div>
     </div>
 
+    <!-- Research Preview -->
+    <div class="card" id="researchPreview" style="display:none;">
+      <div class="flex-between mb-12">
+        <div class="card-title"><span class="accent">🔍</span> Research Found</div>
+        <span class="pill pill-done" id="research-count"></span>
+      </div>
+      <div id="research-facts" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;"></div>
+      <div id="research-sources" class="text-xs text-dim mt-8"></div>
+    </div>
+
     <!-- BLITZ Mode -->
     <div class="card" style="border-color:var(--red);background:var(--red-glow);">
       <div class="card-title mb-8"><span class="accent glow-red">🔥</span> BLITZ Mode</div>
@@ -129,10 +139,16 @@
     <!-- Launch Button -->
     <div class="card">
       <button class="btn btn-primary btn-lg btn-block" onclick="startCreate()" id="launch-btn">
-        🚀 Generate Video
+        🚀 Research &amp; Generate
       </button>
+      <div class="flex-center gap-12 mt-12">
+        <label class="flex-center gap-8" style="cursor:pointer;font-size:13px;color:var(--white-dim);">
+          <input type="checkbox" id="skip_research">
+          Skip research (faster, less factual)
+        </label>
+      </div>
       <div class="text-center text-dim text-xs mt-8">
-        Content will be saved to your output directory
+        Machine auto-researches your topic, then generates script, voiceover, graphics &amp; video
       </div>
     </div>
 
@@ -164,6 +180,7 @@
 let _format = 'short';
 let _style = 'fire';
 let _platforms = new Set();
+let _researchDebounce = null;
 
 function selectFormat(el, fmt) {
   document.querySelectorAll('.format-card[data-format]').forEach(c => c.classList.remove('selected'));
@@ -183,6 +200,64 @@ function togglePlatform(el) {
   else { _platforms.add(p); el.classList.add('selected'); }
 }
 
+// ── Live research preview ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const topicEl = document.getElementById('topic');
+  if (!topicEl) return;
+  topicEl.addEventListener('input', () => {
+    clearTimeout(_researchDebounce);
+    const topic = topicEl.value.trim();
+    if (topic.length < 6) {
+      document.getElementById('researchPreview').style.display = 'none';
+      return;
+    }
+    _researchDebounce = setTimeout(() => fetchResearchPreview(topic), 1200);
+  });
+});
+
+async function fetchResearchPreview(topic) {
+  const preview = document.getElementById('researchPreview');
+  const factsEl = document.getElementById('research-facts');
+  const countEl = document.getElementById('research-count');
+  const srcEl   = document.getElementById('research-sources');
+
+  factsEl.innerHTML = '<div class="text-dim text-sm">Researching...</div>';
+  preview.style.display = 'block';
+
+  try {
+    const resp = await fetch('/api/research/preview', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ topic }),
+    });
+    const data = await resp.json();
+
+    const all = [...(data.data_points || []), ...(data.key_facts || [])];
+    countEl.textContent = `${all.length} facts found`;
+
+    if (data.summary) {
+      factsEl.innerHTML = `<div class="text-sm" style="line-height:1.6;color:var(--white-dim);margin-bottom:8px;">${data.summary}</div>`;
+    } else {
+      factsEl.innerHTML = '';
+    }
+
+    all.slice(0, 8).forEach(f => {
+      const el = document.createElement('div');
+      el.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
+      el.innerHTML = `<span style="color:var(--green);flex-shrink:0;margin-top:2px;">•</span><span class="text-sm" style="line-height:1.5;">${f}</span>`;
+      factsEl.appendChild(el);
+    });
+
+    if (!all.length && !data.summary) {
+      factsEl.innerHTML = '<div class="text-dim text-sm">No structured data found — Claude will use its own knowledge.</div>';
+    }
+
+    srcEl.textContent = data.sources?.length ? 'Sources: ' + data.sources.join(', ') : '';
+  } catch (e) {
+    factsEl.innerHTML = '<div class="text-dim text-sm">Research preview unavailable.</div>';
+  }
+}
+
 async function startCreate() {
   const topic = document.getElementById('topic').value.trim();
   if (!topic) { toast('error', 'Topic Required', 'Please enter a topic.'); return; }
@@ -197,6 +272,7 @@ async function startCreate() {
     privacy: document.getElementById('privacy').value,
     instructions: document.getElementById('instructions').value || null,
     dry_run: document.getElementById('dry_run').checked,
+    skip_research: document.getElementById('skip_research').checked,
   };
 
   await launchJob(payload);

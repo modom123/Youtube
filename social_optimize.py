@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Optional
 import config
 from generators import script_generator, audio_generator, video_generator, media_fetcher, thumbnail_generator
+from generators.researcher import research_topic, brief_to_context
+from generators import graphics_generator
 from publishers import youtube_publisher, tiktok_publisher, instagram_publisher
 from utils import file_manager, logger
 
@@ -63,21 +65,23 @@ def run(
     custom_instructions: str = None,
     dry_run: bool = False,
     cleanup: bool = False,
+    skip_research: bool = False,
 ) -> dict:
     """
-    Full pipeline: topic → script → audio → video → publish.
+    Full pipeline: topic → research → script → audio → video → publish.
 
     Args:
-        topic:               What the content is about
+        topic:               What the content is about (can be anything — it will be researched)
         format:              Content format: short | long | podcast | reel
         platforms:           List of platforms: youtube, tiktok, instagram
         audience:            Target audience description
         voice:               edge-tts voice name
-        thumbnail_style:     Thumbnail color style: fire | ocean | purple | dark | green | sunset
+        thumbnail_style:     Thumbnail color style
         privacy:             Upload privacy: private | unlisted | public
         custom_instructions: Extra instructions for the AI
         dry_run:             Generate content but skip uploading
         cleanup:             Remove stock media files after completion
+        skip_research:       Skip the research phase (faster, but less factually grounded)
 
     Returns:
         Manifest dict with all outputs and publish results
@@ -86,10 +90,10 @@ def run(
     profile = CONTENT_PROFILES.get(format, CONTENT_PROFILES["short"])
     voice = voice or config.DEFAULT_VOICE
 
-    logger.header(f"Social Optimize Machine")
+    logger.header("Social Optimize Machine")
     logger.info(f"Topic: [bold]{topic}[/bold]")
     logger.info(f"Format: {profile['label']}")
-    logger.info(f"Platforms: {', '.join(platforms) if platforms else 'generate only'}")
+    logger.info(f"Platforms: {', '.join(platforms) if platforms else 'generate only (dry run)'}")
 
     # ── 1. Create job directory ──────────────────────────────────────────────
     job = file_manager.job_dir(topic, format)
@@ -105,9 +109,44 @@ def run(
         "job_dir": str(job),
         "files": {},
         "publish_results": {},
+        "research": {},
     }
 
-    # ── 2. Generate script ───────────────────────────────────────────────────
+    # ── 2. Research the topic ────────────────────────────────────────────────
+    research_context = ""
+    brief = None
+    if not skip_research:
+        with logger.spinner(f"Researching '{topic}' from Wikipedia & web..."):
+            try:
+                brief = research_topic(topic)
+                research_context = brief_to_context(brief)
+
+                # Save research to disk
+                research_path = job / "research.json"
+                with open(research_path, "w") as f:
+                    json.dump({
+                        "topic": brief.topic,
+                        "summary": brief.summary,
+                        "key_facts": brief.key_facts,
+                        "data_points": brief.data_points,
+                        "sources": brief.sources,
+                        "related_topics": brief.related_topics,
+                    }, f, indent=2)
+
+                manifest["files"]["research"] = str(research_path)
+                manifest["research"] = {
+                    "sources": brief.sources,
+                    "facts_found": len(brief.key_facts),
+                    "data_points_found": len(brief.data_points),
+                }
+                logger.success(
+                    f"Research complete — {len(brief.key_facts)} facts, "
+                    f"{len(brief.data_points)} data points from {len(brief.sources)} sources"
+                )
+            except Exception as e:
+                logger.warn(f"Research failed ({e}) — continuing without it")
+
+    # ── 3. Generate script ───────────────────────────────────────────────────
     with logger.spinner("Generating script with Claude AI..."):
         script = script_generator.generate_script(
             topic=topic,
@@ -115,6 +154,7 @@ def run(
             target_duration=profile["duration"],
             audience=audience,
             custom_instructions=custom_instructions,
+            research_context=research_context,
         )
 
     script_path = job / "script.json"
@@ -138,7 +178,7 @@ def run(
 
     logger.success(f"Script: {script.title[:60]}")
 
-    # ── 3. Generate audio voiceover ──────────────────────────────────────────
+    # ── 4. Generate audio voiceover ──────────────────────────────────────────
     audio_path = job / "voiceover.mp3"
     with logger.spinner(f"Generating voiceover ({voice})..."):
         audio_generator.generate_audio(
@@ -152,7 +192,7 @@ def run(
     manifest["files"]["audio"] = str(audio_path)
     logger.success(f"Voiceover: {duration:.1f}s ({file_manager.get_file_size_mb(audio_path):.1f} MB)")
 
-    # ── 4. Fetch stock media ─────────────────────────────────────────────────
+    # ── 5. Fetch stock media ─────────────────────────────────────────────────
     with logger.spinner("Fetching stock media from Pexels..."):
         stock_dir = job / "stock"
         video_clips, image_clips = media_fetcher.fetch_media_for_topic(
@@ -165,9 +205,9 @@ def run(
     if video_clips or image_clips:
         logger.success(f"Media: {len(video_clips)} videos, {len(image_clips)} images")
     else:
-        logger.warn("No stock media fetched (check PEXELS_API_KEY). Using color background.")
+        logger.warn("No stock media fetched (check PEXELS_API_KEY). Using gradient background.")
 
-    # ── 5. Generate thumbnail ────────────────────────────────────────────────
+    # ── 6. Generate thumbnail ────────────────────────────────────────────────
     thumbnail_path = job / "thumbnail.jpg"
     bg_image = image_clips[0] if image_clips else None
     with logger.spinner("Generating thumbnail..."):
@@ -183,7 +223,44 @@ def run(
     manifest["files"]["thumbnail"] = str(thumbnail_path)
     logger.success("Thumbnail generated")
 
-    # ── 6. Assemble video ────────────────────────────────────────────────────
+    # ── 6b. Generate content graphics (ranked cards, charts, title card) ────
+    content_graphics = []
+    content_images_dir = job / "graphics"
+    if not skip_research and brief:
+        with logger.spinner("Generating ranked cards, charts, and infographics..."):
+            try:
+                gfx = graphics_generator.generate_content_graphics(
+                    topic=topic,
+                    research_brief=brief,
+                    output_dir=content_images_dir,
+                    width=profile["width"],
+                    height=profile["height"],
+                    bg_images=image_clips[:8],
+                )
+                # Collect all graphic paths: title card first, then rank cards, then chart
+                if gfx.get("title_card"):
+                    content_graphics.append(gfx["title_card"])
+                content_graphics.extend(gfx.get("rank_cards", []))
+                if gfx.get("bar_chart"):
+                    content_graphics.append(gfx["bar_chart"])
+
+                manifest["files"]["graphics_dir"] = str(content_images_dir)
+                manifest["graphics"] = {
+                    "rank_cards": len(gfx.get("rank_cards", [])),
+                    "has_chart": gfx.get("bar_chart") is not None,
+                    "has_title_card": gfx.get("title_card") is not None,
+                }
+                logger.success(
+                    f"Graphics: {len(gfx.get('rank_cards',[]))} rank cards"
+                    + (", bar chart" if gfx.get("bar_chart") else "")
+                )
+            except Exception as e:
+                logger.warn(f"Graphics generation failed ({e}) — using stock media only")
+
+    # Merge custom graphics with stock media (graphics first for impact)
+    all_image_sources = content_graphics + list(image_clips)
+
+    # ── 7. Assemble video ────────────────────────────────────────────────────
     video_path = job / "video.mp4"
     with logger.spinner("Assembling video..."):
         if format == "podcast":
@@ -199,7 +276,7 @@ def run(
                 audio_path=audio_path,
                 output_path=video_path,
                 video_clips=video_clips,
-                image_clips=image_clips,
+                image_clips=all_image_sources,
                 thumbnail_path=thumbnail_path,
                 width=profile["width"],
                 height=profile["height"],
@@ -211,7 +288,7 @@ def run(
     video_mb = file_manager.get_file_size_mb(video_path)
     logger.success(f"Video assembled: {video_mb:.1f} MB")
 
-    # ── 7. Publish ───────────────────────────────────────────────────────────
+    # ── 8. Publish ───────────────────────────────────────────────────────────
     if dry_run:
         logger.warn("Dry run — skipping upload to platforms")
     else:
@@ -244,10 +321,10 @@ def run(
                     logger.success(f"TikTok: {result.get('publish_id')}")
 
                 elif platform == "instagram":
-                    logger.warn("Instagram requires a publicly hosted video URL. Set video_url manually or use a CDN.")
+                    logger.warn("Instagram requires a publicly hosted video URL.")
                     manifest["publish_results"]["instagram"] = {
                         "status": "skipped",
-                        "reason": "Instagram requires public video URL (CDN). Upload manually or host the video first.",
+                        "reason": "Instagram requires a public CDN URL. Upload the video manually or host it first.",
                         "video_path": str(video_path),
                     }
 
@@ -255,7 +332,7 @@ def run(
                 logger.error(f"{platform} upload failed: {e}")
                 manifest["publish_results"][platform] = {"error": str(e)}
 
-    # ── 8. Save manifest ─────────────────────────────────────────────────────
+    # ── 9. Save manifest ─────────────────────────────────────────────────────
     manifest_path = file_manager.save_manifest(job, manifest)
     manifest["files"]["manifest"] = str(manifest_path)
 

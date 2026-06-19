@@ -55,6 +55,7 @@ def init_db():
             voice       TEXT,
             style       TEXT DEFAULT 'fire',
             privacy     TEXT DEFAULT 'private',
+            skip_research INTEGER DEFAULT 0,
             status      TEXT DEFAULT 'pending',
             progress    INTEGER DEFAULT 0,
             current_step TEXT DEFAULT '',
@@ -64,8 +65,10 @@ def init_db():
             audio_path  TEXT,
             thumbnail_path TEXT,
             script_path TEXT,
+            research_path TEXT,
             manifest_path TEXT,
             publish_results TEXT DEFAULT '{}',
+            research_summary TEXT DEFAULT '{}',
             error_msg   TEXT,
             created_at  TEXT DEFAULT (datetime('now')),
             completed_at TEXT
@@ -177,12 +180,12 @@ def delete_contacts(platform=None):
 
 # ── Jobs ─────────────────────────────────────────────────────────────────────
 
-def create_job(topic, format, platforms, audience, voice, style, privacy):
+def create_job(topic, format, platforms, audience, voice, style, privacy, skip_research=False):
     with get_conn() as conn:
         cur = conn.execute("""
-            INSERT INTO jobs (topic, format, platforms, audience, voice, style, privacy)
-            VALUES (?,?,?,?,?,?,?)
-        """, (topic, format, json.dumps(platforms), audience, voice, style, privacy))
+            INSERT INTO jobs (topic, format, platforms, audience, voice, style, privacy, skip_research)
+            VALUES (?,?,?,?,?,?,?,?)
+        """, (topic, format, json.dumps(platforms), audience, voice, style, privacy, int(skip_research)))
         return cur.lastrowid
 
 

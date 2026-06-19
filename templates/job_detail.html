@@ -65,6 +65,51 @@
       </div>
     </div>
 
+    <!-- Research Summary -->
+    {% if job.research and job.research != '{}' %}
+    {% set research = job.research if job.research is mapping else {} %}
+    <div class="card">
+      <div class="card-title mb-12"><span class="accent">🔍</span> Research</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;" class="mb-12">
+        <div style="background:var(--bg-elevated);padding:12px;border-radius:8px;text-align:center;">
+          <div class="text-bold text-green" style="font-size:22px;">{{ research.get('facts_found', 0) }}</div>
+          <div class="text-xs text-dim">Key Facts</div>
+        </div>
+        <div style="background:var(--bg-elevated);padding:12px;border-radius:8px;text-align:center;">
+          <div class="text-bold text-yellow" style="font-size:22px;">{{ research.get('data_points_found', 0) }}</div>
+          <div class="text-xs text-dim">Data Points</div>
+        </div>
+        <div style="background:var(--bg-elevated);padding:12px;border-radius:8px;text-align:center;">
+          <div class="text-bold text-blue" style="font-size:22px;">{{ (research.get('sources') or [])|length }}</div>
+          <div class="text-xs text-dim">Sources</div>
+        </div>
+      </div>
+      {% if research.get('sources') %}
+      <div class="text-xs text-dim">{{ research.get('sources', [])|join(' • ') }}</div>
+      {% endif %}
+      <a href="/api/jobs/{{ job.id }}/research" target="_blank" class="btn btn-ghost btn-sm mt-8">View Raw Research</a>
+    </div>
+    {% endif %}
+
+    <!-- Graphics Summary -->
+    {% if job.graphics and job.graphics != '{}' %}
+    {% set gfx = job.graphics if job.graphics is mapping else {} %}
+    <div class="card">
+      <div class="card-title mb-12"><span class="accent">🎨</span> Generated Graphics</div>
+      <div class="flex gap-12">
+        {% if gfx.get('has_title_card') %}
+        <span class="pill pill-done">✓ Title Card</span>
+        {% endif %}
+        {% if gfx.get('rank_cards', 0) > 0 %}
+        <span class="pill pill-running">{{ gfx.get('rank_cards') }} Rank Cards</span>
+        {% endif %}
+        {% if gfx.get('has_chart') %}
+        <span class="pill pill-pending">✓ Bar Chart</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Script Preview -->
     {% if job.title or job.topic %}
     <div class="card">
