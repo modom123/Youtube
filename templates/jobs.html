@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% set active_page = "jobs" %}
+
+{% block title %}Jobs — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Content Jobs{% endblock %}
+{% block topbar_sub %}All generated content{% endblock %}
+{% block topbar_actions %}
+<a href="/create" class="btn btn-primary">+ New Job</a>
+{% endblock %}
+
+{% block content %}
+
+{% if jobs %}
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Thumbnail</th>
+          <th>Title / Topic</th>
+          <th>Format</th>
+          <th>Duration</th>
+          <th>Status</th>
+          <th>Published</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr>
+          <td class="text-dim text-xs">{{ job.id }}</td>
+          <td>
+            {% if job.status == 'done' and job.thumbnail_path %}
+              <img src="/api/jobs/{{ job.id }}/thumbnail" alt="thumb"
+                   style="width:60px;height:34px;object-fit:cover;border-radius:4px;border:1px solid var(--border);">
+            {% else %}
+              <div style="width:60px;height:34px;background:var(--bg-elevated);border-radius:4px;"></div>
+            {% endif %}
+          </td>
+          <td style="max-width:220px;">
+            <div class="text-bold text-sm">{{ (job.title or job.topic)[:40] }}{% if (job.title or job.topic)|length > 40 %}…{% endif %}</div>
+            <div class="text-xs text-dim">{{ job.topic[:35] if job.title else '' }}</div>
+          </td>
+          <td>
+            <span class="pill
+              {% if job.format == 'short' %}pill-running
+              {% elif job.format == 'long' %}pill-done
+              {% elif job.format == 'podcast' %}pill-pending
+              {% else %}pill-running{% endif %}">
+              {{ job.format }}
+            </span>
+          </td>
+          <td class="text-sm text-dim">
+            {% if job.duration %}{{ "%.0f"|format(job.duration) }}s{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if job.status == 'running' %}
+              <div>
+                <span class="pill pill-running">Running</span>
+                <div class="progress-track mt-4" style="width:80px;">
+                  <div class="progress-bar" style="width:{{ job.progress or 0 }}%"></div>
+                </div>
+              </div>
+            {% elif job.status == 'done' %}
+              <span class="pill pill-done">Done</span>
+            {% elif job.status == 'error' %}
+              <span class="pill pill-error" title="{{ job.error_msg }}">Error</span>
+            {% else %}
+              <span class="pill pill-pending">{{ job.status }}</span>
+            {% endif %}
+          </td>
+          <td class="text-xs">
+            {% if job.publish_results %}
+              {% for p in job.publish_results.keys() %}
+                <span class="platform-tag {{ p }}">{{ p }}</span>
+              {% endfor %}
+            {% else %}
+              <span class="text-dim">—</span>
+            {% endif %}
+          </td>
+          <td class="text-xs text-dim">{{ job.created_at[:16].replace('T',' ') }}</td>
+          <td>
+            <div class="flex gap-8">
+              <a href="/jobs/{{ job.id }}" class="btn btn-ghost btn-sm">View</a>
+              {% if job.status == 'done' and job.video_path %}
+              <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-sm">⬇</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <div class="empty-title">No jobs yet</div>
+    <div class="empty-sub">Create your first video to see it here</div>
+    <a href="/create" class="btn btn-primary">Create Video</a>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

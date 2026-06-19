@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% set active_page = "settings" %}
+
+{% block title %}Settings — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Settings{% endblock %}
+{% block topbar_sub %}API keys and configuration{% endblock %}
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="align-items:start;">
+
+  <!-- API Status -->
+  <div class="card">
+    <div class="card-title mb-16"><span class="accent">🔑</span> API Key Status</div>
+    <div id="api-check-grid" style="display:flex;flex-direction:column;gap:12px;">
+      <div class="text-dim text-sm">Checking...</div>
+    </div>
+    <hr class="divider">
+    <div class="text-dim text-sm">
+      Edit your <code style="background:var(--bg-elevated);padding:2px 6px;border-radius:4px;">.env</code> file
+      in the project directory to configure API keys.
+    </div>
+  </div>
+
+  <!-- Voice Preview -->
+  <div class="card">
+    <div class="card-title mb-16"><span class="accent">🎙️</span> Default Settings</div>
+    <div class="form-group">
+      <label>Default Voice</label>
+      <select id="def-voice">
+        <option>en-US-AriaNeural</option>
+        <option>en-US-GuyNeural</option>
+        <option>en-US-JennyNeural</option>
+        <option>en-US-DavisNeural</option>
+        <option>en-GB-SoniaNeural</option>
+        <option>en-AU-NatashaNeural</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Default Privacy</label>
+      <select id="def-privacy">
+        <option value="private">Private</option>
+        <option value="unlisted">Unlisted</option>
+        <option value="public">Public</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Setup Guide -->
+  <div class="card" style="grid-column:1/-1;">
+    <div class="card-title mb-16"><span class="accent">📖</span> Quick Setup Guide</div>
+    <div class="grid-3">
+      <div class="card" style="background:var(--bg-elevated);">
+        <div style="font-size:24px;margin-bottom:8px;">🤖</div>
+        <div class="text-bold mb-4">1. Anthropic API</div>
+        <div class="text-dim text-sm mb-12">Required for AI script generation using Claude.</div>
+        <div class="text-xs">
+          1. Go to <strong>console.anthropic.com</strong><br>
+          2. Create an API key<br>
+          3. Add to <code>.env</code>: <code>ANTHROPIC_API_KEY=sk-ant-...</code>
+        </div>
+      </div>
+      <div class="card" style="background:var(--bg-elevated);">
+        <div style="font-size:24px;margin-bottom:8px;">🖼️</div>
+        <div class="text-bold mb-4">2. Pexels API</div>
+        <div class="text-dim text-sm mb-12">Free stock photos and videos for your content.</div>
+        <div class="text-xs">
+          1. Go to <strong>pexels.com/api</strong><br>
+          2. Create free account<br>
+          3. Add to <code>.env</code>: <code>PEXELS_API_KEY=...</code>
+        </div>
+      </div>
+      <div class="card" style="background:var(--bg-elevated);">
+        <div style="font-size:24px;margin-bottom:8px;">▶️</div>
+        <div class="text-bold mb-4">3. YouTube</div>
+        <div class="text-dim text-sm mb-12">Upload videos and Shorts to your channel.</div>
+        <div class="text-xs">
+          1. <strong>console.cloud.google.com</strong><br>
+          2. Enable YouTube Data API v3<br>
+          3. Create OAuth 2.0 credentials<br>
+          4. Add Client ID + Secret to <code>.env</code>
+        </div>
+      </div>
+      <div class="card" style="background:var(--bg-elevated);">
+        <div style="font-size:24px;margin-bottom:8px;">🎵</div>
+        <div class="text-bold mb-4">4. TikTok</div>
+        <div class="text-dim text-sm mb-12">Post videos directly to TikTok.</div>
+        <div class="text-xs">
+          1. <strong>developers.tiktok.com</strong><br>
+          2. Create an app<br>
+          3. Apply for Content Posting API<br>
+          4. Add Client Key + Secret to <code>.env</code>
+        </div>
+      </div>
+      <div class="card" style="background:var(--bg-elevated);">
+        <div style="font-size:24px;margin-bottom:8px;">📸</div>
+        <div class="text-bold mb-4">5. Instagram</div>
+        <div class="text-dim text-sm mb-12">Publish Reels to your Instagram account.</div>
+        <div class="text-xs">
+          1. <strong>developers.facebook.com</strong><br>
+          2. Create Meta App<br>
+          3. Add Instagram Basic Display<br>
+          4. Generate long-lived access token<br>
+          5. Connect via Accounts → Instagram
+        </div>
+      </div>
+      <div class="card" style="background:var(--bg-elevated);">
+        <div style="font-size:24px;margin-bottom:8px;">📁</div>
+        <div class="text-bold mb-4">6. Output Files</div>
+        <div class="text-dim text-sm mb-12">All generated content is saved locally.</div>
+        <div class="text-xs">
+          Output folder: <code>./output/</code><br><br>
+          Each job creates a folder with:<br>
+          • script.json (full AI script)<br>
+          • voiceover.mp3<br>
+          • thumbnail.jpg<br>
+          • video.mp4 (final)<br>
+          • manifest.json
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(async () => {
+  const resp = await fetch('/api/settings/check');
+  const data = await resp.json();
+  const labels = {
+    anthropic: ['🤖 Anthropic AI', 'Required for scripts'],
+    pexels:    ['🖼️ Pexels Media', 'Free stock media'],
+    youtube:   ['▶️ YouTube', 'For uploading videos'],
+    tiktok:    ['🎵 TikTok', 'For posting videos'],
+    instagram: ['📸 Instagram', 'For Reels'],
+  };
+  const grid = document.getElementById('api-check-grid');
+  grid.innerHTML = '';
+  for (const [key, ok] of Object.entries(data)) {
+    const [label, hint] = labels[key] || [key, ''];
+    grid.innerHTML += `
+      <div class="flex-between" style="padding:10px;background:var(--bg-elevated);border-radius:8px;border:1px solid var(--border);">
+        <div>
+          <div class="text-sm text-bold">${label}</div>
+          <div class="text-xs text-dim">${hint}</div>
+        </div>
+        <span class="pill ${ok ? 'pill-done' : 'pill-error'}">${ok ? '✓ Configured' : '✗ Missing'}</span>
+      </div>`;
+  }
+})();
+</script>
+{% endblock %}

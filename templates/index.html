@@ -1,0 +1,293 @@
+{% extends "base.html" %}
+{% set active_page = "dashboard" %}
+
+{% block title %}Dashboard — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Command Center{% endblock %}
+{% block topbar_sub %}Your daily content hub{% endblock %}
+
+{% block content %}
+
+<!-- Stats Row -->
+<div class="stats-grid">
+  <div class="stat-card red-accent">
+    <div class="stat-icon">🎬</div>
+    <div class="stat-label">Total Jobs</div>
+    <div class="stat-value red">{{ stats.total_jobs }}</div>
+    <div class="stat-sub">content pieces created</div>
+  </div>
+  <div class="stat-card green-accent">
+    <div class="stat-icon">✅</div>
+    <div class="stat-label">Completed</div>
+    <div class="stat-value green">{{ stats.completed_jobs }}</div>
+    <div class="stat-sub">successfully published</div>
+  </div>
+  <div class="stat-card yellow-accent">
+    <div class="stat-icon">👥</div>
+    <div class="stat-label">Contacts</div>
+    <div class="stat-value yellow">{{ stats.contacts }}</div>
+    <div class="stat-sub">imported across platforms</div>
+  </div>
+  <div class="stat-card blue-accent">
+    <div class="stat-icon">🔗</div>
+    <div class="stat-label">Accounts</div>
+    <div class="stat-value blue">{{ stats.accounts }}</div>
+    <div class="stat-sub">social accounts connected</div>
+  </div>
+</div>
+
+<!-- Quick Create + Recent Jobs -->
+<div class="grid-2">
+
+  <!-- Quick Create Panel -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="accent">⚡</span> Quick Create</div>
+    </div>
+
+    <div class="form-group">
+      <label>Topic / Idea</label>
+      <input type="text" id="quick-topic" placeholder="e.g. 5 habits that changed my life..." />
+    </div>
+
+    <div class="format-grid mb-16">
+      <div class="format-card selected" data-format="short" onclick="selectFormat(this,'short')">
+        <div class="format-name">Short / TikTok</div>
+        <div class="format-desc">~55 sec vertical</div>
+        <span class="format-badge badge-red">9:16</span>
+      </div>
+      <div class="format-card" data-format="long" onclick="selectFormat(this,'long')">
+        <div class="format-name">Long Video</div>
+        <div class="format-desc">~8 min landscape</div>
+        <span class="format-badge badge-blue">16:9</span>
+      </div>
+      <div class="format-card" data-format="podcast" onclick="selectFormat(this,'podcast')">
+        <div class="format-name">Podcast</div>
+        <div class="format-desc">~10 min audio+visual</div>
+        <span class="format-badge badge-green">16:9</span>
+      </div>
+      <div class="format-card" data-format="reel" onclick="selectFormat(this,'reel')">
+        <div class="format-name">Instagram Reel</div>
+        <div class="format-desc">~30 sec vertical</div>
+        <span class="format-badge badge-yellow">9:16</span>
+      </div>
+    </div>
+
+    <div class="platform-grid mb-16">
+      <div class="platform-card youtube" data-platform="youtube" onclick="togglePlatform(this)">
+        <div class="platform-icon">▶️</div>
+        <div class="platform-name">YouTube</div>
+      </div>
+      <div class="platform-card tiktok" data-platform="tiktok" onclick="togglePlatform(this)">
+        <div class="platform-icon">🎵</div>
+        <div class="platform-name">TikTok</div>
+      </div>
+      <div class="platform-card instagram" data-platform="instagram" onclick="togglePlatform(this)">
+        <div class="platform-icon">📸</div>
+        <div class="platform-name">Instagram</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-lg btn-block" onclick="quickCreate()">
+      🚀 Generate Now
+    </button>
+
+    <!-- Progress Panel -->
+    <div class="job-progress-panel" id="quickProgress">
+      <div class="flex-between mb-16">
+        <div class="text-bold" id="qp-title">Generating...</div>
+        <div class="pill pill-running" id="qp-status">Running</div>
+      </div>
+      <div class="progress-track">
+        <div class="progress-bar" id="qp-bar" style="width:0%"></div>
+      </div>
+      <div class="text-sm text-dim mt-8" id="qp-step">Starting...</div>
+      <div class="job-log" id="qp-log"></div>
+      <div class="flex gap-12 mt-12" id="qp-actions" style="display:none!important">
+        <a href="#" class="btn btn-green btn-sm" id="qp-download">⬇ Download</a>
+        <a href="#" class="btn btn-secondary btn-sm" id="qp-detail">View Details</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Jobs -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="accent">📋</span> Recent Jobs</div>
+      <a href="/jobs" class="btn btn-ghost btn-sm">View All</a>
+    </div>
+
+    {% if recent_jobs %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Topic</th>
+            <th>Format</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in recent_jobs %}
+          <tr>
+            <td>
+              <div class="text-bold text-sm">{{ (job.title or job.topic)[:35] }}{% if (job.title or job.topic)|length > 35 %}…{% endif %}</div>
+              <div class="text-xs text-dim">{{ job.created_at[:16].replace('T',' ') }}</div>
+            </td>
+            <td>
+              <span class="pill
+                {% if job.format == 'short' %}pill-running
+                {% elif job.format == 'podcast' %}pill-done
+                {% else %}pill-pending{% endif %}">
+                {{ job.format }}
+              </span>
+            </td>
+            <td>
+              <span class="pill
+                {% if job.status == 'done' %}pill-done
+                {% elif job.status == 'running' %}pill-running
+                {% elif job.status == 'error' %}pill-error
+                {% else %}pill-pending{% endif %}">
+                {{ job.status }}
+              </span>
+            </td>
+            <td>
+              <a href="/jobs/{{ job.id }}" class="btn btn-ghost btn-sm">→</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">🎬</div>
+      <div class="empty-title">No jobs yet</div>
+      <div class="empty-sub">Create your first video above!</div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Connected Accounts Summary -->
+<div class="card mt-24">
+  <div class="card-header">
+    <div class="card-title"><span class="accent">🔗</span> Connected Accounts</div>
+    <a href="/accounts" class="btn btn-ghost btn-sm">Manage</a>
+  </div>
+
+  {% if accounts %}
+  <div class="accounts-grid">
+    {% for acc in accounts %}
+    <div class="account-card {{ acc.platform }}">
+      <div class="account-avatar">
+        {% if acc.avatar_url %}
+          <img src="{{ acc.avatar_url }}" alt="{{ acc.username }}">
+        {% else %}
+          {{ {'youtube':'▶️','tiktok':'🎵','instagram':'📸'}.get(acc.platform,'🔗') }}
+        {% endif %}
+      </div>
+      <div class="account-name">{{ acc.display_name or acc.username }}</div>
+      <div class="account-handle text-dim">@{{ acc.username }} · {{ acc.platform }}</div>
+      <div class="account-stats">
+        <div>
+          <div class="account-stat-val">{{ "{:,}".format(acc.followers) }}</div>
+          <div class="account-stat-label text-xs">Followers</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">🔗</div>
+    <div class="empty-title">No accounts connected</div>
+    <div class="empty-sub">Connect your social accounts to start publishing</div>
+    <a href="/accounts" class="btn btn-primary">Connect Accounts</a>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _quickFormat = 'short';
+let _quickPlatforms = new Set();
+
+function selectFormat(el, fmt) {
+  document.querySelectorAll('.format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _quickFormat = fmt;
+}
+
+function togglePlatform(el) {
+  const p = el.dataset.platform;
+  if (_quickPlatforms.has(p)) {
+    _quickPlatforms.delete(p);
+    el.classList.remove('selected');
+  } else {
+    _quickPlatforms.add(p);
+    el.classList.add('selected');
+  }
+}
+
+async function quickCreate() {
+  const topic = document.getElementById('quick-topic').value.trim();
+  if (!topic) { toast('error', 'Topic required', 'Enter a topic to create content about.'); return; }
+
+  const panel = document.getElementById('quickProgress');
+  panel.style.display = 'block';
+  document.getElementById('qp-bar').style.width = '5%';
+  document.getElementById('qp-step').textContent = 'Starting...';
+  document.getElementById('qp-status').className = 'pill pill-running';
+  document.getElementById('qp-status').textContent = 'Running';
+  document.getElementById('qp-actions').style.setProperty('display','none','important');
+
+  const resp = await fetch('/api/create', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      topic, format: _quickFormat,
+      platforms: Array.from(_quickPlatforms),
+      dry_run: _quickPlatforms.size === 0,
+    })
+  });
+  const { job_id } = await resp.json();
+
+  const es = new EventSource(`/api/job/${job_id}/stream`);
+  const log = document.getElementById('qp-log');
+
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    if (d.progress) document.getElementById('qp-bar').style.width = d.progress + '%';
+    if (d.step) document.getElementById('qp-step').textContent = d.step;
+    if (d.log) {
+      const line = document.createElement('span');
+      line.className = 'log-line ' + (d.log.startsWith('✓') ? 'log-success' : d.log.startsWith('⚠') ? 'log-warn' : '');
+      line.textContent = d.log;
+      log.appendChild(line);
+      log.scrollTop = log.scrollHeight;
+    }
+    if (d.status === 'done') {
+      es.close();
+      document.getElementById('qp-status').className = 'pill pill-done';
+      document.getElementById('qp-status').textContent = 'Done!';
+      document.getElementById('qp-bar').className = 'progress-bar green';
+      const acts = document.getElementById('qp-actions');
+      acts.style.removeProperty('display');
+      document.getElementById('qp-download').href = `/api/jobs/${job_id}/download`;
+      document.getElementById('qp-detail').href = `/jobs/${job_id}`;
+      toast('success', 'Video Ready!', d.title || topic);
+    }
+    if (d.status === 'error') {
+      es.close();
+      document.getElementById('qp-status').className = 'pill pill-error';
+      document.getElementById('qp-status').textContent = 'Error';
+      toast('error', 'Job Failed', d.step);
+    }
+  };
+}
+</script>
+{% endblock %}

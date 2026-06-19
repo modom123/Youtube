@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Social Optimize Machine{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Sidebar ─────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎬</div>
+      <div class="logo-text">
+        <span class="red">Social Optimize</span>
+        <span class="dim">Command Center</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <span class="sidebar-section-label">Main</span>
+      <a href="/" class="nav-item {% if active_page=='dashboard' %}active{% endif %}">
+        <span class="icon">⚡</span> Dashboard
+      </a>
+      <a href="/create" class="nav-item {% if active_page=='create' %}active{% endif %}">
+        <span class="icon">🚀</span> Create Content
+      </a>
+      <a href="/jobs" class="nav-item {% if active_page=='jobs' %}active{% endif %}">
+        <span class="icon">📋</span> Jobs
+      </a>
+
+      <span class="sidebar-section-label">Publishing</span>
+      <a href="/accounts" class="nav-item {% if active_page=='accounts' %}active{% endif %}">
+        <span class="icon">🔗</span> Social Accounts
+      </a>
+      <a href="/contacts" class="nav-item {% if active_page=='contacts' %}active{% endif %}">
+        <span class="icon">👥</span> Contacts
+      </a>
+
+      <span class="sidebar-section-label">System</span>
+      <a href="/settings" class="nav-item {% if active_page=='settings' %}active{% endif %}">
+        <span class="icon">⚙️</span> Settings
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="api-status" id="sidebar-api-status">
+        <span class="status-dot" id="api-dot"></span>
+        <span id="api-status-text">Checking...</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ────────────────────────────────── -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="topbar-title">{% block topbar_title %}Dashboard{% endblock %}</div>
+        <div class="topbar-sub">{% block topbar_sub %}{% endblock %}</div>
+      </div>
+      <div class="topbar-actions">
+        {% block topbar_actions %}
+        <a href="/create" class="btn btn-primary">
+          <span>🚀</span> Create Video
+        </a>
+        {% endblock %}
+      </div>
+    </header>
+
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="/static/js/app.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

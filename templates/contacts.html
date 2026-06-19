@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% set active_page = "contacts" %}
+
+{% block title %}Contacts — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Contacts{% endblock %}
+{% block topbar_sub %}Import and manage your audience contacts{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-secondary" onclick="openModal('importModal')">📥 Import Contacts</button>
+<button class="btn btn-primary" onclick="openModal('addModal')">+ Add Contact</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Import Methods -->
+<div class="grid-3 mb-24">
+  <div class="card" style="cursor:pointer;border-color:var(--green);" onclick="openTab('csv')">
+    <div class="text-center">
+      <div style="font-size:32px;margin-bottom:10px;">📊</div>
+      <div class="text-bold">CSV Import</div>
+      <div class="text-dim text-sm mt-4">From Google Contacts,<br>spreadsheets, CRMs</div>
+      <div class="btn btn-green btn-sm mt-12">Import CSV</div>
+    </div>
+  </div>
+  <div class="card" style="cursor:pointer;border-color:var(--blue);" onclick="openTab('vcf')">
+    <div class="text-center">
+      <div style="font-size:32px;margin-bottom:10px;">📱</div>
+      <div class="text-bold">Phone Contacts</div>
+      <div class="text-dim text-sm mt-4">vCard (.vcf) from iPhone,<br>Android, or Google</div>
+      <div class="btn btn-blue btn-sm mt-12">Import vCard</div>
+    </div>
+  </div>
+  <div class="card" style="cursor:pointer;border-color:var(--yellow);" onclick="openTab('social')">
+    <div class="text-center">
+      <div style="font-size:32px;margin-bottom:10px;">🌐</div>
+      <div class="text-bold">Social Import</div>
+      <div class="text-dim text-sm mt-4">Paste handles from<br>TikTok, YouTube, Instagram</div>
+      <div class="btn btn-yellow btn-sm mt-12">Import Social</div>
+    </div>
+  </div>
+</div>
+
+<!-- Stats + Filters -->
+<div class="flex-between mb-16">
+  <div class="section-title">
+    <span class="accent">{{ total }}</span> Contacts
+  </div>
+  <div class="filter-bar" style="margin:0;">
+    <a href="/contacts" class="filter-chip {% if not active_platform %}active{% endif %}">All</a>
+    {% for p in platforms %}
+    <a href="/contacts?platform={{ p }}{% if search %}&q={{ search }}{% endif %}"
+       class="filter-chip {% if active_platform == p %}active{% endif %}">
+       {{ {'youtube':'▶️','tiktok':'🎵','instagram':'📸','phone':'📱','other':'🔗'}.get(p,'') }} {{ p.title() }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Search -->
+<div class="flex gap-12 mb-16">
+  <div style="flex:1;position:relative;">
+    <input type="search" id="search-input" placeholder="🔍 Search contacts..."
+      value="{{ search or '' }}" onkeydown="if(event.key==='Enter')doSearch()">
+  </div>
+  <button class="btn btn-secondary" onclick="doSearch()">Search</button>
+  {% if search %}
+  <a href="/contacts{% if active_platform %}?platform={{ active_platform }}{% endif %}" class="btn btn-ghost">Clear</a>
+  {% endif %}
+  {% if contacts %}
+  <button class="btn btn-danger btn-sm" onclick="clearContacts()">🗑 Clear {{ active_platform or 'All' }}</button>
+  {% endif %}
+</div>
+
+<!-- Contacts Grid -->
+{% if contacts %}
+<div class="contacts-grid" id="contactsGrid">
+  {% for c in contacts %}
+  <div class="contact-card">
+    <div class="flex-center gap-12 mb-8">
+      <div class="contact-avatar" style="background:{{ loop.cycle('var(--red-glow)','var(--green-dim)','var(--blue-dim)','var(--yellow-dim)') }};">
+        {{ c.name[0].upper() }}
+      </div>
+      <div>
+        <div class="contact-name">{{ c.name[:22] }}{% if c.name|length > 22 %}…{% endif %}</div>
+        {% if c.handle %}
+        <div class="contact-handle">@{{ c.handle }}</div>
+        {% elif c.email %}
+        <div class="contact-handle">{{ c.email[:22] }}</div>
+        {% endif %}
+      </div>
+    </div>
+    {% if c.phone %}
+    <div class="text-xs text-dim">📞 {{ c.phone }}</div>
+    {% endif %}
+    {% if c.followers %}
+    <div class="text-xs text-green mt-4">{{ "{:,}".format(c.followers) }} followers</div>
+    {% endif %}
+    <div class="mt-8">
+      <span class="platform-tag {{ c.platform }}">
+        {{ {'youtube':'▶️','tiktok':'🎵','instagram':'📸','phone':'📱','other':'🔗'}.get(c.platform,'🔗') }}
+        {{ c.platform }}
+      </span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">👥</div>
+    <div class="empty-title">No contacts{% if search %} matching "{{ search }}"{% elif active_platform %} from {{ active_platform }}{% endif %}</div>
+    <div class="empty-sub">Import contacts from CSV, vCard, or social media above</div>
+    <button class="btn btn-primary" onclick="openModal('importModal')">📥 Import Contacts</button>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Import Modal ─────────────────────────────────────── -->
+<div class="modal-overlay" id="importModal" style="display:none;" onclick="closeModalOutside(event,'importModal')">
+  <div class="modal" style="max-width:560px;">
+    <button class="modal-close" onclick="closeModal('importModal')">✕</button>
+    <div class="modal-title">📥 Import Contacts</div>
+
+    <!-- Tabs -->
+    <div class="flex gap-8 mb-20" id="import-tabs">
+      <button class="btn btn-primary btn-sm" onclick="showTab('csv')" data-tab="csv">CSV File</button>
+      <button class="btn btn-ghost btn-sm" onclick="showTab('vcf')" data-tab="vcf">Phone vCard</button>
+      <button class="btn btn-ghost btn-sm" onclick="showTab('social')" data-tab="social">Social Handles</button>
+    </div>
+
+    <!-- CSV Tab -->
+    <div id="tab-csv">
+      <div class="form-group">
+        <label>Platform Tag</label>
+        <select id="csv-platform">
+          <option value="other">Other / Generic</option>
+          <option value="youtube">YouTube</option>
+          <option value="tiktok">TikTok</option>
+          <option value="instagram">Instagram</option>
+          <option value="phone">Phone</option>
+        </select>
+      </div>
+      <div class="drop-zone" id="csv-drop" onclick="document.getElementById('csv-file').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleDrop(event,'csv')">
+        <div class="drop-icon">📊</div>
+        <div class="drop-text">Drop CSV file here or click to browse</div>
+        <div class="drop-sub">Columns: name, email, phone, handle, platform</div>
+      </div>
+      <input type="file" id="csv-file" accept=".csv,.txt" style="display:none" onchange="uploadCSV(this)">
+      <div class="text-xs text-dim mt-8">Also supports Google Contacts, Apple Contacts CSV exports</div>
+    </div>
+
+    <!-- VCF Tab -->
+    <div id="tab-vcf" style="display:none;">
+      <div class="drop-zone" id="vcf-drop" onclick="document.getElementById('vcf-file').click()"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleDrop(event,'vcf')">
+        <div class="drop-icon">📱</div>
+        <div class="drop-text">Drop .vcf file here or click to browse</div>
+        <div class="drop-sub">Export from iPhone: Contacts App → Share All → AirDrop to Mac</div>
+      </div>
+      <input type="file" id="vcf-file" accept=".vcf,.vcard" style="display:none" onchange="uploadVCF(this)">
+      <div class="text-xs text-dim mt-8">
+        <strong>How to export phone contacts:</strong><br>
+        📱 <strong>iPhone:</strong> Contacts → select all → Share → vCard<br>
+        🤖 <strong>Android:</strong> Contacts → Export → .vcf<br>
+        🌐 <strong>Google:</strong> contacts.google.com → Export → vCard
+      </div>
+    </div>
+
+    <!-- Social Tab -->
+    <div id="tab-social" style="display:none;">
+      <div class="form-group">
+        <label>Platform</label>
+        <select id="social-platform">
+          <option value="youtube">YouTube</option>
+          <option value="tiktok">TikTok</option>
+          <option value="instagram">Instagram</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Paste usernames / handles (one per line)</label>
+        <textarea id="social-handles" rows="8" placeholder="@username1&#10;@username2&#10;creator_name&#10;another_creator"></textarea>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="importSocialHandles()">Import Handles</button>
+    </div>
+
+    <div id="import-result" class="mt-12" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- Add Contact Modal -->
+<div class="modal-overlay" id="addModal" style="display:none;" onclick="closeModalOutside(event,'addModal')">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('addModal')">✕</button>
+    <div class="modal-title">+ Add Contact</div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Name *</label>
+        <input type="text" id="add-name" placeholder="Full name">
+      </div>
+      <div class="form-group">
+        <label>Handle</label>
+        <input type="text" id="add-handle" placeholder="@username">
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="add-email" placeholder="email@example.com">
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="text" id="add-phone" placeholder="+1 555 000 0000">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Platform</label>
+      <select id="add-platform">
+        <option value="other">Other</option>
+        <option value="youtube">YouTube</option>
+        <option value="tiktok">TikTok</option>
+        <option value="instagram">Instagram</option>
+        <option value="phone">Phone</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="addSingleContact()">Add Contact</button>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  const platform = '{{ active_platform or "" }}';
+  let url = '/contacts';
+  const params = [];
+  if (q) params.push('q=' + encodeURIComponent(q));
+  if (platform) params.push('platform=' + platform);
+  if (params.length) url += '?' + params.join('&');
+  location.href = url;
+}
+
+function openTab(t) { openModal('importModal'); showTab(t); }
+
+function showTab(t) {
+  ['csv','vcf','social'].forEach(tab => {
+    document.getElementById('tab-' + tab).style.display = tab === t ? '' : 'none';
+    const btn = document.querySelector(`[data-tab="${tab}"]`);
+    if (btn) btn.className = tab === t ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  });
+}
+
+function handleDrop(e, type) {
+  e.preventDefault();
+  document.getElementById(`${type}-drop`).classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const fake = { files: [file] };
+  if (type === 'csv') uploadCSV({ files: [file] });
+  else uploadVCF({ files: [file] });
+}
+
+async function uploadCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const platform = document.getElementById('csv-platform').value;
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('platform', platform);
+
+  const resp = await fetch('/api/contacts/import/csv', { method: 'POST', body: fd });
+  const data = await resp.json();
+  showImportResult(data.imported, data.error);
+}
+
+async function uploadVCF(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const resp = await fetch('/api/contacts/import/vcf', { method: 'POST', body: fd });
+  const data = await resp.json();
+  showImportResult(data.imported, data.error);
+}
+
+async function importSocialHandles() {
+  const platform = document.getElementById('social-platform').value;
+  const raw = document.getElementById('social-handles').value;
+  const contacts = raw.split('\n').map(line => line.trim().replace(/^@/, '')).filter(Boolean).map(h => ({
+    name: h, handle: h, platform, email: '', phone: '', followers: 0, tags: [],
+  }));
+  if (!contacts.length) { toast('error', 'No handles found'); return; }
+
+  const resp = await fetch('/api/contacts/import/manual', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ contacts }),
+  });
+  const data = await resp.json();
+  showImportResult(data.imported, data.error);
+}
+
+function showImportResult(count, err) {
+  const el = document.getElementById('import-result');
+  el.style.display = '';
+  if (err) {
+    el.innerHTML = `<div class="pill pill-error">Error: ${err}</div>`;
+    toast('error', 'Import Failed', err);
+  } else {
+    el.innerHTML = `<div class="pill pill-done">✓ Imported ${count} contacts</div>`;
+    toast('success', 'Contacts Imported', `${count} contacts added successfully`);
+    setTimeout(() => { closeModal('importModal'); location.reload(); }, 1500);
+  }
+}
+
+async function addSingleContact() {
+  const name = document.getElementById('add-name').value.trim();
+  if (!name) { toast('error', 'Name required'); return; }
+  const resp = await fetch('/api/contacts/import/manual', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ contacts: [{
+      name,
+      handle: document.getElementById('add-handle').value.replace('@','').trim(),
+      email: document.getElementById('add-email').value.trim(),
+      phone: document.getElementById('add-phone').value.trim(),
+      platform: document.getElementById('add-platform').value,
+      followers: 0, tags: [],
+    }]}),
+  });
+  if (resp.ok) {
+    toast('success', 'Contact Added', name);
+    closeModal('addModal');
+    setTimeout(() => location.reload(), 800);
+  }
+}
+
+async function clearContacts() {
+  const platform = '{{ active_platform or "" }}';
+  const msg = platform ? `Clear all ${platform} contacts?` : 'Clear ALL contacts? This cannot be undone.';
+  if (!confirm(msg)) return;
+  await fetch('/api/contacts/clear', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ platform: platform || null }),
+  });
+  toast('success', 'Contacts Cleared');
+  setTimeout(() => location.reload(), 800);
+}
+</script>
+{% endblock %}

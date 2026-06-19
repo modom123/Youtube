@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% set active_page = "create" %}
+
+{% block title %}Create Content — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Create Content{% endblock %}
+{% block topbar_sub %}Generate and publish a complete video package{% endblock %}
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="align-items:start;">
+
+  <!-- ── Left: Configuration ──────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Topic -->
+    <div class="card">
+      <div class="card-title mb-16"><span class="accent">✏️</span> Content Topic</div>
+      <div class="form-group">
+        <label>What is your content about?</label>
+        <textarea id="topic" rows="3" placeholder="e.g. 10 mindset shifts that made me a millionaire…&#10;Be specific — the AI will craft a complete script from this."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Target Audience</label>
+        <input type="text" id="audience" value="general public" placeholder="e.g. beginner investors aged 25-40">
+      </div>
+      <div class="form-group">
+        <label>Extra Instructions <span class="text-dim text-xs">(optional)</span></label>
+        <input type="text" id="instructions" placeholder="e.g. use humor, focus on practical tips, mention statistics">
+      </div>
+    </div>
+
+    <!-- Format -->
+    <div class="card">
+      <div class="card-title mb-16"><span class="accent">📐</span> Content Format</div>
+      <div class="format-grid">
+        <div class="format-card selected" data-format="short" onclick="selectFormat(this,'short')">
+          <div class="format-name">Short / TikTok</div>
+          <div class="format-desc">Viral short-form video · 55 seconds</div>
+          <span class="format-badge badge-red">9:16 Portrait</span>
+        </div>
+        <div class="format-card" data-format="reel" onclick="selectFormat(this,'reel')">
+          <div class="format-name">Instagram Reel</div>
+          <div class="format-desc">Trend-aware reel · 30 seconds</div>
+          <span class="format-badge badge-yellow">9:16 Portrait</span>
+        </div>
+        <div class="format-card" data-format="long" onclick="selectFormat(this,'long')">
+          <div class="format-name">Long-Form Video</div>
+          <div class="format-desc">Deep-dive YouTube video · 8 minutes</div>
+          <span class="format-badge badge-blue">16:9 Landscape</span>
+        </div>
+        <div class="format-card" data-format="podcast" onclick="selectFormat(this,'podcast')">
+          <div class="format-name">Podcast Episode</div>
+          <div class="format-desc">Conversational audio+visual · 10 min</div>
+          <span class="format-badge badge-green">16:9 Landscape</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Publishing -->
+    <div class="card">
+      <div class="card-title mb-16"><span class="accent">📡</span> Publish To</div>
+      <div class="platform-grid">
+        <div class="platform-card youtube" data-platform="youtube" onclick="togglePlatform(this)">
+          <div class="platform-icon">▶️</div>
+          <div class="platform-name">YouTube</div>
+        </div>
+        <div class="platform-card tiktok" data-platform="tiktok" onclick="togglePlatform(this)">
+          <div class="platform-icon">🎵</div>
+          <div class="platform-name">TikTok</div>
+        </div>
+        <div class="platform-card instagram" data-platform="instagram" onclick="togglePlatform(this)">
+          <div class="platform-icon">📸</div>
+          <div class="platform-name">Instagram</div>
+        </div>
+      </div>
+      <div class="form-group mt-16">
+        <label>Privacy</label>
+        <select id="privacy">
+          <option value="private">🔒 Private (safe for testing)</option>
+          <option value="unlisted">🔗 Unlisted</option>
+          <option value="public">🌍 Public</option>
+        </select>
+      </div>
+      <label class="flex-center gap-8 mt-8" style="cursor:pointer;">
+        <input type="checkbox" id="dry_run"> Generate only — skip uploading (dry run)
+      </label>
+    </div>
+
+  </div>
+
+  <!-- ── Right: Advanced Options + Launch ─────────────── -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Voice & Style -->
+    <div class="card">
+      <div class="card-title mb-16"><span class="accent">🎙️</span> Voice & Style</div>
+      <div class="form-group">
+        <label>Narrator Voice</label>
+        <select id="voice">
+          {% for v in voices %}
+          <option value="{{ v }}" {% if v == 'en-US-AriaNeural' %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-hint">Using Microsoft Edge TTS — 30+ natural voices available</div>
+      </div>
+      <div class="form-group">
+        <label>Thumbnail Style</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="style-grid">
+          {% for s, colors in [('fire','🔴🟠'),('ocean','🔵💧'),('purple','🟣✨'),('dark','⬛🌑'),('green','🟢🌿'),('sunset','🌅🟡')] %}
+          <div class="format-card {% if s == 'fire' %}selected{% endif %}" data-style="{{ s }}" onclick="selectStyle(this,'{{ s }}')">
+            <div class="format-name">{{ colors }}</div>
+            <div class="format-desc">{{ s.title() }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- BLITZ Mode -->
+    <div class="card" style="border-color:var(--red);background:var(--red-glow);">
+      <div class="card-title mb-8"><span class="accent glow-red">🔥</span> BLITZ Mode</div>
+      <div class="text-dim text-sm mb-16">Create all 3 formats simultaneously (short + long + podcast) and publish everywhere at once.</div>
+      <button class="btn btn-primary btn-block" onclick="startBlitz()">
+        🔥 Launch BLITZ — All Formats
+      </button>
+    </div>
+
+    <!-- Launch Button -->
+    <div class="card">
+      <button class="btn btn-primary btn-lg btn-block" onclick="startCreate()" id="launch-btn">
+        🚀 Generate Video
+      </button>
+      <div class="text-center text-dim text-xs mt-8">
+        Content will be saved to your output directory
+      </div>
+    </div>
+
+    <!-- Progress Panel -->
+    <div class="card job-progress-panel" id="progressPanel" style="display:none;">
+      <div class="card-title mb-12" id="prog-title">Generating Content...</div>
+      <div class="flex-between mb-8">
+        <span class="text-dim text-sm" id="prog-step">Starting...</span>
+        <span class="pill pill-running" id="prog-status">Running</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-bar" id="prog-bar" style="width:0%"></div>
+      </div>
+      <div class="job-log" id="prog-log"></div>
+      <div class="flex gap-12 mt-16" id="prog-done-actions" style="display:none!important">
+        <a href="#" class="btn btn-green" id="prog-download">⬇ Download MP4</a>
+        <a href="#" class="btn btn-blue" id="prog-detail">View Details</a>
+        <button class="btn btn-secondary" onclick="resetForm()">+ New Video</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _format = 'short';
+let _style = 'fire';
+let _platforms = new Set();
+
+function selectFormat(el, fmt) {
+  document.querySelectorAll('.format-card[data-format]').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _format = fmt;
+}
+
+function selectStyle(el, s) {
+  document.querySelectorAll('#style-grid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _style = s;
+}
+
+function togglePlatform(el) {
+  const p = el.dataset.platform;
+  if (_platforms.has(p)) { _platforms.delete(p); el.classList.remove('selected'); }
+  else { _platforms.add(p); el.classList.add('selected'); }
+}
+
+async function startCreate() {
+  const topic = document.getElementById('topic').value.trim();
+  if (!topic) { toast('error', 'Topic Required', 'Please enter a topic.'); return; }
+
+  const payload = {
+    topic,
+    format: _format,
+    platforms: Array.from(_platforms),
+    audience: document.getElementById('audience').value,
+    voice: document.getElementById('voice').value,
+    style: _style,
+    privacy: document.getElementById('privacy').value,
+    instructions: document.getElementById('instructions').value || null,
+    dry_run: document.getElementById('dry_run').checked,
+  };
+
+  await launchJob(payload);
+}
+
+async function startBlitz() {
+  const topic = document.getElementById('topic').value.trim();
+  if (!topic) { toast('error', 'Topic Required', 'Please enter a topic.'); return; }
+  toast('info', 'BLITZ Mode', 'Creating all formats — this will take a few minutes...');
+  for (const fmt of ['short', 'long', 'podcast']) {
+    await launchJob({
+      topic,
+      format: fmt,
+      platforms: Array.from(_platforms),
+      audience: document.getElementById('audience').value,
+      voice: document.getElementById('voice').value,
+      style: _style,
+      privacy: document.getElementById('privacy').value,
+      dry_run: document.getElementById('dry_run').checked,
+    });
+  }
+}
+
+async function launchJob(payload) {
+  document.getElementById('launch-btn').disabled = true;
+  const panel = document.getElementById('progressPanel');
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  resetProgress();
+
+  const resp = await fetch('/api/create', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload),
+  });
+  const { job_id } = await resp.json();
+
+  return new Promise((resolve) => {
+    const es = new EventSource(`/api/job/${job_id}/stream`);
+    const log = document.getElementById('prog-log');
+
+    es.onmessage = (e) => {
+      const d = JSON.parse(e.data);
+      if (d.progress !== undefined) document.getElementById('prog-bar').style.width = d.progress + '%';
+      if (d.step) document.getElementById('prog-step').textContent = d.step;
+      if (d.log) {
+        const span = document.createElement('span');
+        const cls = d.log.startsWith('✓') ? 'log-success' : d.log.startsWith('⚠') ? 'log-warn' : d.log.startsWith('✗') ? 'log-error' : '';
+        span.className = `log-line ${cls}`;
+        span.textContent = d.log + '\n';
+        log.appendChild(span);
+        log.scrollTop = log.scrollHeight;
+      }
+      if (d.status === 'done') {
+        es.close();
+        document.getElementById('prog-status').className = 'pill pill-done';
+        document.getElementById('prog-status').textContent = 'Done!';
+        document.getElementById('prog-bar').className = 'progress-bar green';
+        document.getElementById('prog-title').textContent = d.title || payload.topic;
+        const acts = document.getElementById('prog-done-actions');
+        acts.style.removeProperty('display');
+        document.getElementById('prog-download').href = `/api/jobs/${job_id}/download`;
+        document.getElementById('prog-detail').href = `/jobs/${job_id}`;
+        document.getElementById('launch-btn').disabled = false;
+        toast('success', 'Video Ready!', d.title || payload.topic);
+        resolve();
+      }
+      if (d.status === 'error') {
+        es.close();
+        document.getElementById('prog-status').className = 'pill pill-error';
+        document.getElementById('prog-status').textContent = 'Error';
+        toast('error', 'Generation Failed', d.step);
+        document.getElementById('launch-btn').disabled = false;
+        resolve();
+      }
+    };
+  });
+}
+
+function resetProgress() {
+  document.getElementById('prog-bar').style.width = '0%';
+  document.getElementById('prog-bar').className = 'progress-bar';
+  document.getElementById('prog-step').textContent = 'Starting...';
+  document.getElementById('prog-status').className = 'pill pill-running';
+  document.getElementById('prog-status').textContent = 'Running';
+  document.getElementById('prog-log').innerHTML = '';
+  document.getElementById('prog-done-actions').style.setProperty('display','none','important');
+}
+
+function resetForm() {
+  document.getElementById('progressPanel').style.display = 'none';
+  document.getElementById('topic').value = '';
+  resetProgress();
+}
+</script>
+{% endblock %}

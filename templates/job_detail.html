@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% set active_page = "jobs" %}
+
+{% block title %}Job #{{ job.id }} — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Job #{{ job.id }}{% endblock %}
+{% block topbar_sub %}{{ (job.title or job.topic)[:60] }}{% endblock %}
+{% block topbar_actions %}
+<a href="/jobs" class="btn btn-ghost">← Back to Jobs</a>
+{% if job.status == 'done' and job.video_path %}
+<a href="/api/jobs/{{ job.id }}/download" class="btn btn-green">⬇ Download MP4</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="grid-2" style="align-items:start;">
+
+  <!-- Left: Details -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Status Card -->
+    <div class="card">
+      <div class="flex-between mb-16">
+        <div class="card-title">Job Status</div>
+        <span class="pill pill-{{ 'done' if job.status=='done' else 'running' if job.status=='running' else 'error' if job.status=='error' else 'pending' }}">
+          {{ job.status.upper() }}
+        </span>
+      </div>
+      {% if job.status == 'running' %}
+      <div class="progress-track mb-8">
+        <div class="progress-bar" id="detail-bar" style="width:{{ job.progress or 0 }}%"></div>
+      </div>
+      <div class="text-sm text-dim" id="detail-step">{{ job.current_step or 'Processing...' }}</div>
+      {% endif %}
+
+      <div class="divider"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div class="text-xs text-dim mb-4">Topic</div>
+          <div class="text-sm text-bold">{{ job.topic }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-dim mb-4">Format</div>
+          <span class="pill pill-running">{{ job.format }}</span>
+        </div>
+        <div>
+          <div class="text-xs text-dim mb-4">Duration</div>
+          <div class="text-sm">{% if job.duration %}{{ "%.1f"|format(job.duration) }}s{% else %}—{% endif %}</div>
+        </div>
+        <div>
+          <div class="text-xs text-dim mb-4">Voice</div>
+          <div class="text-sm">{{ job.voice or 'Default' }}</div>
+        </div>
+        <div>
+          <div class="text-xs text-dim mb-4">Created</div>
+          <div class="text-sm">{{ job.created_at[:16].replace('T',' ') }}</div>
+        </div>
+        {% if job.completed_at %}
+        <div>
+          <div class="text-xs text-dim mb-4">Completed</div>
+          <div class="text-sm">{{ job.completed_at[:16].replace('T',' ') }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Script Preview -->
+    {% if job.title or job.topic %}
+    <div class="card">
+      <div class="card-title mb-16"><span class="accent">📝</span> Generated Script</div>
+      {% if job.title %}
+      <div class="text-xs text-dim mb-4">TITLE</div>
+      <div class="text-bold mb-12">{{ job.title }}</div>
+      {% endif %}
+      {% if job.description %}
+      <div class="text-xs text-dim mb-4">DESCRIPTION</div>
+      <div class="text-sm text-dim mb-12" style="line-height:1.6;">{{ job.description[:300] }}{% if job.description|length > 300 %}…{% endif %}</div>
+      {% endif %}
+      {% if job.script_path %}
+      <a href="/api/jobs/{{ job.id }}/script" class="btn btn-ghost btn-sm">View Full Script</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Publish Results -->
+    {% if job.publish_results %}
+    <div class="card">
+      <div class="card-title mb-16"><span class="accent">📡</span> Publish Results</div>
+      {% for platform, result in job.publish_results.items() %}
+      <div class="card mb-8" style="padding:14px;background:var(--bg-elevated);">
+        <div class="flex-between">
+          <span class="platform-tag {{ platform }}">{{ platform }}</span>
+          {% if result.get('url') %}
+          <a href="{{ result.url }}" target="_blank" class="btn btn-ghost btn-sm">Open ↗</a>
+          {% elif result.get('status') == 'skipped' %}
+          <span class="text-yellow text-xs">Manual upload needed</span>
+          {% elif result.get('error') %}
+          <span class="text-red text-xs">Failed</span>
+          {% endif %}
+        </div>
+        {% if result.get('url') %}
+        <div class="text-xs text-dim mt-4">{{ result.url }}</div>
+        {% elif result.get('reason') %}
+        <div class="text-xs text-dim mt-4">{{ result.reason }}</div>
+        {% elif result.get('error') %}
+        <div class="text-xs text-red mt-4">{{ result.error[:100] }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if job.error_msg %}
+    <div class="card" style="border-color:var(--red);">
+      <div class="card-title text-red mb-8">Error Details</div>
+      <div class="job-log" style="max-height:none;">{{ job.error_msg }}</div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- Right: Media Preview -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Thumbnail -->
+    {% if job.status == 'done' and job.thumbnail_path %}
+    <div class="card" style="padding:16px;">
+      <div class="card-title mb-12"><span class="accent">🖼</span> Thumbnail</div>
+      <img src="/api/jobs/{{ job.id }}/thumbnail" alt="Thumbnail"
+           style="width:100%;border-radius:8px;border:1px solid var(--border);">
+    </div>
+    {% endif %}
+
+    <!-- Video Info -->
+    {% if job.status == 'done' and job.video_path %}
+    <div class="card">
+      <div class="card-title mb-16"><span class="accent">🎬</span> Video File</div>
+      <div class="text-dim text-sm mb-12">{{ job.video_path|replace('/home/user/Youtube/','') }}</div>
+      <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-block">
+        ⬇ Download MP4
+      </a>
+    </div>
+    {% endif %}
+
+    <!-- Platforms -->
+    <div class="card">
+      <div class="card-title mb-12"><span class="accent">📡</span> Target Platforms</div>
+      {% if job.platforms %}
+        {% for p in job.platforms %}
+        <span class="platform-tag {{ p }}" style="margin:4px;">{{ p }}</span>
+        {% endfor %}
+      {% else %}
+        <span class="text-dim text-sm">None (dry run)</span>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{% if job.status == 'running' %}
+<script>
+(function poll() {
+  fetch('/api/job/{{ job.id }}').then(r => r.json()).then(job => {
+    if (job.progress !== undefined) document.getElementById('detail-bar').style.width = job.progress + '%';
+    if (job.current_step) document.getElementById('detail-step').textContent = job.current_step;
+    if (job.status === 'done' || job.status === 'error') {
+      location.reload();
+    } else {
+      setTimeout(poll, 2000);
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}
