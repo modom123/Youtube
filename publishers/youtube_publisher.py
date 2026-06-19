@@ -47,12 +47,33 @@ def _get_authenticated_service():
                     "token_uri": credentials.token_uri,
                     "client_id": credentials.client_id,
                     "client_secret": credentials.client_secret,
-                    "scopes": credentials.scopes,
+                    "scopes": list(credentials.scopes) if credentials.scopes else [],
                 },
                 f,
             )
 
     return googleapiclient.discovery.build("youtube", "v3", credentials=credentials)
+
+
+def get_channel_info() -> dict:
+    """Return info about the authenticated channel."""
+    youtube = _get_authenticated_service()
+    resp = youtube.channels().list(part="snippet,statistics", mine=True).execute()
+    items = resp.get("items", [])
+    if not items:
+        return {}
+    ch = items[0]
+    channel_id = ch["id"]
+    return {
+        "channel_id": channel_id,
+        "title": ch["snippet"]["title"],
+        "description": ch["snippet"].get("description", ""),
+        "thumbnail": ch["snippet"].get("thumbnails", {}).get("default", {}).get("url", ""),
+        "url": f"https://www.youtube.com/channel/{channel_id}",
+        "subscribers": ch.get("statistics", {}).get("subscriberCount", "0"),
+        "video_count": ch.get("statistics", {}).get("videoCount", "0"),
+        "verified": channel_id == config.YOUTUBE_CHANNEL_ID if config.YOUTUBE_CHANNEL_ID else True,
+    }
 
 
 def upload_video(
@@ -103,6 +124,7 @@ def upload_video(
             print(f"[youtube] Upload {int(status.progress() * 100)}%")
 
     video_id = response["id"]
+    channel_id = config.YOUTUBE_CHANNEL_ID or "your-channel"
     print(f"[youtube] Uploaded: https://youtube.com/watch?v={video_id}")
 
     if thumbnail_path and Path(thumbnail_path).exists():
@@ -119,6 +141,7 @@ def upload_video(
         "platform": "youtube",
         "video_id": video_id,
         "url": f"https://youtube.com/watch?v={video_id}",
+        "channel_url": f"https://www.youtube.com/channel/{channel_id}",
         "short_url": f"https://youtube.com/shorts/{video_id}" if is_short else None,
         "privacy": privacy,
     }
