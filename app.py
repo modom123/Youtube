@@ -339,7 +339,7 @@ def oauth_youtube_start():
         return jsonify({"error": "YouTube credentials not configured in .env"}), 400
     from google_auth_oauthlib.flow import Flow
     flow = Flow.from_client_config(
-        {"installed": {
+        {"web": {
             "client_id": config.YOUTUBE_CLIENT_ID,
             "client_secret": config.YOUTUBE_CLIENT_SECRET,
             "redirect_uris": ["http://localhost:5000/oauth/youtube/callback"],
@@ -359,7 +359,7 @@ def oauth_youtube_callback():
     from google_auth_oauthlib.flow import Flow
     import googleapiclient.discovery
     flow = Flow.from_client_config(
-        {"installed": {
+        {"web": {
             "client_id": config.YOUTUBE_CLIENT_ID,
             "client_secret": config.YOUTUBE_CLIENT_SECRET,
             "redirect_uris": ["http://localhost:5000/oauth/youtube/callback"],
