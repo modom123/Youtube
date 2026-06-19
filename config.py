@@ -70,14 +70,29 @@ AVAILABLE_VOICES = [
 ]
 
 # AI Video providers
-AI_VIDEO_PROVIDERS = ["none", "higgsfield", "google_flow", "both"]
+AI_VIDEO_PROVIDERS = ["none", "higgsville", "google_flow", "both"]
 
-HIGGSFIELD_MODELS = {
-    "kling-v2":    "Kling v2 (Best quality)",
-    "kling-v1.6":  "Kling v1.6 (Faster)",
-    "wan-t2v":     "Wan T2V (Open source)",
-    "hunyuan-t2v": "HunyuanVideo (Tencent)",
-    "mochi":       "Mochi (Genmo)",
-    "luma-dream":  "Luma Dream Machine",
+HIGGSVILLE_MODELS = {
+    # Kling
+    "kling3_0":               "Kling 3.0 — Multi-shot, 4K, audio",
+    "kling3_0_turbo":         "Kling 3.0 Turbo — Fast text-to-video",
+    "kling2_6":               "Kling 2.6 — Cinematic + physics",
+    # Google Veo (via Higgsville)
+    "veo3_1":                 "Google Veo 3.1 — Ultra-realistic",
+    "veo3":                   "Google Veo 3 — Cinematic, broad creative",
+    "veo3_1_lite":            "Veo 3.1 Lite — Fast, budget",
+    # Higgsfield Cinema
+    "cinematic_studio_3_0":        "Cinema Studio 3.0 — Best quality",
+    "cinematic_studio_video_v2":   "Cinema Studio 2 — Genre control",
+    "cinematic_studio_video":      "Cinema Studio — Dramatic",
+    # ByteDance
+    "seedance_2_0":           "Seedance 2.0 — Identity-consistent",
+    "seedance_1_5":           "Seedance 1.5 Pro — Reliable motion",
+    # Others
+    "minimax_hailuo":         "Minimax Hailuo — Natural physics",
+    "wan2_7":                 "Wan 2.7 — Audio-synced",
+    "wan2_6":                 "Wan 2.6 — Stylized, experimental",
+    "grok_video_v15":         "Grok Imagine 1.5 — Cinematic",
+    "grok_video":             "Grok Imagine — Versatile",
 }
 

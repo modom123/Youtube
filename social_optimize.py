@@ -228,7 +228,7 @@ def run(
                 manifest["ai_clips"] = {
                     "provider": ai_video_provider,
                     "count": len(ai_clips),
-                    "model": higgsfield_model if "higgsfield" in ai_video_provider else "veo-002",
+                    "model": higgsfield_model if ai_video_provider in ("higgsville", "both") else "veo3",
                 }
                 logger.success(f"AI video: {len(ai_clips)} clips generated via {ai_video_provider}")
             except Exception as e:

@@ -182,7 +182,7 @@ def api_create():
         "cleanup": data.get("cleanup", False),
         "skip_research": skip_research,
         "ai_video_provider": data.get("ai_video_provider", "none"),
-        "higgsfield_model": data.get("higgsfield_model", "kling-v2"),
+        "higgsfield_model": data.get("higgsfield_model", "kling3_0"),
     }
 
     t = threading.Thread(target=_run_job_thread, args=(job_id, params), daemon=True)
@@ -627,7 +627,7 @@ def api_settings_check():
         "anthropic":   bool(config.ANTHROPIC_API_KEY),
         "pexels":      bool(config.PEXELS_API_KEY),
         "google_flow": bool(config.GOOGLE_API_KEY),
-        "higgsfield":  bool(config.HIGGSFIELD_API_KEY),
+        "higgsville":  bool(config.HIGGSFIELD_API_KEY),
         "youtube":     bool(config.YOUTUBE_CLIENT_ID),
         "tiktok":      bool(config.TIKTOK_CLIENT_KEY),
         "instagram":   bool(config.INSTAGRAM_ACCESS_TOKEN),

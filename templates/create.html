@@ -131,30 +131,50 @@
     <div class="card" style="border-color:var(--blue);">
       <div class="card-title mb-4">
         <span class="accent" style="color:var(--blue);">🤖</span> AI Video Generation
-        <span class="pill" style="background:var(--blue-dim);color:var(--blue);font-size:10px;margin-left:8px;">Premium</span>
+        <span class="pill" style="background:var(--blue-dim);color:var(--blue);font-size:10px;margin-left:8px;">Higgsville</span>
       </div>
-      <div class="text-dim text-sm mb-16">Replace stock footage with AI-generated cinematic clips powered by Google Flow (Veo 2) or Higgsfield AI.</div>
+      <div class="text-dim text-sm mb-16">Replace stock footage with AI-generated cinematic clips — Kling 3.0, Veo 3.1, Cinema Studio, Seedance, Minimax and more.</div>
 
       <div class="form-group">
         <label>AI Video Provider</label>
         <select id="ai_video_provider" onchange="toggleAIOptions()">
           <option value="none">None — use stock footage only</option>
-          <option value="higgsfield">Higgsfield AI (Kling, Wan, HunyuanVideo)</option>
-          <option value="google_flow">Google Flow — Veo 2</option>
+          <option value="higgsville">Higgsville — 17 AI models</option>
+          <option value="google_flow">Google Flow — Veo 3 direct</option>
           <option value="both">Both providers (maximum variety)</option>
         </select>
       </div>
 
       <div id="higgsfield-options" style="display:none;">
         <div class="form-group">
-          <label>Higgsfield Model</label>
+          <label>Higgsville Model</label>
           <select id="higgsfield_model">
-            <option value="kling-v2">Kling v2 — Best quality</option>
-            <option value="kling-v1.6">Kling v1.6 — Faster</option>
-            <option value="wan-t2v">Wan T2V — Open source</option>
-            <option value="hunyuan-t2v">HunyuanVideo — Tencent</option>
-            <option value="mochi">Mochi — Genmo</option>
-            <option value="luma-dream">Luma Dream Machine</option>
+            <optgroup label="── Kling (Kuaishou) ──">
+              <option value="kling3_0">Kling 3.0 — Multi-shot, 4K, audio ⭐</option>
+              <option value="kling3_0_turbo">Kling 3.0 Turbo — Fast text-to-video</option>
+              <option value="kling2_6">Kling 2.6 — Cinematic + physics</option>
+            </optgroup>
+            <optgroup label="── Google Veo ──">
+              <option value="veo3_1">Google Veo 3.1 — Ultra-realistic ⭐</option>
+              <option value="veo3">Google Veo 3 — Cinematic, broad creative</option>
+              <option value="veo3_1_lite">Veo 3.1 Lite — Fast &amp; budget</option>
+            </optgroup>
+            <optgroup label="── Higgsfield Cinema ──">
+              <option value="cinematic_studio_3_0">Cinema Studio 3.0 — Best quality ⭐</option>
+              <option value="cinematic_studio_video_v2">Cinema Studio 2 — Genre control</option>
+              <option value="cinematic_studio_video">Cinema Studio — Dramatic</option>
+            </optgroup>
+            <optgroup label="── ByteDance Seedance ──">
+              <option value="seedance_2_0">Seedance 2.0 — Identity-consistent</option>
+              <option value="seedance_1_5">Seedance 1.5 Pro — Reliable motion</option>
+            </optgroup>
+            <optgroup label="── Others ──">
+              <option value="minimax_hailuo">Minimax Hailuo — Natural physics</option>
+              <option value="wan2_7">Wan 2.7 — Audio-synced</option>
+              <option value="wan2_6">Wan 2.6 — Stylized, experimental</option>
+              <option value="grok_video_v15">Grok Imagine 1.5 — Cinematic</option>
+              <option value="grok_video">Grok Imagine — Versatile</option>
+            </optgroup>
           </select>
         </div>
       </div>
@@ -162,11 +182,11 @@
       <div class="card mt-8" style="background:var(--bg-primary);padding:12px;border:1px dashed var(--border-bright);">
         <div class="text-xs text-dim" style="line-height:1.7;">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-            <span>🤖 <strong>Higgsfield</strong></span>
+            <span>🎬 <strong>Higgsville</strong> (17 models)</span>
             <span id="hf-status" class="text-dim">—</span>
           </div>
           <div style="display:flex;justify-content:space-between;">
-            <span>🎬 <strong>Google Flow / Veo 2</strong></span>
+            <span>🌊 <strong>Google Flow / Veo 3</strong></span>
             <span id="gf-status" class="text-dim">—</span>
           </div>
         </div>
@@ -413,7 +433,7 @@ function resetProgress() {
 function toggleAIOptions() {
   const val = document.getElementById('ai_video_provider').value;
   document.getElementById('higgsfield-options').style.display =
-    (val === 'higgsfield' || val === 'both') ? '' : 'none';
+    (val === 'higgsville' || val === 'both') ? '' : 'none';
 }
 
 function resetForm() {
@@ -428,9 +448,9 @@ function resetForm() {
     const resp = await fetch('/api/settings/check');
     const data = await resp.json();
     document.getElementById('hf-status').innerHTML =
-      data.higgsfield ? '<span style="color:var(--green);">✓ API key set</span>' : '<span style="color:var(--red);">✗ Key missing</span>';
+      data.higgsville ? '<span style="color:var(--green);">✓ Connected</span>' : '<span style="color:var(--yellow);">✗ Key missing</span>';
     document.getElementById('gf-status').innerHTML =
-      data.google_flow ? '<span style="color:var(--green);">✓ API key set</span>' : '<span style="color:var(--red);">✗ Key missing</span>';
+      data.google_flow ? '<span style="color:var(--green);">✓ API key set</span>' : '<span style="color:var(--yellow);">✗ Key missing</span>';
   } catch (_) {}
 })();
 </script>
