@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+env/
+.venv/
+
+# Environment
+.env
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Output / generated content
+output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
