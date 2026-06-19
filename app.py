@@ -181,6 +181,8 @@ def api_create():
         "dry_run": data.get("dry_run", False),
         "cleanup": data.get("cleanup", False),
         "skip_research": skip_research,
+        "ai_video_provider": data.get("ai_video_provider", "none"),
+        "higgsfield_model": data.get("higgsfield_model", "kling-v2"),
     }
 
     t = threading.Thread(target=_run_job_thread, args=(job_id, params), daemon=True)
@@ -622,11 +624,13 @@ def api_research_preview():
 @app.route("/api/settings/check")
 def api_settings_check():
     return jsonify({
-        "anthropic": bool(config.ANTHROPIC_API_KEY),
-        "pexels": bool(config.PEXELS_API_KEY),
-        "youtube": bool(config.YOUTUBE_CLIENT_ID),
-        "tiktok": bool(config.TIKTOK_CLIENT_KEY),
-        "instagram": bool(config.INSTAGRAM_ACCESS_TOKEN),
+        "anthropic":   bool(config.ANTHROPIC_API_KEY),
+        "pexels":      bool(config.PEXELS_API_KEY),
+        "google_flow": bool(config.GOOGLE_API_KEY),
+        "higgsfield":  bool(config.HIGGSFIELD_API_KEY),
+        "youtube":     bool(config.YOUTUBE_CLIENT_ID),
+        "tiktok":      bool(config.TIKTOK_CLIENT_KEY),
+        "instagram":   bool(config.INSTAGRAM_ACCESS_TOKEN),
     })
 
 

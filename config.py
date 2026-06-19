@@ -20,6 +20,12 @@ for d in [VIDEOS_DIR, AUDIO_DIR, THUMBNAILS_DIR, SCRIPTS_DIR]:
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 
+# Google Flow / Veo 2
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+
+# Higgsfield AI
+HIGGSFIELD_API_KEY = os.getenv("HIGGSFIELD_API_KEY", "")  # format: "key:secret"
+
 # YouTube
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID", "")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET", "")
@@ -57,3 +63,16 @@ AVAILABLE_VOICES = [
     "en-GB-SoniaNeural",
     "en-AU-NatashaNeural",
 ]
+
+# AI Video providers
+AI_VIDEO_PROVIDERS = ["none", "higgsfield", "google_flow", "both"]
+
+HIGGSFIELD_MODELS = {
+    "kling-v2":    "Kling v2 (Best quality)",
+    "kling-v1.6":  "Kling v1.6 (Faster)",
+    "wan-t2v":     "Wan T2V (Open source)",
+    "hunyuan-t2v": "HunyuanVideo (Tencent)",
+    "mochi":       "Mochi (Genmo)",
+    "luma-dream":  "Luma Dream Machine",
+}
+

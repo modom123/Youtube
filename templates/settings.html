@@ -105,9 +105,34 @@
           5. Connect via Accounts → Instagram
         </div>
       </div>
+      <div class="card" style="background:var(--bg-elevated);border:1px solid var(--blue);">
+        <div style="font-size:24px;margin-bottom:8px;">🎬</div>
+        <div class="text-bold mb-4">6. Google Flow (Veo 2)</div>
+        <div class="text-dim text-sm mb-12">AI-generated cinematic video clips — no stock footage needed.</div>
+        <div class="text-xs">
+          1. Go to <strong>aistudio.google.com</strong><br>
+          2. Click <strong>Get API Key</strong><br>
+          3. Copy the key<br>
+          4. Add to <code>.env</code>: <code>GOOGLE_API_KEY=AI...</code><br>
+          5. Select "Google Flow" on the Create page
+        </div>
+      </div>
+      <div class="card" style="background:var(--bg-elevated);border:1px solid var(--blue);">
+        <div style="font-size:24px;margin-bottom:8px;">🤖</div>
+        <div class="text-bold mb-4">7. Higgsfield AI</div>
+        <div class="text-dim text-sm mb-12">Access Kling v2, Wan, HunyuanVideo, Luma and more.</div>
+        <div class="text-xs">
+          1. Go to <strong>higgsfield.ai</strong><br>
+          2. Sign up → Dashboard → API Keys<br>
+          3. Copy your key + secret<br>
+          4. Add to <code>.env</code>:<br>
+          <code>HIGGSFIELD_API_KEY=key:secret</code><br>
+          5. Select model on the Create page
+        </div>
+      </div>
       <div class="card" style="background:var(--bg-elevated);">
         <div style="font-size:24px;margin-bottom:8px;">📁</div>
-        <div class="text-bold mb-4">6. Output Files</div>
+        <div class="text-bold mb-4">8. Output Files</div>
         <div class="text-dim text-sm mb-12">All generated content is saved locally.</div>
         <div class="text-xs">
           Output folder: <code>./output/</code><br><br>
@@ -132,11 +157,13 @@
   const resp = await fetch('/api/settings/check');
   const data = await resp.json();
   const labels = {
-    anthropic: ['🤖 Anthropic AI', 'Required for scripts'],
-    pexels:    ['🖼️ Pexels Media', 'Free stock media'],
-    youtube:   ['▶️ YouTube', 'For uploading videos'],
-    tiktok:    ['🎵 TikTok', 'For posting videos'],
-    instagram: ['📸 Instagram', 'For Reels'],
+    anthropic:   ['🤖 Anthropic AI',        'Required for AI script generation'],
+    pexels:      ['🖼️ Pexels Media',         'Free stock footage & images'],
+    google_flow: ['🎬 Google Flow / Veo 2',  'AI-generated cinematic video clips'],
+    higgsfield:  ['🤖 Higgsfield AI',        'Kling, Wan, HunyuanVideo AI clips'],
+    youtube:     ['▶️ YouTube',              'Upload videos & Shorts'],
+    tiktok:      ['🎵 TikTok',              'Post videos to TikTok'],
+    instagram:   ['📸 Instagram',           'Publish Reels'],
   };
   const grid = document.getElementById('api-check-grid');
   grid.innerHTML = '';

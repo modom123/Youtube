@@ -10,6 +10,7 @@ import config
 from generators import script_generator, audio_generator, video_generator, media_fetcher, thumbnail_generator
 from generators.researcher import research_topic, brief_to_context
 from generators import graphics_generator
+from generators import ai_video_generator
 from publishers import youtube_publisher, tiktok_publisher, instagram_publisher
 from utils import file_manager, logger
 
@@ -66,6 +67,8 @@ def run(
     dry_run: bool = False,
     cleanup: bool = False,
     skip_research: bool = False,
+    ai_video_provider: str = "none",
+    higgsfield_model: str = "kling-v2",
 ) -> dict:
     """
     Full pipeline: topic → research → script → audio → video → publish.
@@ -203,9 +206,36 @@ def run(
         )
 
     if video_clips or image_clips:
-        logger.success(f"Media: {len(video_clips)} videos, {len(image_clips)} images")
+        logger.success(f"Stock media: {len(video_clips)} videos, {len(image_clips)} images")
     else:
         logger.warn("No stock media fetched (check PEXELS_API_KEY). Using gradient background.")
+
+    # ── 5b. Generate AI video clips (Google Flow / Higgsfield) ───────────────
+    ai_clips = []
+    if ai_video_provider and ai_video_provider != "none":
+        with logger.spinner(f"Generating AI video clips via {ai_video_provider}..."):
+            try:
+                ai_clips = ai_video_generator.generate_ai_clips(
+                    topic=topic,
+                    keywords=script.keywords[:6],
+                    sections=script.sections,
+                    output_dir=job / "ai_clips",
+                    provider=ai_video_provider,
+                    model_key=higgsfield_model,
+                    is_portrait=profile["is_portrait"],
+                    max_clips=6,
+                )
+                manifest["ai_clips"] = {
+                    "provider": ai_video_provider,
+                    "count": len(ai_clips),
+                    "model": higgsfield_model if "higgsfield" in ai_video_provider else "veo-002",
+                }
+                logger.success(f"AI video: {len(ai_clips)} clips generated via {ai_video_provider}")
+            except Exception as e:
+                logger.warn(f"AI video generation failed ({e}) — using stock media only")
+
+    # AI clips go first for maximum visual impact, then stock videos
+    all_video_clips = ai_clips + list(video_clips)
 
     # ── 6. Generate thumbnail ────────────────────────────────────────────────
     thumbnail_path = job / "thumbnail.jpg"
@@ -275,7 +305,7 @@ def run(
             video_generator.create_video(
                 audio_path=audio_path,
                 output_path=video_path,
-                video_clips=video_clips,
+                video_clips=all_video_clips,
                 image_clips=all_image_sources,
                 thumbnail_path=thumbnail_path,
                 width=profile["width"],

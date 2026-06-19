@@ -127,6 +127,52 @@
       <div id="research-sources" class="text-xs text-dim mt-8"></div>
     </div>
 
+    <!-- AI Video Generation -->
+    <div class="card" style="border-color:var(--blue);">
+      <div class="card-title mb-4">
+        <span class="accent" style="color:var(--blue);">🤖</span> AI Video Generation
+        <span class="pill" style="background:var(--blue-dim);color:var(--blue);font-size:10px;margin-left:8px;">Premium</span>
+      </div>
+      <div class="text-dim text-sm mb-16">Replace stock footage with AI-generated cinematic clips powered by Google Flow (Veo 2) or Higgsfield AI.</div>
+
+      <div class="form-group">
+        <label>AI Video Provider</label>
+        <select id="ai_video_provider" onchange="toggleAIOptions()">
+          <option value="none">None — use stock footage only</option>
+          <option value="higgsfield">Higgsfield AI (Kling, Wan, HunyuanVideo)</option>
+          <option value="google_flow">Google Flow — Veo 2</option>
+          <option value="both">Both providers (maximum variety)</option>
+        </select>
+      </div>
+
+      <div id="higgsfield-options" style="display:none;">
+        <div class="form-group">
+          <label>Higgsfield Model</label>
+          <select id="higgsfield_model">
+            <option value="kling-v2">Kling v2 — Best quality</option>
+            <option value="kling-v1.6">Kling v1.6 — Faster</option>
+            <option value="wan-t2v">Wan T2V — Open source</option>
+            <option value="hunyuan-t2v">HunyuanVideo — Tencent</option>
+            <option value="mochi">Mochi — Genmo</option>
+            <option value="luma-dream">Luma Dream Machine</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card mt-8" style="background:var(--bg-primary);padding:12px;border:1px dashed var(--border-bright);">
+        <div class="text-xs text-dim" style="line-height:1.7;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span>🤖 <strong>Higgsfield</strong></span>
+            <span id="hf-status" class="text-dim">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;">
+            <span>🎬 <strong>Google Flow / Veo 2</strong></span>
+            <span id="gf-status" class="text-dim">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- BLITZ Mode -->
     <div class="card" style="border-color:var(--red);background:var(--red-glow);">
       <div class="card-title mb-8"><span class="accent glow-red">🔥</span> BLITZ Mode</div>
@@ -273,6 +319,8 @@ async function startCreate() {
     instructions: document.getElementById('instructions').value || null,
     dry_run: document.getElementById('dry_run').checked,
     skip_research: document.getElementById('skip_research').checked,
+    ai_video_provider: document.getElementById('ai_video_provider').value,
+    higgsfield_model: document.getElementById('higgsfield_model').value,
   };
 
   await launchJob(payload);
@@ -362,10 +410,28 @@ function resetProgress() {
   document.getElementById('prog-done-actions').style.setProperty('display','none','important');
 }
 
+function toggleAIOptions() {
+  const val = document.getElementById('ai_video_provider').value;
+  document.getElementById('higgsfield-options').style.display =
+    (val === 'higgsfield' || val === 'both') ? '' : 'none';
+}
+
 function resetForm() {
   document.getElementById('progressPanel').style.display = 'none';
   document.getElementById('topic').value = '';
   resetProgress();
 }
+
+// Check AI provider status on load
+(async () => {
+  try {
+    const resp = await fetch('/api/settings/check');
+    const data = await resp.json();
+    document.getElementById('hf-status').innerHTML =
+      data.higgsfield ? '<span style="color:var(--green);">✓ API key set</span>' : '<span style="color:var(--red);">✗ Key missing</span>';
+    document.getElementById('gf-status').innerHTML =
+      data.google_flow ? '<span style="color:var(--green);">✓ API key set</span>' : '<span style="color:var(--red);">✗ Key missing</span>';
+  } catch (_) {}
+})();
 </script>
 {% endblock %}
