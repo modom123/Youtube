@@ -21,3 +21,4 @@ google-genai>=0.8.0
 numpy>=1.26.0
 imageio>=2.31.6
 imageio-ffmpeg>=0.4.9
+pyttsx3>=2.90
