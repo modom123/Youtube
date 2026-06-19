@@ -1,5 +1,6 @@
-"""Text-to-speech audio generation using edge-tts."""
+"""Text-to-speech audio generation — edge-tts primary, espeak-ng fallback."""
 import asyncio
+import subprocess
 import re
 from pathlib import Path
 from typing import Optional
@@ -22,6 +23,32 @@ async def _generate_speech(text: str, output_path: Path, voice: str, rate: str, 
     await communicate.save(str(output_path))
 
 
+def _espeak_fallback(text: str, output_path: Path) -> None:
+    """Generate speech using local espeak-ng — saves as WAV then converts to MP3."""
+    import shutil
+    import imageio_ffmpeg
+
+    wav_path = output_path.with_suffix(".wav")
+    espeak = shutil.which("espeak-ng") or "espeak-ng"
+
+    subprocess.run(
+        [espeak, "-v", "en-us+m3", "-s", "150", "-p", "45", text, "-w", str(wav_path)],
+        check=True, capture_output=True,
+    )
+
+    # Use imageio-ffmpeg's bundled binary (avoids broken system ffmpeg)
+    ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
+    result = subprocess.run(
+        [ffmpeg_bin, "-y", "-i", str(wav_path), "-q:a", "3", str(output_path)],
+        capture_output=True,
+    )
+    wav_path.unlink(missing_ok=True)
+    if result.returncode != 0 or not output_path.exists():
+        # Last resort: just rename WAV to MP3 (moviepy can handle it)
+        import shutil as sh
+        sh.copy(wav_path if wav_path.exists() else str(wav_path), str(output_path))
+
+
 def generate_audio(
     text: str,
     output_path: Path,
@@ -35,13 +62,17 @@ def generate_audio(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    asyncio.run(_generate_speech(clean_text, output_path, voice, rate, pitch))
+    try:
+        asyncio.run(_generate_speech(clean_text, output_path, voice, rate, pitch))
+    except Exception as e:
+        print(f"[audio] edge-tts failed ({e}) — using espeak-ng fallback")
+        _espeak_fallback(clean_text, output_path)
     return output_path
 
 
 def get_audio_duration(audio_path: Path) -> float:
     """Get duration of audio file in seconds using moviepy."""
-    from moviepy.editor import AudioFileClip
+    from moviepy import AudioFileClip
     clip = AudioFileClip(str(audio_path))
     duration = clip.duration
     clip.close()
