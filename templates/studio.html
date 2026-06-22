@@ -1,0 +1,569 @@
+{% extends "base.html" %}
+{% set active_page = "studio" %}
+
+{% block title %}Production Studio — Social Optimize{% endblock %}
+
+{% block topbar_title %}Production Studio{% endblock %}
+{% block topbar_sub %}5-Agent AI Pipeline · Trend Architect → Narrative Designer → Asset Curator → Cost Engineer → Growth Engineer{% endblock %}
+
+{% block topbar_actions %}
+<a href="/create" class="btn btn-secondary">Standard Create</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .studio-grid { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .studio-grid { grid-template-columns: 1fr; } }
+
+  .studio-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  .studio-card h2 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 16px; }
+
+  .form-row { margin-bottom: 16px; }
+  .form-row label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .06em; }
+  .form-row input, .form-row select, .form-row textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); padding: 10px 12px; font-size: 14px; font-family: inherit; box-sizing: border-box;
+  }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .form-row textarea { resize: vertical; min-height: 72px; }
+
+  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .agent-pipeline { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .agent-node {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; transition: border-color .2s, background .2s;
+  }
+  .agent-node.active { border-color: var(--accent); background: rgba(255,59,48,.08); }
+  .agent-node.done { border-color: #30d158; background: rgba(48,209,88,.06); }
+  .agent-node.error-state { border-color: #ff453a; background: rgba(255,69,58,.06); }
+
+  .agent-icon { width: 36px; height: 36px; border-radius: 8px; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .agent-node.active .agent-icon { background: var(--accent); }
+  .agent-node.done .agent-icon { background: #30d158; }
+
+  .agent-name { font-size: 13px; font-weight: 600; }
+  .agent-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .agent-status { margin-left: auto; font-size: 11px; color: var(--muted); }
+  .agent-node.active .agent-status { color: var(--accent); }
+  .agent-node.done .agent-status { color: #30d158; }
+
+  .pipeline-arrow { text-align: center; color: var(--muted); font-size: 16px; line-height: 1; }
+
+  .run-btn { width: 100%; padding: 14px; font-size: 15px; font-weight: 700; }
+  .run-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .progress-bar-wrap { margin: 16px 0; }
+  .progress-bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .4s ease; width: 0%; }
+  .progress-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  .result-panel { display: none; }
+  .result-panel.visible { display: block; }
+
+  .result-section { margin-bottom: 20px; }
+  .result-section h3 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 10px; }
+
+  .badge-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-green { background: rgba(48,209,88,.15); color: #30d158; }
+  .badge-yellow { background: rgba(255,204,0,.15); color: #ffd60a; }
+  .badge-red { background: rgba(255,59,48,.15); color: var(--accent); }
+  .badge-blue { background: rgba(10,132,255,.15); color: #0a84ff; }
+
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .metric-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; text-align: center; }
+  .metric-value { font-size: 22px; font-weight: 800; }
+  .metric-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .swap-list { list-style: none; padding: 0; margin: 0; }
+  .swap-list li { font-size: 12px; color: var(--muted); padding: 4px 0; border-bottom: 1px solid var(--border); }
+  .swap-list li:last-child { border-bottom: none; }
+  .swap-list li::before { content: "⇄ "; color: var(--accent); }
+
+  .log-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); max-height: 140px; overflow-y: auto; }
+  .log-line { margin: 2px 0; }
+  .log-line.error { color: #ff453a; }
+  .log-line.success { color: #30d158; }
+
+  .ab-list { list-style: none; padding: 0; margin: 0; }
+  .ab-list li { padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; font-size: 13px; margin-bottom: 6px; }
+  .ab-list li:last-child { margin-bottom: 0; }
+
+  .credit-bar { height: 10px; border-radius: 5px; background: var(--border); overflow: hidden; margin-top: 6px; }
+  .credit-fill { height: 100%; border-radius: 5px; transition: width .4s; }
+  .fill-healthy { background: #30d158; }
+  .fill-warning  { background: #ffd60a; }
+  .fill-critical { background: #ff453a; }
+</style>
+
+<div class="studio-grid">
+
+  <!-- ── Left: Config Panel ──────────────────────────────── -->
+  <div>
+    <div class="studio-card" style="margin-bottom:18px;">
+      <h2>Production Configuration</h2>
+
+      <div class="form-row">
+        <label>Niche / Topic *</label>
+        <input type="text" id="s-niche" placeholder="e.g. The fall of the Roman Empire" />
+      </div>
+
+      <div class="form-row">
+        <label>Target Audience</label>
+        <input type="text" id="s-audience" placeholder="e.g. history enthusiasts aged 25–45" />
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Format</label>
+          <select id="s-format" onchange="studioFormatChange()">
+            <option value="long">Long-form (16:9)</option>
+            <option value="short">Short / Reel (9:16)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Target Duration (s)</label>
+          <input type="number" id="s-duration" value="480" min="30" max="3600" />
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Voice</label>
+          <select id="s-voice">
+            {% for v in voices %}
+            <option value="{{ v }}" {% if loop.first %}selected{% endif %}>{{ v }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Thumbnail Style</label>
+          <select id="s-thumb-style">
+            <option value="fire">Fire</option>
+            <option value="clean">Clean</option>
+            <option value="bold">Bold</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+        <label>Higgsfield Credits Available</label>
+        <div class="form-grid-2">
+          <input type="number" id="s-credits" value="500" min="0" />
+          <input type="number" id="s-budget" value="500" min="1" placeholder="Monthly budget" />
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Available credits / Monthly budget — Cost Engineer optimises against this.</div>
+      </div>
+
+      <div class="form-row">
+        <label>Competitor Titles (one per line, optional)</label>
+        <textarea id="s-competitors" placeholder="Top 10 secrets of Ancient Rome&#10;Why Rome really fell…"></textarea>
+      </div>
+
+      <div class="form-grid-2" style="margin-bottom:16px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="s-research" checked /> Enable Research
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" id="s-dryrun" checked /> Dry Run (no upload)
+        </label>
+      </div>
+
+      <button class="btn btn-primary run-btn" id="studioRunBtn" onclick="studioRun()">
+        Run Production Pipeline
+      </button>
+    </div>
+
+    <!-- Progress -->
+    <div class="studio-card" id="studioProgressCard" style="display:none;">
+      <h2>Pipeline Progress</h2>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-track"><div class="progress-bar-fill" id="studioPbar"></div></div>
+        <div class="progress-label" id="studioStepLabel">Starting…</div>
+      </div>
+      <div class="log-box" id="studioLogBox"></div>
+    </div>
+  </div>
+
+  <!-- ── Right: Agent Pipeline + Results ────────────────── -->
+  <div>
+
+    <!-- Agent pipeline visualization -->
+    <div class="studio-card" style="margin-bottom:18px;">
+      <h2>5-Agent Pipeline</h2>
+      <div class="agent-pipeline" id="agentPipeline">
+
+        <div class="agent-node" id="agent-1" data-step="12">
+          <div class="agent-icon">🔍</div>
+          <div>
+            <div class="agent-name">Trend Architect</div>
+            <div class="agent-desc">Analyses niche · identifies winning angle · scores trend</div>
+          </div>
+          <div class="agent-status" id="agent-1-status">Waiting</div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+
+        <div class="agent-node" id="agent-2" data-step="25">
+          <div class="agent-icon">✍️</div>
+          <div>
+            <div class="agent-name">Narrative Designer</div>
+            <div class="agent-desc">Writes section-by-section script · emotional beats · hooks</div>
+          </div>
+          <div class="agent-status" id="agent-2-status">Waiting</div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+
+        <div class="agent-node" id="agent-3" data-step="38">
+          <div class="agent-icon">🎨</div>
+          <div>
+            <div class="agent-name">Asset Curator</div>
+            <div class="agent-desc">Maps visuals to sections · selects sources · writes prompts</div>
+          </div>
+          <div class="agent-status" id="agent-3-status">Waiting</div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+
+        <div class="agent-node" id="agent-35" data-step="45">
+          <div class="agent-icon">💰</div>
+          <div>
+            <div class="agent-name">Cost Engineer</div>
+            <div class="agent-desc">Optimises asset budget · swaps expensive clips · routes sources</div>
+          </div>
+          <div class="agent-status" id="agent-35-status">Waiting</div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+
+        <div class="agent-node" id="agent-4" data-step="52">
+          <div class="agent-icon">📈</div>
+          <div>
+            <div class="agent-name">Growth Engineer</div>
+            <div class="agent-desc">SEO titles · description · tags · thumbnail text · A/B variants</div>
+          </div>
+          <div class="agent-status" id="agent-4-status">Waiting</div>
+        </div>
+        <div class="pipeline-arrow">↓</div>
+
+        <div class="agent-node" id="agent-compile" data-step="84">
+          <div class="agent-icon">🎬</div>
+          <div>
+            <div class="agent-name">Video Compiler</div>
+            <div class="agent-desc">Audio · AI clips · stock media · thumbnail · final assembly</div>
+          </div>
+          <div class="agent-status" id="agent-compile-status">Waiting</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Results panel -->
+    <div id="studioResults" class="result-panel">
+
+      <div class="studio-card" style="margin-bottom:18px;">
+        <h2>Blueprint</h2>
+        <div class="result-section">
+          <div style="font-size:20px;font-weight:800;margin-bottom:8px;" id="r-title"></div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:12px;" id="r-hook"></div>
+          <div class="badge-row" id="r-badges"></div>
+        </div>
+
+        <div class="metric-grid" style="margin-top:16px;" id="r-metrics"></div>
+      </div>
+
+      <div class="studio-card" style="margin-bottom:18px;">
+        <h2>SEO Package</h2>
+        <div class="result-section">
+          <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Final Title</label>
+          <div style="font-size:15px;font-weight:700;margin:4px 0 12px;" id="r-seo-title"></div>
+
+          <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Thumbnail Text</label>
+          <div style="font-size:13px;margin:4px 0 12px;" id="r-thumb-text"></div>
+
+          <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;">A/B Title Variants</label>
+          <ul class="ab-list" id="r-ab-list" style="margin-top:6px;"></ul>
+        </div>
+        <div class="result-section">
+          <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Upload Timing</label>
+          <div style="font-size:13px;margin:4px 0 12px;" id="r-timing"></div>
+
+          <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Pinned Comment</label>
+          <div style="font-size:13px;color:var(--muted);margin:4px 0;" id="r-pinned"></div>
+        </div>
+      </div>
+
+      <div class="studio-card" style="margin-bottom:18px;">
+        <h2>Budget Report</h2>
+        <div id="r-budget-state" class="badge" style="margin-bottom:12px;"></div>
+        <div class="metric-grid" id="r-budget-metrics" style="margin-bottom:12px;"></div>
+
+        <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;">Cost Swaps Made</label>
+        <ul class="swap-list" id="r-swaps" style="margin-top:8px;"></ul>
+
+        <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-top:12px;display:block;">Quality Impact</label>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;" id="r-quality"></div>
+      </div>
+
+      <div class="studio-card" id="r-errors-card" style="display:none;margin-bottom:18px;border-color:#ff453a;">
+        <h2 style="color:#ff453a;">Pipeline Errors</h2>
+        <div class="log-box" id="r-errors-box"></div>
+      </div>
+
+    </div><!-- /studioResults -->
+  </div>
+</div>
+
+<script>
+let studioJobId = null;
+let studioES = null;
+
+function studioFormatChange() {
+  const fmt = document.getElementById('s-format').value;
+  const dur = document.getElementById('s-duration');
+  if (fmt === 'short') { dur.value = 55; }
+  else { dur.value = 480; }
+}
+
+function agentState(nodeId, state, statusText) {
+  const el = document.getElementById(nodeId);
+  if (!el) return;
+  el.classList.remove('active', 'done', 'error-state');
+  if (state) el.classList.add(state);
+  const s = document.getElementById(nodeId + '-status');
+  if (s) s.textContent = statusText || '';
+}
+
+function updateAgentsFromProgress(pct) {
+  const agents = [
+    { id: 'agent-1',       threshold: 12, doneAt: 24,  label: 'Analysing…', done: 'Done' },
+    { id: 'agent-2',       threshold: 25, doneAt: 37,  label: 'Writing…',   done: 'Done' },
+    { id: 'agent-3',       threshold: 38, doneAt: 44,  label: 'Planning…',  done: 'Done' },
+    { id: 'agent-35',      threshold: 45, doneAt: 51,  label: 'Optimising…',done: 'Done' },
+    { id: 'agent-4',       threshold: 52, doneAt: 57,  label: 'SEO…',       done: 'Done' },
+    { id: 'agent-compile', threshold: 84, doneAt: 99,  label: 'Compiling…', done: 'Done' },
+  ];
+  for (const a of agents) {
+    if (pct >= a.doneAt) {
+      agentState(a.id, 'done', a.done);
+    } else if (pct >= a.threshold) {
+      agentState(a.id, 'active', a.label);
+    } else {
+      agentState(a.id, null, 'Waiting');
+    }
+  }
+}
+
+function addLog(msg, cls) {
+  const box = document.getElementById('studioLogBox');
+  if (!box) return;
+  const div = document.createElement('div');
+  div.className = 'log-line' + (cls ? ' ' + cls : '');
+  div.textContent = msg;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function renderResult(result) {
+  const bp = result.blueprint || {};
+  const seo = result.seo || {};
+  const ap = result.asset_plan || {};
+
+  document.getElementById('r-title').textContent = bp.title || '—';
+  document.getElementById('r-hook').textContent = bp.hook || '';
+
+  const badges = document.getElementById('r-badges');
+  badges.innerHTML = '';
+  const addBadge = (txt, cls) => {
+    const b = document.createElement('span');
+    b.className = 'badge badge-' + cls;
+    b.textContent = txt;
+    badges.appendChild(b);
+  };
+  if (bp.content_type) addBadge(bp.content_type, 'blue');
+  if (bp.tone) addBadge(bp.tone, 'blue');
+  if (bp.trend_score >= 7) addBadge(`Trend ${bp.trend_score}/10`, 'green');
+  else if (bp.trend_score >= 5) addBadge(`Trend ${bp.trend_score}/10`, 'yellow');
+  else addBadge(`Trend ${bp.trend_score}/10`, 'red');
+
+  const metrics = document.getElementById('r-metrics');
+  metrics.innerHTML = `
+    <div class="metric-card"><div class="metric-value">${((bp.estimated_ctr||0)*100).toFixed(1)}%</div><div class="metric-label">Predicted CTR</div></div>
+    <div class="metric-card"><div class="metric-value">${bp.trend_score||0}/10</div><div class="metric-label">Trend Score</div></div>
+    <div class="metric-card"><div class="metric-value">${(seo.predicted_views_30d||0).toLocaleString()}</div><div class="metric-label">30-day Views</div></div>
+    <div class="metric-card"><div class="metric-value">${ap.total_credit_cost||0}</div><div class="metric-label">Credits Used</div></div>
+  `;
+
+  document.getElementById('r-seo-title').textContent = seo.title_final || bp.title || '—';
+  document.getElementById('r-thumb-text').textContent = seo.thumbnail_text || '—';
+  document.getElementById('r-timing').textContent = seo.upload_timing || '—';
+  document.getElementById('r-pinned').textContent = seo.pinned_comment || '—';
+
+  const abList = document.getElementById('r-ab-list');
+  abList.innerHTML = '';
+  for (const v of (seo.ab_title_variants || [])) {
+    const li = document.createElement('li');
+    li.textContent = v;
+    abList.appendChild(li);
+  }
+
+  // Budget
+  const bs = ap.budget_state || 'healthy';
+  const bsEl = document.getElementById('r-budget-state');
+  const bsMap = { healthy: ['badge-green','✅ Healthy'], warning: ['badge-yellow','⚠️ Warning'], critical_save: ['badge-red','🔴 Critical Save'] };
+  const [bsCls, bsTxt] = bsMap[bs] || ['badge-blue', bs];
+  bsEl.className = 'badge ' + bsCls;
+  bsEl.textContent = bsTxt;
+
+  const credPct = ap.credits_remaining_after && document.getElementById('s-budget')
+    ? Math.min(100, (ap.credits_remaining_after / (parseInt(document.getElementById('s-budget').value)||500)) * 100)
+    : 0;
+  const fillCls = bs === 'healthy' ? 'fill-healthy' : bs === 'warning' ? 'fill-warning' : 'fill-critical';
+
+  document.getElementById('r-budget-metrics').innerHTML = `
+    <div class="metric-card"><div class="metric-value">${ap.total_credit_cost||0}</div><div class="metric-label">Credits Spent</div></div>
+    <div class="metric-card">
+      <div class="metric-value">${ap.credits_remaining_after||0}</div>
+      <div class="metric-label">Remaining</div>
+      <div class="credit-bar"><div class="credit-fill ${fillCls}" style="width:${credPct}%"></div></div>
+    </div>
+    <div class="metric-card"><div class="metric-value">${(ap.swaps_made||[]).length}</div><div class="metric-label">Swaps Made</div></div>
+  `;
+
+  const swapList = document.getElementById('r-swaps');
+  swapList.innerHTML = '';
+  if ((ap.swaps_made||[]).length === 0) {
+    swapList.innerHTML = '<li style="color:var(--muted)">No swaps needed</li>';
+  } else {
+    for (const s of ap.swaps_made) {
+      const li = document.createElement('li'); li.textContent = s; swapList.appendChild(li);
+    }
+  }
+  document.getElementById('r-quality').textContent = ap.quality_impact || '—';
+
+  // Errors
+  const errs = result.errors || [];
+  if (errs.length) {
+    document.getElementById('r-errors-card').style.display = '';
+    const box = document.getElementById('r-errors-box');
+    box.innerHTML = '';
+    for (const e of errs) {
+      const d = document.createElement('div'); d.className = 'log-line error'; d.textContent = e; box.appendChild(d);
+    }
+  }
+
+  document.getElementById('studioResults').classList.add('visible');
+}
+
+function studioRun() {
+  const niche = document.getElementById('s-niche').value.trim();
+  if (!niche) { alert('Please enter a niche/topic.'); return; }
+
+  const btn = document.getElementById('studioRunBtn');
+  btn.disabled = true;
+  btn.textContent = 'Pipeline Running…';
+
+  // Reset UI
+  document.getElementById('studioProgressCard').style.display = '';
+  document.getElementById('studioResults').classList.remove('visible');
+  document.getElementById('studioPbar').style.width = '0%';
+  document.getElementById('studioLogBox').innerHTML = '';
+  document.getElementById('r-errors-card').style.display = 'none';
+  ['agent-1','agent-2','agent-3','agent-35','agent-4','agent-compile'].forEach(id => agentState(id, null, 'Waiting'));
+
+  const competitors = document.getElementById('s-competitors').value.split('\n').map(s=>s.trim()).filter(Boolean);
+
+  const payload = {
+    niche,
+    audience: document.getElementById('s-audience').value.trim(),
+    is_portrait: document.getElementById('s-format').value === 'short',
+    target_duration: parseInt(document.getElementById('s-duration').value) || 480,
+    voice: document.getElementById('s-voice').value,
+    thumbnail_style: document.getElementById('s-thumb-style').value,
+    remaining_credits: parseInt(document.getElementById('s-credits').value) || 500,
+    monthly_budget: parseInt(document.getElementById('s-budget').value) || 500,
+    research_enabled: document.getElementById('s-research').checked,
+    dry_run: document.getElementById('s-dryrun').checked,
+    competitor_titles: competitors,
+  };
+
+  fetch('/api/studio/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = 'Run Production Pipeline'; return; }
+    studioJobId = data.studio_job_id;
+    listenStudio(studioJobId);
+  })
+  .catch(err => {
+    alert('Request failed: ' + err);
+    btn.disabled = false;
+    btn.textContent = 'Run Production Pipeline';
+  });
+}
+
+function listenStudio(jobId) {
+  if (studioES) studioES.close();
+  studioES = new EventSource('/api/studio/stream/' + jobId);
+
+  studioES.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    const pct = msg.progress || 0;
+    const step = msg.step || '';
+
+    document.getElementById('studioPbar').style.width = pct + '%';
+    document.getElementById('studioStepLabel').textContent = step;
+    if (step) addLog(step);
+
+    updateAgentsFromProgress(pct);
+
+    if (msg.status === 'done') {
+      studioES.close();
+      document.getElementById('studioRunBtn').disabled = false;
+      document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
+      addLog('✓ Pipeline complete!', 'success');
+      if (msg.result) renderResult(msg.result);
+    } else if (msg.status === 'error') {
+      studioES.close();
+      document.getElementById('studioRunBtn').disabled = false;
+      document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
+      addLog('✗ ' + step, 'error');
+    }
+  };
+
+  studioES.onerror = () => {
+    studioES.close();
+    // Fallback: poll status
+    setTimeout(() => pollStatus(jobId), 1000);
+  };
+}
+
+function pollStatus(jobId) {
+  fetch('/api/studio/status/' + jobId)
+    .then(r => r.json())
+    .then(data => {
+      if (!data || data.error) return;
+      const pct = data.progress || 0;
+      document.getElementById('studioPbar').style.width = pct + '%';
+      document.getElementById('studioStepLabel').textContent = data.step || '';
+      updateAgentsFromProgress(pct);
+
+      if (data.status === 'done') {
+        document.getElementById('studioRunBtn').disabled = false;
+        document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
+        if (data.result) renderResult(data.result);
+      } else if (data.status === 'error') {
+        document.getElementById('studioRunBtn').disabled = false;
+        document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
+      } else {
+        setTimeout(() => pollStatus(jobId), 1500);
+      }
+    });
+}
+</script>
+{% endblock %}

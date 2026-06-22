@@ -637,6 +637,167 @@ def api_settings_check():
     })
 
 
+# ── Production Studio ─────────────────────────────────────────────────────────
+
+# In-memory studio job store keyed by studio_job_id (str uuid)
+_studio_jobs: dict[str, dict] = {}
+_studio_events: dict[str, list[str]] = {}
+_studio_lock = threading.Lock()
+
+
+def _push_studio_event(job_id: str, data: dict):
+    payload = f"data: {json.dumps(data)}\n\n"
+    with _studio_lock:
+        if job_id not in _studio_events:
+            _studio_events[job_id] = []
+        _studio_events[job_id].append(payload)
+
+
+def _run_studio_thread(studio_job_id: str, params: dict):
+    from generators.production_engine import ProductionStudioEngine
+
+    def _cb(msg: str, pct: int):
+        with _studio_lock:
+            if studio_job_id in _studio_jobs:
+                _studio_jobs[studio_job_id].update({"progress": pct, "step": msg, "status": "running"})
+        _push_studio_event(studio_job_id, {"progress": pct, "step": msg, "status": "running"})
+
+    with _studio_lock:
+        _studio_jobs[studio_job_id] = {"status": "running", "progress": 0, "step": "Initialising…"}
+
+    try:
+        engine = ProductionStudioEngine(
+            monthly_budget=params.get("monthly_budget", 500),
+            progress_callback=_cb,
+        )
+        result = engine.run_daily_pipeline(
+            niche=params["niche"],
+            remaining_credits=params.get("remaining_credits", 500),
+            target_duration=params.get("target_duration", 480),
+            audience=params.get("audience", ""),
+            is_portrait=params.get("is_portrait", False),
+            voice=params.get("voice") or config.DEFAULT_VOICE,
+            thumbnail_style=params.get("thumbnail_style", "fire"),
+            privacy=params.get("privacy", "private"),
+            dry_run=params.get("dry_run", False),
+            research_enabled=params.get("research_enabled", True),
+            competitor_titles=params.get("competitor_titles") or [],
+        )
+
+        result_dict = result.model_dump()
+
+        with _studio_lock:
+            _studio_jobs[studio_job_id].update({
+                "status": "done",
+                "progress": 100,
+                "step": "Production complete!",
+                "result": result_dict,
+            })
+
+        _push_studio_event(studio_job_id, {
+            "progress": 100,
+            "step": "Production complete!",
+            "status": "done",
+            "result": result_dict,
+        })
+
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        with _studio_lock:
+            _studio_jobs[studio_job_id].update({
+                "status": "error",
+                "step": f"Error: {e}",
+                "traceback": tb,
+            })
+        _push_studio_event(studio_job_id, {
+            "status": "error",
+            "step": f"Error: {e}",
+            "traceback": tb,
+        })
+
+
+@app.route("/studio")
+def studio_page():
+    accounts = db.get_accounts()
+    connected = {a["platform"] for a in accounts if a["is_active"]}
+    return render_template(
+        "studio.html",
+        connected_platforms=connected,
+        voices=config.AVAILABLE_VOICES,
+        higgsfield_models=config.HIGGSVILLE_MODELS,
+    )
+
+
+@app.route("/api/studio/run", methods=["POST"])
+def api_studio_run():
+    import uuid
+    data = request.json or {}
+    niche = (data.get("niche") or "").strip()
+    if not niche:
+        return jsonify({"error": "Niche is required"}), 400
+
+    studio_job_id = str(uuid.uuid4())
+
+    params = {
+        "niche": niche,
+        "remaining_credits": int(data.get("remaining_credits") or 500),
+        "monthly_budget": int(data.get("monthly_budget") or 500),
+        "target_duration": int(data.get("target_duration") or 480),
+        "audience": (data.get("audience") or "").strip(),
+        "is_portrait": bool(data.get("is_portrait", False)),
+        "voice": data.get("voice") or config.DEFAULT_VOICE,
+        "thumbnail_style": data.get("thumbnail_style") or "fire",
+        "privacy": data.get("privacy") or "private",
+        "dry_run": bool(data.get("dry_run", True)),
+        "research_enabled": bool(data.get("research_enabled", True)),
+        "competitor_titles": data.get("competitor_titles") or [],
+    }
+
+    t = threading.Thread(target=_run_studio_thread, args=(studio_job_id, params), daemon=True)
+    t.start()
+
+    return jsonify({"studio_job_id": studio_job_id})
+
+
+@app.route("/api/studio/stream/<studio_job_id>")
+def studio_stream(studio_job_id):
+    def generate():
+        last_idx = 0
+        while True:
+            with _studio_lock:
+                events = _studio_events.get(studio_job_id, [])
+                new = events[last_idx:]
+                last_idx = len(events)
+                job = _studio_jobs.get(studio_job_id, {})
+
+            for event in new:
+                yield event
+
+            if job.get("status") in ("done", "error"):
+                if not new:
+                    yield f"data: {json.dumps({'status': job.get('status'), 'progress': job.get('progress', 0)})}\n\n"
+                time.sleep(0.3)
+                break
+
+            time.sleep(0.4)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.route("/api/studio/status/<studio_job_id>")
+def studio_status(studio_job_id):
+    with _studio_lock:
+        job = _studio_jobs.get(studio_job_id)
+    if job is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(job)
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
