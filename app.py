@@ -5,6 +5,9 @@ Flask application serving the command center UI.
 import json
 import os
 import csv
+
+# Allow OAuth over HTTP for local development
+os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 import io
 import threading
 import time
