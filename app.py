@@ -183,6 +183,9 @@ def api_create():
         "skip_research": skip_research,
         "ai_video_provider": data.get("ai_video_provider", "none"),
         "higgsfield_model": data.get("higgsfield_model", "kling3_0"),
+        "podcast_name": (data.get("podcast_name") or "").strip() or topic,
+        "episode_number": int(data.get("episode_number") or 1),
+        "guest_name": (data.get("guest_name") or "").strip(),
     }
 
     t = threading.Thread(target=_run_job_thread, args=(job_id, params), daemon=True)

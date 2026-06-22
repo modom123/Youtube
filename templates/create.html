@@ -117,6 +117,30 @@
       </div>
     </div>
 
+    <!-- Podcast Settings (shown only when podcast format selected) -->
+    <div class="card" id="podcastPanel" style="display:none;border-color:#a855f7;">
+      <div class="card-title mb-16">
+        <span class="accent" style="color:#a855f7;">🎙️</span> Podcast Settings
+      </div>
+      <div class="form-group">
+        <label>Show / Podcast Name</label>
+        <input type="text" id="podcast_name" placeholder="e.g. The Wealth Builder Podcast">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label>Episode Number</label>
+          <input type="number" id="episode_number" value="1" min="1" max="9999" style="width:100%;">
+        </div>
+        <div class="form-group">
+          <label>Guest Name <span class="text-dim text-xs">(optional)</span></label>
+          <input type="text" id="guest_name" placeholder="e.g. John Smith">
+        </div>
+      </div>
+      <div class="text-dim text-xs mt-4">
+        The podcast video will include an animated equalizer, chapter markers, and a progress bar.
+      </div>
+    </div>
+
     <!-- Research Preview -->
     <div class="card" id="researchPreview" style="display:none;">
       <div class="flex-between mb-12">
@@ -252,6 +276,7 @@ function selectFormat(el, fmt) {
   document.querySelectorAll('.format-card[data-format]').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   _format = fmt;
+  document.getElementById('podcastPanel').style.display = (fmt === 'podcast') ? '' : 'none';
 }
 
 function selectStyle(el, s) {
@@ -341,6 +366,9 @@ async function startCreate() {
     skip_research: document.getElementById('skip_research').checked,
     ai_video_provider: document.getElementById('ai_video_provider').value,
     higgsfield_model: document.getElementById('higgsfield_model').value,
+    podcast_name: document.getElementById('podcast_name').value || topic,
+    episode_number: parseInt(document.getElementById('episode_number').value) || 1,
+    guest_name: document.getElementById('guest_name').value || '',
   };
 
   await launchJob(payload);

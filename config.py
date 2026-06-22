@@ -25,6 +25,9 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
 # Higgsfield AI
 HIGGSFIELD_API_KEY = os.getenv("HIGGSFIELD_API_KEY", "")  # format: "key:secret"
+# MCP auth token — used by the https://mcp.higgsfield.ai/mcp HTTP client.
+# Falls back to HIGGSFIELD_API_KEY (key portion) if not set separately.
+HIGGSFIELD_MCP_TOKEN = os.getenv("HIGGSFIELD_MCP_TOKEN", "")
 
 # YouTube
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID", "")

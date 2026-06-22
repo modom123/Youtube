@@ -30,7 +30,16 @@ def _build_prompt(
     type_instructions = {
         "short": f"Create a punchy, viral SHORT video script (~{target_duration} seconds). Hook in first 3 seconds. Fast-paced, engaging.",
         "long": f"Create a comprehensive LONG-FORM video script (~{target_duration} seconds / {target_duration//60} minutes). Educational and thorough.",
-        "podcast": f"Create a conversational PODCAST EPISODE script (~{target_duration} seconds / {target_duration//60} minutes). Natural dialogue style.",
+        "podcast": (
+            f"Create a full PODCAST EPISODE script (~{target_duration} seconds / {target_duration//60} minutes). "
+            "Write in a natural, conversational host voice. Structure: "
+            "1) Attention-grabbing cold open / teaser (30s), "
+            "2) Warm intro + topic overview (90s), "
+            "3) Three to four meaty discussion chapters with transitions, "
+            "4) Takeaways + listener CTA (60s), "
+            "5) Outro sign-off (30s). "
+            "Each chapter must have a distinct focus. Sections must reflect these chapters exactly."
+        ),
         "reel": f"Create an Instagram REEL script (~{target_duration} seconds). Visually driven, trend-aware, highly shareable.",
     }
 

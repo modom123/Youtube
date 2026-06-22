@@ -69,6 +69,9 @@ def run(
     skip_research: bool = False,
     ai_video_provider: str = "none",
     higgsfield_model: str = "kling-v2",
+    podcast_name: str = "",
+    episode_number: int = 1,
+    guest_name: str = "",
 ) -> dict:
     """
     Full pipeline: topic → research → script → audio → video → publish.
@@ -113,6 +116,9 @@ def run(
         "files": {},
         "publish_results": {},
         "research": {},
+        "podcast_name": podcast_name or topic,
+        "episode_number": episode_number,
+        "guest_name": guest_name,
     }
 
     # ── 2. Research the topic ────────────────────────────────────────────────
@@ -300,6 +306,10 @@ def run(
                 thumbnail_path=thumbnail_path,
                 width=profile["width"],
                 height=profile["height"],
+                channel_name=podcast_name or topic,
+                episode_number=episode_number,
+                title=script.title,
+                sections=script.sections,
             )
         else:
             video_generator.create_video(

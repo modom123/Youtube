@@ -366,6 +366,9 @@ def generate_ai_clips(
     """
     Generate AI video clips using the specified provider.
     provider: "higgsville" | "google_flow" | "both" | "none"
+
+    Higgsfield path tries the MCP endpoint first (https://mcp.higgsfield.ai/mcp),
+    then falls back to the higgsfield-client SDK, then the REST API.
     """
     output_dir = Path(output_dir)
     prompts = build_video_prompts(
@@ -376,7 +379,7 @@ def generate_ai_clips(
 
     if provider in ("higgsville", "both"):
         if config.HIGGSFIELD_API_KEY:
-            hv_clips = generate_higgsville_clips(
+            hv_clips = _generate_higgsville_with_mcp_fallback(
                 prompts=prompts,
                 output_dir=output_dir / "higgsville",
                 model_id=model_key,
@@ -398,3 +401,41 @@ def generate_ai_clips(
             print("[ai_video] GOOGLE_API_KEY not set — skipping Google Flow/Veo")
 
     return clips
+
+
+def _generate_higgsville_with_mcp_fallback(
+    prompts: list[str],
+    output_dir: Path,
+    model_id: str,
+    aspect_ratio: str,
+    duration: int = 5,
+) -> list[Path]:
+    """
+    Try Higgsfield MCP endpoint first (https://mcp.higgsfield.ai/mcp).
+    Fall back to SDK → REST API if MCP returns nothing.
+    """
+    # 1. MCP path
+    try:
+        from generators.higgsfield_mcp import generate_clips_via_mcp
+        mcp_clips = generate_clips_via_mcp(
+            prompts=prompts,
+            output_dir=output_dir / "mcp",
+            model_id=model_id,
+            aspect_ratio=aspect_ratio,
+            duration=duration,
+        )
+        if mcp_clips:
+            print(f"[ai_video] ✓ {len(mcp_clips)} clips via Higgsfield MCP")
+            return mcp_clips
+        print("[ai_video] MCP returned 0 clips — falling back to SDK/REST")
+    except Exception as e:
+        print(f"[ai_video] MCP path error ({e}) — falling back to SDK/REST")
+
+    # 2. SDK / REST fallback
+    return generate_higgsville_clips(
+        prompts=prompts,
+        output_dir=output_dir,
+        model_id=model_id,
+        aspect_ratio=aspect_ratio,
+        duration=duration,
+    )
