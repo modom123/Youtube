@@ -794,6 +794,7 @@ def studio_page():
         connected_platforms=connected,
         voices=config.AVAILABLE_VOICES,
         higgsfield_models=config.HIGGSVILLE_MODELS,
+        config=config,
     )
 
 
@@ -878,7 +879,33 @@ def studio_status(studio_job_id):
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "version": "1.0"})
+    from generators.higgsfield_cli import is_authenticated as hf_cli_ok
+    return jsonify({
+        "status": "ok",
+        "version": "1.0",
+        "higgsfield_cli": hf_cli_ok(),
+    })
+
+
+@app.route("/api/admin/higgsfield-token", methods=["POST"])
+@login_required
+def set_higgsfield_token():
+    """Allow admins to seed a Higgsfield bearer token at runtime without redeployment."""
+    if not current_user.is_admin:
+        return jsonify({"error": "Admin only"}), 403
+    data = request.get_json(silent=True) or {}
+    token = (data.get("token") or "").strip()
+    if not token:
+        return jsonify({"error": "token is required"}), 400
+    import json as _json
+    from pathlib import Path as _Path
+    cred_file = _Path.home() / ".config" / "higgsfield" / "credentials.json"
+    cred_file.parent.mkdir(parents=True, exist_ok=True)
+    cred_file.write_text(_json.dumps({"access_token": token, "token_type": "Bearer"}))
+    # Reset seeded flag so next CLI call re-reads
+    import generators.higgsfield_cli as _hf_cli
+    _hf_cli._SEEDED = False
+    return jsonify({"ok": True, "message": "Higgsfield CLI token updated"})
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────

@@ -411,10 +411,28 @@ def _generate_higgsville_with_mcp_fallback(
     duration: int = 5,
 ) -> list[Path]:
     """
-    Try Higgsfield MCP endpoint first (https://mcp.higgsfield.ai/mcp).
-    Fall back to SDK → REST API if MCP returns nothing.
+    Try Higgsfield CLI first (non-interactive, seeds token from env).
+    Fall back to MCP endpoint → SDK → REST API.
     """
-    # 1. MCP path
+    # 1. CLI path (preferred — single binary, no SDK dependency)
+    try:
+        from generators.higgsfield_cli import generate_clips_via_cli, is_authenticated
+        if is_authenticated():
+            cli_clips = generate_clips_via_cli(
+                prompts=prompts,
+                output_dir=output_dir / "cli",
+                model_id=model_id,
+                aspect_ratio=aspect_ratio,
+                duration=duration,
+            )
+            if cli_clips:
+                print(f"[ai_video] ✓ {len(cli_clips)} clips via Higgsfield CLI")
+                return cli_clips
+            print("[ai_video] CLI returned 0 clips — falling back to MCP")
+    except Exception as e:
+        print(f"[ai_video] CLI path error ({e}) — falling back to MCP")
+
+    # 2. MCP path
     try:
         from generators.higgsfield_mcp import generate_clips_via_mcp
         mcp_clips = generate_clips_via_mcp(
@@ -431,7 +449,7 @@ def _generate_higgsville_with_mcp_fallback(
     except Exception as e:
         print(f"[ai_video] MCP path error ({e}) — falling back to SDK/REST")
 
-    # 2. SDK / REST fallback
+    # 3. SDK / REST fallback
     return generate_higgsville_clips(
         prompts=prompts,
         output_dir=output_dir,

@@ -104,6 +104,16 @@
 
   <!-- ── Left: Config Panel ──────────────────────────────── -->
   <div>
+    <!-- System status bar -->
+    <div class="studio-card" style="margin-bottom:12px;padding:10px 14px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;">
+        <span style="color:var(--muted);font-weight:600;margin-right:4px;">SERVICES</span>
+        <span id="svc-hf-cli" class="badge badge-yellow">⏳ Higgsfield CLI</span>
+        <span id="svc-hf-mcp" class="badge badge-yellow">⏳ Higgsfield MCP</span>
+        <span id="svc-claude" class="badge badge-yellow">⏳ Claude AI</span>
+      </div>
+    </div>
+
     <div class="studio-card" style="margin-bottom:18px;">
       <h2>Production Configuration</h2>
 
@@ -319,6 +329,29 @@
 <script>
 let studioJobId = null;
 let studioES = null;
+
+// Check service status on page load
+(async function checkServices() {
+  function setBadge(id, ok, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'badge ' + (ok ? 'badge-green' : 'badge-red');
+    el.textContent = (ok ? '✓ ' : '✗ ') + label;
+  }
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    setBadge('svc-hf-cli', d.higgsfield_cli, 'Higgsfield CLI');
+  } catch (_) {
+    setBadge('svc-hf-cli', false, 'Higgsfield CLI');
+  }
+  // Claude — proxy check via a simple ping to confirm API key is set
+  const hasAnthropicKey = {{ 'true' if config.ANTHROPIC_API_KEY else 'false' }};
+  setBadge('svc-claude', hasAnthropicKey, 'Claude AI');
+  // MCP — check if MCP token is configured
+  const hasMcpToken = {{ 'true' if config.HIGGSFIELD_MCP_TOKEN or config.HIGGSFIELD_API_KEY else 'false' }};
+  setBadge('svc-hf-mcp', hasMcpToken, 'Higgsfield MCP');
+})();
 
 function studioFormatChange() {
   const fmt = document.getElementById('s-format').value;
