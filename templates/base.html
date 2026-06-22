@@ -23,7 +23,7 @@
 
     <nav class="sidebar-nav">
       <span class="sidebar-section-label">Main</span>
-      <a href="/" class="nav-item {% if active_page=='dashboard' %}active{% endif %}">
+      <a href="/dashboard" class="nav-item {% if active_page=='dashboard' %}active{% endif %}">
         <span class="icon">⚡</span> Dashboard
       </a>
       <a href="/create" class="nav-item {% if active_page=='create' %}active{% endif %}">
@@ -44,7 +44,10 @@
         <span class="icon">👥</span> Contacts
       </a>
 
-      <span class="sidebar-section-label">System</span>
+      <span class="sidebar-section-label">Account</span>
+      <a href="/billing" class="nav-item {% if active_page=='billing' %}active{% endif %}">
+        <span class="icon">💳</span> Billing &amp; Plan
+      </a>
       <a href="/settings" class="nav-item {% if active_page=='settings' %}active{% endif %}">
         <span class="icon">⚙️</span> Settings
       </a>
@@ -55,6 +58,13 @@
         <span class="status-dot" id="api-dot"></span>
         <span id="api-status-text">Checking...</span>
       </div>
+      {% if current_user.is_authenticated %}
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ current_user.name }}</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ current_user.email }}</div>
+        <a href="/auth/logout" style="font-size:11px;color:var(--muted);text-decoration:none;">Sign out →</a>
+      </div>
+      {% endif %}
     </div>
   </aside>
 

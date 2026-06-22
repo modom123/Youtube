@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% set active_page = "billing" %}
+
+{% block title %}Billing — Social Optimize{% endblock %}
+{% block topbar_title %}Billing & Plan{% endblock %}
+{% block topbar_sub %}Manage your subscription and usage{% endblock %}
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+<style>
+  .billing-grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+  @media (max-width: 900px) { .billing-grid { grid-template-columns: 1fr; } }
+
+  .bcard { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .bcard h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 18px; }
+
+  .current-plan-badge { display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+  .badge-free { background: rgba(150,150,150,.15); color: var(--muted); }
+  .badge-starter { background: rgba(10,132,255,.15); color: #0a84ff; }
+  .badge-creator { background: rgba(255,159,10,.15); color: #ff9f0a; }
+  .badge-agency { background: rgba(48,209,88,.15); color: #30d158; }
+
+  .plan-name { font-size: 28px; font-weight: 900; margin: 12px 0 4px; }
+  .plan-price { font-size: 15px; color: var(--muted); margin-bottom: 20px; }
+
+  .usage-row { margin-bottom: 16px; }
+  .usage-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .usage-label .lbl { color: var(--muted); font-weight: 600; }
+  .usage-label .val { font-weight: 700; }
+  .usage-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .usage-fill { height: 100%; border-radius: 4px; transition: width .4s; }
+  .fill-ok  { background: #30d158; }
+  .fill-warn { background: #ff9f0a; }
+  .fill-full { background: var(--accent); }
+
+  .pricing-plans { display: flex; flex-direction: column; gap: 12px; }
+  .plan-row { display: flex; align-items: center; justify-content: space-between; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .plan-row.active { border-color: var(--accent); background: rgba(255,59,48,.05); }
+  .plan-row-info { flex: 1; }
+  .plan-row-name { font-size: 14px; font-weight: 700; }
+  .plan-row-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .plan-row-price { font-size: 16px; font-weight: 800; margin: 0 16px; white-space: nowrap; }
+  .plan-action { white-space: nowrap; }
+
+  .alert-box { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+  .alert-error { background: rgba(255,59,48,.1); border: 1px solid rgba(255,59,48,.3); color: #ff453a; }
+  .alert-info  { background: rgba(10,132,255,.1); border: 1px solid rgba(10,132,255,.3); color: #0a84ff; }
+
+  .portal-btn { width: 100%; text-align: center; }
+</style>
+
+<div class="billing-grid">
+  <div>
+    <!-- Current plan -->
+    <div class="bcard">
+      <h2>Current Plan</h2>
+
+      {% if error %}
+      <div class="alert-box alert-error">{{ error }}</div>
+      {% endif %}
+
+      <div class="current-plan-badge badge-{{ current_tier }}">
+        {% if current_tier == 'free' %}Free Trial
+        {% elif current_tier == 'starter' %}⚡ Starter
+        {% elif current_tier == 'creator' %}🚀 Creator
+        {% else %}🏢 Agency{% endif %}
+      </div>
+      <div class="plan-name">{{ tier_data.label }}</div>
+      <div class="plan-price">
+        {% if tier_data.price_monthly == 0 %}Free forever
+        {% else %}${{ tier_data.price_monthly }}/month
+        {% endif %}
+      </div>
+
+      <!-- Videos usage -->
+      <div class="usage-row">
+        <div class="usage-label">
+          <span class="lbl">Videos this month</span>
+          <span class="val">
+            {{ videos_used }} / {% if videos_limit == -1 %}∞{% else %}{{ videos_limit }}{% endif %}
+          </span>
+        </div>
+        {% if videos_limit != -1 and videos_limit > 0 %}
+        <div class="usage-track">
+          <div class="usage-fill {% if usage_pct >= 90 %}fill-full{% elif usage_pct >= 70 %}fill-warn{% else %}fill-ok{% endif %}" style="width:{{ usage_pct }}%"></div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Credits usage -->
+      {% if credits_limit > 0 %}
+      <div class="usage-row">
+        <div class="usage-label">
+          <span class="lbl">Higgsfield credits</span>
+          <span class="val">{{ credits_used }} / {{ credits_limit }}</span>
+        </div>
+        {% set cpct = [(credits_used / credits_limit * 100)|round|int, 100]|min %}
+        <div class="usage-track">
+          <div class="usage-fill {% if cpct >= 90 %}fill-full{% elif cpct >= 70 %}fill-warn{% else %}fill-ok{% endif %}" style="width:{{ cpct }}%"></div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if current_tier != 'free' and stripe_pub %}
+      <button class="btn btn-secondary portal-btn" onclick="openPortal()" style="margin-top:16px;">
+        Manage Subscription / Cancel
+      </button>
+      {% endif %}
+    </div>
+
+    <!-- Upgrade plans -->
+    {% if current_tier != 'agency' %}
+    <div class="bcard">
+      <h2>Upgrade Plan</h2>
+      <div class="pricing-plans">
+        {% for tier_key, tier in tiers.items() %}
+        {% if tier_key != 'free' %}
+        <div class="plan-row {% if tier_key == current_tier %}active{% endif %}">
+          <div class="plan-row-info">
+            <div class="plan-row-name">{{ tier.label }}</div>
+            <div class="plan-row-desc">
+              {% if tier.videos_per_month == -1 %}Unlimited videos{% else %}{{ tier.videos_per_month }} videos{% endif %}
+              · {{ tier.higgsfield_credits }} AI credits/mo
+            </div>
+          </div>
+          <div class="plan-row-price">${{ tier.price_monthly }}<span style="font-size:12px;font-weight:500;color:var(--muted)">/mo</span></div>
+          <div class="plan-action">
+            {% if tier_key == current_tier %}
+              <span class="btn btn-secondary" style="opacity:.5;cursor:default;">Current</span>
+            {% elif stripe_pub %}
+              <a href="{{ url_for('billing.checkout', tier_name=tier_key) }}" class="btn {% if tier_key == 'creator' %}btn-primary{% else %}btn-secondary{% endif %}">Upgrade</a>
+            {% else %}
+              <span class="btn btn-secondary" style="opacity:.5;cursor:default;" title="Configure Stripe keys to enable">Configure Stripe</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% if not stripe_pub %}
+      <div class="alert-box alert-info" style="margin-top:16px;">
+        Add <code>STRIPE_SECRET_KEY</code>, <code>STRIPE_PUBLISHABLE_KEY</code>, and <code>STRIPE_PRICE_*</code> to your <code>.env</code> to enable payments.
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Right sidebar -->
+  <div>
+    <div class="bcard">
+      <h2>What's Included</h2>
+      <ul style="list-style:none;padding:0;margin:0;">
+        {% for f in tier_data.features %}
+        <li style="padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:8px;">
+          <span style="color:#30d158;font-weight:700;">✓</span> {{ f }}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="bcard">
+      <h2>Need More?</h2>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;">
+        If you're running a content agency or producing at scale, the Agency plan gives you unlimited videos and 2,000 Higgsfield AI credits per month.
+      </p>
+      {% if current_tier != 'agency' and stripe_pub %}
+      <a href="{{ url_for('billing.checkout', tier_name='agency') }}" class="btn btn-secondary" style="width:100%;margin-top:14px;text-align:center;">
+        Upgrade to Agency
+      </a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+function openPortal() {
+  window.location.href = "{{ url_for('billing.portal') }}";
+}
+</script>
+{% endblock %}

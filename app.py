@@ -15,12 +15,30 @@ from flask import (
     Flask, render_template, request, jsonify, redirect, url_for,
     send_file, Response, stream_with_context, session
 )
+from flask_login import LoginManager, login_required, current_user
 from werkzeug.utils import secure_filename
 import database as db
 import config
+from auth import auth_bp, make_user
+from billing import billing_bp, check_usage_gate
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+app.secret_key = config.SECRET_KEY
+
+# ── Flask-Login setup ─────────────────────────────────────────────────────────
+login_manager = LoginManager(app)
+login_manager.login_view = "auth.login"
+login_manager.login_message = "Please sign in to continue."
+login_manager.login_message_category = "info"
+
+@login_manager.user_loader
+def load_user(user_id):
+    data = db.get_user_by_id(int(user_id))
+    return make_user(data) if data else None
+
+# ── Blueprints ─────────────────────────────────────────────────────────────────
+app.register_blueprint(auth_bp)
+app.register_blueprint(billing_bp)
 
 ALLOWED_EXTENSIONS = {"csv", "vcf", "vcard", "txt"}
 
@@ -134,23 +152,47 @@ def _run_job_thread(job_id: int, params: dict):
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/")
-def index():
-    stats = db.get_stats()
-    recent_jobs = db.get_jobs(limit=5)
-    accounts = db.get_accounts()
-    return render_template("index.html", stats=stats, recent_jobs=recent_jobs, accounts=accounts)
+def landing():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+    return render_template("landing.html", tiers=config.TIERS)
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    db.reset_usage_if_new_period(current_user.id)
+    stats = db.get_stats(user_id=current_user.id)
+    recent_jobs = db.get_jobs(limit=5, user_id=current_user.id)
+    accounts = db.get_accounts(user_id=current_user.id)
+    tier = config.TIERS.get(current_user.subscription_tier, config.TIERS["free"])
+    return render_template("index.html", stats=stats, recent_jobs=recent_jobs,
+                           accounts=accounts, tier=tier)
+
+
+# keep old "/" redirect working for existing bookmarks
+@app.route("/home")
+def home_redirect():
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/create")
+@login_required
 def create_page():
-    accounts = db.get_accounts()
+    accounts = db.get_accounts(user_id=current_user.id)
     connected = {a["platform"] for a in accounts if a["is_active"]}
     return render_template("create.html", connected_platforms=connected,
                            voices=config.AVAILABLE_VOICES)
 
 
 @app.route("/api/create", methods=["POST"])
+@login_required
 def api_create():
+    # Usage gate
+    allowed, err = check_usage_gate(current_user.id)
+    if not allowed:
+        return jsonify({"error": err, "upgrade": True}), 403
+
     data = request.json
     topic = (data.get("topic") or "").strip()
     if not topic:
@@ -167,7 +209,11 @@ def api_create():
         style=data.get("style", "fire"),
         privacy=data.get("privacy", "private"),
         skip_research=skip_research,
+        user_id=current_user.id,
     )
+
+    # Increment usage counter immediately
+    db.increment_user_usage(current_user.id, videos=1)
 
     params = {
         "topic": topic,
@@ -195,6 +241,7 @@ def api_create():
 
 
 @app.route("/api/job/<int:job_id>/stream")
+@login_required
 def job_stream(job_id):
     def generate():
         last_idx = 0
@@ -224,30 +271,34 @@ def job_stream(job_id):
 
 
 @app.route("/api/job/<int:job_id>")
+@login_required
 def api_get_job(job_id):
-    job = db.get_job(job_id)
+    job = db.get_job(job_id, user_id=current_user.id)
     if not job:
         return jsonify({"error": "Not found"}), 404
     return jsonify(job)
 
 
 @app.route("/jobs")
+@login_required
 def jobs_page():
-    jobs = db.get_jobs(limit=100)
+    jobs = db.get_jobs(limit=100, user_id=current_user.id)
     return render_template("jobs.html", jobs=jobs)
 
 
 @app.route("/jobs/<int:job_id>")
+@login_required
 def job_detail(job_id):
-    job = db.get_job(job_id)
+    job = db.get_job(job_id, user_id=current_user.id)
     if not job:
         return redirect("/jobs")
     return render_template("job_detail.html", job=job)
 
 
 @app.route("/api/jobs/<int:job_id>/research")
+@login_required
 def get_research(job_id):
-    job = db.get_job(job_id)
+    job = db.get_job(job_id, user_id=current_user.id)
     if not job or not job.get("research_path"):
         # Try manifest
         if job and job.get("manifest_path"):
@@ -271,8 +322,9 @@ def get_research(job_id):
 
 
 @app.route("/api/jobs/<int:job_id>/download")
+@login_required
 def download_video(job_id):
-    job = db.get_job(job_id)
+    job = db.get_job(job_id, user_id=current_user.id)
     if not job or not job.get("video_path"):
         return jsonify({"error": "Video not found"}), 404
     path = Path(job["video_path"])
@@ -282,8 +334,9 @@ def download_video(job_id):
 
 
 @app.route("/api/jobs/<int:job_id>/thumbnail")
+@login_required
 def get_thumbnail(job_id):
-    job = db.get_job(job_id)
+    job = db.get_job(job_id, user_id=current_user.id)
     if not job or not job.get("thumbnail_path"):
         return "", 404
     path = Path(job["thumbnail_path"])
@@ -295,19 +348,21 @@ def get_thumbnail(job_id):
 # ── Social Accounts ───────────────────────────────────────────────────────────
 
 @app.route("/accounts")
+@login_required
 def accounts_page():
-    accounts = db.get_accounts()
+    accounts = db.get_accounts(user_id=current_user.id)
     return render_template("accounts.html", accounts=accounts)
 
 
 @app.route("/api/accounts", methods=["GET"])
+@login_required
 def api_accounts():
-    return jsonify(db.get_accounts())
+    return jsonify(db.get_accounts(user_id=current_user.id))
 
 
 @app.route("/api/accounts/connect", methods=["POST"])
+@login_required
 def api_connect_account():
-    """Manual account connection (token-based)."""
     data = request.json
     platform = data.get("platform", "").lower()
     username = (data.get("username") or "").strip()
@@ -323,6 +378,7 @@ def api_connect_account():
         refresh_token=data.get("refresh_token"),
         account_id=data.get("account_id"),
         followers=int(data.get("followers", 0)),
+        user_id=current_user.id,
     )
     return jsonify({"id": acc_id, "status": "connected"})
 
@@ -457,28 +513,32 @@ def oauth_instagram_start():
 # ── Contacts ─────────────────────────────────────────────────────────────────
 
 @app.route("/contacts")
+@login_required
 def contacts_page():
     platform_filter = request.args.get("platform")
     search = request.args.get("q")
-    contacts = db.get_contacts(platform=platform_filter, search=search, limit=200)
-    total = db.count_contacts()
+    contacts = db.get_contacts(platform=platform_filter, search=search, limit=200, user_id=current_user.id)
+    total = db.count_contacts(user_id=current_user.id)
     platforms = ["youtube", "tiktok", "instagram", "phone", "other"]
     return render_template("contacts.html", contacts=contacts, total=total,
                            platforms=platforms, active_platform=platform_filter, search=search)
 
 
 @app.route("/api/contacts", methods=["GET"])
+@login_required
 def api_contacts():
     contacts = db.get_contacts(
         platform=request.args.get("platform"),
         search=request.args.get("q"),
         limit=int(request.args.get("limit", 100)),
         offset=int(request.args.get("offset", 0)),
+        user_id=current_user.id,
     )
     return jsonify(contacts)
 
 
 @app.route("/api/contacts/import/csv", methods=["POST"])
+@login_required
 def import_contacts_csv():
     """Import contacts from a CSV file. Expected columns: name, handle, email, phone, platform."""
     if "file" not in request.files:
@@ -513,11 +573,12 @@ def import_contacts_csv():
             "tags": "[]",
         })
 
-    count = db.insert_contacts_bulk(contacts)
+    count = db.insert_contacts_bulk(contacts, user_id=current_user.id)
     return jsonify({"imported": count})
 
 
 @app.route("/api/contacts/import/vcf", methods=["POST"])
+@login_required
 def import_contacts_vcf():
     """Import contacts from a vCard (.vcf) file (phone exports)."""
     if "file" not in request.files:
@@ -564,11 +625,12 @@ def import_contacts_vcf():
     except Exception as e:
         return jsonify({"error": f"Failed to parse vCard: {e}"}), 400
 
-    count = db.insert_contacts_bulk(contacts)
+    count = db.insert_contacts_bulk(contacts, user_id=current_user.id)
     return jsonify({"imported": count})
 
 
 @app.route("/api/contacts/import/manual", methods=["POST"])
+@login_required
 def import_contacts_manual():
     data = request.json
     contacts = data.get("contacts", [])
@@ -586,20 +648,22 @@ def import_contacts_manual():
             "followers": int(c.get("followers", 0)),
             "tags": json.dumps(c.get("tags", [])),
         })
-    count = db.insert_contacts_bulk(cleaned)
+    count = db.insert_contacts_bulk(cleaned, user_id=current_user.id)
     return jsonify({"imported": count})
 
 
 @app.route("/api/contacts/clear", methods=["POST"])
+@login_required
 def clear_contacts():
     platform = request.json.get("platform") if request.json else None
-    db.delete_contacts(platform=platform)
+    db.delete_contacts(platform=platform, user_id=current_user.id)
     return jsonify({"status": "cleared"})
 
 
 # ── Settings / API keys ───────────────────────────────────────────────────────
 
 @app.route("/settings")
+@login_required
 def settings_page():
     return render_template("settings.html")
 
@@ -718,8 +782,9 @@ def _run_studio_thread(studio_job_id: str, params: dict):
 
 
 @app.route("/studio")
+@login_required
 def studio_page():
-    accounts = db.get_accounts()
+    accounts = db.get_accounts(user_id=current_user.id)
     connected = {a["platform"] for a in accounts if a["is_active"]}
     return render_template(
         "studio.html",
@@ -730,8 +795,14 @@ def studio_page():
 
 
 @app.route("/api/studio/run", methods=["POST"])
+@login_required
 def api_studio_run():
     import uuid
+    # Usage gate
+    allowed, err = check_usage_gate(current_user.id)
+    if not allowed:
+        return jsonify({"error": err, "upgrade": True}), 403
+
     data = request.json or {}
     niche = (data.get("niche") or "").strip()
     if not niche:
@@ -761,6 +832,7 @@ def api_studio_run():
 
 
 @app.route("/api/studio/stream/<studio_job_id>")
+@login_required
 def studio_stream(studio_job_id):
     def generate():
         last_idx = 0
@@ -790,6 +862,7 @@ def studio_stream(studio_job_id):
 
 
 @app.route("/api/studio/status/<studio_job_id>")
+@login_required
 def studio_status(studio_job_id):
     with _studio_lock:
         job = _studio_jobs.get(studio_job_id)

@@ -4,6 +4,56 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── App ───────────────────────────────────────────────────────────────────────
+SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(32).hex())
+APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5000")
+
+# ── Stripe ────────────────────────────────────────────────────────────────────
+STRIPE_SECRET_KEY       = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY  = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET   = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+# Stripe Price IDs — create these in your Stripe dashboard, then paste here
+STRIPE_PRICE_STARTER  = os.getenv("STRIPE_PRICE_STARTER", "")   # $29/mo
+STRIPE_PRICE_CREATOR  = os.getenv("STRIPE_PRICE_CREATOR", "")   # $79/mo
+STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")    # $199/mo
+
+# ── Subscription tiers ───────────────────────────────────────────────────────
+TIERS = {
+    "free": {
+        "label": "Free Trial",
+        "price_monthly": 0,
+        "videos_per_month": 2,
+        "higgsfield_credits": 0,
+        "stripe_price_id": None,
+        "features": ["2 videos/month", "Pexels stock media", "Basic scripts"],
+    },
+    "starter": {
+        "label": "Starter",
+        "price_monthly": 29,
+        "videos_per_month": 15,
+        "higgsfield_credits": 150,
+        "stripe_price_id": STRIPE_PRICE_STARTER,
+        "features": ["15 videos/month", "150 AI video credits", "5-agent pipeline", "YouTube publishing"],
+    },
+    "creator": {
+        "label": "Creator",
+        "price_monthly": 79,
+        "videos_per_month": 50,
+        "higgsfield_credits": 500,
+        "stripe_price_id": STRIPE_PRICE_CREATOR,
+        "features": ["50 videos/month", "500 AI video credits", "All platforms", "Production Studio"],
+    },
+    "agency": {
+        "label": "Agency",
+        "price_monthly": 199,
+        "videos_per_month": -1,
+        "higgsfield_credits": 2000,
+        "stripe_price_id": STRIPE_PRICE_AGENCY,
+        "features": ["Unlimited videos", "2000 AI video credits", "Priority processing", "All features"],
+    },
+}
+
 BASE_DIR = Path(__file__).parent
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "./output"))
 
