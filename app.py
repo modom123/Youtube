@@ -401,12 +401,12 @@ def oauth_youtube_start():
         {"web": {
             "client_id": config.YOUTUBE_CLIENT_ID,
             "client_secret": config.YOUTUBE_CLIENT_SECRET,
-            "redirect_uris": ["http://localhost:5000/oauth/youtube/callback"],
+            "redirect_uris": [config.APP_BASE_URL + "/oauth/youtube/callback"],
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
         }},
         scopes=config.YOUTUBE_SCOPES + ["https://www.googleapis.com/auth/youtube.readonly"],
-        redirect_uri="http://localhost:5000/oauth/youtube/callback",
+        redirect_uri=config.APP_BASE_URL + "/oauth/youtube/callback",
     )
     auth_url, state = flow.authorization_url(prompt="consent", access_type="offline")
     session["youtube_state"] = state
@@ -421,12 +421,12 @@ def oauth_youtube_callback():
         {"web": {
             "client_id": config.YOUTUBE_CLIENT_ID,
             "client_secret": config.YOUTUBE_CLIENT_SECRET,
-            "redirect_uris": ["http://localhost:5000/oauth/youtube/callback"],
+            "redirect_uris": [config.APP_BASE_URL + "/oauth/youtube/callback"],
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
         }},
         scopes=config.YOUTUBE_SCOPES + ["https://www.googleapis.com/auth/youtube.readonly"],
-        redirect_uri="http://localhost:5000/oauth/youtube/callback",
+        redirect_uri=config.APP_BASE_URL + "/oauth/youtube/callback",
         state=session.get("youtube_state"),
     )
     flow.fetch_token(authorization_response=request.url)
@@ -455,7 +455,7 @@ def oauth_youtube_callback():
 def oauth_tiktok_start():
     if not config.TIKTOK_CLIENT_KEY:
         return jsonify({"error": "TikTok credentials not configured in .env"}), 400
-    redirect_uri = "http://localhost:5000/oauth/tiktok/callback"
+    redirect_uri = config.APP_BASE_URL + "/oauth/tiktok/callback"
     auth_url = (
         f"https://www.tiktok.com/v2/auth/authorize/"
         f"?client_key={config.TIKTOK_CLIENT_KEY}"
@@ -471,7 +471,7 @@ def oauth_tiktok_start():
 def oauth_tiktok_callback():
     import requests as req
     code = request.args.get("code")
-    redirect_uri = "http://localhost:5000/oauth/tiktok/callback"
+    redirect_uri = config.APP_BASE_URL + "/oauth/tiktok/callback"
     token_resp = req.post("https://open.tiktokapis.com/v2/oauth/token/", data={
         "client_key": config.TIKTOK_CLIENT_KEY,
         "client_secret": config.TIKTOK_CLIENT_SECRET,
@@ -871,10 +871,19 @@ def studio_status(studio_job_id):
     return jsonify(job)
 
 
+# ── Health check (required by Render) ────────────────────────────────────────
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok", "version": "1.0"})
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 
+# Always run init_db so gunicorn picks it up without __main__ guard
+db.init_db()
+
 if __name__ == "__main__":
-    db.init_db()
     print("\n  Social Optimize Machine - Command Center")
     print("  Open → http://localhost:5000\n")
     app.run(debug=True, host="0.0.0.0", port=5000, threaded=True)

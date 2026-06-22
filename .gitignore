@@ -29,3 +29,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+# YouTube OAuth token (contains live credentials)
+youtube_token.json
+
+# Render / deployment secrets
+*.pem
+*.key

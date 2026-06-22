@@ -8,15 +8,18 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(32).hex())
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5000")
 
+# ── Persistent data directory ─────────────────────────────────────────────────
+# Locally this is the project root; on Render it's the mounted disk at /data
+DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).parent))
+
 # ── Stripe ────────────────────────────────────────────────────────────────────
 STRIPE_SECRET_KEY       = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY  = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET   = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
-# Stripe Price IDs — create these in your Stripe dashboard, then paste here
-STRIPE_PRICE_STARTER  = os.getenv("STRIPE_PRICE_STARTER", "")   # $29/mo
-STRIPE_PRICE_CREATOR  = os.getenv("STRIPE_PRICE_CREATOR", "")   # $79/mo
-STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")    # $199/mo
+STRIPE_PRICE_STARTER  = os.getenv("STRIPE_PRICE_STARTER", "")
+STRIPE_PRICE_CREATOR  = os.getenv("STRIPE_PRICE_CREATOR", "")
+STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 
 # ── Subscription tiers ───────────────────────────────────────────────────────
 TIERS = {
@@ -55,13 +58,13 @@ TIERS = {
 }
 
 BASE_DIR = Path(__file__).parent
-OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "./output"))
+OUTPUT_DIR = DATA_DIR / "output"
 
 # Subdirectories
-VIDEOS_DIR = OUTPUT_DIR / "videos"
-AUDIO_DIR = OUTPUT_DIR / "audio"
+VIDEOS_DIR     = OUTPUT_DIR / "videos"
+AUDIO_DIR      = OUTPUT_DIR / "audio"
 THUMBNAILS_DIR = OUTPUT_DIR / "thumbnails"
-SCRIPTS_DIR = OUTPUT_DIR / "scripts"
+SCRIPTS_DIR    = OUTPUT_DIR / "scripts"
 
 for d in [VIDEOS_DIR, AUDIO_DIR, THUMBNAILS_DIR, SCRIPTS_DIR]:
     d.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,82 @@
+services:
+  - type: web
+    name: social-optimize
+    runtime: python
+    plan: starter          # $7/mo — needed for persistent disk support
+    region: oregon         # or frankfurt / singapore
+    branch: main           # change to your production branch
+
+    buildCommand: "bash build.sh"
+    startCommand: "gunicorn app:app -c gunicorn.conf.py"
+
+    healthCheckPath: /health
+
+    envVars:
+      # ── Auto-generated (Render fills these in) ──────────────
+      - key: SECRET_KEY
+        generateValue: true
+
+      # ── Set these in the Render dashboard ──────────────────
+      - key: APP_BASE_URL
+        sync: false          # paste your Render URL: https://social-optimize.onrender.com
+
+      # Anthropic
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # Pexels
+      - key: PEXELS_API_KEY
+        sync: false
+
+      # Higgsfield
+      - key: HIGGSFIELD_API_KEY
+        sync: false
+      - key: HIGGSFIELD_MCP_TOKEN
+        sync: false
+
+      # Stripe
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_STARTER
+        sync: false
+      - key: STRIPE_PRICE_CREATOR
+        sync: false
+      - key: STRIPE_PRICE_AGENCY
+        sync: false
+
+      # YouTube OAuth
+      - key: YOUTUBE_CLIENT_ID
+        sync: false
+      - key: YOUTUBE_CLIENT_SECRET
+        sync: false
+      - key: YOUTUBE_REDIRECT_URI
+        sync: false
+
+      # TikTok
+      - key: TIKTOK_CLIENT_KEY
+        sync: false
+      - key: TIKTOK_CLIENT_SECRET
+        sync: false
+
+      # Instagram
+      - key: INSTAGRAM_ACCESS_TOKEN
+        sync: false
+      - key: INSTAGRAM_ACCOUNT_ID
+        sync: false
+
+      # Google Veo
+      - key: GOOGLE_API_KEY
+        sync: false
+
+      # Persistent data directory — must match disk mountPath below
+      - key: DATA_DIR
+        value: /data
+
+    disk:
+      name: social-optimize-data
+      mountPath: /data
+      sizeGB: 20             # 20 GB covers ~200 generated videos; increase as needed

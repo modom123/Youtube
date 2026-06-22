@@ -4,7 +4,9 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-DB_PATH = Path(__file__).parent / "som_data.db"
+import os as _os
+_DATA_DIR = Path(_os.getenv("DATA_DIR", Path(__file__).parent))
+DB_PATH = _DATA_DIR / "som_data.db"
 
 
 def get_conn():
