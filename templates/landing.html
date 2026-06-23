@@ -6,180 +6,369 @@
   <title>Social Optimize — AI Content Creation Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css">
   <style>
+    :root {
+      --bg: #09090b;
+      --bg2: #111113;
+      --card: #18181b;
+      --border: #27272a;
+      --text: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #d4a017;
+      --accent-dim: rgba(212,160,23,.12);
+      --accent-glow: rgba(212,160,23,.25);
+      --green: #22c55e;
+      --blue: #3b82f6;
+      --red: #ef4444;
+      --purple: #a855f7;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; overflow-x: hidden; }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 10px; font-family: inherit; font-weight: 700; cursor: pointer; text-decoration: none; transition: all .2s; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { background: #e0ab1a; transform: translateY(-1px); box-shadow: 0 4px 20px var(--accent-glow); }
+    .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-lg { padding: 16px 32px; font-size: 16px; }
+    .btn-md { padding: 12px 24px; font-size: 14px; }
 
     /* ── Nav ── */
-    .nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 48px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 100; }
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 48px; height: 64px;
+      background: rgba(9,9,11,.85); backdrop-filter: blur(16px) saturate(1.4);
+      border-bottom: 1px solid rgba(39,39,42,.6);
+      transition: background .3s;
+    }
     .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; text-decoration: none; color: var(--text); }
-    .nav-logo span { color: var(--accent); }
-    .nav-links { display: flex; align-items: center; gap: 24px; }
-    .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; }
+    .nav-logo .mark { color: var(--accent); }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: color .2s; }
     .nav-links a:hover { color: var(--text); }
     .nav-cta { display: flex; gap: 10px; }
 
     /* ── Hero ── */
-    .hero { max-width: 900px; margin: 0 auto; padding: 80px 24px 60px; text-align: center; }
-    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,59,48,.1); border: 1px solid rgba(255,59,48,.3); border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 24px; text-transform: uppercase; letter-spacing: .08em; }
-    .hero h1 { font-size: clamp(36px, 6vw, 68px); font-weight: 900; line-height: 1.08; letter-spacing: -.03em; margin-bottom: 20px; }
-    .hero h1 .red { color: var(--accent); }
+    .hero { position: relative; max-width: 1000px; margin: 0 auto; padding: 140px 24px 80px; text-align: center; }
+    .hero::before {
+      content: ''; position: absolute; top: -80px; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 600px; border-radius: 50%;
+      background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+    .hero > * { position: relative; z-index: 1; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 8px; background: var(--accent-dim); border: 1px solid rgba(212,160,23,.25); border-radius: 24px; padding: 6px 16px; font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 28px; text-transform: uppercase; letter-spacing: .1em; }
+    .hero-badge .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+    .hero h1 { font-size: clamp(40px, 7vw, 76px); font-weight: 900; line-height: 1.05; letter-spacing: -.04em; margin-bottom: 24px; }
+    .hero h1 .gold { color: var(--accent); }
     .hero h1 .dim { color: var(--muted); }
-    .hero-sub { font-size: 18px; color: var(--muted); max-width: 600px; margin: 0 auto 36px; line-height: 1.6; }
-    .hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-    .hero-ctas .btn { padding: 14px 28px; font-size: 16px; }
-    .hero-stats { display: flex; gap: 40px; justify-content: center; margin-top: 52px; flex-wrap: wrap; }
+    .hero-sub { font-size: 18px; color: var(--muted); max-width: 620px; margin: 0 auto 40px; line-height: 1.7; }
+    .hero-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .hero-stats { display: flex; gap: 48px; justify-content: center; margin-top: 64px; flex-wrap: wrap; }
     .hero-stat { text-align: center; }
-    .hero-stat .val { font-size: 32px; font-weight: 900; }
-    .hero-stat .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+    .hero-stat .val { font-size: 36px; font-weight: 900; background: linear-gradient(135deg, var(--text), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero-stat .lbl { font-size: 11px; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
 
-    /* ── Feature section ── */
-    .section { max-width: 1100px; margin: 0 auto; padding: 72px 24px; }
-    .section-label { text-align: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin-bottom: 12px; }
-    .section-title { text-align: center; font-size: clamp(28px, 4vw, 42px); font-weight: 800; margin-bottom: 16px; letter-spacing: -.02em; }
-    .section-sub { text-align: center; font-size: 16px; color: var(--muted); max-width: 580px; margin: 0 auto 52px; line-height: 1.6; }
+    /* ── Section ── */
+    .section { max-width: 1200px; margin: 0 auto; padding: 96px 24px; }
+    .section-label { text-align: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--accent); margin-bottom: 12px; }
+    .section-title { text-align: center; font-size: clamp(30px, 4vw, 48px); font-weight: 900; margin-bottom: 16px; letter-spacing: -.03em; }
+    .section-sub { text-align: center; font-size: 16px; color: var(--muted); max-width: 600px; margin: 0 auto 60px; line-height: 1.7; }
 
-    .features-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-    .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; transition: border-color .2s; }
-    .feature-card:hover { border-color: var(--accent); }
-    .feature-icon { font-size: 28px; margin-bottom: 14px; }
-    .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    /* ── Feature cards ── */
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; transition: all .25s; position: relative; overflow: hidden; }
+    .feature-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+    .feature-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0; transition: opacity .25s; }
+    .feature-card:hover::after { opacity: 1; }
+    .feature-icon { font-size: 32px; margin-bottom: 16px; }
+    .feature-card h3 { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+    .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.65; }
+    .feature-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 3px 8px; border-radius: 6px; margin-top: 12px; }
+    .tag-ai { background: rgba(168,85,247,.15); color: var(--purple); }
+    .tag-growth { background: rgba(34,197,94,.15); color: var(--green); }
+    .tag-smart { background: rgba(59,130,246,.15); color: var(--blue); }
+    .tag-engage { background: rgba(212,160,23,.15); color: var(--accent); }
 
-    /* ── Agent pipeline ── */
-    .pipeline { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 32px 0; justify-content: center; flex-wrap: wrap; gap: 0; }
-    .pipe-node { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; text-align: center; min-width: 160px; }
-    .pipe-node .pn-icon { font-size: 28px; margin-bottom: 8px; }
-    .pipe-node .pn-name { font-size: 13px; font-weight: 700; }
-    .pipe-node .pn-desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
-    .pipe-arrow { font-size: 20px; color: var(--muted); margin: 0 8px; flex-shrink: 0; }
+    /* ── Who it's for ── */
+    .personas-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+    .persona-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px 24px; text-align: center; transition: all .25s; }
+    .persona-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .persona-icon { font-size: 48px; margin-bottom: 16px; }
+    .persona-card h3 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+    .persona-card p { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+    .persona-uses { list-style: none; text-align: left; }
+    .persona-uses li { font-size: 12px; color: var(--muted); padding: 4px 0; display: flex; align-items: center; gap: 8px; }
+    .persona-uses li::before { content: "✓"; color: var(--green); font-weight: 700; font-size: 11px; }
+
+    /* ── Pipeline ── */
+    .pipeline-section { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .pipeline { display: flex; align-items: stretch; gap: 0; justify-content: center; flex-wrap: wrap; padding: 40px 0; }
+    .pipe-node { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px 20px; text-align: center; min-width: 165px; transition: all .25s; }
+    .pipe-node:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .pipe-node .pn-icon { font-size: 32px; margin-bottom: 10px; }
+    .pipe-node .pn-name { font-size: 14px; font-weight: 800; margin-bottom: 4px; }
+    .pipe-node .pn-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+    .pipe-arrow { font-size: 22px; color: var(--accent); margin: 0 10px; display: flex; align-items: center; font-weight: 700; }
 
     /* ── Pricing ── */
-    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
-    .pricing-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; position: relative; transition: border-color .2s; }
-    .pricing-card.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-    .pricing-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
-    .pricing-tier { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
-    .pricing-price { font-size: 42px; font-weight: 900; margin-bottom: 4px; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+    .pricing-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; position: relative; transition: all .25s; }
+    .pricing-card.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 8px 40px var(--accent-dim); }
+    .pricing-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #000; font-size: 11px; font-weight: 800; padding: 4px 14px; border-radius: 20px; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+    .pricing-tier { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 10px; }
+    .pricing-price { font-size: 48px; font-weight: 900; margin-bottom: 4px; }
     .pricing-price span { font-size: 16px; font-weight: 500; color: var(--muted); }
-    .pricing-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
-    .pricing-features { list-style: none; margin-bottom: 24px; }
-    .pricing-features li { font-size: 13px; padding: 5px 0; display: flex; align-items: center; gap: 8px; }
-    .pricing-features li::before { content: "✓"; color: #30d158; font-weight: 700; flex-shrink: 0; }
-    .pricing-btn { width: 100%; padding: 12px; font-size: 14px; font-weight: 700; }
+    .pricing-desc { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+    .pricing-features { list-style: none; margin-bottom: 28px; }
+    .pricing-features li { font-size: 13px; padding: 6px 0; display: flex; align-items: center; gap: 8px; }
+    .pricing-features li::before { content: "✓"; color: var(--green); font-weight: 700; flex-shrink: 0; }
+    .pricing-btn { width: 100%; }
+
+    /* ── Trusted numbers bar ── */
+    .trust-bar { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 40px 24px; }
+    .trust-inner { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-around; flex-wrap: wrap; gap: 32px; }
+    .trust-item { text-align: center; }
+    .trust-val { font-size: 28px; font-weight: 900; color: var(--accent); }
+    .trust-lbl { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .08em; }
 
     /* ── CTA band ── */
-    .cta-band { background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 64px 24px; text-align: center; }
-    .cta-band h2 { font-size: clamp(26px, 4vw, 40px); font-weight: 900; margin-bottom: 12px; }
-    .cta-band p { color: var(--muted); font-size: 16px; margin-bottom: 28px; }
+    .cta-band { position: relative; padding: 96px 24px; text-align: center; overflow: hidden; }
+    .cta-band::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; height: 500px; border-radius: 50%; background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%); pointer-events: none; }
+    .cta-band > * { position: relative; z-index: 1; }
+    .cta-band h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 900; margin-bottom: 16px; }
+    .cta-band p { color: var(--muted); font-size: 17px; margin-bottom: 32px; max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.6; }
 
     /* ── Footer ── */
-    .footer { max-width: 1100px; margin: 0 auto; padding: 32px 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+    .footer { max-width: 1200px; margin: 0 auto; padding: 40px 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 16px; }
     .footer p { font-size: 12px; color: var(--muted); }
-    .footer-links { display: flex; gap: 20px; }
-    .footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; transition: color .2s; }
     .footer-links a:hover { color: var(--text); }
 
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .personas-grid { grid-template-columns: repeat(2, 1fr); }
+    }
     @media (max-width: 600px) {
-      .nav { padding: 14px 20px; }
+      .nav { padding: 0 20px; }
       .nav-links { display: none; }
-      .hero { padding: 48px 20px 40px; }
+      .hero { padding: 120px 20px 60px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .personas-grid { grid-template-columns: 1fr; }
+      .hero-stats { gap: 24px; }
     }
   </style>
 </head>
 <body>
 
-<!-- Nav -->
+<!-- Nav — fixed with blur backdrop -->
 <nav class="nav">
-  <a class="nav-logo" href="/">🎬 <span>Social</span> Optimize</a>
+  <a class="nav-logo" href="/"><span class="mark">Social</span> Optimize</a>
   <div class="nav-links">
     <a href="#features">Features</a>
+    <a href="#who">Who It's For</a>
     <a href="#agents">Pipeline</a>
     <a href="#pricing">Pricing</a>
   </div>
   <div class="nav-cta">
-    <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Sign In</a>
-    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free</a>
+    <a href="{{ url_for('auth.login') }}" class="btn btn-secondary btn-md">Sign In</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-md">Start Free</a>
   </div>
 </nav>
 
 <!-- Hero -->
 <section class="hero">
-  <div class="hero-badge">🚀 5-Agent AI Pipeline</div>
-  <h1>Turn any idea into a<br><span class="red">published video</span><br><span class="dim">in minutes.</span></h1>
-  <p class="hero-sub">AI researches your topic, writes the script, generates visuals, assembles the video, and publishes to YouTube, TikTok, and Instagram — automatically.</p>
+  <div class="hero-badge"><span class="pulse"></span> 6-Agent AI Pipeline + Hollywood Producer</div>
+  <h1>Turn any idea into a<br><span class="gold">published video</span><br><span class="dim">in minutes.</span></h1>
+  <p class="hero-sub">AI researches trends, writes retention-engineered scripts, generates cinematic visuals, assembles the video, grows your audience, and publishes to YouTube, TikTok, and Instagram — automatically.</p>
   <div class="hero-ctas">
-    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start for Free — 2 Videos</a>
-    <a href="#pricing" class="btn btn-secondary">See Pricing</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Start for Free — 2 Videos</a>
+    <a href="#pricing" class="btn btn-secondary btn-lg">See Pricing</a>
   </div>
   <div class="hero-stats">
-    <div class="hero-stat"><div class="val">5</div><div class="lbl">AI Agents</div></div>
+    <div class="hero-stat"><div class="val">6</div><div class="lbl">AI Agents</div></div>
     <div class="hero-stat"><div class="val">17+</div><div class="lbl">Video Models</div></div>
     <div class="hero-stat"><div class="val">3</div><div class="lbl">Platforms</div></div>
     <div class="hero-stat"><div class="val">~5 min</div><div class="lbl">Avg. Production</div></div>
+    <div class="hero-stat"><div class="val">40+</div><div class="lbl">Tools Built In</div></div>
   </div>
 </section>
 
 <!-- Features -->
 <section class="section" id="features">
-  <div class="section-label">Everything included</div>
-  <h2 class="section-title">One pipeline, full production</h2>
-  <p class="section-sub">No juggling 5 tools. Research, scripting, voice, video, SEO, and publishing all happen in one automated run.</p>
+  <div class="section-label">Full Production Suite</div>
+  <h2 class="section-title">Everything you need, nothing you don't</h2>
+  <p class="section-sub">Research, scripting, voiceover, video generation, SEO, engagement, analytics, and publishing — all in one automated pipeline.</p>
   <div class="features-grid">
     <div class="feature-card">
       <div class="feature-icon">🔍</div>
-      <h3>AI Research</h3>
-      <p>Pulls real facts, statistics, and sources from Wikipedia and the web before writing a single word.</p>
+      <h3>AI Trend Research</h3>
+      <p>Pulls real-time Google Trends data, competitor analysis, and winning angles before writing a single word.</p>
+      <span class="feature-tag tag-ai">AI Powered</span>
     </div>
     <div class="feature-card">
       <div class="feature-icon">✍️</div>
       <h3>Retention-Engineered Scripts</h3>
-      <p>Hooks, open loops, emotional beats — scripts written to keep viewers watching, not just informed.</p>
+      <p>Hooks, open loops, emotional beats — scripts architected to keep viewers watching, not just informed.</p>
+      <span class="feature-tag tag-ai">AI Powered</span>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🎙</div>
-      <h3>AI Voiceover</h3>
-      <p>6 neural voices with natural cadence. Your script read aloud in seconds, not hours.</p>
+      <h3>Neural Voiceover</h3>
+      <p>6 ultra-realistic AI voices with natural cadence. Your script read aloud in seconds, not hours.</p>
+      <span class="feature-tag tag-ai">AI Powered</span>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🎬</div>
       <h3>AI Video Generation</h3>
-      <p>17+ Higgsfield models — Kling 3.0, Veo 3.1, Cinema Studio 3.0. Cinematic B-roll generated from your script prompts.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📈</div>
-      <h3>SEO Optimisation</h3>
-      <p>Growth Engineer agent writes your title, description, tags, thumbnail text, and A/B variants.</p>
+      <p>17+ models — Kling 3.0, Veo 3.1, Cinema Studio 3.0. Cinematic B-roll generated from your script prompts.</p>
+      <span class="feature-tag tag-ai">AI Powered</span>
     </div>
     <div class="feature-card">
       <div class="feature-icon">💰</div>
-      <h3>Budget-Smart Credits</h3>
-      <p>Cost Engineer routes assets between AI generation and free stock to stretch your credits further.</p>
+      <h3>3-Tier Cost Routing</h3>
+      <p>Smart engine routes between free stock, ultra-cheap Chinese open-source models, and premium generators to stretch every dollar.</p>
+      <span class="feature-tag tag-smart">Budget Smart</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📈</div>
+      <h3>SEO + Growth Engine</h3>
+      <p>AI writes optimized titles, descriptions, tags, thumbnail concepts, and A/B test variants automatically.</p>
+      <span class="feature-tag tag-growth">Growth</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🤝</div>
+      <h3>Engagement Center</h3>
+      <p>Cross-platform likes, follows, comments, and DMs. Community Engineer agent builds your audience on autopilot.</p>
+      <span class="feature-tag tag-engage">Engagement</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Growth Analytics</h3>
+      <p>Track follower growth, engagement rates, best posting times, and content performance across all platforms.</p>
+      <span class="feature-tag tag-growth">Growth</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">#️⃣</div>
+      <h3>Hashtag Research</h3>
+      <p>Platform-specific hashtag discovery with volume scores, competition analysis, and trending detection.</p>
+      <span class="feature-tag tag-growth">Growth</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📡</div>
+      <h3>RSS Trend Monitor</h3>
+      <p>Watch competitor feeds, news sources, and niche blogs. Auto-detect trending topics before they peak.</p>
+      <span class="feature-tag tag-smart">Smart</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎭</div>
+      <h3>Spintax + Anti-Detect</h3>
+      <p>Content variation engine with browser fingerprint rotation, proxy management, and account warmup profiles.</p>
+      <span class="feature-tag tag-smart">Smart</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎬</div>
+      <h3>Hollywood AI Producer</h3>
+      <p>Your personal AI producer. Manages blueprints, deploys infrastructure, browses the web, and orchestrates everything via chat.</p>
+      <span class="feature-tag tag-ai">AI Powered</span>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🚀</div>
       <h3>One-Click Publishing</h3>
-      <p>Upload directly to YouTube, TikTok, and Instagram from the same dashboard.</p>
+      <p>Upload directly to YouTube, TikTok, and Instagram from the same dashboard. Schedule or publish instantly.</p>
+      <span class="feature-tag tag-growth">Growth</span>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📅</div>
+      <h3>Content Calendar</h3>
+      <p>Visual calendar for scheduling, batch creation, and pipeline management. Never miss a posting window.</p>
+      <span class="feature-tag tag-smart">Smart</span>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🎙</div>
       <h3>Podcast Mode</h3>
-      <p>Animated waveform, chapter cards, and progress bar — turn any topic into a full podcast episode.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📊</div>
-      <h3>Content Analytics</h3>
-      <p>Track every job, review scripts, download videos, and monitor publishing results in one place.</p>
+      <p>Animated waveform, chapter cards, and progress bars — turn any topic into a full podcast episode.</p>
+      <span class="feature-tag tag-ai">AI Powered</span>
     </div>
   </div>
 </section>
 
+<!-- Who it's for -->
+<section class="section" id="who">
+  <div class="section-label">Built For You</div>
+  <h2 class="section-title">Who uses Social Optimize</h2>
+  <p class="section-sub">Whether you're a solo creator or a media agency, we've got the tools to scale your content.</p>
+  <div class="personas-grid">
+    <div class="persona-card">
+      <div class="persona-icon">🎥</div>
+      <h3>Content Creators</h3>
+      <p>Solo YouTubers and TikTokers who want to publish more without burning out.</p>
+      <ul class="persona-uses">
+        <li>Auto-generate 5 videos per week</li>
+        <li>AI scripts + voiceover in minutes</li>
+        <li>Batch mode for content stockpiling</li>
+        <li>Multi-platform publish in one click</li>
+      </ul>
+    </div>
+    <div class="persona-card">
+      <div class="persona-icon">⭐</div>
+      <h3>Influencers</h3>
+      <p>Personal brands scaling across platforms who need consistency without sacrificing quality.</p>
+      <ul class="persona-uses">
+        <li>Engagement Center grows followers</li>
+        <li>Community Engineer handles DMs</li>
+        <li>Trend research finds viral angles</li>
+        <li>Analytics track cross-platform growth</li>
+      </ul>
+    </div>
+    <div class="persona-card">
+      <div class="persona-icon">📢</div>
+      <h3>Advertisers</h3>
+      <p>Brands and marketers producing video ads at scale with data-driven creative.</p>
+      <ul class="persona-uses">
+        <li>A/B test titles and thumbnails</li>
+        <li>Competitor analysis and scraping</li>
+        <li>SEO-optimized descriptions and tags</li>
+        <li>Cost-efficient video production</li>
+      </ul>
+    </div>
+    <div class="persona-card">
+      <div class="persona-icon">🏪</div>
+      <h3>Small Business</h3>
+      <p>Local businesses and startups creating marketing videos without a production team.</p>
+      <ul class="persona-uses">
+        <li>No video editing skills needed</li>
+        <li>Professional quality on a budget</li>
+        <li>3-tier cost routing saves money</li>
+        <li>Hollywood AI handles everything</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- Trust numbers -->
+<div class="trust-bar">
+  <div class="trust-inner">
+    <div class="trust-item"><div class="trust-val">17+</div><div class="trust-lbl">AI Video Models</div></div>
+    <div class="trust-item"><div class="trust-val">6</div><div class="trust-lbl">Specialized Agents</div></div>
+    <div class="trust-item"><div class="trust-val">40+</div><div class="trust-lbl">Built-in Tools</div></div>
+    <div class="trust-item"><div class="trust-val">3</div><div class="trust-lbl">Platforms</div></div>
+    <div class="trust-item"><div class="trust-val">~5 min</div><div class="trust-lbl">Per Video</div></div>
+  </div>
+</div>
+
 <!-- Agent pipeline -->
-<div style="background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
-  <section class="section" id="agents" style="padding-top:56px;padding-bottom:56px;">
-    <div class="section-label">How it works</div>
-    <h2 class="section-title">5 specialized agents, 1 seamless pipeline</h2>
+<div class="pipeline-section">
+  <section class="section" id="agents" style="padding-top:64px;padding-bottom:64px;">
+    <div class="section-label">How It Works</div>
+    <h2 class="section-title">6 specialized agents, 1 seamless pipeline</h2>
+    <p class="section-sub">Each agent is an expert at its job. Together they produce broadcast-quality content from a single topic input.</p>
     <div class="pipeline">
       <div class="pipe-node">
         <div class="pn-icon">🔍</div>
@@ -202,7 +391,7 @@
       <div class="pipe-node">
         <div class="pn-icon">💰</div>
         <div class="pn-name">Cost Engineer</div>
-        <div class="pn-desc">Budget optimise<br>Credit swaps</div>
+        <div class="pn-desc">Budget optimize<br>3-tier routing</div>
       </div>
       <div class="pipe-arrow">→</div>
       <div class="pipe-node">
@@ -210,15 +399,21 @@
         <div class="pn-name">Growth Engineer</div>
         <div class="pn-desc">SEO package<br>A/B titles</div>
       </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node">
+        <div class="pn-icon">🤝</div>
+        <div class="pn-name">Community Engineer</div>
+        <div class="pn-desc">Engagement<br>Audience growth</div>
+      </div>
     </div>
   </section>
 </div>
 
 <!-- Pricing -->
 <section class="section" id="pricing">
-  <div class="section-label">Simple pricing</div>
+  <div class="section-label">Simple Pricing</div>
   <h2 class="section-title">Pick your plan</h2>
-  <p class="section-sub">All plans include the full 5-agent pipeline, AI voiceover, and multi-platform publishing. Credits cover AI video generation.</p>
+  <p class="section-sub">All plans include the full 6-agent pipeline, AI voiceover, engagement tools, and multi-platform publishing.</p>
   <div class="pricing-grid">
     {% for tier_key, tier in tiers.items() %}
     <div class="pricing-card {% if tier_key == 'creator' %}featured{% endif %}">
@@ -240,9 +435,9 @@
         {% endfor %}
       </ul>
       {% if tier_key == 'free' %}
-        <a href="{{ url_for('auth.register') }}" class="btn btn-secondary pricing-btn">Start Free</a>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-secondary btn-md pricing-btn">Start Free</a>
       {% else %}
-        <a href="{{ url_for('auth.register') }}" class="btn {% if tier_key == 'creator' %}btn-primary{% else %}btn-secondary{% endif %} pricing-btn">Get Started</a>
+        <a href="{{ url_for('auth.register') }}" class="btn {% if tier_key == 'creator' %}btn-primary{% else %}btn-secondary{% endif %} btn-md pricing-btn">Get Started</a>
       {% endif %}
     </div>
     {% endfor %}
@@ -251,15 +446,18 @@
 
 <!-- CTA Band -->
 <div class="cta-band">
-  <h2>Ready to automate your channel?</h2>
-  <p>Join creators using Social Optimize to publish faster and smarter.</p>
-  <a href="{{ url_for('auth.register') }}" class="btn btn-primary" style="padding:14px 32px;font-size:16px;">Create Free Account</a>
+  <h2>Ready to automate your content?</h2>
+  <p>Join creators, influencers, and businesses using Social Optimize to publish faster and grow smarter.</p>
+  <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Create Free Account</a>
 </div>
 
 <!-- Footer -->
 <footer class="footer">
-  <p>© 2025 Social Optimize Machine. All rights reserved.</p>
+  <p>&copy; 2025 Social Optimize. All rights reserved.</p>
   <div class="footer-links">
+    <a href="#features">Features</a>
+    <a href="#who">Who It's For</a>
+    <a href="#pricing">Pricing</a>
     <a href="{{ url_for('auth.login') }}">Sign In</a>
     <a href="{{ url_for('auth.register') }}">Register</a>
   </div>
