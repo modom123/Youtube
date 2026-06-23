@@ -117,7 +117,26 @@
     /* ══════════════════════════════════════════════════════════════
        HERO
        ══════════════════════════════════════════════════════════════ */
-    .hero { position: relative; padding: 160px 24px 100px; text-align: center; overflow: hidden; }
+    .hero {
+      position: relative; padding: 0 24px;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; overflow: hidden;
+    }
+    .hero > *:not(.hero-glow):not(.hero-grid-bg) { position: relative; z-index: 1; }
+    .hero-badge, .hero h1, .hero-sub, .hero-ctas, .hero-note, .hero-metrics {
+      animation: heroFadeUp .8s cubic-bezier(.16,1,.3,1) both;
+    }
+    .hero h1    { animation-delay: .1s; }
+    .hero-sub   { animation-delay: .2s; }
+    .hero-ctas  { animation-delay: .3s; }
+    .hero-note  { animation-delay: .35s; }
+    .hero-metrics { animation-delay: .45s; }
+    @keyframes heroFadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
     .hero-glow {
       position: absolute; top: -300px; left: 50%; transform: translateX(-50%);
       width: 900px; height: 900px; border-radius: 50%;
@@ -133,7 +152,7 @@
       mask-image: radial-gradient(ellipse 55% 45% at 50% 35%, #000 20%, transparent 100%);
       -webkit-mask-image: radial-gradient(ellipse 55% 45% at 50% 35%, #000 20%, transparent 100%);
     }
-    .hero > * { position: relative; z-index: 1; }
+    .hero-glow, .hero-grid-bg { pointer-events: none; }
     .hero-badge {
       display: inline-flex; align-items: center; gap: 10px;
       background: rgba(201,162,39,.05); border: 1px solid rgba(201,162,39,.15);
@@ -598,28 +617,26 @@
 <section class="hero">
   <div class="hero-glow"></div>
   <div class="hero-grid-bg"></div>
-  <div class="reveal">
-    <div class="hero-badge">
-      <span class="hero-badge-dot"></span>
-      AI-Powered Production Studio
-    </div>
+  <div class="hero-badge">
+    <span class="hero-badge-dot"></span>
+    AI-Powered Production Studio
   </div>
-  <h1 class="reveal reveal-delay-1">
+  <h1>
     Turn any idea into a
-    <span class="line2">published video</span>
-    <span class="line3">Research. Script. Generate. Publish. All on autopilot.</span>
+    <span class="line2" id="typewriter">Viral Short</span>
+    <span class="line3">Research. Script. Voice. Edit. Publish — all on autopilot.</span>
   </h1>
-  <p class="hero-sub reveal reveal-delay-2">6 AI agents handle everything from trend research to audience engagement — producing broadcast-quality content from a single topic in under 5 minutes.</p>
-  <div class="hero-ctas reveal reveal-delay-3">
-    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-xl">Get Started Free</a>
-    <a href="#pipeline" class="btn btn-secondary btn-xl">See How It Works</a>
+  <p class="hero-sub">6 AI agents produce broadcast-quality content from a single topic in under 5 minutes. One prompt, eight platforms, zero manual work.</p>
+  <div class="hero-ctas">
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-xl">Start Creating Free →</a>
+    <a href="#pipeline" class="btn btn-secondary btn-xl">▶ See How It Works</a>
   </div>
-  <div class="hero-note reveal reveal-delay-3">No credit card required &middot; 2 free videos included</div>
-  <div class="hero-metrics reveal reveal-delay-4">
+  <div class="hero-note">No credit card required &middot; 2 free videos included &middot; Cancel anytime</div>
+  <div class="hero-metrics">
     <div class="hero-metric"><div class="val text-gradient">6</div><div class="lbl">AI Agents</div></div>
-    <div class="hero-metric"><div class="val text-gradient">17+</div><div class="lbl">Video Models</div></div>
-    <div class="hero-metric"><div class="val text-gradient">40+</div><div class="lbl">Built-in Tools</div></div>
-    <div class="hero-metric"><div class="val text-gradient">~5m</div><div class="lbl">Per Video</div></div>
+    <div class="hero-metric"><div class="val text-gradient">8</div><div class="lbl">Platforms</div></div>
+    <div class="hero-metric"><div class="val text-gradient">5min</div><div class="lbl">Per Video</div></div>
+    <div class="hero-metric"><div class="val text-gradient">$0</div><div class="lbl">To Start</div></div>
   </div>
 </section>
 
@@ -1197,13 +1214,33 @@
 
 <!-- ════════════════ SCRIPTS ════════════════ -->
 <script>
-// Scroll reveal
+// Scroll reveal — trigger immediately for anything already in viewport
 const observer = new IntersectionObserver((entries) => {
   entries.forEach(entry => {
-    if (entry.isIntersecting) entry.target.classList.add('visible');
+    if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); }
   });
-}, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
+}, { threshold: 0.05, rootMargin: '0px 0px 0px 0px' });
 document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Typewriter
+(function() {
+  const words = ['Viral Short', 'YouTube Video', 'Podcast Episode', 'Brand Commercial', 'Instagram Reel', 'TikTok Banger'];
+  let i = 0;
+  const el = document.getElementById('typewriter');
+  if (!el) return;
+  function swap() {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(8px)';
+    setTimeout(() => {
+      i = (i + 1) % words.length;
+      el.textContent = words[i];
+      el.style.opacity = '1';
+      el.style.transform = 'translateY(0)';
+    }, 300);
+  }
+  el.style.transition = 'opacity .3s ease, transform .3s ease';
+  setInterval(swap, 2500);
+})();
 
 // Nav scroll
 window.addEventListener('scroll', () => {
