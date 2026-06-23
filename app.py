@@ -335,7 +335,16 @@ def get_thumbnail(job_id):
 @login_required
 def accounts_page():
     accounts = db.get_accounts(user_id=current_user.id)
-    return render_template("accounts.html", accounts=accounts)
+    connected = {a["platform"] for a in accounts if a.get("is_active", True)}
+    return render_template(
+        "accounts.html",
+        accounts=accounts,
+        connected=connected,
+        youtube_configured=bool(config.YOUTUBE_CLIENT_ID),
+        tiktok_configured=bool(config.TIKTOK_CLIENT_KEY),
+        meta_configured=bool(config.FACEBOOK_APP_ID),
+        linkedin_configured=bool(config.LINKEDIN_CLIENT_ID),
+    )
 
 
 @app.route("/api/accounts", methods=["GET"])
@@ -393,6 +402,7 @@ def oauth_youtube_start():
 
 
 @app.route("/oauth/youtube/callback")
+@login_required
 def oauth_youtube_callback():
     from google_auth_oauthlib.flow import Flow
     import googleapiclient.discovery
@@ -424,6 +434,7 @@ def oauth_youtube_callback():
         refresh_token=creds.refresh_token,
         account_id=channel.get("id"),
         followers=int(stats.get("subscriberCount", 0)),
+        user_id=current_user.id,
     )
     return redirect("/accounts?connected=youtube")
 
@@ -466,15 +477,160 @@ def oauth_tiktok_callback():
         platform="tiktok", username=user.get("display_name", "TikTok User"),
         display_name=user.get("display_name"), avatar_url=user.get("avatar_url"),
         access_token=access_token, account_id=open_id, followers=user.get("follower_count", 0),
+        user_id=current_user.id,
     )
     return redirect("/accounts?connected=tiktok")
 
 
+# ── Meta OAuth (Facebook + Instagram) ────────────────────────────────────────
+
+@app.route("/oauth/facebook/start")
+@login_required
+def oauth_facebook_start():
+    if not config.FACEBOOK_APP_ID:
+        return redirect("/accounts?error=facebook_not_configured")
+    redirect_uri = config.APP_BASE_URL + "/oauth/facebook/callback"
+    scope = "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish"
+    auth_url = (
+        f"https://www.facebook.com/v18.0/dialog/oauth"
+        f"?client_id={config.FACEBOOK_APP_ID}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={scope}"
+        f"&state=som_fb_{current_user.id}"
+    )
+    return redirect(auth_url)
+
+
+@app.route("/oauth/facebook/callback")
+@login_required
+def oauth_facebook_callback():
+    import requests as req
+    code = request.args.get("code")
+    error = request.args.get("error")
+    if error or not code:
+        return redirect("/accounts?error=facebook_denied")
+
+    redirect_uri = config.APP_BASE_URL + "/oauth/facebook/callback"
+    # Exchange code for user access token
+    token_resp = req.get("https://graph.facebook.com/v18.0/oauth/access_token", params={
+        "client_id": config.FACEBOOK_APP_ID,
+        "client_secret": config.FACEBOOK_APP_SECRET,
+        "redirect_uri": redirect_uri,
+        "code": code,
+    }).json()
+    user_token = token_resp.get("access_token")
+    if not user_token:
+        return redirect("/accounts?error=facebook_token_failed")
+
+    # Exchange for long-lived token (60 days)
+    long_resp = req.get("https://graph.facebook.com/v18.0/oauth/access_token", params={
+        "grant_type": "fb_exchange_token",
+        "client_id": config.FACEBOOK_APP_ID,
+        "client_secret": config.FACEBOOK_APP_SECRET,
+        "fb_exchange_token": user_token,
+    }).json()
+    long_token = long_resp.get("access_token", user_token)
+
+    # Get user profile
+    me = req.get("https://graph.facebook.com/v18.0/me", params={
+        "fields": "id,name,picture", "access_token": long_token,
+    }).json()
+
+    db.upsert_account(
+        platform="facebook", username=me.get("name", "Facebook User"),
+        display_name=me.get("name"),
+        avatar_url=me.get("picture", {}).get("data", {}).get("url"),
+        access_token=long_token, account_id=me.get("id"), followers=0,
+        user_id=current_user.id,
+    )
+
+    # Also pull connected Pages and Instagram business accounts
+    pages_resp = req.get("https://graph.facebook.com/v18.0/me/accounts", params={
+        "access_token": long_token,
+    }).json()
+    for page in pages_resp.get("data", []):
+        page_token = page.get("access_token")
+        page_id = page.get("id")
+        # Check for connected Instagram business account
+        ig_resp = req.get(f"https://graph.facebook.com/v18.0/{page_id}", params={
+            "fields": "instagram_business_account", "access_token": page_token,
+        }).json()
+        ig_id = ig_resp.get("instagram_business_account", {}).get("id")
+        if ig_id:
+            ig_user = req.get(f"https://graph.facebook.com/v18.0/{ig_id}", params={
+                "fields": "username,name,profile_picture_url,followers_count",
+                "access_token": page_token,
+            }).json()
+            db.upsert_account(
+                platform="instagram",
+                username=ig_user.get("username", ig_user.get("name", "Instagram")),
+                display_name=ig_user.get("name"),
+                avatar_url=ig_user.get("profile_picture_url"),
+                access_token=page_token, account_id=ig_id,
+                followers=int(ig_user.get("followers_count", 0)),
+                user_id=current_user.id,
+            )
+
+    return redirect("/accounts?connected=facebook")
+
+
+# ── LinkedIn OAuth ────────────────────────────────────────────────────────────
+
+@app.route("/oauth/linkedin/start")
+@login_required
+def oauth_linkedin_start():
+    if not config.LINKEDIN_CLIENT_ID:
+        return redirect("/accounts?error=linkedin_not_configured")
+    redirect_uri = config.APP_BASE_URL + "/oauth/linkedin/callback"
+    scope = "openid profile email w_member_social"
+    auth_url = (
+        f"https://www.linkedin.com/oauth/v2/authorization"
+        f"?response_type=code"
+        f"&client_id={config.LINKEDIN_CLIENT_ID}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={scope}"
+        f"&state=som_li_{current_user.id}"
+    )
+    return redirect(auth_url)
+
+
+@app.route("/oauth/linkedin/callback")
+@login_required
+def oauth_linkedin_callback():
+    import requests as req
+    code = request.args.get("code")
+    if not code:
+        return redirect("/accounts?error=linkedin_denied")
+    redirect_uri = config.APP_BASE_URL + "/oauth/linkedin/callback"
+    token_resp = req.post("https://www.linkedin.com/oauth/v2/accessToken", data={
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": redirect_uri,
+        "client_id": config.LINKEDIN_CLIENT_ID,
+        "client_secret": config.LINKEDIN_CLIENT_SECRET,
+    }).json()
+    access_token = token_resp.get("access_token")
+    if not access_token:
+        return redirect("/accounts?error=linkedin_token_failed")
+    me = req.get("https://api.linkedin.com/v2/userinfo", headers={
+        "Authorization": f"Bearer {access_token}",
+    }).json()
+    db.upsert_account(
+        platform="linkedin",
+        username=me.get("name", "LinkedIn User"),
+        display_name=me.get("name"),
+        avatar_url=me.get("picture"),
+        access_token=access_token, account_id=me.get("sub"), followers=0,
+        user_id=current_user.id,
+    )
+    return redirect("/accounts?connected=linkedin")
+
+
 @app.route("/oauth/instagram/start")
+@login_required
 def oauth_instagram_start():
-    if not config.INSTAGRAM_ACCESS_TOKEN:
-        return jsonify({"error": "Instagram credentials not configured in .env"}), 400
-    return redirect("/accounts?modal=instagram")
+    # Instagram uses the Facebook OAuth flow
+    return redirect(url_for("oauth_facebook_start"))
 
 
 # ── Contacts ─────────────────────────────────────────────────────────────────

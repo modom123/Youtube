@@ -3,85 +3,193 @@
 
 {% block title %}Social Accounts — Social Optimize Machine{% endblock %}
 {% block topbar_title %}Social Accounts{% endblock %}
-{% block topbar_sub %}Connect and manage your publishing accounts{% endblock %}
+{% block topbar_sub %}Connect your platforms — one click per account{% endblock %}
 {% block topbar_actions %}
-<button class="btn btn-primary" onclick="openModal('manualModal')">+ Add Account</button>
+<button class="btn btn-secondary" onclick="openModal('manualModal')">+ Add Manually</button>
 {% endblock %}
 
 {% block content %}
+<style>
+  .platform-connect-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .platform-tile { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; transition: border-color .2s; }
+  .platform-tile:hover { border-color: var(--accent); }
+  .platform-tile.connected { border-color: var(--green); }
+  .platform-tile .pt-icon { font-size: 36px; line-height: 1; }
+  .platform-tile .pt-name { font-size: 14px; font-weight: 700; color: var(--text); }
+  .platform-tile .pt-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+  .platform-tile .pt-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .pt-status.ok  { background: rgba(34,197,94,.12); color: #4ade80; }
+  .pt-status.off { background: rgba(255,255,255,.06); color: var(--muted); }
+  .pt-status.cfg { background: rgba(212,160,23,.12); color: var(--accent); }
+  .connected-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+</style>
 
-<!-- Connect New Accounts -->
-<div class="card mb-24">
-  <div class="card-title mb-16"><span class="accent">🔌</span> Connect Accounts</div>
-  <div class="connect-platform-grid">
+<!-- Platform Connection Grid -->
+<div class="section-header mb-16">
+  <div class="section-title">Connect <span class="accent">Platforms</span></div>
+  <span class="text-dim text-sm">Click any platform to connect</span>
+</div>
 
-    <div class="connect-card" onclick="connectPlatform('youtube')">
-      <div class="connect-icon">▶️</div>
-      <div class="connect-name">YouTube</div>
-      <div class="connect-desc">Upload videos, Shorts &amp; manage channel</div>
-    </div>
+<div class="platform-connect-grid">
 
-    <div class="connect-card" onclick="connectPlatform('tiktok')">
-      <div class="connect-icon">🎵</div>
-      <div class="connect-name">TikTok</div>
-      <div class="connect-desc">Post videos and reach millions</div>
-    </div>
-
-    <div class="connect-card" onclick="openModal('instagramModal')">
-      <div class="connect-icon">📸</div>
-      <div class="connect-name">Instagram</div>
-      <div class="connect-desc">Publish Reels and posts</div>
-    </div>
-
+  <!-- YouTube -->
+  <div class="platform-tile {% if 'youtube' in connected %}connected{% endif %}">
+    <div class="pt-icon">▶️</div>
+    <div class="pt-name">YouTube</div>
+    <div class="pt-desc">Upload videos, Shorts & manage your channel</div>
+    {% if 'youtube' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/youtube/start'">Reconnect</button>
+    {% elif youtube_configured %}
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/youtube/start'">Connect YouTube</button>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('youtube')">Setup Guide</button>
+    {% endif %}
   </div>
+
+  <!-- TikTok -->
+  <div class="platform-tile {% if 'tiktok' in connected %}connected{% endif %}">
+    <div class="pt-icon">🎵</div>
+    <div class="pt-name">TikTok</div>
+    <div class="pt-desc">Post videos and reach millions of viewers</div>
+    {% if 'tiktok' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/tiktok/start'">Reconnect</button>
+    {% elif tiktok_configured %}
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/tiktok/start'">Connect TikTok</button>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('tiktok')">Setup Guide</button>
+    {% endif %}
+  </div>
+
+  <!-- Instagram -->
+  <div class="platform-tile {% if 'instagram' in connected %}connected{% endif %}">
+    <div class="pt-icon">📸</div>
+    <div class="pt-name">Instagram</div>
+    <div class="pt-desc">Publish Reels, Stories and feed posts</div>
+    {% if 'instagram' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/facebook/start'">Reconnect</button>
+    {% elif meta_configured %}
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/facebook/start'">Connect Instagram</button>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('instagram')">Setup Guide</button>
+    {% endif %}
+  </div>
+
+  <!-- Facebook -->
+  <div class="platform-tile {% if 'facebook' in connected %}connected{% endif %}">
+    <div class="pt-icon">👍</div>
+    <div class="pt-name">Facebook</div>
+    <div class="pt-desc">Post to Pages and reach your audience</div>
+    {% if 'facebook' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/facebook/start'">Reconnect</button>
+    {% elif meta_configured %}
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/facebook/start'">Connect Facebook</button>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('facebook')">Setup Guide</button>
+    {% endif %}
+  </div>
+
+  <!-- LinkedIn -->
+  <div class="platform-tile {% if 'linkedin' in connected %}connected{% endif %}">
+    <div class="pt-icon">💼</div>
+    <div class="pt-name">LinkedIn</div>
+    <div class="pt-desc">Share professional content and grow your network</div>
+    {% if 'linkedin' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/linkedin/start'">Reconnect</button>
+    {% elif linkedin_configured %}
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/linkedin/start'">Connect LinkedIn</button>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('linkedin')">Setup Guide</button>
+    {% endif %}
+  </div>
+
+  <!-- X / Twitter -->
+  <div class="platform-tile {% if 'twitter' in connected %}connected{% endif %}">
+    <div class="pt-icon">𝕏</div>
+    <div class="pt-name">X (Twitter)</div>
+    <div class="pt-desc">Post tweets and videos to your followers</div>
+    {% if 'twitter' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+    {% else %}
+      <span class="pt-status off">Coming Soon</span>
+    {% endif %}
+  </div>
+
+  <!-- Pinterest -->
+  <div class="platform-tile {% if 'pinterest' in connected %}connected{% endif %}">
+    <div class="pt-icon">📌</div>
+    <div class="pt-name">Pinterest</div>
+    <div class="pt-desc">Pin videos and drive traffic to your content</div>
+    {% if 'pinterest' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+    {% else %}
+      <span class="pt-status off">Coming Soon</span>
+    {% endif %}
+  </div>
+
+  <!-- Threads -->
+  <div class="platform-tile">
+    <div class="pt-icon">🧵</div>
+    <div class="pt-name">Threads</div>
+    <div class="pt-desc">Share to Meta's Threads platform</div>
+    <span class="pt-status off">Coming Soon</span>
+  </div>
+
 </div>
 
 <!-- Connected Accounts -->
-<div class="section-header">
-  <div class="section-title">Connected <span class="accent">Accounts</span></div>
-  <span class="text-dim text-sm">{{ accounts|length }} connected</span>
-</div>
-
 {% if accounts %}
-<div class="accounts-grid" id="accountsGrid">
+<div class="section-header mb-16">
+  <div class="section-title">Connected <span class="accent">Accounts</span></div>
+  <span class="text-dim text-sm">{{ accounts|length }} linked</span>
+</div>
+<div class="connected-list">
   {% for acc in accounts %}
   <div class="account-card {{ acc.platform }}" id="acc-{{ acc.id }}">
     <div class="account-avatar">
       {% if acc.avatar_url %}
         <img src="{{ acc.avatar_url }}" alt="{{ acc.username }}">
       {% else %}
-        {{ {'youtube':'▶️','tiktok':'🎵','instagram':'📸'}.get(acc.platform,'🔗') }}
+        {{ {'youtube':'▶️','tiktok':'🎵','instagram':'📸','facebook':'👍','linkedin':'💼','twitter':'𝕏','pinterest':'📌'}.get(acc.platform,'🔗') }}
       {% endif %}
     </div>
     <div class="account-name">{{ acc.display_name or acc.username }}</div>
     <div class="account-handle text-dim">@{{ acc.username }}</div>
     <div class="account-stats mt-8">
       <div>
-        <div class="account-stat-val">{{ "{:,}".format(acc.followers) }}</div>
+        <div class="account-stat-val">{{ "{:,}".format(acc.followers or 0) }}</div>
         <div class="account-stat-label text-xs text-dim">Followers</div>
       </div>
       <div>
         <span class="platform-tag {{ acc.platform }}">{{ acc.platform }}</span>
       </div>
     </div>
-    <div class="text-xs text-dim mt-4">Connected {{ acc.connected_at[:10] }}</div>
+    <div class="text-xs text-dim mt-4">Connected {{ (acc.connected_at or '')[:10] }}</div>
     <div class="flex gap-8 mt-12">
       <button class="btn btn-danger btn-sm" onclick="disconnectAccount({{ acc.id }})">Disconnect</button>
     </div>
   </div>
   {% endfor %}
 </div>
-{% else %}
-<div class="card">
-  <div class="empty-state">
-    <div class="empty-icon">🔗</div>
-    <div class="empty-title">No accounts connected yet</div>
-    <div class="empty-sub">Connect your first social media account above to start publishing</div>
-  </div>
-</div>
 {% endif %}
 
-<!-- ── Modals ─────────────────────────────────────────── -->
+<!-- Setup Guide Modal -->
+<div class="modal-overlay" id="setupModal" style="display:none;" onclick="closeModalOutside(event,'setupModal')">
+  <div class="modal" style="max-width:540px;">
+    <button class="modal-close" onclick="closeModal('setupModal')">✕</button>
+    <div class="modal-title" id="setup-title">Platform Setup</div>
+    <div id="setup-body"></div>
+  </div>
+</div>
 
 <!-- Manual Account Modal -->
 <div class="modal-overlay" id="manualModal" style="display:none;" onclick="closeModalOutside(event,'manualModal')">
@@ -94,6 +202,10 @@
         <option value="youtube">YouTube</option>
         <option value="tiktok">TikTok</option>
         <option value="instagram">Instagram</option>
+        <option value="facebook">Facebook</option>
+        <option value="linkedin">LinkedIn</option>
+        <option value="twitter">X / Twitter</option>
+        <option value="pinterest">Pinterest</option>
         <option value="other">Other</option>
       </select>
     </div>
@@ -121,59 +233,85 @@
   </div>
 </div>
 
-<!-- Instagram Token Modal -->
-<div class="modal-overlay" id="instagramModal" style="display:none;" onclick="closeModalOutside(event,'instagramModal')">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('instagramModal')">✕</button>
-    <div class="modal-title">Connect Instagram</div>
-    <div class="card mb-16" style="background:var(--yellow-dim);border-color:var(--yellow);">
-      <div class="text-sm">
-        <strong>Instagram requires a Business or Creator account</strong> with a connected Facebook page and a long-lived access token from Meta for Developers.
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Instagram Username</label>
-      <input type="text" id="ig-username" placeholder="@yourhandle">
-    </div>
-    <div class="form-group">
-      <label>Long-lived Access Token</label>
-      <input type="password" id="ig-token" placeholder="EAAxxxxxxxxx...">
-      <div class="form-hint">Get this from developers.facebook.com → Graph API Explorer</div>
-    </div>
-    <div class="form-group">
-      <label>Instagram Account ID</label>
-      <input type="text" id="ig-accountid" placeholder="17841xxxxxxxxx">
-      <div class="form-hint">Found in your Facebook Business Settings → Instagram Accounts</div>
-    </div>
-    <div class="form-group">
-      <label>Followers</label>
-      <input type="number" id="ig-followers" value="0" min="0">
-    </div>
-    <button class="btn btn-primary btn-block" onclick="saveInstagramAccount()">Connect Instagram</button>
-  </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-function connectPlatform(platform) {
-  if (platform === 'youtube') window.location.href = '/oauth/youtube/start';
-  else if (platform === 'tiktok') window.location.href = '/oauth/tiktok/start';
-  else openModal('instagramModal');
+const SETUP_GUIDES = {
+  youtube: {
+    title: '▶️ YouTube Setup',
+    body: `<p class="text-sm text-dim mb-16">You need a Google Cloud project with the YouTube Data API enabled.</p>
+<ol style="padding-left:20px;line-height:2;font-size:13px;color:var(--muted);">
+  <li>Go to <strong style="color:var(--text)">console.cloud.google.com</strong> → New Project</li>
+  <li>Enable <strong style="color:var(--text)">YouTube Data API v3</strong></li>
+  <li>Create OAuth 2.0 credentials → Web Application</li>
+  <li>Add authorized redirect URI: <code style="color:var(--accent)">${location.origin}/oauth/youtube/callback</code></li>
+  <li>Copy Client ID & Secret</li>
+  <li>Add to Render env vars: <code style="color:var(--accent)">YOUTUBE_CLIENT_ID</code> and <code style="color:var(--accent)">YOUTUBE_CLIENT_SECRET</code></li>
+</ol>`
+  },
+  tiktok: {
+    title: '🎵 TikTok Setup',
+    body: `<p class="text-sm text-dim mb-16">Register a TikTok developer app to get OAuth credentials.</p>
+<ol style="padding-left:20px;line-height:2;font-size:13px;color:var(--muted);">
+  <li>Go to <strong style="color:var(--text)">developers.tiktok.com</strong> → My Apps → Create</li>
+  <li>Add product: <strong style="color:var(--text)">Login Kit</strong> + <strong style="color:var(--text)">Content Posting API</strong></li>
+  <li>Set redirect URI: <code style="color:var(--accent)">${location.origin}/oauth/tiktok/callback</code></li>
+  <li>Copy Client Key & Secret</li>
+  <li>Add to Render: <code style="color:var(--accent)">TIKTOK_CLIENT_KEY</code> and <code style="color:var(--accent)">TIKTOK_CLIENT_SECRET</code></li>
+</ol>`
+  },
+  instagram: {
+    title: '📸 Instagram + Facebook Setup',
+    body: `<p class="text-sm text-dim mb-16">Instagram uses the Meta (Facebook) OAuth app — one setup connects both.</p>
+<ol style="padding-left:20px;line-height:2;font-size:13px;color:var(--muted);">
+  <li>Go to <strong style="color:var(--text)">developers.facebook.com</strong> → Create App → Business</li>
+  <li>Add products: <strong style="color:var(--text)">Facebook Login</strong> + <strong style="color:var(--text)">Instagram Graph API</strong></li>
+  <li>Set redirect URI: <code style="color:var(--accent)">${location.origin}/oauth/facebook/callback</code></li>
+  <li>Copy App ID & Secret</li>
+  <li>Add to Render: <code style="color:var(--accent)">FACEBOOK_APP_ID</code> and <code style="color:var(--accent)">FACEBOOK_APP_SECRET</code></li>
+  <li>Clients must have an <strong style="color:var(--text)">Instagram Business/Creator account</strong> linked to a Facebook Page</li>
+</ol>`
+  },
+  facebook: {
+    title: '👍 Facebook Setup',
+    body: `<p class="text-sm text-dim mb-16">Facebook and Instagram share the same Meta app setup.</p>
+<ol style="padding-left:20px;line-height:2;font-size:13px;color:var(--muted);">
+  <li>Go to <strong style="color:var(--text)">developers.facebook.com</strong> → Create App → Business</li>
+  <li>Add product: <strong style="color:var(--text)">Facebook Login</strong></li>
+  <li>Set redirect URI: <code style="color:var(--accent)">${location.origin}/oauth/facebook/callback</code></li>
+  <li>Copy App ID & Secret → Add to Render: <code style="color:var(--accent)">FACEBOOK_APP_ID</code> and <code style="color:var(--accent)">FACEBOOK_APP_SECRET</code></li>
+</ol>`
+  },
+  linkedin: {
+    title: '💼 LinkedIn Setup',
+    body: `<p class="text-sm text-dim mb-16">Create a LinkedIn app to enable one-click connection for clients.</p>
+<ol style="padding-left:20px;line-height:2;font-size:13px;color:var(--muted);">
+  <li>Go to <strong style="color:var(--text)">developer.linkedin.com</strong> → Create App</li>
+  <li>Request products: <strong style="color:var(--text)">Sign In with LinkedIn</strong> + <strong style="color:var(--text)">Share on LinkedIn</strong></li>
+  <li>Set redirect URI: <code style="color:var(--accent)">${location.origin}/oauth/linkedin/callback</code></li>
+  <li>Copy Client ID & Secret → Add to Render: <code style="color:var(--accent)">LINKEDIN_CLIENT_ID</code> and <code style="color:var(--accent)">LINKEDIN_CLIENT_SECRET</code></li>
+</ol>`
+  },
+};
+
+function showSetup(platform) {
+  const guide = SETUP_GUIDES[platform];
+  if (!guide) return;
+  document.getElementById('setup-title').textContent = guide.title;
+  document.getElementById('setup-body').innerHTML = guide.body;
+  openModal('setupModal');
 }
 
 async function saveManualAccount() {
   const platform = document.getElementById('m-platform').value;
   const username = document.getElementById('m-username').value.replace('@','').trim();
-  if (!username) { toast('error', 'Username required'); return; }
-
+  if (!username) { showToast('Username required', 'error'); return; }
   const resp = await fetch('/api/accounts/connect', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({
-      platform,
-      username,
+      platform, username,
       display_name: document.getElementById('m-displayname').value,
       followers: document.getElementById('m-followers').value,
       access_token: document.getElementById('m-token').value,
@@ -181,35 +319,11 @@ async function saveManualAccount() {
     }),
   });
   if (resp.ok) {
-    toast('success', 'Account Connected', `@${username} on ${platform}`);
+    showToast('Account connected', 'success');
     closeModal('manualModal');
     setTimeout(() => location.reload(), 1000);
   } else {
-    toast('error', 'Failed', 'Could not save account');
-  }
-}
-
-async function saveInstagramAccount() {
-  const username = document.getElementById('ig-username').value.replace('@','').trim();
-  const token = document.getElementById('ig-token').value.trim();
-  if (!username || !token) { toast('error', 'Missing fields'); return; }
-
-  const resp = await fetch('/api/accounts/connect', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      platform: 'instagram',
-      username,
-      display_name: username,
-      access_token: token,
-      account_id: document.getElementById('ig-accountid').value,
-      followers: document.getElementById('ig-followers').value,
-    }),
-  });
-  if (resp.ok) {
-    toast('success', 'Instagram Connected', `@${username}`);
-    closeModal('instagramModal');
-    setTimeout(() => location.reload(), 1000);
+    showToast('Failed to save account', 'error');
   }
 }
 
@@ -218,16 +332,12 @@ async function disconnectAccount(id) {
   const resp = await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
   if (resp.ok) {
     document.getElementById(`acc-${id}`)?.remove();
-    toast('success', 'Account Disconnected');
+    showToast('Account disconnected', 'success');
   }
 }
 
-// Auto-open modal if redirected with ?modal=instagram
-if (new URLSearchParams(location.search).get('modal') === 'instagram') {
-  openModal('instagramModal');
-}
-if (new URLSearchParams(location.search).get('connected')) {
-  toast('success', 'Account Connected!', `${new URLSearchParams(location.search).get('connected')} is now linked.`);
-}
+const params = new URLSearchParams(location.search);
+if (params.get('connected')) showToast(params.get('connected') + ' connected!', 'success');
+if (params.get('error')) showToast('Connection failed: ' + params.get('error'), 'error');
 </script>
 {% endblock %}
