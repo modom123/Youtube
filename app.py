@@ -791,6 +791,30 @@ def studio_status(studio_job_id):
     return jsonify(job)
 
 
+# ── Hollywood AI Agent ────────────────────────────────────────────────────────
+
+@app.route("/hollywood")
+@login_required
+def hollywood_page():
+    return render_template("hollywood.html")
+
+
+@app.route("/api/hollywood/chat", methods=["POST"])
+@login_required
+def hollywood_chat():
+    data = request.get_json(silent=True) or {}
+    message = (data.get("message") or "").strip()
+    history = data.get("history") or []
+    if not message:
+        return jsonify({"error": "No message"}), 400
+    try:
+        from generators.hollywood_agent import chat as hollywood_chat_fn
+        reply = hollywood_chat_fn(message=message, history=history, user_id=current_user.id)
+        return jsonify({"reply": reply})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Feature 1: Analytics Dashboard ───────────────────────────────────────────
 
 @app.route("/analytics")

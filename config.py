@@ -45,7 +45,7 @@ TIERS = {
         "videos_per_month": 50,
         "higgsfield_credits": 500,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
-        "features": ["50 videos/month", "500 AI video credits", "All platforms", "Production Studio"],
+        "features": ["50 videos/month", "500 AI video credits", "All platforms", "Studio 56"],
     },
     "agency": {
         "label": "Agency",

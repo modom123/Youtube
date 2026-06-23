@@ -1,0 +1,509 @@
+{% extends "base.html" %}
+{% set active_page = "hollywood" %}
+
+{% block title %}Hollywood — Studio 56 AI Agent{% endblock %}
+
+{% block topbar_title %}🎬 Hollywood{% endblock %}
+{% block topbar_sub %}Studio 56 AI Agent · Content Strategy · Deployment Config · Job Management{% endblock %}
+
+{% block topbar_actions %}
+<a href="/studio" class="btn btn-secondary">Studio 56</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  /* ── Hollywood Chat Layout ── */
+  .hw-wrap {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 120px);
+    min-height: 500px;
+    background: #0a0a0f;
+    border: 1px solid #1e1e2e;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .hw-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #0d0d1a 0%, #12121f 100%);
+    border-bottom: 1px solid #f59e0b33;
+    flex-shrink: 0;
+  }
+  .hw-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    box-shadow: 0 0 16px #f59e0b44;
+  }
+  .hw-header-text h2 {
+    font-size: 18px;
+    font-weight: 800;
+    color: #f59e0b;
+    margin: 0;
+    line-height: 1.2;
+  }
+  .hw-header-text p {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 2px 0 0;
+  }
+  .hw-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  /* ── Messages area ── */
+  .hw-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+  }
+  .hw-messages::-webkit-scrollbar { width: 6px; }
+  .hw-messages::-webkit-scrollbar-track { background: transparent; }
+  .hw-messages::-webkit-scrollbar-thumb { background: #2a2a3e; border-radius: 3px; }
+
+  /* ── Message bubbles ── */
+  .hw-msg {
+    display: flex;
+    gap: 10px;
+    max-width: 85%;
+    animation: hwFadeIn .25s ease;
+  }
+  @keyframes hwFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hw-msg.user {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+  }
+  .hw-msg.assistant {
+    align-self: flex-start;
+  }
+
+  .hw-bubble-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .hw-msg.assistant .hw-bubble-avatar {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 0 8px #f59e0b44;
+  }
+  .hw-msg.user .hw-bubble-avatar {
+    background: #1e3a5f;
+  }
+
+  .hw-bubble {
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+    max-width: 100%;
+  }
+  .hw-msg.user .hw-bubble {
+    background: #1e3a5f;
+    color: #e2e8f0;
+    border-radius: 12px 4px 12px 12px;
+  }
+  .hw-msg.assistant .hw-bubble {
+    background: #12121f;
+    border: 1px solid #f59e0b33;
+    color: #e2e8f0;
+    border-radius: 4px 12px 12px 12px;
+  }
+  .hw-bubble p { margin: 0 0 8px; }
+  .hw-bubble p:last-child { margin-bottom: 0; }
+  .hw-bubble ul, .hw-bubble ol { margin: 6px 0 6px 20px; padding: 0; }
+  .hw-bubble li { margin-bottom: 4px; }
+  .hw-bubble code {
+    background: #1e1e2e;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: #f59e0b;
+  }
+  .hw-bubble pre {
+    background: #1e1e2e;
+    border: 1px solid #2a2a3e;
+    border-radius: 8px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    margin: 8px 0;
+  }
+  .hw-bubble pre code {
+    background: none;
+    padding: 0;
+    color: #e2e8f0;
+  }
+  .hw-bubble strong { color: #f59e0b; }
+  .hw-bubble h1, .hw-bubble h2, .hw-bubble h3 {
+    color: #f59e0b;
+    margin: 10px 0 6px;
+    font-size: 14px;
+  }
+
+  /* ── Typing indicator ── */
+  .hw-typing {
+    display: none;
+    align-self: flex-start;
+    align-items: center;
+    gap: 10px;
+  }
+  .hw-typing.visible { display: flex; }
+  .hw-typing-bubble {
+    background: #12121f;
+    border: 1px solid #f59e0b33;
+    border-radius: 4px 12px 12px 12px;
+    padding: 12px 16px;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+  }
+  .hw-dot {
+    width: 7px;
+    height: 7px;
+    background: #f59e0b;
+    border-radius: 50%;
+    animation: hwBounce .9s infinite;
+  }
+  .hw-dot:nth-child(2) { animation-delay: .2s; }
+  .hw-dot:nth-child(3) { animation-delay: .4s; }
+  @keyframes hwBounce {
+    0%, 80%, 100% { transform: translateY(0); opacity: .5; }
+    40%           { transform: translateY(-5px); opacity: 1; }
+  }
+
+  /* ── Quick action chips ── */
+  .hw-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 20px 0;
+    flex-shrink: 0;
+  }
+  .hw-chip {
+    padding: 6px 12px;
+    background: #12121f;
+    border: 1px solid #f59e0b44;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #f59e0b;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .hw-chip:hover {
+    background: #1e1e2e;
+    border-color: #f59e0b;
+  }
+
+  /* ── Input bar ── */
+  .hw-input-area {
+    padding: 12px 20px 16px;
+    border-top: 1px solid #1e1e2e;
+    background: #0a0a0f;
+    flex-shrink: 0;
+  }
+  .hw-input-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .hw-textarea {
+    flex: 1;
+    background: #12121f;
+    border: 1px solid #2a2a3e;
+    border-radius: 10px;
+    color: #e2e8f0;
+    font-size: 14px;
+    font-family: inherit;
+    padding: 10px 14px;
+    resize: none;
+    outline: none;
+    line-height: 1.5;
+    min-height: 42px;
+    max-height: 140px;
+    transition: border-color .15s;
+    overflow-y: auto;
+  }
+  .hw-textarea:focus { border-color: #f59e0b66; }
+  .hw-textarea::placeholder { color: #4b5563; }
+  .hw-send-btn {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border: none;
+    border-radius: 10px;
+    color: #0a0a0f;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 10px 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity .15s, transform .1s;
+    letter-spacing: .03em;
+    height: 42px;
+    white-space: nowrap;
+  }
+  .hw-send-btn:hover { opacity: .9; transform: translateY(-1px); }
+  .hw-send-btn:active { transform: translateY(0); }
+  .hw-send-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+  /* ── Welcome message ── */
+  .hw-welcome {
+    text-align: center;
+    padding: 30px 20px;
+    color: #4b5563;
+  }
+  .hw-welcome .hw-star {
+    font-size: 40px;
+    margin-bottom: 10px;
+  }
+  .hw-welcome h3 {
+    color: #f59e0b;
+    font-size: 16px;
+    margin: 0 0 6px;
+  }
+  .hw-welcome p {
+    font-size: 13px;
+    line-height: 1.6;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+</style>
+
+<!-- Load marked.js for Markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+
+<div class="hw-wrap">
+
+  <!-- Header -->
+  <div class="hw-header">
+    <div class="hw-avatar">🎬</div>
+    <div class="hw-header-text">
+      <h2>Hollywood</h2>
+      <p>Studio 56 AI Agent · Powered by Claude</p>
+    </div>
+    <div class="hw-status-dot" title="Online"></div>
+  </div>
+
+  <!-- Messages -->
+  <div class="hw-messages" id="hwMessages">
+    <!-- Welcome state shown when empty -->
+    <div class="hw-welcome" id="hwWelcome">
+      <div class="hw-star">⭐</div>
+      <h3>Action! I'm Hollywood.</h3>
+      <p>Your AI production agent for Studio 56. I can create content, manage jobs, check your Render deployment config, and keep the whole machine running. What are we making today?</p>
+    </div>
+  </div>
+
+  <!-- Typing indicator (lives inside messages area logic-wise, injected via JS) -->
+
+  <!-- Quick action chips -->
+  <div class="hw-chips">
+    <span class="hw-chip" onclick="hwChip('📊 Check Render config')">📊 Check Render config</span>
+    <span class="hw-chip" onclick="hwChip('🎬 Create a short video')">🎬 Create a short video</span>
+    <span class="hw-chip" onclick="hwChip('📋 Show recent jobs')">📋 Show recent jobs</span>
+    <span class="hw-chip" onclick="hwChip('🔑 Generate SECRET_KEY')">🔑 Generate SECRET_KEY</span>
+  </div>
+
+  <!-- Input bar -->
+  <div class="hw-input-area">
+    <div class="hw-input-row">
+      <textarea
+        class="hw-textarea"
+        id="hwInput"
+        placeholder="Talk to Hollywood..."
+        rows="1"
+        onkeydown="hwKeyDown(event)"
+        oninput="hwAutoResize(this)"
+      ></textarea>
+      <button class="hw-send-btn" id="hwSendBtn" onclick="hwSend()">Action! 🎬</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+var hwHistory = [];
+var hwBusy = false;
+
+// ── Markdown renderer ──────────────────────────────────────────────────────────
+function hwRenderMd(text) {
+  if (typeof marked === 'undefined') return escHtml(text).replace(/\n/g, '<br>');
+  try {
+    marked.setOptions({ breaks: true, gfm: true });
+    return marked.parse(text);
+  } catch(e) {
+    return escHtml(text).replace(/\n/g, '<br>');
+  }
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── DOM helpers ────────────────────────────────────────────────────────────────
+function hwScrollBottom() {
+  var el = document.getElementById('hwMessages');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function hwHideWelcome() {
+  var el = document.getElementById('hwWelcome');
+  if (el) el.style.display = 'none';
+}
+
+function hwAddMessage(role, content) {
+  hwHideWelcome();
+  var container = document.getElementById('hwMessages');
+
+  var msg = document.createElement('div');
+  msg.className = 'hw-msg ' + role;
+
+  var avatarDiv = document.createElement('div');
+  avatarDiv.className = 'hw-bubble-avatar';
+  avatarDiv.textContent = role === 'assistant' ? '🎬' : '👤';
+
+  var bubble = document.createElement('div');
+  bubble.className = 'hw-bubble';
+
+  if (role === 'assistant') {
+    bubble.innerHTML = hwRenderMd(content);
+  } else {
+    bubble.textContent = content;
+  }
+
+  msg.appendChild(avatarDiv);
+  msg.appendChild(bubble);
+  container.appendChild(msg);
+  hwScrollBottom();
+  return msg;
+}
+
+function hwShowTyping() {
+  hwHideWelcome();
+  var container = document.getElementById('hwMessages');
+
+  var typing = document.createElement('div');
+  typing.className = 'hw-typing hw-msg assistant visible';
+  typing.id = 'hwTyping';
+
+  var avatarDiv = document.createElement('div');
+  avatarDiv.className = 'hw-bubble-avatar';
+  avatarDiv.textContent = '🎬';
+
+  var bubble = document.createElement('div');
+  bubble.className = 'hw-typing-bubble';
+  bubble.innerHTML = '<div class="hw-dot"></div><div class="hw-dot"></div><div class="hw-dot"></div>';
+
+  typing.appendChild(avatarDiv);
+  typing.appendChild(bubble);
+  container.appendChild(typing);
+  hwScrollBottom();
+}
+
+function hwHideTyping() {
+  var el = document.getElementById('hwTyping');
+  if (el) el.remove();
+}
+
+// ── Send logic ─────────────────────────────────────────────────────────────────
+async function hwSend() {
+  if (hwBusy) return;
+  var input = document.getElementById('hwInput');
+  var message = (input.value || '').trim();
+  if (!message) return;
+
+  hwBusy = true;
+  document.getElementById('hwSendBtn').disabled = true;
+  input.value = '';
+  hwAutoResize(input);
+
+  hwAddMessage('user', message);
+  hwHistory.push({ role: 'user', content: message });
+  hwShowTyping();
+
+  try {
+    var resp = await fetch('/api/hollywood/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: message, history: hwHistory.slice(0, -1) })
+    });
+    var data = await resp.json();
+    hwHideTyping();
+
+    if (data.error) {
+      hwAddMessage('assistant', '⚠️ Error: ' + data.error);
+      hwHistory.push({ role: 'assistant', content: 'Error: ' + data.error });
+    } else {
+      hwAddMessage('assistant', data.reply);
+      hwHistory.push({ role: 'assistant', content: data.reply });
+    }
+  } catch(e) {
+    hwHideTyping();
+    hwAddMessage('assistant', '⚠️ Network error. Please try again.');
+  }
+
+  hwBusy = false;
+  document.getElementById('hwSendBtn').disabled = false;
+  input.focus();
+}
+
+function hwKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    hwSend();
+  }
+}
+
+function hwAutoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+}
+
+function hwChip(text) {
+  var input = document.getElementById('hwInput');
+  input.value = text;
+  hwAutoResize(input);
+  hwSend();
+}
+
+// Focus input on load
+document.addEventListener('DOMContentLoaded', function() {
+  var input = document.getElementById('hwInput');
+  if (input) input.focus();
+});
+</script>
+
+{% endblock %}
