@@ -34,6 +34,13 @@ When the user wants to set up Render, proactively check what's missing and guide
 each key. Open the API key pages in the browser, walk them through it, and set each key on Render as
 they provide it. The user should never have to touch the Render dashboard directly.
 
+You can configure Stripe billing, set up webhook endpoints, and manage Stripe keys. You can:
+- Create or update Stripe webhook endpoints (configure_stripe_webhook)
+- List existing webhooks (list_stripe_webhooks)
+- Test webhooks with sample events (test_stripe_webhook)
+- Sync Stripe secrets to Render (sync_stripe_to_render)
+When users ask to set up Stripe, get their keys and guide them through the complete setup process.
+
 Be concise, punchy, and results-oriented. Use occasional Hollywood flair but keep it professional."""
 
 # ── Tool definitions ───────────────────────────────────────────────────────────
@@ -408,6 +415,65 @@ TOOLS = [
             "required": ["service"]
         }
     },
+
+    # ── Stripe Webhook Management Tools ───────────────────────────────────────
+    {
+        "name": "configure_stripe_webhook",
+        "description": "Create or update a Stripe webhook endpoint. Returns webhook_id and secret (whsec_...).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "stripe_api_key": {"type": "string", "description": "Stripe secret API key (starts with sk_)"},
+                "webhook_url": {"type": "string", "description": "Full webhook URL like https://socialoptimize.online/billing/webhook"},
+                "events": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Events to listen for: checkout.session.completed, customer.subscription.updated, customer.subscription.created, customer.subscription.deleted, invoice.payment_succeeded, invoice.payment_failed"
+                }
+            },
+            "required": ["stripe_api_key", "webhook_url", "events"]
+        }
+    },
+    {
+        "name": "list_stripe_webhooks",
+        "description": "List all webhook endpoints configured in Stripe for this API key.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "stripe_api_key": {"type": "string", "description": "Stripe secret API key (starts with sk_)"}
+            },
+            "required": ["stripe_api_key"]
+        }
+    },
+    {
+        "name": "test_stripe_webhook",
+        "description": "Send a test event to a webhook endpoint to verify it's working.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "stripe_api_key": {"type": "string", "description": "Stripe secret API key (starts with sk_)"},
+                "webhook_id": {"type": "string", "description": "Webhook ID (we_...) from configure_stripe_webhook"},
+                "event_type": {"type": "string", "description": "Event type to test: checkout.session.completed, invoice.payment_succeeded, customer.subscription.updated, etc."}
+            },
+            "required": ["stripe_api_key", "webhook_id", "event_type"]
+        }
+    },
+    {
+        "name": "sync_stripe_to_render",
+        "description": "Sync Stripe keys and webhook secret to Render environment variables.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "render_api_key": {"type": "string", "description": "Render API key (rnd_...)"},
+                "service_id": {"type": "string", "description": "Render service ID (srv_...)"},
+                "stripe_webhook_secret": {"type": "string", "description": "Stripe webhook secret (whsec_...) from configure_stripe_webhook"},
+                "stripe_secret_key": {"type": "string", "description": "Stripe secret API key (sk_...)"},
+                "stripe_publishable_key": {"type": "string", "description": "Stripe publishable key (pk_...)"}
+            },
+            "required": ["render_api_key", "service_id", "stripe_webhook_secret", "stripe_secret_key", "stripe_publishable_key"]
+        }
+    },
+
     {
         "name": "deploy_render_blueprint",
         "description": "Navigate to Render's blueprint page via browser automation and fill in the repo URL. Fallback if API method unavailable.",
@@ -2079,6 +2145,162 @@ def _tool_compare_blueprints(job_id_a: int, job_id_b: int) -> dict:
     return comparison
 
 
+# ── Stripe Webhook Management tool implementations ──────────────────────────
+
+def _tool_configure_stripe_webhook(stripe_api_key: str, webhook_url: str, events: list) -> dict:
+    """Create or update a Stripe webhook endpoint."""
+    try:
+        import requests
+        from requests.auth import HTTPBasicAuth
+
+        url = "https://api.stripe.com/v1/webhook_endpoints"
+        auth = HTTPBasicAuth(stripe_api_key, "")
+
+        data = {
+            "url": webhook_url,
+            "api_version": "2024-04-10",
+        }
+
+        # Add enabled_events as repeated form data
+        for event in events:
+            data[f"enabled_events[]"] = event
+
+        resp = requests.post(url, auth=auth, data=data, timeout=15)
+
+        if resp.status_code == 401:
+            return {"error": "Invalid Stripe API key"}
+        if resp.status_code == 400:
+            return {"error": f"Bad request: {resp.text[:200]}"}
+
+        resp.raise_for_status()
+        webhook = resp.json()
+
+        return {
+            "webhook_id": webhook.get("id", ""),
+            "secret": webhook.get("secret", ""),
+            "url": webhook.get("url", ""),
+            "status": webhook.get("status", ""),
+            "enabled_events": webhook.get("enabled_events", []),
+            "created_at": webhook.get("created", ""),
+        }
+    except requests.RequestException as e:
+        return {"error": f"Stripe API request failed: {str(e)}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _tool_list_stripe_webhooks(stripe_api_key: str) -> dict:
+    """List all webhook endpoints in Stripe."""
+    try:
+        import requests
+        from requests.auth import HTTPBasicAuth
+
+        url = "https://api.stripe.com/v1/webhook_endpoints"
+        auth = HTTPBasicAuth(stripe_api_key, "")
+
+        resp = requests.get(url, auth=auth, timeout=15)
+
+        if resp.status_code == 401:
+            return {"error": "Invalid Stripe API key"}
+
+        resp.raise_for_status()
+        data = resp.json()
+
+        webhooks = []
+        for webhook in data.get("data", []):
+            webhooks.append({
+                "id": webhook.get("id", ""),
+                "url": webhook.get("url", ""),
+                "status": webhook.get("status", ""),
+                "enabled_events": webhook.get("enabled_events", []),
+                "created_at": webhook.get("created", ""),
+            })
+
+        return {
+            "webhooks": webhooks,
+            "total": len(webhooks),
+        }
+    except requests.RequestException as e:
+        return {"error": f"Stripe API request failed: {str(e)}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _tool_test_stripe_webhook(stripe_api_key: str, webhook_id: str, event_type: str) -> dict:
+    """Send a test event to a webhook endpoint."""
+    try:
+        import requests
+        from requests.auth import HTTPBasicAuth
+
+        url = f"https://api.stripe.com/v1/webhook_endpoints/{webhook_id}/test_helpers/send_sample_event"
+        auth = HTTPBasicAuth(stripe_api_key, "")
+
+        data = {
+            "api_version": "2024-04-10",
+            "event": event_type,
+        }
+
+        resp = requests.post(url, auth=auth, data=data, timeout=15)
+
+        if resp.status_code == 401:
+            return {"error": "Invalid Stripe API key"}
+        if resp.status_code == 404:
+            return {"error": f"Webhook {webhook_id} not found"}
+
+        resp.raise_for_status()
+
+        return {
+            "success": True,
+            "message": f"Test event '{event_type}' sent to {webhook_id}",
+            "event_type": event_type,
+            "webhook_id": webhook_id,
+        }
+    except requests.RequestException as e:
+        return {"error": f"Stripe API request failed: {str(e)}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _tool_sync_stripe_to_render(render_api_key: str, service_id: str, stripe_webhook_secret: str,
+                                stripe_secret_key: str, stripe_publishable_key: str) -> dict:
+    """Sync Stripe keys to Render environment variables."""
+    try:
+        env_vars = {
+            "STRIPE_WEBHOOK_SECRET": stripe_webhook_secret,
+            "STRIPE_SECRET_KEY": stripe_secret_key,
+            "STRIPE_PUBLISHABLE_KEY": stripe_publishable_key,
+        }
+
+        # Use the existing Render API function
+        url = f"https://api.render.com/v1/services/{service_id}/env-vars"
+        headers = {
+            "Authorization": f"Bearer {render_api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+
+        body = [{"key": k, "value": v} for k, v in env_vars.items()]
+        resp = requests.put(url, headers=headers, json=body, timeout=15)
+
+        if resp.status_code == 401:
+            return {"error": "Invalid Render API key"}
+        if resp.status_code == 404:
+            return {"error": f"Service {service_id} not found"}
+
+        resp.raise_for_status()
+
+        return {
+            "success": True,
+            "vars_set": list(env_vars.keys()),
+            "count": len(env_vars),
+            "message": f"Set {len(env_vars)} Stripe env vars on Render",
+        }
+    except requests.RequestException as e:
+        return {"error": f"Render API request failed: {str(e)}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ── Tool dispatch ──────────────────────────────────────────────────────────────
 
 def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
@@ -2256,6 +2478,30 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
             result = _tool_render_get_required_env_vars()
         elif tool_name == "fetch_api_key":
             result = _tool_fetch_api_key(service=tool_input["service"])
+
+        # Stripe webhook management
+        elif tool_name == "configure_stripe_webhook":
+            result = _tool_configure_stripe_webhook(
+                stripe_api_key=tool_input["stripe_api_key"],
+                webhook_url=tool_input["webhook_url"],
+                events=tool_input["events"]
+            )
+        elif tool_name == "list_stripe_webhooks":
+            result = _tool_list_stripe_webhooks(stripe_api_key=tool_input["stripe_api_key"])
+        elif tool_name == "test_stripe_webhook":
+            result = _tool_test_stripe_webhook(
+                stripe_api_key=tool_input["stripe_api_key"],
+                webhook_id=tool_input["webhook_id"],
+                event_type=tool_input["event_type"]
+            )
+        elif tool_name == "sync_stripe_to_render":
+            result = _tool_sync_stripe_to_render(
+                render_api_key=tool_input["render_api_key"],
+                service_id=tool_input["service_id"],
+                stripe_webhook_secret=tool_input["stripe_webhook_secret"],
+                stripe_secret_key=tool_input["stripe_secret_key"],
+                stripe_publishable_key=tool_input["stripe_publishable_key"]
+            )
 
         # Analytics
         elif tool_name == "get_analytics_summary":
