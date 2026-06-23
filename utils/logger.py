@@ -1,9 +1,8 @@
 """Rich-powered logging for the Social Optimize Machine."""
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.panel import Panel
 from rich.table import Table
-from rich import print as rprint
 from contextlib import contextmanager
 
 console = Console()

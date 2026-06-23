@@ -1,9 +1,7 @@
 """Tests for Hollywood agent Render deployment tools."""
 import json
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-import pytest
 
 
 class TestRenderBlueprintYaml:

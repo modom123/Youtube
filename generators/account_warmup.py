@@ -3,12 +3,9 @@ Account Warmup — gradual activity ramp-up for new social accounts.
 Prevents detection by slowly increasing engagement over days/weeks.
 """
 from __future__ import annotations
-import json
 import math
-from datetime import datetime, timedelta
-from typing import Optional
+from datetime import datetime
 
-import database as db
 
 
 WARMUP_PROFILES = {

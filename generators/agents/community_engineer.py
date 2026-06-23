@@ -72,7 +72,7 @@ Prioritize quality over quantity — 10 great comments > 50 generic ones."""
     ) -> EngagementPlan:
         targets_context = ""
         if existing_targets:
-            targets_context = f"\n\nExisting targets to engage with:\n"
+            targets_context = "\n\nExisting targets to engage with:\n"
             for t in existing_targets[:20]:
                 targets_context += f"- @{t.get('username', '?')} on {t.get('platform', '?')} ({t.get('followers', 0)} followers)\n"
 

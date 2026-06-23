@@ -1,5 +1,4 @@
 """Upload videos to Facebook using the Meta Graph API v19.0."""
-import os
 from pathlib import Path
 from typing import Optional
 import requests

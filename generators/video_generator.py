@@ -10,10 +10,9 @@ from moviepy import (
     VideoFileClip,
     ImageClip,
     CompositeVideoClip,
-    concatenate_videoclips,
     ColorClip,
 )
-from moviepy.video.fx import FadeIn, FadeOut, CrossFadeIn, CrossFadeOut
+from moviepy.video.fx import FadeIn, FadeOut
 
 import config
 

@@ -4,7 +4,6 @@ Seeds credentials from HIGGSFIELD_MCP_TOKEN into ~/.config/higgsfield/credential
 so the CLI can run non-interactively on servers.
 """
 import json
-import os
 import subprocess
 import time
 from pathlib import Path
