@@ -29,7 +29,7 @@ TIERS = {
         "videos_per_month": 2,
         "higgsfield_credits": 0,
         "stripe_price_id": None,
-        "features": ["2 videos/month", "Pexels stock media", "Basic scripts"],
+        "features": ["2 videos/month", "All 8 platforms", "Pexels stock media", "Basic scripts"],
     },
     "starter": {
         "label": "Starter",
@@ -37,7 +37,7 @@ TIERS = {
         "videos_per_month": 15,
         "higgsfield_credits": 150,
         "stripe_price_id": STRIPE_PRICE_STARTER,
-        "features": ["15 videos/month", "150 AI video credits", "5-agent pipeline", "YouTube publishing"],
+        "features": ["15 videos/month", "All 8 platforms", "150 AI video credits", "5-agent pipeline"],
     },
     "creator": {
         "label": "Creator",
