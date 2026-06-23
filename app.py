@@ -645,6 +645,197 @@ def clear_contacts():
     return jsonify({"status": "cleared"})
 
 
+# ── Engagement Center ─────────────────────────────────────────────────────────
+
+@app.route("/engagement")
+@login_required
+def engagement_page():
+    campaigns = db.get_engagement_campaigns(current_user.id)
+    stats = db.get_engagement_stats(current_user.id)
+    return render_template("engagement.html", campaigns=campaigns, stats=stats)
+
+
+@app.route("/api/engagement/campaigns", methods=["GET"])
+@login_required
+def api_list_campaigns():
+    campaigns = db.get_engagement_campaigns(current_user.id)
+    return jsonify(campaigns)
+
+
+@app.route("/api/engagement/campaigns", methods=["POST"])
+@login_required
+@limiter.limit("10/minute")
+def api_create_campaign():
+    data = request.json or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Campaign name is required"}), 400
+
+    platforms = data.get("platforms", [])
+    if not platforms:
+        return jsonify({"error": "At least one platform is required"}), 400
+
+    campaign_id = db.create_engagement_campaign(
+        user_id=current_user.id,
+        name=name,
+        strategy=data.get("strategy", "growth"),
+        platforms=platforms,
+        target_niche=data.get("target_niche", ""),
+        daily_limit=min(data.get("daily_limit", 50), 100),
+        config_json=data.get("config", {}),
+    )
+    return jsonify({"campaign_id": campaign_id, "status": "created"})
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>", methods=["GET"])
+@login_required
+def api_get_campaign(campaign_id):
+    campaign = db.get_engagement_campaign(campaign_id, current_user.id)
+    if not campaign:
+        return jsonify({"error": "Campaign not found"}), 404
+    stats = db.get_engagement_stats(current_user.id, campaign_id)
+    actions = db.get_engagement_actions(current_user.id, campaign_id=campaign_id, limit=20)
+    targets = db.get_engagement_targets(current_user.id, campaign_id=campaign_id)
+    return jsonify({
+        "campaign": campaign,
+        "stats": stats,
+        "recent_actions": actions,
+        "targets": targets,
+    })
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>", methods=["PUT"])
+@login_required
+def api_update_campaign(campaign_id):
+    campaign = db.get_engagement_campaign(campaign_id, current_user.id)
+    if not campaign:
+        return jsonify({"error": "Campaign not found"}), 404
+    data = request.json or {}
+    updates = {}
+    if "name" in data:
+        updates["name"] = data["name"].strip()
+    if "is_active" in data:
+        updates["is_active"] = 1 if data["is_active"] else 0
+    if "daily_limit" in data:
+        updates["daily_limit"] = min(data["daily_limit"], 100)
+    if "target_niche" in data:
+        updates["target_niche"] = data["target_niche"]
+    if "platforms" in data:
+        updates["platforms"] = json.dumps(data["platforms"])
+    if updates:
+        db.update_engagement_campaign(campaign_id, **updates)
+    return jsonify({"status": "updated"})
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>", methods=["DELETE"])
+@login_required
+def api_delete_campaign(campaign_id):
+    db.delete_engagement_campaign(campaign_id, current_user.id)
+    return jsonify({"status": "deleted"})
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>/targets", methods=["POST"])
+@login_required
+@limiter.limit("30/minute")
+def api_add_targets(campaign_id):
+    campaign = db.get_engagement_campaign(campaign_id, current_user.id)
+    if not campaign:
+        return jsonify({"error": "Campaign not found"}), 404
+
+    data = request.json or {}
+    targets = data.get("targets", [])
+    if not targets:
+        return jsonify({"error": "No targets provided"}), 400
+
+    added = 0
+    for t in targets[:50]:
+        if not t.get("username") or not t.get("platform"):
+            continue
+        db.add_engagement_target(
+            user_id=current_user.id,
+            campaign_id=campaign_id,
+            platform=t["platform"],
+            username=t["username"],
+            profile_url=t.get("profile_url"),
+            content_url=t.get("content_url"),
+            followers=t.get("followers", 0),
+            relevance_score=t.get("relevance_score", 0.5),
+            notes=t.get("notes"),
+        )
+        added += 1
+    return jsonify({"added": added})
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>/generate", methods=["POST"])
+@login_required
+@limiter.limit("5/minute")
+def api_generate_engagement_plan(campaign_id):
+    campaign = db.get_engagement_campaign(campaign_id, current_user.id)
+    if not campaign:
+        return jsonify({"error": "Campaign not found"}), 404
+
+    from generators.engagement_engine import generate_engagement_plan
+    result = generate_engagement_plan(current_user.id, campaign_id)
+    if not result:
+        return jsonify({"error": "Failed to generate plan"}), 500
+    return jsonify(result)
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>/execute", methods=["POST"])
+@login_required
+@limiter.limit("5/minute")
+def api_execute_engagement(campaign_id):
+    campaign = db.get_engagement_campaign(campaign_id, current_user.id)
+    if not campaign:
+        return jsonify({"error": "Campaign not found"}), 404
+
+    if not campaign.get("is_active"):
+        return jsonify({"error": "Campaign is paused"}), 400
+
+    from generators.engagement_engine import execute_pending_actions
+    batch_size = min((request.json or {}).get("batch_size", 10), 20)
+    results = execute_pending_actions(current_user.id, campaign_id, batch_size=batch_size)
+    return jsonify({"executed": len(results), "results": results})
+
+
+@app.route("/api/engagement/actions", methods=["POST"])
+@login_required
+@limiter.limit("20/minute")
+def api_create_action():
+    data = request.json or {}
+    required = ["platform", "action_type"]
+    for field in required:
+        if not data.get(field):
+            return jsonify({"error": f"{field} is required"}), 400
+
+    from generators.engagement_engine import check_rate_limit
+    allowed, err = check_rate_limit(current_user.id, data["platform"], data["action_type"])
+    if not allowed:
+        return jsonify({"error": err}), 429
+
+    action_id = db.create_engagement_action(
+        user_id=current_user.id,
+        platform=data["platform"],
+        action_type=data["action_type"],
+        target_url=data.get("target_url"),
+        target_username=data.get("target_username"),
+        target_content_id=data.get("target_content_id"),
+        comment_text=data.get("comment_text"),
+        campaign_id=data.get("campaign_id"),
+    )
+    return jsonify({"action_id": action_id, "status": "queued"})
+
+
+@app.route("/api/engagement/stats", methods=["GET"])
+@login_required
+def api_engagement_stats():
+    campaign_id = request.args.get("campaign_id")
+    stats = db.get_engagement_stats(current_user.id, campaign_id)
+    daily_count = db.get_daily_action_count(current_user.id, campaign_id)
+    stats["daily_count"] = daily_count
+    return jsonify(stats)
+
+
 # ── Settings ──────────────────────────────────────────────────────────────────
 
 @app.route("/settings")

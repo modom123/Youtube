@@ -107,6 +107,35 @@ class SEOPackage(BaseModel):
     ab_title_variants: list[str] = Field(min_length=2, max_length=3)
 
 
+# ── Agent 6: Community Engineer output ─────────────────────────────────────
+
+EngagementActionType = Literal[
+    "like", "comment", "follow", "subscribe",
+    "reply", "retweet", "share", "connect",
+]
+
+class EngagementAction(BaseModel):
+    platform: str = Field(description="Target platform: youtube, tiktok, instagram, twitter, linkedin, threads")
+    action_type: EngagementActionType
+    target_description: str = Field(description="Who/what to target, e.g. 'top creator in AI niche with 10K-50K subs'")
+    target_username: Optional[str] = Field(None, description="Specific username if known")
+    content_hint: Optional[str] = Field(None, description="What content to engage with")
+    comment_text: Optional[str] = Field(None, description="Draft comment if action_type is comment/reply")
+    timing: str = Field(description="Suggested time of day, e.g. '09:00-10:00 UTC'")
+    priority: int = Field(ge=1, le=3, description="1=high, 2=medium, 3=low")
+    strategy_tier: Literal["reciprocity", "audience_mining", "trend_surfacing"]
+    rationale: str = Field(description="Why this action matters for growth")
+
+
+class EngagementPlan(BaseModel):
+    daily_actions: list[EngagementAction] = Field(min_length=1)
+    total_actions: int = Field(ge=1)
+    platform_breakdown: dict[str, int] = Field(description="Actions per platform")
+    estimated_reach: int = Field(ge=0, description="Estimated profile impressions from engagement")
+    key_focus: str = Field(description="Primary growth strategy for today")
+    notes: str = Field(description="Additional strategic notes")
+
+
 # ── Pipeline result ──────────────────────────────────────────────────────────
 
 class ProductionResult(BaseModel):

@@ -239,6 +239,56 @@ def init_db():
             video_url       TEXT,
             fetched_at      TEXT DEFAULT (datetime('now'))
         );
+
+        -- Feature 9: Engagement Center
+        CREATE TABLE IF NOT EXISTS engagement_actions (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            platform        TEXT NOT NULL,
+            action_type     TEXT NOT NULL,
+            target_url      TEXT,
+            target_username TEXT,
+            target_content_id TEXT,
+            comment_text    TEXT,
+            status          TEXT DEFAULT 'pending',
+            scheduled_at    TEXT,
+            executed_at     TEXT,
+            error_msg       TEXT,
+            campaign_id     TEXT,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS engagement_campaigns (
+            id              TEXT PRIMARY KEY,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name            TEXT NOT NULL,
+            strategy        TEXT DEFAULT 'growth',
+            platforms       TEXT DEFAULT '[]',
+            target_niche    TEXT,
+            daily_limit     INTEGER DEFAULT 50,
+            actions_today   INTEGER DEFAULT 0,
+            total_actions   INTEGER DEFAULT 0,
+            is_active       INTEGER DEFAULT 1,
+            config_json     TEXT DEFAULT '{}',
+            created_at      TEXT DEFAULT (datetime('now')),
+            updated_at      TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS engagement_targets (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            campaign_id     TEXT REFERENCES engagement_campaigns(id) ON DELETE CASCADE,
+            platform        TEXT NOT NULL,
+            username        TEXT NOT NULL,
+            profile_url     TEXT,
+            content_url     TEXT,
+            followers       INTEGER DEFAULT 0,
+            relevance_score REAL DEFAULT 0.5,
+            engaged         INTEGER DEFAULT 0,
+            engaged_at      TEXT,
+            notes           TEXT,
+            added_at        TEXT DEFAULT (datetime('now'))
+        );
         """)
 
         # Migrate: add user_id columns if upgrading from an older schema
@@ -1047,3 +1097,170 @@ def get_all_competitor_channels_for_refresh():
     with get_conn() as conn:
         rows = conn.execute("SELECT * FROM competitor_channels").fetchall()
     return [row_to_dict(r) for r in rows]
+
+
+# ── Feature 9: Engagement Center ─────────────────────────────────────────────
+
+def create_engagement_campaign(user_id: int, name: str, strategy: str = "growth",
+                                platforms: list = None, target_niche: str = "",
+                                daily_limit: int = 50, config_json: dict = None) -> str:
+    camp_id = str(uuid.uuid4())
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO engagement_campaigns
+            (id, user_id, name, strategy, platforms, target_niche, daily_limit, config_json)
+            VALUES (?,?,?,?,?,?,?,?)
+        """, (camp_id, user_id, name, strategy, json.dumps(platforms or []),
+              target_niche, daily_limit, json.dumps(config_json or {})))
+    return camp_id
+
+
+def get_engagement_campaigns(user_id: int):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM engagement_campaigns WHERE user_id=? ORDER BY created_at DESC",
+            (user_id,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_engagement_campaign(campaign_id: str, user_id: int):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM engagement_campaigns WHERE id=? AND user_id=?",
+            (campaign_id, user_id)
+        ).fetchone()
+    return row_to_dict(row) if row else None
+
+
+def update_engagement_campaign(campaign_id: str, **kwargs):
+    if not kwargs:
+        return
+    kwargs["updated_at"] = datetime.utcnow().isoformat()
+    cols = ", ".join(f"{k}=?" for k in kwargs)
+    vals = list(kwargs.values()) + [campaign_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE engagement_campaigns SET {cols} WHERE id=?", vals)
+
+
+def delete_engagement_campaign(campaign_id: str, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM engagement_campaigns WHERE id=? AND user_id=?",
+                     (campaign_id, user_id))
+
+
+def create_engagement_action(user_id: int, platform: str, action_type: str,
+                              target_url: str = None, target_username: str = None,
+                              target_content_id: str = None, comment_text: str = None,
+                              campaign_id: str = None, scheduled_at: str = None) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO engagement_actions
+            (user_id, platform, action_type, target_url, target_username,
+             target_content_id, comment_text, campaign_id, scheduled_at)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        """, (user_id, platform, action_type, target_url, target_username,
+              target_content_id, comment_text, campaign_id, scheduled_at))
+        return cur.lastrowid
+
+
+def get_engagement_actions(user_id: int, campaign_id: str = None,
+                            status: str = None, limit: int = 50):
+    with get_conn() as conn:
+        query = "SELECT * FROM engagement_actions WHERE user_id=?"
+        params = [user_id]
+        if campaign_id:
+            query += " AND campaign_id=?"
+            params.append(campaign_id)
+        if status:
+            query += " AND status=?"
+            params.append(status)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def update_engagement_action(action_id: int, **kwargs):
+    if not kwargs:
+        return
+    cols = ", ".join(f"{k}=?" for k in kwargs)
+    vals = list(kwargs.values()) + [action_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE engagement_actions SET {cols} WHERE id=?", vals)
+
+
+def get_engagement_stats(user_id: int, campaign_id: str = None) -> dict:
+    with get_conn() as conn:
+        base = "SELECT action_type, status, COUNT(*) as cnt FROM engagement_actions WHERE user_id=?"
+        params = [user_id]
+        if campaign_id:
+            base += " AND campaign_id=?"
+            params.append(campaign_id)
+        base += " GROUP BY action_type, status"
+        rows = conn.execute(base, params).fetchall()
+
+    stats = {"total": 0, "by_action": {}, "by_status": {}}
+    for r in rows:
+        action = r["action_type"]
+        status = r["status"]
+        cnt = r["cnt"]
+        stats["total"] += cnt
+        stats["by_action"][action] = stats["by_action"].get(action, 0) + cnt
+        stats["by_status"][status] = stats["by_status"].get(status, 0) + cnt
+    return stats
+
+
+def add_engagement_target(user_id: int, campaign_id: str, platform: str,
+                           username: str, profile_url: str = None,
+                           content_url: str = None, followers: int = 0,
+                           relevance_score: float = 0.5, notes: str = None) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO engagement_targets
+            (user_id, campaign_id, platform, username, profile_url, content_url,
+             followers, relevance_score, notes)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        """, (user_id, campaign_id, platform, username, profile_url, content_url,
+              followers, relevance_score, notes))
+        return cur.lastrowid
+
+
+def get_engagement_targets(user_id: int, campaign_id: str = None,
+                            engaged: bool = None, limit: int = 100):
+    with get_conn() as conn:
+        query = "SELECT * FROM engagement_targets WHERE user_id=?"
+        params = [user_id]
+        if campaign_id:
+            query += " AND campaign_id=?"
+            params.append(campaign_id)
+        if engaged is not None:
+            query += " AND engaged=?"
+            params.append(1 if engaged else 0)
+        query += " ORDER BY relevance_score DESC LIMIT ?"
+        params.append(limit)
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def mark_target_engaged(target_id: int):
+    with get_conn() as conn:
+        conn.execute("""
+            UPDATE engagement_targets
+            SET engaged=1, engaged_at=datetime('now')
+            WHERE id=?
+        """, (target_id,))
+
+
+def get_daily_action_count(user_id: int, campaign_id: str = None) -> int:
+    with get_conn() as conn:
+        query = """
+            SELECT COUNT(*) as cnt FROM engagement_actions
+            WHERE user_id=? AND date(created_at)=date('now')
+        """
+        params = [user_id]
+        if campaign_id:
+            query += " AND campaign_id=?"
+            params.append(campaign_id)
+        row = conn.execute(query, params).fetchone()
+    return row["cnt"] if row else 0

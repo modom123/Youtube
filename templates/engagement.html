@@ -1,0 +1,512 @@
+{% extends "base.html" %}
+{% set active_page = "engagement" %}
+{% block title %}Engagement Center — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Engagement Center{% endblock %}
+{% block topbar_sub %}Build audiences with strategic cross-platform engagement{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-primary" onclick="showCreateCampaign()">New Campaign</button>
+{% endblock %}
+
+{% block content %}
+<style>
+  .eng-grid { display:grid; grid-template-columns:340px 1fr; gap:24px; align-items:start; }
+  .c-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:18px; }
+  .c-card h2 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 16px; }
+  .form-row { margin-bottom:14px; }
+  .form-row label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.06em; }
+  .form-row input, .form-row select, .form-row textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; box-sizing:border-box; font-family:inherit; }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline:none; border-color:var(--accent); }
+  .btn { padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn-sm { padding:5px 10px; font-size:12px; }
+  .btn-danger { background:rgba(255,59,48,.15); color:#ff3b30; border:none; }
+  .btn-success { background:rgba(48,209,88,.15); color:#30d158; border:none; }
+
+  .stat-row { display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+  .stat-box { flex:1; min-width:80px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center; }
+  .stat-num { font-size:22px; font-weight:800; color:var(--text); }
+  .stat-label { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
+
+  .campaign-item { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:12px; cursor:pointer; transition:border-color .2s; }
+  .campaign-item:hover { border-color:var(--accent); }
+  .campaign-item.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .campaign-header { display:flex; align-items:center; justify-content:space-between; }
+  .campaign-name { font-size:14px; font-weight:700; }
+  .campaign-meta { font-size:11px; color:var(--muted); margin-top:4px; }
+  .campaign-badge { display:inline-block; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:700; text-transform:uppercase; }
+  .badge-active { background:rgba(48,209,88,.15); color:#30d158; }
+  .badge-paused { background:rgba(255,159,10,.15); color:#ff9f0a; }
+
+  .platform-tags { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .ptag { padding:3px 8px; border-radius:6px; font-size:10px; font-weight:600; background:rgba(10,132,255,.1); color:#0a84ff; }
+
+  .action-feed { max-height:500px; overflow-y:auto; }
+  .action-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid var(--border); font-size:12px; }
+  .action-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+  .action-like { background:rgba(255,59,48,.1); }
+  .action-comment { background:rgba(10,132,255,.1); }
+  .action-follow { background:rgba(48,209,88,.1); }
+  .action-subscribe { background:rgba(175,82,222,.1); }
+  .action-details { flex:1; }
+  .action-status { font-size:10px; font-weight:600; padding:2px 6px; border-radius:4px; }
+  .status-completed { background:rgba(48,209,88,.1); color:#30d158; }
+  .status-pending { background:rgba(255,159,10,.1); color:#ff9f0a; }
+  .status-error { background:rgba(255,59,48,.1); color:#ff3b30; }
+  .status-queued { background:rgba(10,132,255,.1); color:#0a84ff; }
+
+  .target-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+  .target-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; }
+  .target-name { font-size:13px; font-weight:700; }
+  .target-meta { font-size:11px; color:var(--muted); }
+
+  .empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
+  .empty-state .icon { font-size:40px; margin-bottom:12px; }
+
+  .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.6); z-index:1000; display:none; align-items:center; justify-content:center; }
+  .modal-overlay.show { display:flex; }
+  .modal-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:32px; width:480px; max-width:90vw; max-height:85vh; overflow-y:auto; }
+  .modal-box h3 { margin:0 0 20px; font-size:18px; font-weight:800; }
+  .chk-group { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .chk-group label { display:flex; align-items:center; gap:4px; font-size:12px; background:var(--bg); border:1px solid var(--border); padding:6px 10px; border-radius:6px; cursor:pointer; }
+  .chk-group input { accent-color:var(--accent); }
+
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+
+<!-- Stats -->
+<div class="stat-row">
+  <div class="stat-box">
+    <div class="stat-num">{{ stats.total or 0 }}</div>
+    <div class="stat-label">Total Actions</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ stats.by_status.completed or 0 }}</div>
+    <div class="stat-label">Completed</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ stats.by_status.pending or 0 }}</div>
+    <div class="stat-label">Pending</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ campaigns|length }}</div>
+    <div class="stat-label">Campaigns</div>
+  </div>
+</div>
+
+<div class="eng-grid">
+
+  <!-- Left: Campaigns -->
+  <div>
+    <div class="c-card">
+      <h2>Campaigns</h2>
+      <div id="campaignList">
+        {% if campaigns %}
+          {% for c in campaigns %}
+          <div class="campaign-item" onclick="loadCampaign('{{ c.id }}')" id="camp-{{ c.id }}">
+            <div class="campaign-header">
+              <div>
+                <div class="campaign-name">{{ c.name }}</div>
+                <div class="campaign-meta">{{ c.strategy }} &middot; {{ c.daily_limit }} actions/day</div>
+              </div>
+              <span class="campaign-badge {{ 'badge-active' if c.is_active else 'badge-paused' }}">
+                {{ 'Active' if c.is_active else 'Paused' }}
+              </span>
+            </div>
+            <div class="platform-tags">
+              {% for p in (c.platforms if c.platforms is string and c.platforms.startswith('[') )|default([]) %}
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <div class="icon">🤝</div>
+            <div>No campaigns yet</div>
+            <div style="font-size:12px;margin-top:6px;">Create one to start building your audience</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Quick Action -->
+    <div class="c-card">
+      <h2>Quick Action</h2>
+      <div class="form-row">
+        <label>Platform</label>
+        <select id="qaPlatform">
+          <option value="youtube">YouTube</option>
+          <option value="tiktok">TikTok</option>
+          <option value="instagram">Instagram</option>
+          <option value="twitter">Twitter/X</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="threads">Threads</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Action</label>
+        <select id="qaAction">
+          <option value="like">Like</option>
+          <option value="comment">Comment</option>
+          <option value="follow">Follow</option>
+          <option value="subscribe">Subscribe</option>
+          <option value="reply">Reply</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Target URL or Username</label>
+        <input id="qaTarget" placeholder="@username or https://...">
+      </div>
+      <div class="form-row" id="qaCommentRow" style="display:none;">
+        <label>Comment Text</label>
+        <textarea id="qaComment" rows="3" placeholder="Write a thoughtful, specific comment..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="quickAction()" style="width:100%;">Queue Action</button>
+    </div>
+  </div>
+
+  <!-- Right: Campaign Detail -->
+  <div id="campaignDetail">
+    <div class="c-card">
+      <div class="empty-state">
+        <div class="icon">👈</div>
+        <div>Select a campaign to view details</div>
+        <div style="font-size:12px;margin-top:6px;">Or create a new one to get started</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create Campaign Modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal-box">
+    <h3>Create Campaign</h3>
+    <div class="form-row">
+      <label>Campaign Name</label>
+      <input id="campName" placeholder="e.g. AI Tech Growth Q1">
+    </div>
+    <div class="form-row">
+      <label>Target Niche</label>
+      <input id="campNiche" placeholder="e.g. AI tutorials, tech reviews">
+    </div>
+    <div class="form-row">
+      <label>Strategy</label>
+      <select id="campStrategy">
+        <option value="growth">Growth (balanced engagement)</option>
+        <option value="aggressive">Aggressive (max volume)</option>
+        <option value="quality">Quality (fewer, deeper interactions)</option>
+        <option value="reciprocity">Reciprocity (target similar creators)</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Platforms</label>
+      <div class="chk-group">
+        <label><input type="checkbox" value="youtube" class="campPlat" checked> YouTube</label>
+        <label><input type="checkbox" value="tiktok" class="campPlat" checked> TikTok</label>
+        <label><input type="checkbox" value="instagram" class="campPlat" checked> Instagram</label>
+        <label><input type="checkbox" value="twitter" class="campPlat"> Twitter/X</label>
+        <label><input type="checkbox" value="linkedin" class="campPlat"> LinkedIn</label>
+        <label><input type="checkbox" value="threads" class="campPlat"> Threads</label>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Daily Action Limit</label>
+      <input id="campLimit" type="number" value="50" min="10" max="100">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-primary" onclick="createCampaign()" style="flex:1;">Create Campaign</button>
+      <button class="btn btn-ghost" onclick="hideCreateCampaign()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Targets Modal -->
+<div class="modal-overlay" id="targetsModal">
+  <div class="modal-box">
+    <h3>Add Engagement Targets</h3>
+    <div class="form-row">
+      <label>Platform</label>
+      <select id="tgtPlatform">
+        <option value="youtube">YouTube</option>
+        <option value="tiktok">TikTok</option>
+        <option value="instagram">Instagram</option>
+        <option value="twitter">Twitter/X</option>
+        <option value="linkedin">LinkedIn</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Targets (one per line: username, profile_url)</label>
+      <textarea id="tgtList" rows="8" placeholder="@creator1, https://youtube.com/@creator1
+@creator2, https://tiktok.com/@creator2
+@creator3"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button class="btn btn-primary" onclick="addTargets()" style="flex:1;">Add Targets</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('targetsModal').classList.remove('show')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let activeCampaignId = null;
+
+const qaAction = document.getElementById('qaAction');
+qaAction.addEventListener('change', () => {
+  document.getElementById('qaCommentRow').style.display =
+    ['comment','reply'].includes(qaAction.value) ? '' : 'none';
+});
+
+function showCreateCampaign() { document.getElementById('createModal').classList.add('show'); }
+function hideCreateCampaign() { document.getElementById('createModal').classList.remove('show'); }
+
+async function createCampaign() {
+  const platforms = [...document.querySelectorAll('.campPlat:checked')].map(c => c.value);
+  const resp = await fetch('/api/engagement/campaigns', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      name: document.getElementById('campName').value,
+      target_niche: document.getElementById('campNiche').value,
+      strategy: document.getElementById('campStrategy').value,
+      platforms: platforms,
+      daily_limit: parseInt(document.getElementById('campLimit').value) || 50,
+    })
+  });
+  const data = await resp.json();
+  if (resp.ok) {
+    hideCreateCampaign();
+    location.reload();
+  } else {
+    alert(data.error || 'Failed to create campaign');
+  }
+}
+
+async function loadCampaign(id) {
+  activeCampaignId = id;
+  document.querySelectorAll('.campaign-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('camp-' + id);
+  if (el) el.classList.add('active');
+
+  const resp = await fetch('/api/engagement/campaigns/' + id);
+  const data = await resp.json();
+  if (!resp.ok) return;
+
+  const c = data.campaign;
+  const s = data.stats;
+  const actions = data.recent_actions || [];
+  const targets = data.targets || [];
+
+  const actionIcons = {
+    like: ['❤️', 'action-like'],
+    comment: ['💬', 'action-comment'],
+    reply: ['💬', 'action-comment'],
+    follow: ['➕', 'action-follow'],
+    subscribe: ['🔔', 'action-subscribe'],
+    retweet: ['🔄', 'action-follow'],
+    share: ['📤', 'action-follow'],
+    connect: ['🤝', 'action-follow'],
+  };
+
+  let html = `
+    <div class="c-card">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:16px;">
+        <div>
+          <h2 style="margin:0;">${c.name}</h2>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">
+            ${c.strategy} strategy &middot; ${c.target_niche || 'general'} &middot; ${c.daily_limit} actions/day
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm ${c.is_active ? 'btn-danger' : 'btn-success'}"
+                  onclick="toggleCampaign('${id}', ${!c.is_active})">
+            ${c.is_active ? 'Pause' : 'Activate'}
+          </button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteCampaign('${id}')">Delete</button>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-box">
+          <div class="stat-num">${s.total || 0}</div>
+          <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">${s.by_status?.completed || 0}</div>
+          <div class="stat-label">Done</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">${s.by_status?.pending || 0}</div>
+          <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">${c.actions_today || 0}</div>
+          <div class="stat-label">Today</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:20px;">
+        <button class="btn btn-primary btn-sm" onclick="generatePlan('${id}')">
+          Generate AI Plan
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="executeBatch('${id}')">
+          Execute Pending
+        </button>
+        <button class="btn btn-ghost btn-sm"
+                onclick="document.getElementById('targetsModal').classList.add('show')">
+          Add Targets
+        </button>
+      </div>
+    </div>
+
+    <div class="c-card">
+      <h2>Recent Actions</h2>
+      <div class="action-feed">`;
+
+  if (actions.length === 0) {
+    html += '<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">No actions yet. Generate an AI plan to get started.</div>';
+  } else {
+    for (const a of actions) {
+      const [icon, cls] = actionIcons[a.action_type] || ['🔵', 'action-like'];
+      const statusCls = 'status-' + (a.status || 'pending');
+      html += `
+        <div class="action-item">
+          <div class="action-icon ${cls}">${icon}</div>
+          <div class="action-details">
+            <div style="font-weight:600;">${a.action_type} on ${a.platform}</div>
+            <div style="color:var(--muted);font-size:11px;">${a.target_username || a.target_url || ''}</div>
+            ${a.comment_text ? '<div style="font-size:11px;margin-top:2px;font-style:italic;">"' + a.comment_text.substring(0, 80) + '"</div>' : ''}
+          </div>
+          <span class="action-status ${statusCls}">${a.status}</span>
+        </div>`;
+    }
+  }
+
+  html += `</div></div>`;
+
+  if (targets.length > 0) {
+    html += `<div class="c-card"><h2>Targets (${targets.length})</h2><div class="target-grid">`;
+    for (const t of targets) {
+      html += `
+        <div class="target-card">
+          <div class="target-name">@${t.username}</div>
+          <div class="target-meta">${t.platform} &middot; ${t.followers || 0} followers</div>
+          ${t.engaged ? '<div style="font-size:10px;color:#30d158;margin-top:4px;">Engaged</div>' : ''}
+        </div>`;
+    }
+    html += '</div></div>';
+  }
+
+  document.getElementById('campaignDetail').innerHTML = html;
+}
+
+async function toggleCampaign(id, active) {
+  await fetch('/api/engagement/campaigns/' + id, {
+    method: 'PUT',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ is_active: active })
+  });
+  loadCampaign(id);
+  location.reload();
+}
+
+async function deleteCampaign(id) {
+  if (!confirm('Delete this campaign and all its actions?')) return;
+  await fetch('/api/engagement/campaigns/' + id, { method: 'DELETE' });
+  location.reload();
+}
+
+async function generatePlan(id) {
+  const btn = event.target;
+  btn.innerHTML = '<span class="spinner"></span> Generating...';
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/api/engagement/campaigns/' + id + '/generate', { method: 'POST' });
+    const data = await resp.json();
+    if (resp.ok) {
+      alert(`Plan generated: ${data.queued_actions} actions queued out of ${data.total_planned} planned.`);
+      loadCampaign(id);
+    } else {
+      alert(data.error || 'Failed to generate plan');
+    }
+  } finally {
+    btn.innerHTML = 'Generate AI Plan';
+    btn.disabled = false;
+  }
+}
+
+async function executeBatch(id) {
+  const btn = event.target;
+  btn.innerHTML = '<span class="spinner"></span> Executing...';
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/api/engagement/campaigns/' + id + '/execute', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ batch_size: 10 })
+    });
+    const data = await resp.json();
+    if (resp.ok) {
+      alert(`Executed ${data.executed} actions.`);
+      loadCampaign(id);
+    } else {
+      alert(data.error || 'Execution failed');
+    }
+  } finally {
+    btn.innerHTML = 'Execute Pending';
+    btn.disabled = false;
+  }
+}
+
+async function addTargets() {
+  if (!activeCampaignId) return;
+  const platform = document.getElementById('tgtPlatform').value;
+  const lines = document.getElementById('tgtList').value.trim().split('\n').filter(Boolean);
+  const targets = lines.map(line => {
+    const parts = line.split(',').map(s => s.trim());
+    return {
+      platform: platform,
+      username: parts[0].replace('@', ''),
+      profile_url: parts[1] || '',
+    };
+  });
+  const resp = await fetch('/api/engagement/campaigns/' + activeCampaignId + '/targets', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ targets })
+  });
+  const data = await resp.json();
+  if (resp.ok) {
+    document.getElementById('targetsModal').classList.remove('show');
+    document.getElementById('tgtList').value = '';
+    loadCampaign(activeCampaignId);
+  } else {
+    alert(data.error || 'Failed to add targets');
+  }
+}
+
+async function quickAction() {
+  const resp = await fetch('/api/engagement/actions', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      platform: document.getElementById('qaPlatform').value,
+      action_type: document.getElementById('qaAction').value,
+      target_url: document.getElementById('qaTarget').value,
+      target_username: document.getElementById('qaTarget').value.replace('@', ''),
+      comment_text: document.getElementById('qaComment').value || undefined,
+      campaign_id: activeCampaignId,
+    })
+  });
+  const data = await resp.json();
+  if (resp.ok) {
+    alert('Action queued!');
+    document.getElementById('qaTarget').value = '';
+    document.getElementById('qaComment').value = '';
+    if (activeCampaignId) loadCampaign(activeCampaignId);
+  } else {
+    alert(data.error || 'Failed to queue action');
+  }
+}
+</script>
+{% endblock %}
