@@ -39,3 +39,8 @@ youtube_token.json
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Mobile app
+mobile/node_modules/
+mobile/android/.gradle/
+mobile/android/app/build/
