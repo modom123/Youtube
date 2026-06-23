@@ -336,6 +336,25 @@ def init_db():
             likes_total     INTEGER DEFAULT 0,
             recorded_at     TEXT DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS media_library (
+            id              TEXT PRIMARY KEY,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            filename        TEXT NOT NULL,
+            original_name   TEXT NOT NULL,
+            media_type      TEXT NOT NULL,
+            mime_type       TEXT,
+            file_size       INTEGER DEFAULT 0,
+            category        TEXT DEFAULT 'uncategorized',
+            tags            TEXT DEFAULT '[]',
+            description     TEXT DEFAULT '',
+            width           INTEGER,
+            height          INTEGER,
+            duration_seconds REAL,
+            thumbnail_path  TEXT,
+            file_path       TEXT NOT NULL,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
         """)
 
         # Migrate: add user_id columns if upgrading from an older schema
@@ -1448,3 +1467,140 @@ def get_growth_summary(user_id: int):
     for plat in summary:
         summary[plat]["growth"] = summary[plat]["latest_followers"] - summary[plat]["earliest_followers"]
     return summary
+
+
+# ── Media Library ─────────────────────────────────────────────────────────────
+
+ALLOWED_MEDIA_TYPES = {
+    "image": {".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".bmp", ".tiff"},
+    "video": {".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v", ".wmv"},
+    "audio": {".mp3", ".wav", ".aac", ".ogg", ".flac", ".m4a", ".wma"},
+    "document": {".pdf", ".doc", ".docx", ".txt", ".rtf", ".csv", ".xls", ".xlsx"},
+}
+
+MAX_FILE_SIZE = 500 * 1024 * 1024  # 500 MB
+
+
+def _classify_media_type(extension: str) -> str:
+    ext = extension.lower()
+    for media_type, extensions in ALLOWED_MEDIA_TYPES.items():
+        if ext in extensions:
+            return media_type
+    return "other"
+
+
+def _all_allowed_extensions() -> set:
+    result = set()
+    for exts in ALLOWED_MEDIA_TYPES.values():
+        result |= exts
+    return result
+
+
+def add_media(user_id: int, filename: str, original_name: str,
+              file_path: str, file_size: int = 0, mime_type: str = "",
+              category: str = "uncategorized", tags: list = None,
+              description: str = "", width: int = None, height: int = None,
+              duration_seconds: float = None) -> dict:
+    media_id = str(uuid.uuid4())
+    ext = Path(original_name).suffix.lower()
+    media_type = _classify_media_type(ext)
+    tags_json = json.dumps(tags or [])
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO media_library
+            (id, user_id, filename, original_name, media_type, mime_type,
+             file_size, category, tags, description, width, height,
+             duration_seconds, file_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (media_id, user_id, filename, original_name, media_type,
+              mime_type, file_size, category, tags_json, description,
+              width, height, duration_seconds, file_path))
+    return {"id": media_id, "media_type": media_type, "filename": filename}
+
+
+def get_media(media_id: str, user_id: int = None) -> dict | None:
+    query = "SELECT * FROM media_library WHERE id=?"
+    params = [media_id]
+    if user_id is not None:
+        query += " AND user_id=?"
+        params.append(user_id)
+    with get_conn() as conn:
+        row = conn.execute(query, params).fetchone()
+    if not row:
+        return None
+    item = row_to_dict(row)
+    item["tags"] = json.loads(item.get("tags", "[]"))
+    return item
+
+
+def get_media_library(user_id: int, media_type: str = None,
+                      category: str = None, search: str = None,
+                      limit: int = 50, offset: int = 0) -> list:
+    query = "SELECT * FROM media_library WHERE user_id=?"
+    params: list = [user_id]
+    if media_type:
+        query += " AND media_type=?"
+        params.append(media_type)
+    if category:
+        query += " AND category=?"
+        params.append(category)
+    if search:
+        query += " AND (original_name LIKE ? OR description LIKE ? OR tags LIKE ?)"
+        like = f"%{search}%"
+        params.extend([like, like, like])
+    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+    with get_conn() as conn:
+        rows = conn.execute(query, params).fetchall()
+    items = []
+    for r in rows:
+        item = row_to_dict(r)
+        item["tags"] = json.loads(item.get("tags", "[]"))
+        items.append(item)
+    return items
+
+
+def get_media_stats(user_id: int) -> dict:
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT media_type, COUNT(*) as count, SUM(file_size) as total_size
+            FROM media_library WHERE user_id=? GROUP BY media_type
+        """, (user_id,)).fetchall()
+    stats = {"total_files": 0, "total_size": 0, "by_type": {}}
+    for r in rows:
+        d = row_to_dict(r)
+        stats["by_type"][d["media_type"]] = {
+            "count": d["count"], "size": d["total_size"] or 0
+        }
+        stats["total_files"] += d["count"]
+        stats["total_size"] += d["total_size"] or 0
+    return stats
+
+
+def update_media(media_id: str, user_id: int, **kwargs):
+    if not kwargs:
+        return
+    if "tags" in kwargs and isinstance(kwargs["tags"], list):
+        kwargs["tags"] = json.dumps(kwargs["tags"])
+    cols = ", ".join(f"{k}=?" for k in kwargs)
+    vals = list(kwargs.values()) + [media_id, user_id]
+    with get_conn() as conn:
+        conn.execute(
+            f"UPDATE media_library SET {cols} WHERE id=? AND user_id=?", vals
+        )
+
+
+def delete_media(media_id: str, user_id: int) -> str | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT file_path FROM media_library WHERE id=? AND user_id=?",
+            (media_id, user_id)
+        ).fetchone()
+        if not row:
+            return None
+        file_path = row[0]
+        conn.execute(
+            "DELETE FROM media_library WHERE id=? AND user_id=?",
+            (media_id, user_id)
+        )
+    return file_path

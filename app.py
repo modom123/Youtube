@@ -20,6 +20,7 @@ from flask import (
     send_file, Response, stream_with_context, session
 )
 from flask_login import LoginManager, login_required, current_user
+from werkzeug.utils import secure_filename
 import database as db
 import config
 from auth import auth_bp, make_user
@@ -42,6 +43,9 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(billing_bp)
 
 ALLOWED_EXTENSIONS = {"csv", "vcf", "vcard", "txt"}
+
+UPLOAD_DIR = Path(os.getenv("DATA_DIR", Path(__file__).parent)) / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def allowed_file(filename):
@@ -2004,6 +2008,168 @@ def start_background_threads():
     t1.start()
     t2 = threading.Thread(target=_competitor_refresh_thread, daemon=True, name="competitor_refresh")
     t2.start()
+
+
+# ── Media Library ────────────────────────────────────────────────────────────────────────────
+
+@app.route("/media")
+@login_required
+def media_library_page():
+    return render_template("media.html")
+
+
+@app.route("/api/media", methods=["GET"])
+@login_required
+def api_list_media():
+    media_type = request.args.get("type")
+    category = request.args.get("category")
+    search = request.args.get("search")
+    limit = int(request.args.get("limit", 50))
+    offset = int(request.args.get("offset", 0))
+    items = db.get_media_library(
+        current_user.id, media_type=media_type, category=category,
+        search=search, limit=limit, offset=offset
+    )
+    stats = db.get_media_stats(current_user.id)
+    return jsonify({"media": items, "stats": stats})
+
+
+@app.route("/api/media/upload", methods=["POST"])
+@login_required
+def api_upload_media():
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    file = request.files["file"]
+    if not file.filename:
+        return jsonify({"error": "No file selected"}), 400
+
+    original_name = file.filename
+    ext = Path(original_name).suffix.lower()
+    if ext not in db._all_allowed_extensions():
+        return jsonify({"error": f"File type {ext} not supported"}), 400
+
+    file.seek(0, 2)
+    file_size = file.tell()
+    file.seek(0)
+    if file_size > db.MAX_FILE_SIZE:
+        return jsonify({"error": "File too large (max 500 MB)"}), 400
+
+    safe_name = secure_filename(original_name)
+    unique_name = f"{uuid.uuid4().hex}_{safe_name}"
+    user_dir = UPLOAD_DIR / str(current_user.id)
+    user_dir.mkdir(parents=True, exist_ok=True)
+    dest = user_dir / unique_name
+    file.save(str(dest))
+
+    category = request.form.get("category", "uncategorized")
+    description = request.form.get("description", "")
+    tags_raw = request.form.get("tags", "")
+    tags = [t.strip() for t in tags_raw.split(",") if t.strip()] if tags_raw else []
+
+    result = db.add_media(
+        user_id=current_user.id,
+        filename=unique_name,
+        original_name=original_name,
+        file_path=str(dest),
+        file_size=file_size,
+        mime_type=file.content_type or "",
+        category=category,
+        tags=tags,
+        description=description,
+    )
+    return jsonify({"status": "uploaded", **result}), 201
+
+
+@app.route("/api/media/upload/bulk", methods=["POST"])
+@login_required
+def api_upload_media_bulk():
+    files = request.files.getlist("files")
+    if not files:
+        return jsonify({"error": "No files provided"}), 400
+
+    category = request.form.get("category", "uncategorized")
+    results = []
+    errors = []
+
+    for file in files:
+        if not file.filename:
+            continue
+        original_name = file.filename
+        ext = Path(original_name).suffix.lower()
+        if ext not in db._all_allowed_extensions():
+            errors.append(f"{original_name}: unsupported type {ext}")
+            continue
+
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+        if file_size > db.MAX_FILE_SIZE:
+            errors.append(f"{original_name}: too large")
+            continue
+
+        safe_name = secure_filename(original_name)
+        unique_name = f"{uuid.uuid4().hex}_{safe_name}"
+        user_dir = UPLOAD_DIR / str(current_user.id)
+        user_dir.mkdir(parents=True, exist_ok=True)
+        dest = user_dir / unique_name
+        file.save(str(dest))
+
+        result = db.add_media(
+            user_id=current_user.id,
+            filename=unique_name,
+            original_name=original_name,
+            file_path=str(dest),
+            file_size=file_size,
+            mime_type=file.content_type or "",
+            category=category,
+        )
+        results.append(result)
+
+    return jsonify({"uploaded": results, "errors": errors,
+                     "total_uploaded": len(results)}), 201
+
+
+@app.route("/api/media/<media_id>", methods=["GET"])
+@login_required
+def api_get_media(media_id):
+    item = db.get_media(media_id, user_id=current_user.id)
+    if not item:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(item)
+
+
+@app.route("/api/media/<media_id>", methods=["PUT", "PATCH"])
+@login_required
+def api_update_media(media_id):
+    data = request.get_json(silent=True) or {}
+    allowed_fields = {"category", "tags", "description"}
+    updates = {k: v for k, v in data.items() if k in allowed_fields}
+    if not updates:
+        return jsonify({"error": "No valid fields to update"}), 400
+    db.update_media(media_id, current_user.id, **updates)
+    return jsonify({"status": "updated"})
+
+
+@app.route("/api/media/<media_id>", methods=["DELETE"])
+@login_required
+def api_delete_media(media_id):
+    file_path = db.delete_media(media_id, current_user.id)
+    if file_path is None:
+        return jsonify({"error": "Not found"}), 404
+    try:
+        Path(file_path).unlink(missing_ok=True)
+    except OSError:
+        pass
+    return jsonify({"status": "deleted"})
+
+
+@app.route("/api/media/<media_id>/download")
+@login_required
+def api_download_media(media_id):
+    item = db.get_media(media_id, user_id=current_user.id)
+    if not item:
+        return jsonify({"error": "Not found"}), 404
+    return send_file(item["file_path"], download_name=item["original_name"])
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────────────────────
