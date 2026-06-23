@@ -316,6 +316,68 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {}}
     },
 
+    # ── Render Deployment Tools ──────────────────────────────────────────────
+    {
+        "name": "deploy_render_blueprint",
+        "description": "Navigate to Render's blueprint page (dashboard.render.com/blueprint/new), fill in the repo URL, and walk through the deployment form step by step. Takes a screenshot after each step so you can see the progress.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "repo_url": {
+                    "type": "string",
+                    "description": "GitHub repo URL to deploy, e.g. 'https://github.com/username/repo'"
+                },
+                "blueprint_name": {
+                    "type": "string",
+                    "description": "Name for the Render blueprint instance (defaults to repo name)"
+                }
+            },
+            "required": ["repo_url"]
+        }
+    },
+    {
+        "name": "fill_render_env_vars",
+        "description": "Navigate to the Render service's environment variables page and fill in all the env vars from a provided dictionary. Handles the Render dashboard UI: clicks 'Add Environment Variable', fills key/value, repeats for each var.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "service_id": {
+                    "type": "string",
+                    "description": "Render service ID (e.g. srv-xxxxx) — used to navigate to the correct env vars page"
+                },
+                "env_vars": {
+                    "type": "object",
+                    "description": "Dictionary of environment variable key-value pairs to fill in",
+                    "additionalProperties": {"type": "string"}
+                }
+            },
+            "required": ["service_id", "env_vars"]
+        }
+    },
+    {
+        "name": "render_dashboard_navigate",
+        "description": "Navigate to a specific Render dashboard page: 'blueprint_new' (new blueprint), 'services' (service list), 'env_vars' (env vars for a service), or a custom render dashboard URL.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "string",
+                    "description": "Page to navigate to: 'blueprint_new', 'services', 'env_vars', or a full URL",
+                },
+                "service_id": {
+                    "type": "string",
+                    "description": "Render service ID (required for 'env_vars' page)"
+                }
+            },
+            "required": ["page"]
+        }
+    },
+    {
+        "name": "get_render_blueprint_yaml",
+        "description": "Return the current render.yaml content from this repo so Hollywood can review it before deploying.",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+
     # ── Blueprint Tools ──────────────────────────────────────────────────────
     {
         "name": "get_blueprint",
@@ -1029,6 +1091,254 @@ def _tool_content_calendar_view() -> dict:
         return {"error": str(e)}
 
 
+# ── Render deployment tool implementations ───────────────────────────────────
+
+RENDER_DASHBOARD_PAGES = {
+    "blueprint_new": "https://dashboard.render.com/blueprint/new",
+    "services": "https://dashboard.render.com/services",
+}
+
+
+def _tool_deploy_render_blueprint(repo_url: str, blueprint_name: str = None) -> dict:
+    """Automate filling the Render blueprint new page."""
+    steps = []
+
+    # Step 1: Navigate to blueprint page
+    nav = _browser_call("navigate", url="https://dashboard.render.com/blueprint/new")
+    if "error" in nav:
+        return {"error": f"Failed to navigate to Render: {nav['error']}", "steps": steps}
+    steps.append({"step": "navigate", "result": "Loaded Render blueprint page"})
+
+    import time
+    time.sleep(2)
+
+    # Take screenshot of initial state
+    ss1 = _browser_call("screenshot")
+    steps.append({"step": "screenshot_initial", "screenshot": ss1.get("screenshot_b64", "")[:20] + "..."})
+
+    # Step 2: Look for repo URL input and fill it
+    page = None
+    try:
+        from generators.hollywood_browser import get_page
+        page = get_page()
+    except Exception as e:
+        return {"error": f"Browser not available: {e}", "steps": steps}
+
+    filled = False
+    # Render blueprint page has an input for repo URL
+    for selector in [
+        'input[placeholder*="repo"]',
+        'input[placeholder*="URL"]',
+        'input[placeholder*="url"]',
+        'input[name*="repo"]',
+        'input[type="url"]',
+        'input[type="text"]',
+    ]:
+        try:
+            el = page.query_selector(selector)
+            if el:
+                page.fill(selector, repo_url, timeout=5000)
+                filled = True
+                steps.append({"step": "fill_repo_url", "selector": selector, "value": repo_url})
+                break
+        except Exception:
+            continue
+
+    if not filled:
+        # Try clicking any visible text that says "public git repository"
+        try:
+            page.get_by_placeholder("public Git repository").fill(repo_url)
+            filled = True
+            steps.append({"step": "fill_repo_url", "method": "by_placeholder", "value": repo_url})
+        except Exception:
+            pass
+
+    if not filled:
+        text = _browser_call("get_page_text")
+        return {
+            "error": "Could not find repo URL input on the page. User may need to log in first.",
+            "page_text": text.get("text", "")[:1500],
+            "steps": steps,
+            "suggestion": "Try 'browser_navigate' to https://dashboard.render.com first to check if you're logged in.",
+        }
+
+    time.sleep(1)
+
+    # Step 3: Try to click Connect/Apply button
+    for btn_text in ["Connect", "Apply", "Next", "Continue", "Create"]:
+        try:
+            page.get_by_role("button", name=btn_text).first.click(timeout=3000)
+            steps.append({"step": "click_button", "button": btn_text})
+            break
+        except Exception:
+            continue
+
+    time.sleep(2)
+
+    # Step 4: If there's a blueprint name field, fill it
+    if blueprint_name:
+        for selector in [
+            'input[name*="name"]',
+            'input[placeholder*="name"]',
+            'input[placeholder*="Name"]',
+        ]:
+            try:
+                el = page.query_selector(selector)
+                if el:
+                    page.fill(selector, blueprint_name, timeout=5000)
+                    steps.append({"step": "fill_blueprint_name", "value": blueprint_name})
+                    break
+            except Exception:
+                continue
+
+    # Take final screenshot
+    time.sleep(1)
+    ss2 = _browser_call("screenshot")
+    steps.append({"step": "screenshot_final"})
+
+    return {
+        "status": "in_progress",
+        "repo_url": repo_url,
+        "blueprint_name": blueprint_name,
+        "steps_completed": len(steps),
+        "steps": steps,
+        "current_url": page.url if page else "",
+        "screenshots_taken": 2,
+        "message": "Blueprint form started. Use browser_screenshot to see current state, browser_click/browser_type to continue interacting with the form.",
+    }
+
+
+def _tool_fill_render_env_vars(service_id: str, env_vars: dict) -> dict:
+    """Navigate to Render service env vars page and fill them in."""
+    url = f"https://dashboard.render.com/web/{service_id}/env"
+    nav = _browser_call("navigate", url=url)
+    if "error" in nav:
+        return {"error": f"Failed to navigate: {nav['error']}"}
+
+    import time
+    time.sleep(2)
+
+    try:
+        from generators.hollywood_browser import get_page
+        page = get_page()
+    except Exception as e:
+        return {"error": f"Browser not available: {e}"}
+
+    filled = []
+    errors = []
+
+    for key, value in env_vars.items():
+        try:
+            # Click "Add Environment Variable" button
+            for btn_text in ["Add Environment Variable", "Add Variable", "Add"]:
+                try:
+                    page.get_by_role("button", name=btn_text).first.click(timeout=3000)
+                    time.sleep(0.5)
+                    break
+                except Exception:
+                    continue
+
+            # Find the last (newest) empty key input and fill it
+            key_inputs = page.query_selector_all('input[placeholder*="KEY"], input[placeholder*="key"], input[name*="key"]')
+            if key_inputs:
+                last_key = key_inputs[-1]
+                last_key.fill(key)
+
+            # Find the last empty value input and fill it
+            val_inputs = page.query_selector_all('input[placeholder*="VALUE"], input[placeholder*="value"], input[name*="value"], textarea[placeholder*="value"]')
+            if val_inputs:
+                last_val = val_inputs[-1]
+                last_val.fill(value)
+
+            filled.append(key)
+            time.sleep(0.3)
+        except Exception as e:
+            errors.append({"key": key, "error": str(e)})
+
+    # Try to click Save
+    for btn_text in ["Save Changes", "Save", "Update", "Apply"]:
+        try:
+            page.get_by_role("button", name=btn_text).first.click(timeout=3000)
+            break
+        except Exception:
+            continue
+
+    time.sleep(1)
+    ss = _browser_call("screenshot")
+
+    return {
+        "service_id": service_id,
+        "filled": filled,
+        "errors": errors,
+        "total_vars": len(env_vars),
+        "filled_count": len(filled),
+        "current_url": page.url,
+        "message": f"Filled {len(filled)}/{len(env_vars)} env vars. Check screenshot to verify.",
+    }
+
+
+def _tool_render_dashboard_navigate(page: str, service_id: str = None) -> dict:
+    """Navigate to a Render dashboard page."""
+    if page in RENDER_DASHBOARD_PAGES:
+        url = RENDER_DASHBOARD_PAGES[page]
+    elif page == "env_vars" and service_id:
+        url = f"https://dashboard.render.com/web/{service_id}/env"
+    elif page.startswith("http"):
+        url = page
+    else:
+        return {"error": f"Unknown page: {page}. Options: {list(RENDER_DASHBOARD_PAGES.keys())} + 'env_vars' (needs service_id)"}
+
+    nav = _browser_call("navigate", url=url)
+    if "error" in nav:
+        return nav
+
+    import time
+    time.sleep(2)
+    ss = _browser_call("screenshot")
+
+    return {
+        "page": page,
+        "url": url,
+        "title": nav.get("title", ""),
+        "current_url": nav.get("url", ""),
+    }
+
+
+def _tool_get_render_blueprint_yaml() -> dict:
+    """Read and return the render.yaml from this repo."""
+    from pathlib import Path
+    render_path = Path(__file__).parent.parent / "render.yaml"
+    if not render_path.exists():
+        return {"error": "render.yaml not found in repo root"}
+    content = render_path.read_text()
+
+    import yaml
+    try:
+        parsed = yaml.safe_load(content)
+    except Exception:
+        parsed = None
+
+    env_vars_list = []
+    if parsed and "services" in parsed:
+        for svc in parsed["services"]:
+            for ev in svc.get("envVars", []):
+                env_vars_list.append({
+                    "key": ev.get("key", ""),
+                    "has_value": bool(ev.get("value")),
+                    "auto_generated": bool(ev.get("generateValue")),
+                    "needs_manual": bool(ev.get("sync") is False),
+                })
+
+    return {
+        "content": content,
+        "path": str(render_path),
+        "env_vars": env_vars_list,
+        "total_env_vars": len(env_vars_list),
+        "manual_vars": sum(1 for v in env_vars_list if v["needs_manual"]),
+        "auto_vars": sum(1 for v in env_vars_list if v["auto_generated"]),
+    }
+
+
 # ── Blueprint tool implementations ────────────────────────────────────────────
 
 def _find_blueprint_path(job_id: int):
@@ -1576,6 +1886,25 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
                 job_id_a=int(tool_input["job_id_a"]),
                 job_id_b=int(tool_input["job_id_b"]),
             )
+
+        # Render deployment
+        elif tool_name == "deploy_render_blueprint":
+            result = _tool_deploy_render_blueprint(
+                repo_url=tool_input["repo_url"],
+                blueprint_name=tool_input.get("blueprint_name", ""),
+            )
+        elif tool_name == "fill_render_env_vars":
+            result = _tool_fill_render_env_vars(
+                service_id=tool_input.get("service_id", ""),
+                env_vars=tool_input["env_vars"],
+            )
+        elif tool_name == "render_dashboard_navigate":
+            result = _tool_render_dashboard_navigate(
+                page=tool_input["page"],
+                service_id=tool_input.get("service_id", ""),
+            )
+        elif tool_name == "get_render_blueprint_yaml":
+            result = _tool_get_render_blueprint_yaml()
 
         # Analytics
         elif tool_name == "get_analytics_summary":
