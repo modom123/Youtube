@@ -7,9 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import random
-import string
 from pathlib import Path
-from typing import Optional
 
 
 CHROME_VERSIONS = [

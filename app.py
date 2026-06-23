@@ -20,7 +20,6 @@ from flask import (
     send_file, Response, stream_with_context, session
 )
 from flask_login import LoginManager, login_required, current_user
-from werkzeug.utils import secure_filename
 import database as db
 import config
 from auth import auth_bp, make_user
@@ -544,18 +543,24 @@ def import_contacts_vcf():
     try:
         for vcard in vobject.readComponents(content):
             name = ""
-            try: name = str(vcard.fn.value)
+            try:
+                name = str(vcard.fn.value)
             except Exception:
                 try:
                     n = vcard.n.value
                     name = f"{n.given} {n.family}".strip()
-                except Exception: pass
+                except Exception:
+                    pass
             email = ""
-            try: email = str(vcard.email.value)
-            except Exception: pass
+            try:
+                email = str(vcard.email.value)
+            except Exception:
+                pass
             phone = ""
-            try: phone = str(vcard.tel.value)
-            except Exception: pass
+            try:
+                phone = str(vcard.tel.value)
+            except Exception:
+                pass
             if name:
                 contacts.append({"name": name, "handle": "", "email": email, "phone": phone,
                                   "platform": "phone", "avatar_url": "", "followers": 0, "tags": "[]"})
@@ -572,7 +577,8 @@ def import_contacts_manual():
     contacts = data.get("contacts", [])
     cleaned = []
     for c in contacts:
-        if not c.get("name"): continue
+        if not c.get("name"):
+            continue
         cleaned.append({
             "name": c.get("name", "").strip(), "handle": c.get("handle", "").strip(),
             "email": c.get("email", "").strip(), "phone": c.get("phone", "").strip(),
@@ -622,7 +628,7 @@ def api_research_preview():
     if not topic or len(topic) < 4:
         return jsonify({"facts": [], "sources": [], "data_points": []})
     try:
-        from generators.researcher import research_topic, brief_to_context
+        from generators.researcher import research_topic
         brief = research_topic(topic)
         return jsonify({
             "summary": brief.summary[:400] if brief.summary else "",

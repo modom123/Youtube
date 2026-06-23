@@ -1,7 +1,6 @@
 """Upload videos to TikTok using the TikTok Content Posting API."""
 import time
 from pathlib import Path
-from typing import Optional
 import requests
 import config
 

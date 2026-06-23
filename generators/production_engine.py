@@ -4,7 +4,6 @@ actual asset generation (audio + video assembly).
 """
 from __future__ import annotations
 import json
-import time
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -23,7 +22,6 @@ from generators.agents.schemas import (
     OptimizedAssetPlan,
     SEOPackage,
     ProductionResult,
-    AssetSpec,
 )
 
 
@@ -79,7 +77,7 @@ class ProductionStudioEngine:
         from generators import audio_generator, video_generator, media_fetcher, thumbnail_generator
         from generators.researcher import research_topic, brief_to_context
         from generators import higgsfield_mcp
-        from utils import file_manager, logger
+        from utils import file_manager
 
         voice = voice or config.DEFAULT_VOICE
         errors: list[str] = []
@@ -199,10 +197,9 @@ class ProductionStudioEngine:
                 output_path=audio_path,
                 voice=voice,
             )
-            duration = audio_generator.get_audio_duration(audio_path)
+            audio_generator.get_audio_duration(audio_path)
         except Exception as e:
             errors.append(f"Audio generation failed: {e}")
-            duration = target_duration
 
         # ── Fetch / generate assets ───────────────────────────────────────────────────────────────────────
         self.cb("Fetching and generating visual assets…", 65)

@@ -6,10 +6,7 @@ import re
 import textwrap
 from pathlib import Path
 from typing import Optional
-import numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
-import requests
-from io import BytesIO
 
 
 # ── Font helpers ─────────────────────────────────────────────────────────────
@@ -116,7 +113,6 @@ def create_rank_card(
             pass
 
     color = _rank_color(rank)
-    accent_r = (*color, 255)
 
     # Left accent bar
     bar_w = 10
@@ -132,7 +128,6 @@ def create_rank_card(
 
     # Rank number glow
     for offset in range(8, 0, -2):
-        glow_color = (*color, 30)
         draw.text((rank_x - offset, rank_y - offset), rank_str, font=rank_font,
                   fill=(*color, max(0, 255 - offset * 30)))
 

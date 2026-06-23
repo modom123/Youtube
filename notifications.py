@@ -4,7 +4,6 @@ Notification module — email, webhook, and in-app notifications.
 import json
 import smtplib
 import threading
-import uuid
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart

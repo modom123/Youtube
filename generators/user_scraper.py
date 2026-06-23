@@ -4,11 +4,8 @@ Finds followers, commenters, and hashtag users for targeted engagement.
 Uses platform APIs where available, falls back to public data.
 """
 from __future__ import annotations
-import re
-import time
 import requests
 from dataclasses import dataclass
-from typing import Optional
 
 import config
 
