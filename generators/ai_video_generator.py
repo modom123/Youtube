@@ -363,7 +363,7 @@ def generate_ai_clips(
 ) -> list[Path]:
     """
     Generate AI video clips using the specified provider.
-    provider: "higgsville" | "google_flow" | "both" | "none"
+    provider: "higgsville" | "google_flow" | "chinese_opensource" | "both" | "none"
 
     Higgsfield path tries the MCP endpoint first (https://mcp.higgsfield.ai/mcp),
     then falls back to the higgsfield-client SDK, then the REST API.
@@ -398,7 +398,41 @@ def generate_ai_clips(
         else:
             print("[ai_video] GOOGLE_API_KEY not set — skipping Google Flow/Veo")
 
+    if provider in ("chinese_opensource", "both"):
+        cn_clips = generate_chinese_opensource_clips(
+            prompts=prompts,
+            output_dir=output_dir / "chinese",
+            model_id=model_key,
+            aspect_ratio=aspect,
+        )
+        clips.extend(cn_clips)
+
     return clips
+
+
+def generate_chinese_opensource_clips(
+    prompts: list[str],
+    output_dir: Path,
+    model_id: str = "wan2_7_opensource",
+    aspect_ratio: str = "16:9",
+    duration: int = 5,
+) -> list[Path]:
+    """Generate clips via Chinese open-source models on serverless GPU."""
+    if not config.RUNPOD_API_KEY:
+        print("[ai_video] RUNPOD_API_KEY not set — skipping Chinese opensource")
+        return []
+    try:
+        from generators.chinese_video_client import generate_chinese_clips
+        return generate_chinese_clips(
+            prompts=prompts,
+            output_dir=output_dir,
+            model_id=model_id,
+            aspect_ratio=aspect_ratio,
+            duration=duration,
+        )
+    except Exception as e:
+        print(f"[ai_video] Chinese opensource generation failed: {e}")
+        return []
 
 
 def _generate_higgsville_with_mcp_fallback(

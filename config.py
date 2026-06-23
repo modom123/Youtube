@@ -174,7 +174,21 @@ TRANSLATION_LANGUAGES = {
 }
 
 # AI Video providers
-AI_VIDEO_PROVIDERS = ["none", "higgsville", "google_flow", "both"]
+AI_VIDEO_PROVIDERS = ["none", "higgsville", "google_flow", "chinese_opensource", "both"]
+
+# ── Chinese Open-Source Models (Serverless GPU) ──────────────────────────────
+RUNPOD_API_KEY = os.getenv("RUNPOD_API_KEY", "")
+RUNPOD_WAN_ENDPOINT = os.getenv("RUNPOD_WAN_ENDPOINT", "")
+RUNPOD_HUNYUAN_ENDPOINT = os.getenv("RUNPOD_HUNYUAN_ENDPOINT", "")
+RUNPOD_SEEDANCE_ENDPOINT = os.getenv("RUNPOD_SEEDANCE_ENDPOINT", "")
+
+CHINESE_MODEL_COST_PER_CLIP = {
+    "wan2_7_opensource": float(os.getenv("WAN_COST_PER_CLIP", "0.02")),
+    "hunyuan_video": float(os.getenv("HUNYUAN_COST_PER_CLIP", "0.05")),
+    "seedance2_opensource": float(os.getenv("SEEDANCE_COST_PER_CLIP", "0.04")),
+}
+
+MONTHLY_DOLLAR_BUDGET = float(os.getenv("MONTHLY_DOLLAR_BUDGET", "20.0"))
 
 HIGGSVILLE_MODELS = {
     # Kling

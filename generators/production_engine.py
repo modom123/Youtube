@@ -161,13 +161,14 @@ class ProductionStudioEngine:
             errors.append(f"Asset Curator failed: {e}")
             raw_asset_plan = AssetPlan(assets=[], total_credit_estimate=0, free_asset_count=0, paid_asset_count=0, notes="failed")
 
-        # ── Agent 3.5: Cost Engineer ──────────────────────────────────────────
-        self.cb("Agent 3.5/5 — Cost Engineer optimising budget…", 45)
+        # ── Agent 3.5: Cost Engineer (3-tier routing) ────────────────────────
+        self.cb("Agent 3.5/5 — Cost Engineer optimising budget (3-tier routing)…", 45)
         try:
             asset_plan = self.cost_engineer.run(
                 asset_plan=raw_asset_plan,
                 remaining_credits=remaining_credits,
                 monthly_budget=self.monthly_budget,
+                dollar_budget=config.MONTHLY_DOLLAR_BUDGET,
             )
             (job_dir / "asset_plan_optimised.json").write_text(asset_plan.model_dump_json(indent=2))
         except Exception as e:
@@ -210,11 +211,12 @@ class ProductionStudioEngine:
         ai_clips_dir = job_dir / "ai_clips"
         ai_clips_dir.mkdir(parents=True, exist_ok=True)
 
-        # Group assets by source
+        # Group assets by source (3-tier routing)
         higgsfield_assets = [a for a in asset_plan.assets if a.source.startswith("higgsfield_")]
-        pexels_assets = [a for a in asset_plan.assets if a.source == "free_pexels_api"]
+        chinese_assets = [a for a in asset_plan.assets if a.source == "chinese_open_source_api"]
+        pexels_assets = [a for a in asset_plan.assets if a.source in ("free_pexels_api", "free_stock_internal")]
 
-        # Stock media from Pexels
+        # Tier 1: FREE — Stock media from Pexels
         pexels_keywords = list({kw for a in pexels_assets for kw in a.prompt.split()[:3]})
         pexels_keywords = pexels_keywords or script.sections[0].b_roll_keywords[:3] if script.sections else ["abstract background"]
 
@@ -230,10 +232,37 @@ class ProductionStudioEngine:
         except Exception as e:
             errors.append(f"Pexels fetch failed: {e}")
 
-        # Higgsfield AI clips via MCP
+        # Tier 2: ULTRA-CHEAP — Chinese open-source models via serverless GPU
+        chinese_clips: list[Path] = []
+        if chinese_assets and not dry_run:
+            self.cb("Generating AI clips via Chinese open-source models…", 68)
+            try:
+                from generators.chinese_video_client import generate_chinese_clips
+                cn_by_model: dict[str, list] = {}
+                for a in chinese_assets[:8]:
+                    key = a.model_key or "wan2_7_opensource"
+                    cn_by_model.setdefault(key, []).append(a)
+
+                for model_id, model_assets in cn_by_model.items():
+                    prompts = [a.prompt for a in model_assets]
+                    aspect = model_assets[0].aspect_ratio
+                    cn_clips = generate_chinese_clips(
+                        prompts=prompts,
+                        output_dir=ai_clips_dir / "chinese",
+                        model_id=model_id,
+                        aspect_ratio=aspect,
+                    )
+                    chinese_clips.extend(cn_clips)
+                if chinese_clips:
+                    cost = sum(a.dollar_cost for a in chinese_assets)
+                    print(f"[production] Tier 2: {len(chinese_clips)} clips via Chinese models (${cost:.2f})")
+            except Exception as e:
+                errors.append(f"Chinese model generation failed: {e}")
+
+        # Tier 3: PREMIUM — Higgsfield AI clips via MCP
         ai_clips: list[Path] = []
         if higgsfield_assets and not dry_run:
-            self.cb("Generating AI video clips via Higgsfield…", 72)
+            self.cb("Generating premium AI video clips via Higgsfield…", 75)
             try:
                 prompts = [a.prompt for a in higgsfield_assets[:6]]
                 model_key = higgsfield_assets[0].model_key or "cinematic_studio_3_0"
@@ -244,10 +273,13 @@ class ProductionStudioEngine:
                     model_id=model_key,
                     aspect_ratio=aspect,
                 )
+                if ai_clips:
+                    credits = sum(a.credit_cost for a in higgsfield_assets)
+                    print(f"[production] Tier 3: {len(ai_clips)} clips via Higgsfield ({credits} credits)")
             except Exception as e:
                 errors.append(f"Higgsfield generation failed: {e}")
 
-        all_video_clips = ai_clips + list(video_clips)
+        all_video_clips = ai_clips + chinese_clips + list(video_clips)
 
         # ── Thumbnail ─────────────────────────────────────────────────────────
         self.cb("Generating thumbnail…", 78)

@@ -48,18 +48,26 @@ class FullScript(BaseModel):
 
 # ── Agent 3: Asset Curator output ───────────────────────────────────────────
 
-AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pexels_api", "free_stock_internal"]
+AssetSource = Literal[
+    "higgsfield_cinematic", "higgsfield_ugc",
+    "free_pexels_api", "free_stock_internal",
+    "chinese_open_source_api",
+]
+
+VisualComplexity = Literal["low", "medium_custom", "high_agentic_physics"]
 
 class AssetSpec(BaseModel):
     section_id: int
     asset_type: Literal["video_clip", "image", "animation"]
     source: AssetSource
     prompt: str = Field(description="Generation prompt or Pexels search query")
-    model_key: Optional[str] = Field(None, description="Higgsfield model key if source=higgsfield_*")
+    model_key: Optional[str] = Field(None, description="Higgsfield model key if source=higgsfield_*, or chinese model key if source=chinese_open_source_api")
     duration_seconds: Optional[int] = None
     aspect_ratio: Literal["16:9", "9:16", "1:1"] = "16:9"
-    credit_cost: int = Field(ge=0, description="Estimated Higgsfield credits (0 for free sources)")
+    credit_cost: int = Field(ge=0, description="Estimated Higgsfield credits (0 for free sources and chinese models)")
+    dollar_cost: float = Field(default=0.0, description="Estimated USD cost (for chinese serverless models)")
     priority: int = Field(ge=1, le=3, description="1=must-have, 2=nice-to-have, 3=optional")
+    visual_complexity: VisualComplexity = Field(default="low", description="Complexity level driving tier routing")
 
 
 class AssetPlan(BaseModel):
@@ -77,8 +85,10 @@ BudgetState = Literal["healthy", "warning", "critical_save"]
 class OptimizedAssetPlan(BaseModel):
     assets: list[AssetSpec]
     total_credit_cost: int
+    total_dollar_cost: float = Field(default=0.0, description="Total USD cost for chinese serverless models")
     budget_state: BudgetState
     credits_remaining_after: int
+    dollars_remaining_after: float = Field(default=0.0, description="Remaining dollar budget after chinese model costs")
     swaps_made: list[str] = Field(description="Human-readable list of cost substitutions")
     quality_impact: str = Field(description="Assessment of quality after optimisations")
 
