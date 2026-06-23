@@ -28,6 +28,12 @@ class BaseAgent:
     max_tokens: int = 4096
     system_prompt: str = ""
 
+    def set_tier(self, subscription_tier: str) -> None:
+        """Downgrade model for free-tier users to cut API costs."""
+        tier_model = config.TIER_CLAUDE_MODEL.get(subscription_tier)
+        if tier_model:
+            self.model = tier_model
+
     def _call(self, user_message: str, output_schema: Type[T]) -> T:
         schema_json = json.dumps(output_schema.model_json_schema(), indent=2)
         full_system = (

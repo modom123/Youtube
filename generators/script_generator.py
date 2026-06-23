@@ -148,11 +148,13 @@ def generate_script(
     custom_instructions: Optional[str] = None,
     research_context: str = "",
     ai_model: str = "claude",
+    subscription_tier: str = "starter",
 ) -> "ContentScript":
     """
     Generate a complete content script.
 
     ai_model: "claude" (default, premium quality) or "gemini" (fast & budget for batch).
+    subscription_tier: routes free-tier users to cheaper models automatically.
     """
     if ai_model == "gemini" and getattr(config, "GOOGLE_API_KEY", ""):
         script = generate_script_gemini(
@@ -171,6 +173,7 @@ def generate_script(
             audience=audience,
             custom_instructions=custom_instructions,
             research_context=research_context,
+            subscription_tier=subscription_tier,
         )
 
     # Attach NLP SEO data regardless of which model was used
@@ -185,6 +188,7 @@ def _generate_script_claude(
     audience: str = "general public",
     custom_instructions: Optional[str] = None,
     research_context: str = "",
+    subscription_tier: str = "starter",
 ) -> "ContentScript":
     """Generate a complete content script using Claude AI."""
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
@@ -193,7 +197,7 @@ def _generate_script_claude(
     if custom_instructions:
         prompt += f"\n\nAdditional instructions: {custom_instructions}"
 
-    model = "claude-sonnet-4-6"
+    model = config.TIER_CLAUDE_MODEL.get(subscription_tier, "claude-sonnet-4-6")
     message = client.messages.create(
         model=model,
         max_tokens=4096,
