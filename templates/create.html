@@ -136,7 +136,29 @@
           <input type="text" id="guest_name" placeholder="e.g. John Smith">
         </div>
       </div>
-      <div class="text-dim text-xs mt-4">
+      <div class="form-group mt-8">
+        <label>Episode Length</label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;" id="podcastDurationGrid">
+          <div class="format-card" data-pdur="900" onclick="selectPodcastDuration(this,900)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">15 min</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Daily briefing</div>
+          </div>
+          <div class="format-card selected" data-pdur="1800" onclick="selectPodcastDuration(this,1800)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">30 min</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Standard episode</div>
+          </div>
+          <div class="format-card" data-pdur="3600" onclick="selectPodcastDuration(this,3600)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">60 min</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Full interview</div>
+          </div>
+          <div class="format-card" data-pdur="5400" onclick="selectPodcastDuration(this,5400)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">90 min</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Deep dive</div>
+          </div>
+        </div>
+        <input type="hidden" id="podcast_duration" value="1800">
+      </div>
+      <div class="text-dim text-xs mt-8">
         The podcast video will include an animated equalizer, chapter markers, and a progress bar.
       </div>
     </div>
@@ -279,6 +301,12 @@ function selectFormat(el, fmt) {
   document.getElementById('podcastPanel').style.display = (fmt === 'podcast') ? '' : 'none';
 }
 
+function selectPodcastDuration(el, seconds) {
+  document.querySelectorAll('#podcastDurationGrid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('podcast_duration').value = seconds;
+}
+
 function selectStyle(el, s) {
   document.querySelectorAll('#style-grid .format-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
@@ -369,6 +397,7 @@ async function startCreate() {
     podcast_name: document.getElementById('podcast_name').value || topic,
     episode_number: parseInt(document.getElementById('episode_number').value) || 1,
     guest_name: document.getElementById('guest_name').value || '',
+    target_duration: parseInt(document.getElementById('podcast_duration').value) || 1800,
   };
 
   await launchJob(payload);
