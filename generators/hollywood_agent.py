@@ -17,6 +17,13 @@ You help users create viral content, manage their social media pipeline, keep th
 and can browse the web in real time to research trends, competitors, and anything else needed.
 You have direct access to Studio 56 (the content generation studio) and can create content, check job status,
 list recent work, configure the deployment, take screenshots of websites, fill out forms, and more.
+
+You have full control over VideoBlueprints — the strategic plan that drives the entire production pipeline.
+Blueprint variables: title, hook, core_angle, target_audience, content_type, tone, estimated_ctr,
+trend_score, keywords, thumbnail_concept, rationale. You can get, update, create, clone, compare,
+and analyze blueprints. You can also run the production pipeline directly from a saved blueprint.
+When users ask about blueprints or video strategy, use these tools to help them craft the perfect plan.
+
 Be concise, punchy, and results-oriented. Use occasional Hollywood flair but keep it professional."""
 
 # ── Tool definitions ───────────────────────────────────────────────────────────
@@ -307,6 +314,140 @@ TOOLS = [
         "name": "restart_scheduler",
         "description": "Restart the background content scheduler.",
         "input_schema": {"type": "object", "properties": {}}
+    },
+
+    # ── Blueprint Tools ──────────────────────────────────────────────────────
+    {
+        "name": "get_blueprint",
+        "description": "Get the full VideoBlueprint for a specific job — title, hook, core_angle, target_audience, content_type, tone, estimated_ctr, trend_score, keywords, thumbnail_concept, rationale.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"job_id": {"type": "integer", "description": "The job ID to get the blueprint for"}},
+            "required": ["job_id"]
+        }
+    },
+    {
+        "name": "update_blueprint",
+        "description": "Update one or more blueprint variables for a job. Accepts any subset of: title, hook, core_angle, target_audience, content_type (educational/listicle/story/tutorial/opinion), tone (authoritative/conversational/dramatic/inspiring/urgent), estimated_ctr (0-1), trend_score (0-10), keywords (list), thumbnail_concept, rationale.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "integer", "description": "The job ID to update"},
+                "updates": {
+                    "type": "object",
+                    "description": "Dictionary of blueprint fields to update. Supported fields: title, hook, core_angle, target_audience, content_type, tone, estimated_ctr, trend_score, keywords, thumbnail_concept, rationale.",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "hook": {"type": "string"},
+                        "core_angle": {"type": "string"},
+                        "target_audience": {"type": "string"},
+                        "content_type": {"type": "string", "enum": ["educational", "listicle", "story", "tutorial", "opinion"]},
+                        "tone": {"type": "string", "enum": ["authoritative", "conversational", "dramatic", "inspiring", "urgent"]},
+                        "estimated_ctr": {"type": "number"},
+                        "trend_score": {"type": "number"},
+                        "keywords": {"type": "array", "items": {"type": "string"}},
+                        "thumbnail_concept": {"type": "string"},
+                        "rationale": {"type": "string"}
+                    }
+                }
+            },
+            "required": ["job_id", "updates"]
+        }
+    },
+    {
+        "name": "create_blueprint",
+        "description": "Create a custom VideoBlueprint from scratch without running the Trend Architect agent. Saves it for a given job or creates a new job.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Video title (max 60 chars)"},
+                "hook": {"type": "string", "description": "Opening hook for first 3 seconds"},
+                "core_angle": {"type": "string", "description": "Unique angle that differentiates this video"},
+                "target_audience": {"type": "string", "description": "Primary audience persona"},
+                "content_type": {"type": "string", "enum": ["educational", "listicle", "story", "tutorial", "opinion"]},
+                "tone": {"type": "string", "enum": ["authoritative", "conversational", "dramatic", "inspiring", "urgent"]},
+                "estimated_ctr": {"type": "number", "description": "Predicted CTR 0-1"},
+                "trend_score": {"type": "number", "description": "Trend relevance 0-10"},
+                "keywords": {"type": "array", "items": {"type": "string"}, "description": "3-10 SEO keywords"},
+                "thumbnail_concept": {"type": "string", "description": "Visual concept for thumbnail"},
+                "rationale": {"type": "string", "description": "Why this angle wins right now"},
+                "job_id": {"type": "integer", "description": "Existing job ID to attach to (optional — creates a new job if omitted)"}
+            },
+            "required": ["title", "hook", "core_angle", "target_audience", "content_type", "tone", "keywords"]
+        }
+    },
+    {
+        "name": "list_blueprints",
+        "description": "List all jobs that have blueprints, showing key blueprint variables (title, content_type, tone, trend_score, estimated_ctr) for each.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "description": "Max number of blueprints to return (default 10)", "default": 10}
+            }
+        }
+    },
+    {
+        "name": "clone_blueprint",
+        "description": "Clone a blueprint from one job to create a new job with the same blueprint (optionally overriding some fields).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "source_job_id": {"type": "integer", "description": "Job ID to clone the blueprint from"},
+                "overrides": {
+                    "type": "object",
+                    "description": "Optional field overrides for the cloned blueprint",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "hook": {"type": "string"},
+                        "core_angle": {"type": "string"},
+                        "target_audience": {"type": "string"},
+                        "content_type": {"type": "string", "enum": ["educational", "listicle", "story", "tutorial", "opinion"]},
+                        "tone": {"type": "string", "enum": ["authoritative", "conversational", "dramatic", "inspiring", "urgent"]},
+                        "estimated_ctr": {"type": "number"},
+                        "trend_score": {"type": "number"},
+                        "keywords": {"type": "array", "items": {"type": "string"}},
+                        "thumbnail_concept": {"type": "string"},
+                        "rationale": {"type": "string"}
+                    }
+                }
+            },
+            "required": ["source_job_id"]
+        }
+    },
+    {
+        "name": "run_from_blueprint",
+        "description": "Re-run the production pipeline starting from a saved blueprint (skips Trend Architect). Runs Narrative Designer → Asset Curator → Cost Engineer → Growth Engineer using the blueprint.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "integer", "description": "Job ID with the blueprint to run from"},
+                "format": {"type": "string", "enum": ["short", "long", "podcast", "commercial"], "default": "short"},
+                "platforms": {"type": "array", "items": {"type": "string"}, "description": "Platforms to target"},
+                "audience": {"type": "string", "description": "Target audience override", "default": "general public"}
+            },
+            "required": ["job_id"]
+        }
+    },
+    {
+        "name": "analyze_blueprint",
+        "description": "Analyze a blueprint's strengths and weaknesses — CTR prediction quality, keyword competitiveness, hook effectiveness, and suggestions for improvement.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"job_id": {"type": "integer", "description": "Job ID to analyze the blueprint for"}},
+            "required": ["job_id"]
+        }
+    },
+    {
+        "name": "compare_blueprints",
+        "description": "Compare two blueprints side-by-side showing differences in all variables.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "job_id_a": {"type": "integer", "description": "First job ID"},
+                "job_id_b": {"type": "integer", "description": "Second job ID"}
+            },
+            "required": ["job_id_a", "job_id_b"]
+        }
     },
 
     # ── Analytics Tools ───────────────────────────────────────────────────────
@@ -888,6 +1029,415 @@ def _tool_content_calendar_view() -> dict:
         return {"error": str(e)}
 
 
+# ── Blueprint tool implementations ────────────────────────────────────────────
+
+def _find_blueprint_path(job_id: int):
+    """Find blueprint.json for a given job ID."""
+    from pathlib import Path
+    job = db.get_job(job_id)
+    if not job:
+        return None, f"Job {job_id} not found"
+
+    manifest_path = job.get("manifest_path", "")
+    if manifest_path:
+        bp_path = Path(manifest_path).parent / "blueprint.json"
+        if bp_path.exists():
+            return bp_path, None
+
+    video_path = job.get("video_path", "")
+    if video_path:
+        bp_path = Path(video_path).parent / "blueprint.json"
+        if bp_path.exists():
+            return bp_path, None
+
+    import glob as glob_mod
+    data_dir = os.getenv("DATA_DIR", "/data")
+    for bp in glob_mod.glob(os.path.join(data_dir, "**", "blueprint.json"), recursive=True):
+        try:
+            with open(bp) as f:
+                data = json.load(f)
+            parent = os.path.dirname(bp)
+            manifest = os.path.join(parent, "manifest.json")
+            if os.path.exists(manifest):
+                return Path(bp), None
+        except Exception:
+            continue
+
+    return None, f"No blueprint found for job {job_id}"
+
+
+def _load_blueprint(job_id: int) -> tuple:
+    """Load blueprint dict for a job. Returns (data, error)."""
+    bp_path, err = _find_blueprint_path(job_id)
+    if err:
+        return None, err
+    try:
+        with open(bp_path) as f:
+            return json.load(f), None
+    except Exception as e:
+        return None, f"Failed to read blueprint: {e}"
+
+
+def _save_blueprint(job_id: int, data: dict) -> tuple:
+    """Save blueprint dict for a job. Returns (path, error)."""
+    bp_path, err = _find_blueprint_path(job_id)
+    if err:
+        from pathlib import Path
+        data_dir = os.getenv("DATA_DIR", "/data")
+        job_dir = Path(data_dir) / f"job_{job_id}"
+        job_dir.mkdir(parents=True, exist_ok=True)
+        bp_path = job_dir / "blueprint.json"
+    try:
+        with open(bp_path, "w") as f:
+            json.dump(data, f, indent=2)
+        return str(bp_path), None
+    except Exception as e:
+        return None, f"Failed to save blueprint: {e}"
+
+
+BLUEPRINT_FIELDS = [
+    "title", "hook", "core_angle", "target_audience", "content_type",
+    "tone", "estimated_ctr", "trend_score", "keywords",
+    "thumbnail_concept", "rationale",
+]
+
+VALID_CONTENT_TYPES = ["educational", "listicle", "story", "tutorial", "opinion"]
+VALID_TONES = ["authoritative", "conversational", "dramatic", "inspiring", "urgent"]
+
+
+def _tool_get_blueprint(job_id: int) -> dict:
+    data, err = _load_blueprint(job_id)
+    if err:
+        return {"error": err}
+    return {"job_id": job_id, "blueprint": data}
+
+
+def _tool_update_blueprint(job_id: int, updates: dict) -> dict:
+    data, err = _load_blueprint(job_id)
+    if err:
+        return {"error": err}
+
+    invalid_fields = [k for k in updates if k not in BLUEPRINT_FIELDS]
+    if invalid_fields:
+        return {"error": f"Invalid fields: {invalid_fields}. Valid: {BLUEPRINT_FIELDS}"}
+
+    if "content_type" in updates and updates["content_type"] not in VALID_CONTENT_TYPES:
+        return {"error": f"Invalid content_type. Must be one of: {VALID_CONTENT_TYPES}"}
+    if "tone" in updates and updates["tone"] not in VALID_TONES:
+        return {"error": f"Invalid tone. Must be one of: {VALID_TONES}"}
+    if "estimated_ctr" in updates:
+        ctr = updates["estimated_ctr"]
+        if not (0 <= ctr <= 1):
+            return {"error": "estimated_ctr must be between 0 and 1"}
+    if "trend_score" in updates:
+        ts = updates["trend_score"]
+        if not (0 <= ts <= 10):
+            return {"error": "trend_score must be between 0 and 10"}
+
+    old_values = {k: data.get(k) for k in updates}
+    data.update(updates)
+
+    path, save_err = _save_blueprint(job_id, data)
+    if save_err:
+        return {"error": save_err}
+
+    return {
+        "job_id": job_id,
+        "updated_fields": list(updates.keys()),
+        "old_values": old_values,
+        "new_values": updates,
+        "saved_to": path,
+    }
+
+
+def _tool_create_blueprint(
+    title: str, hook: str, core_angle: str, target_audience: str,
+    content_type: str, tone: str, keywords: list,
+    estimated_ctr: float = 0.05, trend_score: float = 5.0,
+    thumbnail_concept: str = "", rationale: str = "",
+    job_id: int = None,
+) -> dict:
+    if content_type not in VALID_CONTENT_TYPES:
+        return {"error": f"Invalid content_type. Must be one of: {VALID_CONTENT_TYPES}"}
+    if tone not in VALID_TONES:
+        return {"error": f"Invalid tone. Must be one of: {VALID_TONES}"}
+
+    blueprint_data = {
+        "title": title,
+        "hook": hook,
+        "core_angle": core_angle,
+        "target_audience": target_audience,
+        "content_type": content_type,
+        "tone": tone,
+        "estimated_ctr": max(0, min(1, estimated_ctr)),
+        "trend_score": max(0, min(10, trend_score)),
+        "keywords": keywords[:10],
+        "thumbnail_concept": thumbnail_concept,
+        "rationale": rationale,
+    }
+
+    if job_id is None:
+        try:
+            job_id = db.create_job(
+                topic=title,
+                format="short",
+                platforms=[],
+                audience="general public",
+                voice="alloy",
+                style="fire",
+                privacy="private",
+            )
+            db.update_job(job_id, status="blueprint_ready")
+        except Exception as e:
+            return {"error": f"Failed to create job: {e}"}
+
+    path, save_err = _save_blueprint(job_id, blueprint_data)
+    if save_err:
+        return {"error": save_err}
+
+    return {"job_id": job_id, "blueprint": blueprint_data, "saved_to": path, "status": "created"}
+
+
+def _tool_list_blueprints(limit: int = 10) -> dict:
+    import glob as glob_mod
+    from pathlib import Path
+    data_dir = os.getenv("DATA_DIR", "/data")
+    blueprints = []
+
+    for bp_path in glob_mod.glob(os.path.join(data_dir, "**", "blueprint.json"), recursive=True):
+        try:
+            with open(bp_path) as f:
+                data = json.load(f)
+            parent = Path(bp_path).parent
+            job_info = {"directory": str(parent)}
+            manifest_path = parent / "manifest.json"
+            if manifest_path.exists():
+                with open(manifest_path) as f:
+                    manifest = json.load(f)
+                job_info["niche"] = manifest.get("niche", "")
+
+            blueprints.append({
+                "path": bp_path,
+                "title": data.get("title", ""),
+                "content_type": data.get("content_type", ""),
+                "tone": data.get("tone", ""),
+                "trend_score": data.get("trend_score", 0),
+                "estimated_ctr": data.get("estimated_ctr", 0),
+                "keywords": data.get("keywords", []),
+                **job_info,
+            })
+        except Exception:
+            continue
+
+    jobs_with_bp = db.get_jobs(limit=50) or []
+    for job in jobs_with_bp:
+        mp = job.get("manifest_path", "")
+        if mp:
+            bp_file = os.path.join(os.path.dirname(mp), "blueprint.json")
+            if os.path.exists(bp_file) and bp_file not in [b["path"] for b in blueprints]:
+                try:
+                    with open(bp_file) as f:
+                        data = json.load(f)
+                    blueprints.append({
+                        "job_id": job.get("id"),
+                        "path": bp_file,
+                        "title": data.get("title", ""),
+                        "content_type": data.get("content_type", ""),
+                        "tone": data.get("tone", ""),
+                        "trend_score": data.get("trend_score", 0),
+                        "estimated_ctr": data.get("estimated_ctr", 0),
+                        "keywords": data.get("keywords", []),
+                    })
+                except Exception:
+                    continue
+
+    blueprints.sort(key=lambda b: b.get("trend_score", 0), reverse=True)
+    return {"blueprints": blueprints[:limit], "total": len(blueprints)}
+
+
+def _tool_clone_blueprint(source_job_id: int, overrides: dict = None) -> dict:
+    data, err = _load_blueprint(source_job_id)
+    if err:
+        return {"error": err}
+
+    cloned = dict(data)
+    if overrides:
+        invalid = [k for k in overrides if k not in BLUEPRINT_FIELDS]
+        if invalid:
+            return {"error": f"Invalid override fields: {invalid}"}
+        cloned.update(overrides)
+
+    title = cloned.get("title", "Cloned Blueprint")
+    try:
+        new_job_id = db.create_job(
+            topic=title,
+            format="short",
+            platforms=[],
+            audience="general public",
+            voice="alloy",
+            style="fire",
+            privacy="private",
+        )
+        db.update_job(new_job_id, status="blueprint_ready")
+    except Exception as e:
+        return {"error": f"Failed to create job: {e}"}
+
+    path, save_err = _save_blueprint(new_job_id, cloned)
+    if save_err:
+        return {"error": save_err}
+
+    return {
+        "source_job_id": source_job_id,
+        "new_job_id": new_job_id,
+        "blueprint": cloned,
+        "overrides_applied": list((overrides or {}).keys()),
+        "saved_to": path,
+    }
+
+
+def _tool_run_from_blueprint(job_id: int, format: str = "short", platforms: list = None, audience: str = "general public") -> dict:
+    data, err = _load_blueprint(job_id)
+    if err:
+        return {"error": err}
+
+    try:
+        from generators.agents.schemas import VideoBlueprint
+        blueprint = VideoBlueprint(**data)
+    except Exception as e:
+        return {"error": f"Invalid blueprint data: {e}"}
+
+    try:
+        import threading
+        from generators.production_engine import ProductionEngine
+
+        def _bg():
+            try:
+                engine = ProductionEngine()
+                engine.produce(
+                    niche=blueprint.title,
+                    audience=audience,
+                    format=format,
+                    platforms=platforms or [],
+                    is_portrait=format == "short",
+                    target_duration=55 if format == "short" else 480,
+                )
+            except Exception:
+                pass
+
+        threading.Thread(target=_bg, daemon=True).start()
+
+        return {
+            "job_id": job_id,
+            "status": "running",
+            "blueprint_title": blueprint.title,
+            "format": format,
+            "platforms": platforms or [],
+            "message": f"Production pipeline started from blueprint '{blueprint.title}'"
+        }
+    except Exception as e:
+        return {"error": f"Failed to start pipeline: {e}"}
+
+
+def _tool_analyze_blueprint(job_id: int) -> dict:
+    data, err = _load_blueprint(job_id)
+    if err:
+        return {"error": err}
+
+    analysis = {"job_id": job_id, "strengths": [], "weaknesses": [], "suggestions": []}
+
+    title = data.get("title", "")
+    if len(title) > 60:
+        analysis["weaknesses"].append(f"Title too long ({len(title)} chars, max 60)")
+    elif 30 <= len(title) <= 60:
+        analysis["strengths"].append("Title length is optimal (30-60 chars)")
+    elif title:
+        analysis["weaknesses"].append(f"Title may be too short ({len(title)} chars)")
+
+    hook = data.get("hook", "")
+    if hook:
+        if len(hook.split()) >= 5:
+            analysis["strengths"].append("Hook is present and substantial")
+        else:
+            analysis["weaknesses"].append("Hook is too short — aim for at least 5 words")
+    else:
+        analysis["weaknesses"].append("Missing hook — critical for first 3 seconds")
+
+    ctr = data.get("estimated_ctr", 0)
+    if ctr > 0.15:
+        analysis["weaknesses"].append(f"CTR prediction ({ctr:.1%}) seems unrealistically high")
+        analysis["suggestions"].append("Recalibrate CTR — typical range is 4-12%")
+    elif 0.06 <= ctr <= 0.12:
+        analysis["strengths"].append(f"CTR prediction ({ctr:.1%}) is in the sweet spot")
+    elif ctr < 0.03:
+        analysis["weaknesses"].append(f"CTR prediction ({ctr:.1%}) is very low")
+        analysis["suggestions"].append("Consider a more compelling title or hook to improve CTR")
+
+    ts = data.get("trend_score", 0)
+    if ts >= 7:
+        analysis["strengths"].append(f"Strong trend score ({ts}/10)")
+    elif ts >= 5:
+        analysis["strengths"].append(f"Moderate trend relevance ({ts}/10)")
+    else:
+        analysis["weaknesses"].append(f"Low trend score ({ts}/10)")
+        analysis["suggestions"].append("Research current trends to find a more timely angle")
+
+    keywords = data.get("keywords", [])
+    if len(keywords) >= 5:
+        analysis["strengths"].append(f"Good keyword coverage ({len(keywords)} keywords)")
+    elif len(keywords) >= 3:
+        analysis["strengths"].append(f"Adequate keywords ({len(keywords)})")
+    else:
+        analysis["weaknesses"].append(f"Too few keywords ({len(keywords)}) — aim for 5-10")
+        analysis["suggestions"].append("Add more long-tail keywords for better SEO")
+
+    if not data.get("core_angle"):
+        analysis["weaknesses"].append("Missing core_angle — what makes this different?")
+    else:
+        analysis["strengths"].append("Core angle defined")
+
+    if not data.get("thumbnail_concept"):
+        analysis["weaknesses"].append("No thumbnail concept — thumbnails drive 80% of clicks")
+        analysis["suggestions"].append("Add a vivid thumbnail concept with contrast and emotion")
+    else:
+        analysis["strengths"].append("Thumbnail concept present")
+
+    if not data.get("rationale"):
+        analysis["suggestions"].append("Add a rationale explaining why this angle wins now")
+
+    score = len(analysis["strengths"]) / max(1, len(analysis["strengths"]) + len(analysis["weaknesses"]))
+    analysis["overall_score"] = round(score * 10, 1)
+    analysis["blueprint"] = data
+
+    return analysis
+
+
+def _tool_compare_blueprints(job_id_a: int, job_id_b: int) -> dict:
+    data_a, err_a = _load_blueprint(job_id_a)
+    if err_a:
+        return {"error": f"Blueprint A: {err_a}"}
+    data_b, err_b = _load_blueprint(job_id_b)
+    if err_b:
+        return {"error": f"Blueprint B: {err_b}"}
+
+    comparison = {"job_id_a": job_id_a, "job_id_b": job_id_b, "fields": {}}
+
+    for field in BLUEPRINT_FIELDS:
+        val_a = data_a.get(field)
+        val_b = data_b.get(field)
+        comparison["fields"][field] = {
+            "a": val_a,
+            "b": val_b,
+            "match": val_a == val_b,
+        }
+
+    matching = sum(1 for f in comparison["fields"].values() if f["match"])
+    comparison["matching_fields"] = matching
+    comparison["different_fields"] = len(BLUEPRINT_FIELDS) - matching
+    comparison["similarity_pct"] = round(matching / len(BLUEPRINT_FIELDS) * 100, 1)
+
+    return comparison
+
+
 # ── Tool dispatch ──────────────────────────────────────────────────────────────
 
 def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
@@ -984,6 +1534,48 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
             result = _tool_platform_connections()
         elif tool_name == "restart_scheduler":
             result = _tool_restart_scheduler()
+
+        # Blueprint tools
+        elif tool_name == "get_blueprint":
+            result = _tool_get_blueprint(job_id=int(tool_input["job_id"]))
+        elif tool_name == "update_blueprint":
+            result = _tool_update_blueprint(job_id=int(tool_input["job_id"]), updates=tool_input["updates"])
+        elif tool_name == "create_blueprint":
+            result = _tool_create_blueprint(
+                title=tool_input["title"],
+                hook=tool_input["hook"],
+                core_angle=tool_input["core_angle"],
+                target_audience=tool_input["target_audience"],
+                content_type=tool_input["content_type"],
+                tone=tool_input["tone"],
+                keywords=tool_input["keywords"],
+                estimated_ctr=float(tool_input.get("estimated_ctr", 0.05)),
+                trend_score=float(tool_input.get("trend_score", 5.0)),
+                thumbnail_concept=tool_input.get("thumbnail_concept", ""),
+                rationale=tool_input.get("rationale", ""),
+                job_id=tool_input.get("job_id"),
+            )
+        elif tool_name == "list_blueprints":
+            result = _tool_list_blueprints(limit=int(tool_input.get("limit", 10)))
+        elif tool_name == "clone_blueprint":
+            result = _tool_clone_blueprint(
+                source_job_id=int(tool_input["source_job_id"]),
+                overrides=tool_input.get("overrides"),
+            )
+        elif tool_name == "run_from_blueprint":
+            result = _tool_run_from_blueprint(
+                job_id=int(tool_input["job_id"]),
+                format=tool_input.get("format", "short"),
+                platforms=tool_input.get("platforms", []),
+                audience=tool_input.get("audience", "general public"),
+            )
+        elif tool_name == "analyze_blueprint":
+            result = _tool_analyze_blueprint(job_id=int(tool_input["job_id"]))
+        elif tool_name == "compare_blueprints":
+            result = _tool_compare_blueprints(
+                job_id_a=int(tool_input["job_id_a"]),
+                job_id_b=int(tool_input["job_id_b"]),
+            )
 
         # Analytics
         elif tool_name == "get_analytics_summary":
