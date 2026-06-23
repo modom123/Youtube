@@ -387,8 +387,16 @@ def _tool_get_all_required_env_vars() -> dict:
     }
 
 
+def _resolve_stripe_key(stripe_api_key: str) -> str:
+    """Return the provided key, or fall back to config / environment."""
+    if stripe_api_key and not stripe_api_key.startswith("os.environ"):
+        return stripe_api_key
+    return config.STRIPE_SECRET_KEY or os.environ.get("STRIPE_SECRET_KEY", "")
+
+
 def _tool_list_stripe_webhooks(stripe_api_key: str) -> dict:
     """List all webhook endpoints configured in Stripe."""
+    stripe_api_key = _resolve_stripe_key(stripe_api_key)
     try:
         url = "https://api.stripe.com/v1/webhook_endpoints"
         headers = {"Authorization": f"Bearer {stripe_api_key}"}
@@ -415,6 +423,7 @@ def _tool_list_stripe_webhooks(stripe_api_key: str) -> dict:
 
 def _tool_create_stripe_webhook(stripe_api_key: str, endpoint_url: str, events: list) -> dict:
     """Create a new webhook endpoint in Stripe."""
+    stripe_api_key = _resolve_stripe_key(stripe_api_key)
     try:
         url = "https://api.stripe.com/v1/webhook_endpoints"
         headers = {"Authorization": f"Bearer {stripe_api_key}"}
@@ -443,6 +452,7 @@ def _tool_create_stripe_webhook(stripe_api_key: str, endpoint_url: str, events: 
 
 def _tool_test_stripe_webhook(stripe_api_key: str, webhook_id: str, event_type: str) -> dict:
     """Send a test event to a Stripe webhook endpoint."""
+    stripe_api_key = _resolve_stripe_key(stripe_api_key)
     try:
         url = f"https://api.stripe.com/v1/webhook_endpoints/{webhook_id}/test_helpers/send_sample_event"
         headers = {"Authorization": f"Bearer {stripe_api_key}"}
