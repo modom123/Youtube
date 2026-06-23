@@ -71,6 +71,7 @@ def checkout(tier_name):
         line_items=[{"price": price_id, "quantity": 1}],
         success_url=config.APP_BASE_URL + url_for("billing.checkout_success") + "?session_id={CHECKOUT_SESSION_ID}",
         cancel_url=config.APP_BASE_URL + url_for("billing.billing_page"),
+        client_reference_id=str(current_user.id),
         metadata={"user_id": str(current_user.id), "tier": tier_name},
         subscription_data={"metadata": {"user_id": str(current_user.id), "tier": tier_name}},
     )
@@ -113,6 +114,23 @@ def portal():
     return redirect(portal_session.url, code=303)
 
 
+@billing_bp.route("/portal-api", methods=["POST"])
+@login_required
+def portal_api():
+    """JSON endpoint for Stripe Customer Portal — returns {url: ...}."""
+    customer_id = current_user.stripe_customer_id
+    if not customer_id or not config.STRIPE_SECRET_KEY:
+        return jsonify({"error": "No billing account found"}), 400
+    try:
+        portal_session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=config.APP_BASE_URL + url_for("billing.billing_page"),
+        )
+        return jsonify({"url": portal_session.url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @billing_bp.route("/webhook", methods=["POST"])
 def webhook():
     payload = request.get_data()
@@ -138,6 +156,10 @@ def webhook():
         _handle_subscription_deleted(data)
     elif etype == "checkout.session.completed":
         _handle_checkout_completed(data)
+    elif etype == "invoice.payment_succeeded":
+        _handle_payment_succeeded(data)
+    elif etype == "invoice.payment_failed":
+        _handle_payment_failed(data)
 
     return jsonify({"received": True})
 
@@ -185,6 +207,36 @@ def _handle_checkout_completed(session):
             subscription_status="active",
             stripe_subscription_id=sub_id,
         )
+
+
+def _handle_payment_succeeded(invoice):
+    """Reset monthly usage on a successful subscription payment (new billing period)."""
+    cid = invoice.get("customer")
+    if not cid:
+        return
+    user = db.get_user_by_stripe_customer(cid)
+    if not user:
+        return
+    # Only reset for subscription invoices
+    if invoice.get("subscription"):
+        db.reset_monthly_usage(user["id"])
+    db.update_user(user["id"], subscription_status="active")
+
+
+def _handle_payment_failed(invoice):
+    """Mark user as past_due on a failed invoice payment."""
+    cid = invoice.get("customer")
+    if not cid:
+        return
+    user = db.get_user_by_stripe_customer(cid)
+    if not user:
+        return
+    db.update_user(user["id"], subscription_status="past_due")
+    try:
+        from notifications import send_notification
+        send_notification(user["id"], "payment_failed", {"invoice_id": invoice.get("id")})
+    except Exception:
+        pass
 
 
 def _price_to_tier(price_id: str) -> str:

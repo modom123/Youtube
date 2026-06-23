@@ -1639,6 +1639,28 @@ def start_background_threads():
     t2.start()
 
 
+# ── Billing API ──────────────────────────────────────────────────────────────
+
+@app.route("/api/billing/portal", methods=["POST"])
+@login_required
+def api_billing_portal():
+    """JSON endpoint: returns Stripe Customer Portal URL."""
+    try:
+        import stripe as _stripe
+        _stripe.api_key = config.STRIPE_SECRET_KEY
+        user = db.get_user_by_id(current_user.id)
+        customer_id = user.get("stripe_customer_id") if user else None
+        if not customer_id:
+            return jsonify({"error": "No billing account found"}), 400
+        portal_session = _stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f"{config.APP_BASE_URL}/billing",
+        )
+        return jsonify({"url": portal_session.url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 db.init_db()
