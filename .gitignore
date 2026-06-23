@@ -42,3 +42,4 @@ youtube_token.json
 auto_commit.sh
 auto_commit_loop.sh
 auto_commit.log
+ad_creatives/*.png
