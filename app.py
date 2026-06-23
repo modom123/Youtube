@@ -641,7 +641,7 @@ def api_settings_check():
         "anthropic":   bool(config.ANTHROPIC_API_KEY),
         "pexels":      bool(config.PEXELS_API_KEY),
         "google_flow": bool(config.GOOGLE_API_KEY),
-        "higgsville":  bool(config.HIGGSFIELD_API_KEY),
+        "higgsville":  bool(config.HIGGSFIELD_MCP_TOKEN),
         "youtube":     bool(config.YOUTUBE_CLIENT_ID),
         "tiktok":      bool(config.TIKTOK_CLIENT_KEY),
         "instagram":   bool(config.INSTAGRAM_ACCESS_TOKEN),
