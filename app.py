@@ -42,6 +42,17 @@ def load_user(user_id):
 app.register_blueprint(auth_bp)
 app.register_blueprint(billing_bp)
 
+
+@app.before_request
+def _track_activity():
+    from flask_login import current_user as cu
+    if cu.is_authenticated:
+        try:
+            db.touch_user_activity(cu.id)
+        except Exception:
+            pass
+
+
 ALLOWED_EXTENSIONS = {"csv", "vcf", "vcard", "txt"}
 
 
@@ -127,6 +138,11 @@ def _run_job_thread(job_id: int, params: dict, user_id: int = None):
             try:
                 from notifications import send_notification
                 send_notification(user_id, "job_complete", {"job_id": job_id, "title": job_title})
+            except Exception:
+                pass
+            try:
+                from lifecycle_agent import on_first_video_created
+                on_first_video_created(user_id)
             except Exception:
                 pass
     except Exception as e:
@@ -362,6 +378,11 @@ def api_connect_account():
         followers=int(data.get("followers", 0)),
         user_id=current_user.id,
     )
+    try:
+        from lifecycle_agent import on_platform_connected
+        on_platform_connected(current_user.id)
+    except Exception:
+        pass
     return jsonify({"id": acc_id, "status": "connected"})
 
 
@@ -1242,6 +1263,22 @@ def api_mark_notification_read(notif_id):
     return jsonify({"status": "read"})
 
 
+# ── Onboarding Checklist ────────────────────────────────────────────────────
+
+@app.route("/api/onboarding")
+@login_required
+def api_onboarding():
+    checklist = db.get_onboarding(current_user.id)
+    if not checklist:
+        checklist = {
+            "welcome_seen": 0, "first_video_created": 0,
+            "platform_connected": 0, "first_publish": 0, "upgraded": 0,
+        }
+    user_data = db.get_user_by_id(current_user.id)
+    checklist["trial_ends_at"] = user_data.get("trial_ends_at") if user_data else None
+    return jsonify(checklist)
+
+
 # ── Feature 7: Team Workspaces ────────────────────────────────────────────────
 
 @app.route("/team")
@@ -1600,6 +1637,9 @@ def start_background_threads():
 
 db.init_db()
 start_background_threads()
+
+from lifecycle_agent import start_lifecycle_agent
+start_lifecycle_agent()
 
 if __name__ == "__main__":
     print("\n  Social Optimize Machine - Command Center")

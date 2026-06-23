@@ -36,6 +36,13 @@ def register():
 
         pw_hash = generate_password_hash(pw)
         user_id = db.create_user(email=email, password_hash=pw_hash, name=name or email.split("@")[0])
+
+        try:
+            from lifecycle_agent import on_user_registered
+            on_user_registered(user_id)
+        except Exception:
+            pass
+
         user_data = db.get_user_by_id(user_id)
         user = _UserObj(user_data)
         login_user(user, remember=True)

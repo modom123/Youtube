@@ -216,6 +216,36 @@ def init_db():
             created_at      TEXT DEFAULT (datetime('now'))
         );
 
+        -- Feature 9: Lifecycle / Checkout Tracking
+        CREATE TABLE IF NOT EXISTS checkout_events (
+            id          TEXT PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            tier        TEXT NOT NULL,
+            stripe_session_id TEXT,
+            status      TEXT DEFAULT 'started',
+            created_at  TEXT DEFAULT (datetime('now')),
+            completed_at TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS lifecycle_events (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            event_key   TEXT NOT NULL,
+            sent_at     TEXT DEFAULT (datetime('now'))
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_lifecycle_user_event
+            ON lifecycle_events(user_id, event_key);
+
+        CREATE TABLE IF NOT EXISTS onboarding_checklist (
+            user_id             INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            welcome_seen        INTEGER DEFAULT 0,
+            first_video_created INTEGER DEFAULT 0,
+            platform_connected  INTEGER DEFAULT 0,
+            first_publish       INTEGER DEFAULT 0,
+            upgraded            INTEGER DEFAULT 0,
+            updated_at          TEXT DEFAULT (datetime('now'))
+        );
+
         -- Feature 8: Competitor Tracker
         CREATE TABLE IF NOT EXISTS competitor_channels (
             id          TEXT PRIMARY KEY,
@@ -253,6 +283,10 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN notify_email INTEGER DEFAULT 1")
         if "webhook_url" not in user_cols:
             conn.execute("ALTER TABLE users ADD COLUMN webhook_url TEXT")
+        if "trial_ends_at" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN trial_ends_at TEXT")
+        if "last_active_at" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN last_active_at TEXT")
 
 
 def row_to_dict(row):
@@ -937,4 +971,107 @@ def get_all_competitor_channels_for_refresh():
     """Used by background thread to fetch all competitors needing refresh."""
     with get_conn() as conn:
         rows = conn.execute("SELECT * FROM competitor_channels").fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+# ── Feature 9: Checkout & Lifecycle Tracking ────────────────────────────────
+
+def create_checkout_event(user_id: int, tier: str, stripe_session_id: str = None) -> str:
+    event_id = str(uuid.uuid4())
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO checkout_events (id, user_id, tier, stripe_session_id, status)
+            VALUES (?,?,?,?,?)
+        """, (event_id, user_id, tier, stripe_session_id, "started"))
+    return event_id
+
+
+def complete_checkout_event(user_id: int, tier: str):
+    with get_conn() as conn:
+        conn.execute("""
+            UPDATE checkout_events SET status='completed', completed_at=datetime('now')
+            WHERE user_id=? AND tier=? AND status='started'
+        """, (user_id, tier))
+
+
+def get_abandoned_checkouts(minutes_ago: int = 30):
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT ce.*, u.email, u.name FROM checkout_events ce
+            JOIN users u ON u.id = ce.user_id
+            WHERE ce.status = 'started'
+              AND ce.created_at <= datetime('now', ? || ' minutes')
+        """, (f"-{minutes_ago}",)).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def mark_checkout_abandoned(event_id: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE checkout_events SET status='abandoned' WHERE id=?", (event_id,)
+        )
+
+
+def has_lifecycle_event(user_id: int, event_key: str) -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM lifecycle_events WHERE user_id=? AND event_key=?",
+            (user_id, event_key)
+        ).fetchone()
+    return row is not None
+
+
+def record_lifecycle_event(user_id: int, event_key: str):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO lifecycle_events (user_id, event_key) VALUES (?,?)",
+            (user_id, event_key)
+        )
+
+
+def get_onboarding(user_id: int):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM onboarding_checklist WHERE user_id=?", (user_id,)
+        ).fetchone()
+    return row_to_dict(row)
+
+
+def upsert_onboarding(user_id: int, **kwargs):
+    kwargs["updated_at"] = datetime.now().isoformat()
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT user_id FROM onboarding_checklist WHERE user_id=?", (user_id,)
+        ).fetchone()
+        if existing:
+            cols = ", ".join(f"{k}=?" for k in kwargs)
+            vals = list(kwargs.values()) + [user_id]
+            conn.execute(f"UPDATE onboarding_checklist SET {cols} WHERE user_id=?", vals)
+        else:
+            kwargs["user_id"] = user_id
+            fields = ", ".join(kwargs.keys())
+            placeholders = ", ".join(["?"] * len(kwargs))
+            conn.execute(
+                f"INSERT INTO onboarding_checklist ({fields}) VALUES ({placeholders})",
+                list(kwargs.values())
+            )
+
+
+def touch_user_activity(user_id: int):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET last_active_at=datetime('now') WHERE id=?", (user_id,)
+        )
+
+
+def get_users_for_lifecycle():
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT u.*,
+                   (SELECT COUNT(*) FROM jobs j WHERE j.user_id=u.id) as total_jobs,
+                   (SELECT COUNT(*) FROM jobs j WHERE j.user_id=u.id AND j.status='done') as completed_jobs,
+                   (SELECT COUNT(*) FROM social_accounts sa WHERE sa.user_id=u.id AND sa.is_active=1) as connected_platforms
+            FROM users u
+            ORDER BY u.created_at DESC
+        """).fetchall()
     return [row_to_dict(r) for r in rows]

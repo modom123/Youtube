@@ -84,6 +84,10 @@ def _build_notification_content(event_type: str, data: dict):
         title = "Dubbing Complete"
         body = f'Your video has been dubbed in {data.get("language", "")}.'
         link = f"/jobs/{data.get('job_id', '')}"
+    elif event_type.startswith("lifecycle_"):
+        title = data.get("title", "Update from Social Optimize Machine")
+        body = data.get("body", "")
+        link = data.get("link", "/dashboard")
     else:
         title = event_type.replace("_", " ").title()
         body = json.dumps(data)

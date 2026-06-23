@@ -73,7 +73,15 @@ def checkout(tier_name):
         cancel_url=config.APP_BASE_URL + url_for("billing.billing_page"),
         metadata={"user_id": str(current_user.id), "tier": tier_name},
         subscription_data={"metadata": {"user_id": str(current_user.id), "tier": tier_name}},
+        allow_promotion_codes=True,
     )
+
+    try:
+        from lifecycle_agent import on_checkout_started
+        on_checkout_started(current_user.id, tier_name, session.id)
+    except Exception:
+        pass
+
     return redirect(session.url, code=303)
 
 
@@ -95,8 +103,13 @@ def checkout_success():
                     videos_used=0,
                     credits_used=0,
                 )
-        except Exception:
-            pass
+                try:
+                    from lifecycle_agent import on_checkout_completed
+                    on_checkout_completed(current_user.id, tier_name)
+                except Exception:
+                    pass
+        except Exception as e:
+            current_app.logger.error("Checkout success error: %s", e)
     return redirect(url_for("billing.billing_page"))
 
 
@@ -138,6 +151,8 @@ def webhook():
         _handle_subscription_deleted(data)
     elif etype == "checkout.session.completed":
         _handle_checkout_completed(data)
+    elif etype == "invoice.payment_failed":
+        _handle_payment_failed(data)
 
     return jsonify({"received": True})
 
@@ -185,6 +200,33 @@ def _handle_checkout_completed(session):
             subscription_status="active",
             stripe_subscription_id=sub_id,
         )
+        try:
+            from lifecycle_agent import on_checkout_completed
+            on_checkout_completed(int(uid), tier_name)
+        except Exception:
+            pass
+
+
+def _handle_payment_failed(invoice):
+    customer_id = invoice.get("customer")
+    if not customer_id:
+        return
+    user = db.get_user_by_stripe_customer(customer_id)
+    if not user:
+        return
+    try:
+        from notifications import send_notification
+        send_notification(user["id"], "lifecycle_payment_failed", {
+            "title": "Payment failed — please update your card",
+            "body": (
+                "We couldn't process your subscription payment. "
+                "Please update your payment method in the billing portal "
+                "to keep your plan active."
+            ),
+            "link": "/billing",
+        })
+    except Exception:
+        pass
 
 
 def _price_to_tier(price_id: str) -> str:
