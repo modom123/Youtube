@@ -66,6 +66,10 @@
 .team-web .agent-icon{background:rgba(52,152,219,.12);border:1px solid rgba(52,152,219,.25);}
 .team-mob .agent-icon{background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.25);}
 .team-so .agent-icon{background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.25);}
+.team-cp .agent-icon{background:rgba(255,149,0,.12);border:1px solid rgba(255,149,0,.25);}
+.agent-card .ownership-tag{position:absolute;top:16px;left:16px;font-size:9px;padding:2px 6px;border-radius:3px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
+.ownership-admin{background:rgba(212,175,55,.12);color:var(--gold);}
+.ownership-client{background:rgba(255,149,0,.12);color:#ff9500;}
 .log-entry{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;}
 .log-entry:last-child{border-bottom:none;}
 .log-time{color:var(--muted);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:11px;min-width:130px;}
@@ -184,30 +188,63 @@
 
 <!-- TEAM OPS TAB -->
 <div id="tab-agents" class="tab-content" style="display:none;">
+
+  <!-- System Topology -->
+  <div class="card" style="padding:24px;margin-bottom:20px;border-color:var(--gold);background:linear-gradient(135deg,rgba(212,175,55,.03),transparent);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div>
+        <h3 style="margin:0;font-size:16px;">System Architecture</h3>
+        <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">All four pillars connected — 10 agents operating autonomously</p>
+      </div>
+      <button class="btn btn-secondary" style="font-size:11px;" onclick="loadAgents()">Refresh All</button>
+    </div>
+    <div id="system-topology" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:8px;"></div>
+    <div id="system-connections" style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;"></div>
+  </div>
+
   <!-- Agent Stats Banner -->
   <div class="metric-grid" id="agent-stats-grid"></div>
 
-  <!-- Team Sections -->
-  <div style="margin-top:20px;">
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-      <button class="agent-filter-btn active" onclick="filterAgentTeam('all', this)">All Agents</button>
-      <button class="agent-filter-btn" onclick="filterAgentTeam('command_center', this)">Command Center (5)</button>
-      <button class="agent-filter-btn" onclick="filterAgentTeam('website', this)">Website (2)</button>
-      <button class="agent-filter-btn" onclick="filterAgentTeam('mobile', this)">Mobile App (2)</button>
-      <button class="agent-filter-btn" onclick="filterAgentTeam('social_optimize', this)">Social Optimize (1)</button>
+  <!-- Ownership Labels -->
+  <div style="display:flex;gap:20px;margin:16px 0 8px;align-items:center;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+      <span style="width:12px;height:12px;border-radius:3px;background:var(--gold);display:inline-block;"></span>
+      <strong>Your Agents (10)</strong> — Run the business infrastructure
     </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+      <span style="width:12px;height:12px;border-radius:3px;background:#ff9500;display:inline-block;"></span>
+      <strong>Client Agents (6)</strong> — Execute content production for customers
+    </div>
+  </div>
+
+  <!-- Team Filters -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+    <button class="agent-filter-btn active" onclick="filterAgentTeam('all', this)">All (16)</button>
+    <button class="agent-filter-btn" onclick="filterAgentTeam('admin', this)">Your Agents (10)</button>
+    <button class="agent-filter-btn" onclick="filterAgentTeam('client_pipeline', this)">Client Pipeline (6)</button>
+    <button class="agent-filter-btn" onclick="filterAgentTeam('command_center', this)">Command Center (5)</button>
+    <button class="agent-filter-btn" onclick="filterAgentTeam('website', this)">Website (2)</button>
+    <button class="agent-filter-btn" onclick="filterAgentTeam('mobile', this)">Mobile App (2)</button>
+    <button class="agent-filter-btn" onclick="filterAgentTeam('social_optimize', this)">Social Optimize (1)</button>
   </div>
 
   <!-- Agent Grid -->
   <div id="agent-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;"></div>
 
-  <!-- Activity Log -->
+  <!-- Pipeline Wiring Map -->
   <div class="card" style="padding:20px;margin-top:24px;">
+    <h3 style="font-size:14px;margin-bottom:16px;">Pipeline Wiring Map</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px;">Every operation routes through the agent framework. Here's what triggers what.</p>
+    <div id="pipeline-map" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
+  </div>
+
+  <!-- Activity Log -->
+  <div class="card" style="padding:20px;margin-top:20px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <h3 style="font-size:14px;margin:0;">Agent Activity Log</h3>
+      <h3 style="font-size:14px;margin:0;">Live Agent Activity</h3>
       <button class="btn btn-secondary" style="padding:4px 12px;font-size:11px;" onclick="loadAgentLogs()">Refresh</button>
     </div>
-    <div id="agent-log-list" style="max-height:320px;overflow-y:auto;"></div>
+    <div id="agent-log-list" style="max-height:400px;overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -579,42 +616,115 @@ document.getElementById('agent-modal').addEventListener('click', e => { if (e.ta
 
 const AGENT_ICONS = {
   crown: '👑', calculator: '🧮', ghost: '👻', radar: '📡', 'shield-check': '🛡️',
-  layout: '🎨', 'plug-zap': '⚡', smartphone: '📱', 'bell-ring': '🔔', 'trending-up': '📈', bot: '🤖'
+  layout: '🎨', 'plug-zap': '⚡', smartphone: '📱', 'bell-ring': '🔔', 'trending-up': '📈',
+  bot: '🤖', scroll: '📜', palette: '🎨', film: '🎞️'
 };
 
 const TEAM_NAMES = {
   command_center: 'Command Center',
   website: 'Website',
   mobile: 'Mobile App',
-  social_optimize: 'Social Optimize'
+  social_optimize: 'Social Optimize',
+  client_pipeline: 'Client Pipeline'
 };
 
 const TEAM_CSS = {
   command_center: 'team-cc',
   website: 'team-web',
   mobile: 'team-mob',
-  social_optimize: 'team-so'
+  social_optimize: 'team-so',
+  client_pipeline: 'team-cp'
+};
+
+const AGENT_OWNERSHIP = {
+  command_center: 'admin',
+  website: 'admin',
+  mobile: 'admin',
+  social_optimize: 'admin',
+  client_pipeline: 'client'
 };
 
 let _allAgents = [];
 let _currentFilter = 'all';
 let _openAgentId = null;
 
-async function loadAgents() {
-  const data = await (await fetch('/api/admin/agents')).json();
-  _allAgents = data.agents;
-  const s = data.stats;
+const PILLAR_COLORS = {
+  command_center: {bg:'rgba(212,175,55,.08)', border:'rgba(212,175,55,.3)', text:'var(--gold)', icon:'🏛️', label:'Command Center'},
+  website: {bg:'rgba(52,152,219,.08)', border:'rgba(52,152,219,.3)', text:'#3498db', icon:'🌐', label:'Website'},
+  mobile: {bg:'rgba(168,85,247,.08)', border:'rgba(168,85,247,.3)', text:'#a855f7', icon:'📱', label:'Mobile App'},
+  social_optimize: {bg:'rgba(46,204,113,.08)', border:'rgba(46,204,113,.3)', text:'#2ecc71', icon:'📈', label:'Social Optimize'},
+  client_pipeline: {bg:'rgba(255,149,0,.08)', border:'rgba(255,149,0,.3)', text:'#ff9500', icon:'🎬', label:'Client Pipeline'},
+};
 
+const PIPELINE_INFO = {
+  content_create: {label:'Content Creation', icon:'🚀', agents:'Showrunner → Scout → Ledger → Editor → Growth Engine'},
+  studio_production: {label:'Studio Production', icon:'🎬', agents:'Showrunner → Scout → Ledger → Ghost → Editor → Growth Engine'},
+  scheduled_publish: {label:'Scheduled Publish', icon:'📅', agents:'Showrunner → Ghost → Editor → Growth Engine'},
+  engagement_action: {label:'Engagement Action', icon:'💬', agents:'Showrunner → Ghost → Editor'},
+  trend_scan: {label:'Trend Scanning', icon:'📡', agents:'Scout → Growth Engine'},
+  competitor_refresh: {label:'Competitor Intel', icon:'🔍', agents:'Scout → Growth Engine'},
+  media_upload: {label:'Media Upload', icon:'🖼️', agents:'Conduit → Architect'},
+  mobile_notification: {label:'Push Notification', icon:'🔔', agents:'Courier → Native'},
+  spintax_process: {label:'Spintax Processing', icon:'👻', agents:'Ghost'},
+  cost_routing: {label:'Cost Routing', icon:'🧮', agents:'Ledger'},
+};
+
+async function loadAgents() {
+  const [agentData, sysData] = await Promise.all([
+    (await fetch('/api/admin/agents')).json(),
+    (await fetch('/api/admin/system-status')).json(),
+  ]);
+  _allAgents = agentData.agents;
+  const s = agentData.stats;
+
+  // System topology
+  const topoGrid = document.getElementById('system-topology');
+  topoGrid.innerHTML = Object.entries(sysData.pillars).map(([key, pillar]) => {
+    const p = PILLAR_COLORS[key];
+    const healthDot = pillar.health === 'healthy' ? 'status-ok' : pillar.health === 'degraded' ? 'status-warn' : 'status-err';
+    return `<div style="background:${p.bg};border:1px solid ${p.border};border-radius:12px;padding:16px;text-align:center;">
+      <div style="font-size:28px;margin-bottom:6px;">${p.icon}</div>
+      <div style="font-size:13px;font-weight:800;color:${p.text};">${p.label}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;"><span class="status-dot ${healthDot}"></span>${pillar.online}/${pillar.total} online</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">${pillar.tasks_completed} tasks done</div>
+    </div>`;
+  }).join('');
+
+  // Connections
+  const connDiv = document.getElementById('system-connections');
+  connDiv.innerHTML = sysData.connections.map(c => {
+    const fromP = PILLAR_COLORS[c.from] || {};
+    const toP = PILLAR_COLORS[c.to] || {};
+    const ok = c.status === 'active';
+    return `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:6px;background:rgba(255,255,255,.03);border:1px solid ${ok?'rgba(46,204,113,.2)':'rgba(231,76,60,.2)'};">
+      <span style="color:${fromP.text||'var(--muted)'};">${fromP.icon||''}</span>
+      <span style="font-size:10px;color:${ok?'#2ecc71':'#e74c3c'};">${ok?'→':'✗'}</span>
+      <span style="color:${toP.text||'var(--muted)'};">${toP.icon||''}</span>
+      <span style="font-size:11px;font-weight:600;">${c.label}</span>
+      <span style="font-size:10px;color:var(--muted);">via ${c.agent}</span>
+    </div>`;
+  }).join('');
+
+  // Stats
   document.getElementById('agent-stats-grid').innerHTML =
     metricCard('Total Agents', s.total_agents, s.online + ' online, ' + s.offline + ' offline', 'gold') +
-    metricCard('Tasks Completed', fmt(s.tasks_completed), '', 'green') +
+    metricCard('Tasks Completed', fmt(s.tasks_completed), 'across all pipelines', 'green') +
     metricCard('Tasks Failed', fmt(s.tasks_failed), '', 'red') +
-    Object.entries(s.by_team).map(([team, info]) =>
-      metricCard(TEAM_NAMES[team] || team, info.online + '/' + info.total, 'agents online', '')
-    ).join('');
+    metricCard('System Health', s.online === s.total_agents ? 'All Systems Go' : s.online + ' Online', s.total_agents + ' total agents', s.online === s.total_agents ? 'green' : 'gold');
 
   renderAgentGrid();
+  renderPipelineMap();
   loadAgentLogs();
+}
+
+function renderPipelineMap() {
+  const container = document.getElementById('pipeline-map');
+  container.innerHTML = Object.entries(PIPELINE_INFO).map(([key, info]) => {
+    return `<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;">${info.icon} ${info.label}</div>
+      <div style="font-size:11px;color:var(--gold);font-family:'JetBrains Mono',monospace;">${info.agents}</div>
+    </div>`;
+  }).join('');
 }
 
 function filterAgentTeam(team, btn) {
@@ -626,19 +736,30 @@ function filterAgentTeam(team, btn) {
 
 function renderAgentGrid() {
   const grid = document.getElementById('agent-grid');
-  const filtered = _currentFilter === 'all' ? _allAgents : _allAgents.filter(a => a.team === _currentFilter);
+  let filtered;
+  if (_currentFilter === 'all') {
+    filtered = _allAgents;
+  } else if (_currentFilter === 'admin') {
+    filtered = _allAgents.filter(a => a.team !== 'client_pipeline');
+  } else {
+    filtered = _allAgents.filter(a => a.team === _currentFilter);
+  }
 
   grid.innerHTML = filtered.map(a => {
     const cfg = typeof a.config === 'string' ? JSON.parse(a.config || '{}') : (a.config || {});
     const icon = AGENT_ICONS[cfg.icon] || '🤖';
     const teamCss = TEAM_CSS[a.team] || 'team-cc';
     const statusLabel = a.status.charAt(0).toUpperCase() + a.status.slice(1);
+    const ownership = AGENT_OWNERSHIP[a.team] || 'admin';
+    const ownerLabel = ownership === 'client' ? 'CLIENT' : 'YOURS';
+    const ownerCss = ownership === 'client' ? 'ownership-client' : 'ownership-admin';
 
     return `<div class="agent-card ${teamCss}" onclick="openAgentDetail('${a.id}')">
+      <span class="ownership-tag ${ownerCss}">${ownerLabel}</span>
       <div class="agent-status-dot ${a.status}"></div>
       <div class="agent-icon">${icon}</div>
       <div style="font-size:15px;font-weight:800;margin-bottom:2px;">${a.codename}</div>
-      <div style="font-size:12px;color:var(--gold);font-weight:600;margin-bottom:8px;">${a.title}</div>
+      <div style="font-size:12px;color:${ownership==='client'?'#ff9500':'var(--gold)'};font-weight:600;margin-bottom:8px;">${a.title}</div>
       <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:12px;">${a.expertise}</div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto;">
         <span style="font-size:10px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,.05);color:var(--muted);font-weight:600;">${TEAM_NAMES[a.team] || a.team}</span>

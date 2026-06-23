@@ -23,6 +23,7 @@ from flask_login import LoginManager, login_required, current_user
 from werkzeug.utils import secure_filename
 import database as db
 import config
+import agent_dispatch
 from auth import auth_bp, make_user
 from billing import billing_bp, check_usage_gate
 
@@ -94,6 +95,12 @@ def push_event(job_id: int, data: dict):
 
 
 def _run_job_thread(job_id: int, params: dict, user_id: int = None):
+    agent_dispatch.dispatch_async("content_create", {
+        "summary": params.get("topic", "")[:100],
+        "user_id": user_id,
+        "job_id": job_id,
+        "format": params.get("format", "short"),
+    })
     import social_optimize
     steps = [
         (10, "Generating script with Claude AI..."),
@@ -704,6 +711,11 @@ def _push_studio_event(job_id: str, data: dict):
 
 
 def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
+    agent_dispatch.dispatch_async("studio_production", {
+        "summary": params.get("niche", "")[:100],
+        "user_id": user_id,
+        "job_id": studio_job_id,
+    })
     from generators.production_engine import ProductionStudioEngine
     def _cb(msg: str, pct: int):
         with _studio_lock:
@@ -1796,6 +1808,10 @@ def api_spintax_preview():
     count = int(data.get("count", 5))
     variations = spin_batch(text, count)
     total = estimate_variations(text)
+    agent_dispatch.dispatch_async("spintax_process", {
+        "summary": f"Generated {count} variations",
+        "user_id": current_user.id,
+    })
     return jsonify({"variations": variations, "total_possible": total})
 
 
@@ -1918,6 +1934,12 @@ def api_create_engagement_action():
         target_url=data.get("target_url", ""),
         comment_text=data.get("comment_text", ""),
     )
+    agent_dispatch.dispatch_async("engagement_action", {
+        "summary": f"{action_type} on {platform}",
+        "user_id": current_user.id,
+        "platform": platform,
+        "action_type": action_type,
+    })
     return jsonify({"status": "queued", "action_id": action_id})
 
 
@@ -1965,6 +1987,12 @@ def _scheduler_thread():
             due_posts = db.get_due_scheduled_posts()
             for post in due_posts:
                 db.update_scheduled_post(post["id"], status="posting")
+                agent_dispatch.dispatch_async("scheduled_publish", {
+                    "summary": f"Publishing to {post.get('platform', 'unknown')}",
+                    "user_id": post.get("user_id"),
+                    "job_id": post.get("job_id"),
+                    "platform": post.get("platform"),
+                })
                 try:
                     _execute_scheduled_post(post)
                     db.update_scheduled_post(
@@ -2023,6 +2051,7 @@ def _competitor_refresh_thread():
     while True:
         time.sleep(6 * 3600)
         try:
+            agent_dispatch.dispatch_async("competitor_refresh", {"summary": "Periodic competitor scan"})
             channels = db.get_all_competitor_channels_for_refresh()
             for comp in channels:
                 _refresh_competitor_videos(
@@ -2138,6 +2167,12 @@ def api_admin_config():
 
 
 # ── Agent Team Operations ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/admin/system-status")
+@admin_required
+def api_admin_system_status():
+    return jsonify(agent_dispatch.get_system_status())
+
 
 @app.route("/api/admin/agents", methods=["GET"])
 @admin_required
@@ -2269,6 +2304,11 @@ def api_upload_media():
         tags=tags,
         description=description,
     )
+    agent_dispatch.dispatch_async("media_upload", {
+        "summary": original_name[:80],
+        "user_id": current_user.id,
+        "category": category,
+    })
     return jsonify({"status": "uploaded", **result}), 201
 
 

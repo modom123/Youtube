@@ -1907,9 +1907,67 @@ AGENT_ROSTER = [
 ]
 
 
+CLIENT_PIPELINE_AGENTS = [
+    {
+        "id": "client-trend-architect",
+        "codename": "Trend Architect",
+        "title": "Viral Topic & Research Agent",
+        "team": "client_pipeline",
+        "expertise": "Trend analysis, competitor research, keyword mining, audience targeting, viral hook identification",
+        "role_description": "Researches the client's topic, analyzes competitors, identifies viral angles, and creates a data-backed content blueprint optimized for maximum engagement.",
+        "icon": "radar",
+    },
+    {
+        "id": "client-narrative-designer",
+        "codename": "Narrative Designer",
+        "title": "Script & Story Engineer",
+        "team": "client_pipeline",
+        "expertise": "AI scriptwriting, hook-first storytelling, retention curve optimization, multi-format adaptation",
+        "role_description": "Transforms the research blueprint into a compelling script with hooks, retention beats, and platform-specific storytelling tailored to the client's audience and niche.",
+        "icon": "scroll",
+    },
+    {
+        "id": "client-asset-curator",
+        "codename": "Asset Curator",
+        "title": "Visual & Audio Asset Manager",
+        "team": "client_pipeline",
+        "expertise": "Stock media sourcing, B-roll curation, visual matching, asset licensing, media library integration",
+        "role_description": "Sources and curates all visual and audio assets for the client's video — stock footage, B-roll, background music, sound effects — matching the script's tone and pacing.",
+        "icon": "palette",
+    },
+    {
+        "id": "client-cost-engineer",
+        "codename": "Cost Engineer",
+        "title": "Budget & Model Optimizer",
+        "team": "client_pipeline",
+        "expertise": "API cost optimization, model tier routing, budget allocation, token economy, provider failover",
+        "role_description": "Optimizes the client's production budget by routing each task to the most cost-effective AI model. Ensures premium quality where it matters, economy models for routine tasks.",
+        "icon": "calculator",
+    },
+    {
+        "id": "client-growth-engineer",
+        "codename": "Growth Engineer",
+        "title": "Platform Optimization & SEO Agent",
+        "team": "client_pipeline",
+        "expertise": "YouTube SEO, TikTok algorithm, Instagram Reels optimization, hashtag strategy, thumbnail psychology",
+        "role_description": "Takes the finished content and optimizes it for each target platform — titles, descriptions, tags, hashtags, thumbnails — engineered for maximum reach and algorithmic favor.",
+        "icon": "trending-up",
+    },
+    {
+        "id": "client-producer",
+        "codename": "Producer",
+        "title": "Video Assembly & Render Agent",
+        "team": "client_pipeline",
+        "expertise": "Video assembly, audio sync, subtitle generation, thumbnail rendering, multi-format export, quality control",
+        "role_description": "Assembles all assets into the final video — syncing voiceover, layering B-roll, adding graphics, rendering thumbnails, and exporting in all required formats for multi-platform publishing.",
+        "icon": "film",
+    },
+]
+
+
 def seed_agents():
     with get_conn() as conn:
-        for agent in AGENT_ROSTER:
+        for agent in AGENT_ROSTER + CLIENT_PIPELINE_AGENTS:
             existing = conn.execute("SELECT id FROM agents WHERE id = ?", (agent["id"],)).fetchone()
             if not existing:
                 conn.execute(
