@@ -39,3 +39,6 @@ youtube_token.json
 
 # Claude Code agent worktrees
 .claude/worktrees/
+auto_commit.sh
+auto_commit_loop.sh
+auto_commit.log
