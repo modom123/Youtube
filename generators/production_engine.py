@@ -70,6 +70,7 @@ class ProductionStudioEngine:
         research_enabled: bool = True,
         competitor_titles: list[str] = None,
         job_dir: Optional[Path] = None,
+        platforms: list[str] = None,
     ) -> ProductionResult:
         """
         Full pipeline: niche → 5 agents → assets → video → manifest.

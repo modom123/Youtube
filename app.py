@@ -685,6 +685,7 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
             privacy=params.get("privacy", "private"), dry_run=params.get("dry_run", False),
             research_enabled=params.get("research_enabled", True),
             competitor_titles=params.get("competitor_titles") or [],
+            platforms=params.get("platforms") or [],
         )
         result_dict = result.model_dump()
         with _studio_lock:
@@ -750,6 +751,7 @@ def api_studio_run():
         "dry_run": bool(data.get("dry_run", True)),
         "research_enabled": bool(data.get("research_enabled", True)),
         "competitor_titles": data.get("competitor_titles") or [],
+        "platforms": data.get("platforms") or [],
     }
     t = threading.Thread(target=_run_studio_thread, args=(studio_job_id, params, current_user.id), daemon=True)
     t.start()

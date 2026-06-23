@@ -260,6 +260,20 @@
         <textarea id="s-competitors" placeholder="Top 10 secrets of Ancient Rome&#10;Why Rome really fell…"></textarea>
       </div>
 
+      <div class="form-row" style="margin-bottom:16px;">
+        <label>Publish To</label>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="youtube"> ▶️ YouTube</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="tiktok"> 🎵 TikTok</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="instagram"> 📸 Instagram</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="facebook"> 📘 Facebook</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="twitter"> 🐦 Twitter / X</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="linkedin"> 💼 LinkedIn</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="pinterest"> 📌 Pinterest</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="threads"> 🧵 Threads</label>
+        </div>
+      </div>
+
       <div class="form-grid-2" style="margin-bottom:16px;">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
           <input type="checkbox" id="s-research" checked /> Enable Research
@@ -630,12 +644,14 @@ function studioRun() {
   ['agent-1','agent-2','agent-3','agent-35','agent-4','agent-compile'].forEach(id => agentState(id, null, 'Waiting'));
 
   const competitors = document.getElementById('s-competitors').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const selectedPlatforms = Array.from(document.querySelectorAll('.s-platform:checked')).map(el => el.value);
 
   const fmt = document.getElementById('s-format').value;
   const payload = {
     niche,
     audience: document.getElementById('s-audience').value.trim(),
     format: fmt,
+    platforms: selectedPlatforms,
     is_portrait: fmt === 'short',
     target_duration: parseInt(document.getElementById('s-duration').value) || 480,
     voice: document.getElementById('s-voice').value,
