@@ -89,6 +89,7 @@ YOUTUBE_TOKEN_FILE = BASE_DIR / "youtube_token.json"
 YOUTUBE_SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/yt-analytics.readonly",
 ]
 
 # TikTok
@@ -127,7 +128,32 @@ SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
-SMTP_FROM = os.getenv("SMTP_FROM", f"noreply@socialoptimize.online")
+SMTP_FROM = os.getenv("SMTP_FROM", "noreply@socialoptimize.online")
+
+# Google Cloud TTS Neural2 voices
+GOOGLE_TTS_VOICE = os.getenv("GOOGLE_TTS_VOICE", "en-US-Neural2-C")
+GOOGLE_TTS_VOICES = [
+    {"id": "en-US-Neural2-A", "name": "US Male A", "locale": "en-US"},
+    {"id": "en-US-Neural2-C", "name": "US Female C", "locale": "en-US"},
+    {"id": "en-US-Neural2-D", "name": "US Male D", "locale": "en-US"},
+    {"id": "en-US-Neural2-F", "name": "US Female F", "locale": "en-US"},
+    {"id": "en-US-Neural2-G", "name": "US Female G", "locale": "en-US"},
+    {"id": "en-US-Neural2-H", "name": "US Female H", "locale": "en-US"},
+    {"id": "en-US-Neural2-I", "name": "US Male I", "locale": "en-US"},
+    {"id": "en-US-Neural2-J", "name": "US Male J", "locale": "en-US"},
+    {"id": "en-GB-Neural2-A", "name": "UK Female A", "locale": "en-GB"},
+    {"id": "en-GB-Neural2-B", "name": "UK Male B", "locale": "en-GB"},
+    {"id": "en-AU-Neural2-A", "name": "AU Female A", "locale": "en-AU"},
+    {"id": "en-AU-Neural2-B", "name": "AU Male B", "locale": "en-AU"},
+]
+
+# Cloud Translation supported languages
+TRANSLATION_LANGUAGES = {
+    "es": "Spanish", "fr": "French", "de": "German", "pt": "Portuguese",
+    "ja": "Japanese", "ko": "Korean", "zh": "Chinese (Simplified)",
+    "ar": "Arabic", "hi": "Hindi", "it": "Italian", "ru": "Russian",
+    "nl": "Dutch", "pl": "Polish", "tr": "Turkish", "sv": "Swedish",
+}
 
 # AI Video providers
 AI_VIDEO_PROVIDERS = ["none", "higgsville", "google_flow", "both"]

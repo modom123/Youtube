@@ -161,4 +161,15 @@ def generate_thumbnail(
             sub_y += 44
 
     img.save(str(output_path), "JPEG", quality=95)
+
+    # Score thumbnail with Vision API; log result (regeneration on low score handled by caller)
+    try:
+        from generators.google_vision import score_thumbnail
+        vision_score = score_thumbnail(output_path)
+        if vision_score:
+            score = vision_score.get("score", 0)
+            print(f"[thumbnail] Vision API score: {score}/100 — suggestions: {vision_score.get('suggestions', [])}")
+    except Exception as e:
+        print(f"[thumbnail] Vision scoring failed ({e})")
+
     return output_path

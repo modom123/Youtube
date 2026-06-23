@@ -171,8 +171,13 @@ def home_redirect():
 def create_page():
     accounts = db.get_accounts(user_id=current_user.id)
     connected = {a["platform"] for a in accounts if a["is_active"]}
-    return render_template("create.html", connected_platforms=connected,
-                           voices=config.AVAILABLE_VOICES)
+    return render_template(
+        "create.html",
+        connected_platforms=connected,
+        voices=config.AVAILABLE_VOICES,
+        google_tts_voices=config.GOOGLE_TTS_VOICES,
+        google_api_key=bool(config.GOOGLE_API_KEY),
+    )
 
 
 @app.route("/api/create", methods=["POST"])
@@ -220,6 +225,8 @@ def api_create():
         "ad_cta": (data.get("ad_cta") or "").strip(),
         "ad_style": data.get("ad_style") or "cinematic",
         "ad_platforms": data.get("ad_platforms") or [],
+        # ai_model: "claude" (premium) or "gemini" (budget/batch)
+        "ai_model": data.get("ai_model", "claude"),
     }
     t = threading.Thread(target=_run_job_thread, args=(job_id, params, current_user.id), daemon=True)
     t.start()
@@ -714,6 +721,8 @@ def studio_page():
     return render_template(
         "studio.html", connected_platforms=connected, voices=config.AVAILABLE_VOICES,
         higgsfield_models=config.HIGGSVILLE_MODELS, config=config, templates=templates,
+        google_tts_voices=config.GOOGLE_TTS_VOICES,
+        google_api_key=bool(config.GOOGLE_API_KEY),
     )
 
 
@@ -832,6 +841,59 @@ def api_analytics_refresh():
         except Exception as e:
             return jsonify({"error": f"YouTube API error: {e}"}), 500
         return jsonify({"status": "ok", "refreshed": refreshed})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── Google Trends API ────────────────────────────────────────────────────────
+
+@app.route("/api/trends")
+@login_required
+def api_trends():
+    """Return trending topics for the competitor tracker and studio."""
+    try:
+        from generators.google_trends import get_daily_trends, get_trending_topics
+        niche = request.args.get("niche", "").strip()
+        region = request.args.get("region", "US").strip().upper()
+        daily = get_daily_trends(region=region)
+        niche_data = {}
+        if niche:
+            niche_data = get_trending_topics(niche, region=region)
+        return jsonify({
+            "daily_trends": daily,
+            "niche": niche_data,
+            "region": region,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e), "daily_trends": [], "niche": {}}), 500
+
+
+# ── Thumbnail Vision Score API ───────────────────────────────────────────────
+
+@app.route("/api/jobs/<int:job_id>/thumbnail-score")
+@login_required
+def api_thumbnail_score(job_id):
+    """Return Vision API quality analysis for a job's thumbnail."""
+    try:
+        job = db.get_job(job_id, user_id=current_user.id)
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        thumbnail_path = job.get("thumbnail_path") or ""
+        if not thumbnail_path:
+            if job.get("manifest_path"):
+                try:
+                    with open(job["manifest_path"]) as f:
+                        manifest = json.load(f)
+                    thumbnail_path = manifest.get("files", {}).get("thumbnail", "")
+                except Exception:
+                    pass
+        if not thumbnail_path or not Path(thumbnail_path).exists():
+            return jsonify({"error": "Thumbnail not found for this job"}), 404
+        from generators.google_vision import score_thumbnail
+        result = score_thumbnail(Path(thumbnail_path))
+        if not result:
+            return jsonify({"error": "Vision API not available or GOOGLE_API_KEY not set"}), 503
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1415,7 +1477,7 @@ def api_competitor_inspire(comp_id):
     })
 
 
-# ── Health check ──────────────────────────────────────────────────────────────
+# ── Health check (required by Render) ────────────────────────────────────────
 
 @app.route("/health")
 def health():

@@ -122,6 +122,15 @@
         <input type="text" id="s-niche" placeholder="e.g. The fall of the Roman Empire" />
       </div>
 
+      <!-- Trending Now section (loads via /api/trends) -->
+      <div class="form-row" id="trending-section" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;">
+          <span>Trending Now</span>
+          <span style="font-size:10px;color:var(--muted);font-weight:400;">click to pre-fill niche</span>
+        </label>
+        <div id="trending-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
+      </div>
+
       <div class="form-row">
         <label>Target Audience</label>
         <input type="text" id="s-audience" placeholder="e.g. history enthusiasts aged 25–45" />
@@ -170,9 +179,22 @@
         <div class="form-row">
           <label>Voice</label>
           <select id="s-voice">
+            {% if google_api_key and google_tts_voices %}
+            <optgroup label="Google Neural2 (HD quality)">
+              {% for v in google_tts_voices %}
+              <option value="{{ v.id }}" {% if v.id == 'en-US-Neural2-C' %}selected{% endif %}>{{ v.name }} ({{ v.locale }})</option>
+              {% endfor %}
+            </optgroup>
+            <optgroup label="Edge TTS (fallback)">
+              {% for v in voices %}
+              <option value="{{ v }}">{{ v }}</option>
+              {% endfor %}
+            </optgroup>
+            {% else %}
             {% for v in voices %}
             <option value="{{ v }}" {% if loop.first %}selected{% endif %}>{{ v }}</option>
             {% endfor %}
+            {% endif %}
           </select>
         </div>
         <div class="form-row">
@@ -708,5 +730,34 @@ function pollStatus(jobId) {
       }
     });
 }
+
+// ── Trending Now ─────────────────────────────────────────────────────────────
+
+async function loadTrendingTopics() {
+  try {
+    const resp = await fetch('/api/trends');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const daily = data.daily_trends || [];
+    if (daily.length === 0) return;
+
+    const section = document.getElementById('trending-section');
+    const chips = document.getElementById('trending-chips');
+    chips.innerHTML = daily.slice(0, 10).map(t =>
+      `<span onclick="document.getElementById('s-niche').value='${t.replace(/'/g, "\\'")}'"
+        style="display:inline-block;padding:4px 10px;background:var(--border);border-radius:20px;
+               font-size:11px;cursor:pointer;white-space:nowrap;transition:background .15s;"
+        onmouseover="this.style.background='var(--accent)';this.style.color='#fff'"
+        onmouseout="this.style.background='var(--border)';this.style.color=''"
+      >${t}</span>`
+    ).join('');
+    section.style.display = '';
+  } catch (e) {
+    // Silently skip if trends unavailable
+  }
+}
+
+// Load trending topics on page load
+document.addEventListener('DOMContentLoaded', loadTrendingTopics);
 </script>
 {% endblock %}

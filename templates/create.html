@@ -103,12 +103,39 @@
       <div class="form-group">
         <label>Narrator Voice</label>
         <select id="voice">
+          {% if google_api_key and google_tts_voices %}
+          <optgroup label="Google Neural2 (HD quality)">
+            {% for v in google_tts_voices %}
+            <option value="{{ v.id }}" {% if v.id == 'en-US-Neural2-C' %}selected{% endif %}>{{ v.name }} ({{ v.locale }})</option>
+            {% endfor %}
+          </optgroup>
+          <optgroup label="Edge TTS (fallback)">
+            {% for v in voices %}
+            <option value="{{ v }}">{{ v }}</option>
+            {% endfor %}
+          </optgroup>
+          {% else %}
           {% for v in voices %}
           <option value="{{ v }}" {% if v == 'en-US-AriaNeural' %}selected{% endif %}>{{ v }}</option>
           {% endfor %}
+          {% endif %}
         </select>
-        <div class="form-hint">Using Microsoft Edge TTS — 30+ natural voices available</div>
+        <div class="form-hint">{% if google_api_key %}Google Cloud Neural2 HD voices active{% else %}Using Microsoft Edge TTS — set GOOGLE_API_KEY for Neural2 HD{% endif %}</div>
       </div>
+      {% if google_api_key %}
+      <div class="form-group">
+        <label>Script Engine</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="ai_model" value="claude" checked /> Claude (premium)
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="ai_model" value="gemini" /> Gemini Flash (fast)
+          </label>
+        </div>
+        <div class="form-hint">Gemini Flash is faster and cheaper — ideal for bulk generation</div>
+      </div>
+      {% endif %}
       <div class="form-group">
         <label>Thumbnail Style</label>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="style-grid">
@@ -474,6 +501,7 @@ async function startCreate() {
   const topic = document.getElementById('topic').value.trim();
   if (!topic) { toast('error', 'Topic Required', 'Please enter a topic.'); return; }
 
+  const _aiModelEl = document.querySelector('input[name="ai_model"]:checked');
   const payload = {
     topic,
     format: _format,
@@ -485,6 +513,7 @@ async function startCreate() {
     instructions: document.getElementById('instructions').value || null,
     dry_run: document.getElementById('dry_run').checked,
     skip_research: document.getElementById('skip_research').checked,
+    ai_model: _aiModelEl ? _aiModelEl.value : 'claude',
     ai_video_provider: document.getElementById('ai_video_provider').value,
     higgsfield_model: document.getElementById('higgsfield_model').value,
     podcast_name: document.getElementById('podcast_name').value || topic,

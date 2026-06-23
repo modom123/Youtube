@@ -91,6 +91,7 @@ def run(
     ad_style: str = "cinematic",
     ad_platforms: list = None,
     target_duration: int = None,
+    ai_model: str = "claude",
 ) -> dict:
     """
     Full pipeline: topic → research → script → audio → video → publish.
@@ -197,7 +198,8 @@ def run(
                 logger.warn(f"Research failed ({e}) — continuing without it")
 
     # ── 3. Generate script ───────────────────────────────────────────────────
-    with logger.spinner("Generating script with Claude AI..."):
+    model_label = "Gemini Flash" if ai_model == "gemini" else "Claude AI"
+    with logger.spinner(f"Generating script with {model_label}..."):
         script = script_generator.generate_script(
             topic=topic,
             content_type=profile["content_type"],
@@ -205,6 +207,7 @@ def run(
             audience=audience,
             custom_instructions=custom_instructions,
             research_context=research_context,
+            ai_model=ai_model,
         )
 
     script_path = job / "script.json"
@@ -218,12 +221,14 @@ def run(
             "keywords": script.keywords,
             "thumbnail_prompt": script.thumbnail_prompt,
             "estimated_duration": script.estimated_duration,
+            "seo_data": script.seo_data,
         }, f, indent=2)
 
     manifest["title"] = script.title
     manifest["description"] = script.description
     manifest["hashtags"] = script.hashtags
     manifest["keywords"] = script.keywords
+    manifest["seo_data"] = script.seo_data
     manifest["files"]["script"] = str(script_path)
 
     logger.success(f"Script: {script.title[:60]}")
