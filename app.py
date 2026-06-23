@@ -1159,6 +1159,111 @@ def api_render_deploy():
         return jsonify({"error": str(e)}), 502
 
 
+RENDER_SERVICE_ID = "srv-d8t0do77f7vs73bkq11g"
+RENDER_API_BASE = "https://api.render.com/v1"
+
+
+def _render_api_call(method, path, json_data=None):
+    import requests as req
+    api_key = os.environ.get("RENDER_API_KEY", "")
+    if not api_key:
+        return None, "RENDER_API_KEY not set"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    resp = req.request(method, f"{RENDER_API_BASE}{path}", headers=headers, json=json_data, timeout=30)
+    return resp, None
+
+
+@app.route("/api/render/env-vars", methods=["GET"])
+@login_required
+def api_render_get_env_vars():
+    resp, err = _render_api_call("GET", f"/services/{RENDER_SERVICE_ID}/env-vars")
+    if err:
+        return jsonify({"error": err}), 400
+    if resp.status_code != 200:
+        return jsonify({"error": f"Render API returned {resp.status_code}"}), resp.status_code
+    env_list = resp.json()
+    summary = []
+    for ev in env_list:
+        summary.append({
+            "key": ev.get("key", ""),
+            "has_value": bool(ev.get("value")),
+        })
+    return jsonify({"env_vars": summary, "total": len(summary)})
+
+
+@app.route("/api/render/env-vars", methods=["PUT"])
+@login_required
+def api_render_set_env_vars():
+    data = request.json or {}
+    env_vars = data.get("env_vars", {})
+    if not env_vars:
+        return jsonify({"error": "env_vars dict required"}), 400
+    resp, err = _render_api_call("GET", f"/services/{RENDER_SERVICE_ID}/env-vars")
+    if err:
+        return jsonify({"error": err}), 400
+    existing = resp.json() if resp.status_code == 200 else []
+    existing_map = {ev["key"]: ev["value"] for ev in existing}
+    existing_map.update(env_vars)
+    payload = [{"key": k, "value": v} for k, v in existing_map.items()]
+    put_resp, err = _render_api_call("PUT", f"/services/{RENDER_SERVICE_ID}/env-vars", json_data=payload)
+    if err:
+        return jsonify({"error": err}), 400
+    return jsonify({
+        "status": "success",
+        "set_count": len(env_vars),
+        "keys_set": list(env_vars.keys()),
+    })
+
+
+@app.route("/api/render/status", methods=["GET"])
+@login_required
+def api_render_status():
+    resp, err = _render_api_call("GET", f"/services/{RENDER_SERVICE_ID}/deploys?limit=5")
+    if err:
+        return jsonify({"error": err}), 400
+    if resp.status_code != 200:
+        return jsonify({"error": f"Render API returned {resp.status_code}"}), resp.status_code
+    deploys = []
+    for d in resp.json()[:5]:
+        dep = d.get("deploy", d)
+        deploys.append({
+            "id": dep.get("id", ""),
+            "status": dep.get("status", ""),
+            "created_at": dep.get("createdAt", ""),
+        })
+    return jsonify({"deploys": deploys})
+
+
+@app.route("/api/render/setup", methods=["POST"])
+@login_required
+def api_render_setup():
+    """One-shot: push all known env vars to Render from current config."""
+    import config as cfg
+    env_map = {
+        "ANTHROPIC_API_KEY": cfg.ANTHROPIC_API_KEY,
+        "PEXELS_API_KEY": cfg.PEXELS_API_KEY,
+        "STRIPE_SECRET_KEY": getattr(cfg, "STRIPE_SECRET_KEY", ""),
+        "STRIPE_PUBLISHABLE_KEY": getattr(cfg, "STRIPE_PUBLISHABLE_KEY", ""),
+        "GOOGLE_API_KEY": getattr(cfg, "GOOGLE_API_KEY", ""),
+        "RENDER_API_KEY": os.environ.get("RENDER_API_KEY", ""),
+    }
+    to_set = {k: v for k, v in env_map.items() if v}
+    if not to_set:
+        return jsonify({"error": "No API keys found in current config to push"}), 400
+    resp, err = _render_api_call("GET", f"/services/{RENDER_SERVICE_ID}/env-vars")
+    if err:
+        return jsonify({"error": err}), 400
+    existing = resp.json() if resp.status_code == 200 else []
+    existing_map = {ev["key"]: ev["value"] for ev in existing}
+    existing_map.update(to_set)
+    payload = [{"key": k, "value": v} for k, v in existing_map.items()]
+    put_resp, err = _render_api_call("PUT", f"/services/{RENDER_SERVICE_ID}/env-vars", json_data=payload)
+    if err:
+        return jsonify({"error": err}), 400
+    return jsonify({"status": "success", "keys_pushed": list(to_set.keys()), "count": len(to_set)})
+
+
+
 # ── Settings ──────────────────────────────────────────────────────────────────
 
 @app.route("/settings")
