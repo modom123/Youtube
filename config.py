@@ -69,7 +69,16 @@ SCRIPTS_DIR    = OUTPUT_DIR / "scripts"
 for d in [VIDEOS_DIR, AUDIO_DIR, THUMBNAILS_DIR, SCRIPTS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
-# API Keys
+# ── Model routing by subscription tier ───────────────────────────────────────
+# Free tier uses Haiku (cheapest Claude) to keep costs near zero.
+# Paid tiers get Sonnet for quality scripts and agents.
+TIER_CLAUDE_MODEL = {
+    "free":    "claude-haiku-4-5-20251001",
+    "starter": "claude-sonnet-4-6",
+    "creator": "claude-sonnet-4-6",
+    "agency":  "claude-sonnet-4-6",
+}
+
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 

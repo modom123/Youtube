@@ -673,8 +673,10 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
     with _studio_lock:
         _studio_jobs[studio_job_id] = {"status": "running", "progress": 0, "step": "Initialising…"}
     try:
+        user_tier = params.get("subscription_tier", "free")
         engine = ProductionStudioEngine(
             monthly_budget=params.get("monthly_budget", 500), progress_callback=_cb,
+            subscription_tier=user_tier,
         )
         result = engine.run_daily_pipeline(
             niche=params["niche"], remaining_credits=params.get("remaining_credits", 500),
@@ -738,10 +740,13 @@ def api_studio_run():
     if not niche:
         return jsonify({"error": "Niche is required"}), 400
     studio_job_id = str(uuid.uuid4())
+    _u_tier = config.TIERS.get(current_user.subscription_tier, config.TIERS["free"])
+    _credits_remaining = max(0, _u_tier["higgsfield_credits"] - (current_user.credits_used or 0))
     params = {
         "niche": niche,
-        "remaining_credits": int(data.get("remaining_credits") or 500),
-        "monthly_budget": int(data.get("monthly_budget") or 500),
+        "remaining_credits": _credits_remaining,
+        "monthly_budget": _credits_remaining,
+        "subscription_tier": current_user.subscription_tier or "free",
         "target_duration": int(data.get("target_duration") or 480),
         "audience": (data.get("audience") or "").strip(),
         "is_portrait": bool(data.get("is_portrait", False)),
