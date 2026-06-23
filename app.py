@@ -2137,6 +2137,71 @@ def api_admin_config():
     })
 
 
+# ── Agent Team Operations ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/admin/agents", methods=["GET"])
+@admin_required
+def api_admin_agents():
+    agents = db.get_agents()
+    stats = db.get_agent_stats()
+    for a in agents:
+        if a.get("config"):
+            try:
+                a["config"] = json.loads(a["config"])
+            except (json.JSONDecodeError, TypeError):
+                a["config"] = {}
+    return jsonify({"agents": agents, "stats": stats})
+
+
+@app.route("/api/admin/agents/<agent_id>", methods=["GET"])
+@admin_required
+def api_admin_agent_detail(agent_id):
+    agent = db.get_agent(agent_id)
+    if not agent:
+        return jsonify({"error": "Agent not found"}), 404
+    if agent.get("config"):
+        try:
+            agent["config"] = json.loads(agent["config"])
+        except (json.JSONDecodeError, TypeError):
+            agent["config"] = {}
+    logs = db.get_agent_logs(agent_id=agent_id, limit=30)
+    return jsonify({"agent": agent, "logs": logs})
+
+
+@app.route("/api/admin/agents/<agent_id>/status", methods=["PATCH"])
+@admin_required
+def api_admin_agent_status(agent_id):
+    data = request.get_json(force=True)
+    new_status = data.get("status")
+    if new_status not in ("online", "offline", "standby", "maintenance"):
+        return jsonify({"error": "Invalid status"}), 400
+    db.update_agent(agent_id, status=new_status)
+    db.add_agent_log(agent_id, "status_change", f"Status changed to {new_status}")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/admin/agents/<agent_id>/dispatch", methods=["POST"])
+@admin_required
+def api_admin_agent_dispatch(agent_id):
+    agent = db.get_agent(agent_id)
+    if not agent:
+        return jsonify({"error": "Agent not found"}), 404
+    data = request.get_json(force=True)
+    task = data.get("task", "")
+    db.add_agent_log(agent_id, "task_dispatched", f"Manual task: {task[:200]}", {"task": task})
+    tasks_done = (agent.get("tasks_completed") or 0) + 1
+    db.update_agent(agent_id, tasks_completed=tasks_done)
+    return jsonify({"ok": True, "message": f"Task dispatched to {agent['codename']}"})
+
+
+@app.route("/api/admin/agents/logs", methods=["GET"])
+@admin_required
+def api_admin_agent_logs():
+    limit = min(int(request.args.get("limit", 50)), 200)
+    logs = db.get_agent_logs(limit=limit)
+    return jsonify({"logs": logs})
+
+
 # ── Media Library ────────────────────────────────────────────────────────────────────────────
 
 @app.route("/media")
@@ -2329,6 +2394,7 @@ def api_download_media(media_id):
 # ── Startup ───────────────────────────────────────────────────────────────────────────────────
 
 db.init_db()
+db.seed_agents()
 start_background_threads()
 
 if __name__ == "__main__":

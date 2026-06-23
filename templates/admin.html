@@ -16,6 +16,7 @@
   <button class="tab-btn" onclick="switchTab('growth')">Growth</button>
   <button class="tab-btn" onclick="switchTab('system')">System</button>
   <button class="tab-btn" onclick="switchTab('config')">Config</button>
+  <button class="tab-btn" onclick="switchTab('agents')" style="background:rgba(212,175,55,.15);border-color:var(--gold);">Team Ops</button>
 </div>
 
 <style>
@@ -50,6 +51,26 @@
 .status-ok{background:#2ecc71;}
 .status-warn{background:#f39c12;}
 .status-err{background:#e74c3c;}
+.agent-filter-btn{background:var(--bg-secondary);border:1px solid var(--border);color:var(--muted);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:all .2s;}
+.agent-filter-btn.active{background:var(--gold);color:#000;border-color:var(--gold);}
+.agent-filter-btn:hover:not(.active){color:var(--text);border-color:var(--gold);}
+.agent-card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;cursor:pointer;transition:all .25s;position:relative;overflow:hidden;}
+.agent-card:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 8px 24px rgba(212,175,55,.08);}
+.agent-card .agent-status-dot{width:10px;height:10px;border-radius:50%;position:absolute;top:16px;right:16px;}
+.agent-card .agent-status-dot.online{background:#2ecc71;box-shadow:0 0 8px rgba(46,204,113,.5);}
+.agent-card .agent-status-dot.standby{background:#f39c12;box-shadow:0 0 8px rgba(243,156,18,.4);}
+.agent-card .agent-status-dot.maintenance{background:#3498db;box-shadow:0 0 8px rgba(52,152,219,.4);}
+.agent-card .agent-status-dot.offline{background:#e74c3c;box-shadow:0 0 8px rgba(231,76,60,.4);}
+.agent-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px;}
+.team-cc .agent-icon{background:rgba(212,175,55,.12);border:1px solid rgba(212,175,55,.25);}
+.team-web .agent-icon{background:rgba(52,152,219,.12);border:1px solid rgba(52,152,219,.25);}
+.team-mob .agent-icon{background:rgba(168,85,247,.12);border:1px solid rgba(168,85,247,.25);}
+.team-so .agent-icon{background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.25);}
+.log-entry{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px;}
+.log-entry:last-child{border-bottom:none;}
+.log-time{color:var(--muted);white-space:nowrap;font-family:'JetBrains Mono',monospace;font-size:11px;min-width:130px;}
+.log-agent{color:var(--gold);font-weight:600;min-width:110px;}
+.log-msg{color:var(--text);flex:1;}
 </style>
 
 <!-- OVERVIEW TAB -->
@@ -161,6 +182,111 @@
   </div>
 </div>
 
+<!-- TEAM OPS TAB -->
+<div id="tab-agents" class="tab-content" style="display:none;">
+  <!-- Agent Stats Banner -->
+  <div class="metric-grid" id="agent-stats-grid"></div>
+
+  <!-- Team Sections -->
+  <div style="margin-top:20px;">
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="agent-filter-btn active" onclick="filterAgentTeam('all', this)">All Agents</button>
+      <button class="agent-filter-btn" onclick="filterAgentTeam('command_center', this)">Command Center (5)</button>
+      <button class="agent-filter-btn" onclick="filterAgentTeam('website', this)">Website (2)</button>
+      <button class="agent-filter-btn" onclick="filterAgentTeam('mobile', this)">Mobile App (2)</button>
+      <button class="agent-filter-btn" onclick="filterAgentTeam('social_optimize', this)">Social Optimize (1)</button>
+    </div>
+  </div>
+
+  <!-- Agent Grid -->
+  <div id="agent-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;"></div>
+
+  <!-- Activity Log -->
+  <div class="card" style="padding:20px;margin-top:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="font-size:14px;margin:0;">Agent Activity Log</h3>
+      <button class="btn btn-secondary" style="padding:4px 12px;font-size:11px;" onclick="loadAgentLogs()">Refresh</button>
+    </div>
+    <div id="agent-log-list" style="max-height:320px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- AGENT DETAIL MODAL -->
+<div id="agent-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:1050;overflow-y:auto;">
+  <div style="max-width:640px;margin:40px auto;padding:0;background:var(--bg-card);border-radius:16px;border:1px solid var(--border);overflow:hidden;">
+    <!-- Agent Header -->
+    <div id="agent-modal-header" style="padding:24px;border-bottom:1px solid var(--border);position:relative;">
+      <button onclick="closeAgentModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">&times;</button>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div id="agent-modal-icon" style="width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;background:rgba(212,175,55,.12);border:1px solid var(--gold);"></div>
+        <div>
+          <div id="agent-modal-codename" style="font-size:18px;font-weight:800;"></div>
+          <div id="agent-modal-title" style="font-size:13px;color:var(--muted);margin-top:2px;"></div>
+          <div style="margin-top:6px;">
+            <span id="agent-modal-status-badge" class="badge" style="font-size:11px;"></span>
+            <span id="agent-modal-team-badge" class="badge" style="font-size:11px;margin-left:4px;"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent Body -->
+    <div style="padding:24px;">
+      <!-- Expertise -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Expertise</div>
+        <div id="agent-modal-expertise" style="font-size:13px;line-height:1.6;"></div>
+      </div>
+
+      <!-- Role -->
+      <div style="margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Mission</div>
+        <div id="agent-modal-role" style="font-size:13px;line-height:1.6;color:var(--text);"></div>
+      </div>
+
+      <!-- Performance Stats -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+        <div style="background:var(--bg-secondary);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:800;color:var(--gold);" id="agent-modal-tasks-done">0</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">Tasks Done</div>
+        </div>
+        <div style="background:var(--bg-secondary);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:800;color:#e74c3c;" id="agent-modal-tasks-failed">0</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">Failed</div>
+        </div>
+        <div style="background:var(--bg-secondary);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:20px;font-weight:800;" id="agent-modal-last-active">—</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">Last Active</div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div style="display:flex;gap:8px;margin-bottom:20px;">
+        <select id="agent-modal-set-status" class="input" style="width:auto;">
+          <option value="online">Online</option>
+          <option value="standby">Standby</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="offline">Offline</option>
+        </select>
+        <button class="btn btn-primary" style="font-size:12px;" onclick="setAgentStatus()">Set Status</button>
+        <button class="btn btn-secondary" style="font-size:12px;margin-left:auto;" onclick="showDispatchForm()">Dispatch Task</button>
+      </div>
+
+      <!-- Dispatch Form (hidden by default) -->
+      <div id="agent-dispatch-form" style="display:none;margin-bottom:20px;">
+        <textarea id="agent-dispatch-input" class="input" rows="3" placeholder="Describe the task to dispatch to this agent..." style="width:100%;resize:vertical;margin-bottom:8px;"></textarea>
+        <button class="btn btn-primary" style="font-size:12px;" onclick="dispatchAgentTask()">Send Task</button>
+      </div>
+
+      <!-- Agent Logs -->
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px;">Recent Activity</div>
+        <div id="agent-modal-logs" style="max-height:200px;overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- USER EDIT MODAL -->
 <div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;overflow-y:auto;">
   <div style="max-width:480px;margin:80px auto;padding:24px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
@@ -225,6 +351,7 @@ function switchTab(name) {
   else if (name === 'growth') loadGrowth();
   else if (name === 'system') loadSystem();
   else if (name === 'config') loadConfig();
+  else if (name === 'agents') loadAgents();
 }
 
 function metricCard(label, value, sub, cls) {
@@ -446,6 +573,205 @@ function renderBarChart(containerId, data) {
 }
 
 document.getElementById('user-modal').addEventListener('click', e => { if (e.target.id === 'user-modal') closeUserModal(); });
+document.getElementById('agent-modal').addEventListener('click', e => { if (e.target.id === 'agent-modal') closeAgentModal(); });
+
+// ── AGENT TEAM OPS ──────────────────────────────────────────────────────────
+
+const AGENT_ICONS = {
+  crown: '👑', calculator: '🧮', ghost: '👻', radar: '📡', 'shield-check': '🛡️',
+  layout: '🎨', 'plug-zap': '⚡', smartphone: '📱', 'bell-ring': '🔔', 'trending-up': '📈', bot: '🤖'
+};
+
+const TEAM_NAMES = {
+  command_center: 'Command Center',
+  website: 'Website',
+  mobile: 'Mobile App',
+  social_optimize: 'Social Optimize'
+};
+
+const TEAM_CSS = {
+  command_center: 'team-cc',
+  website: 'team-web',
+  mobile: 'team-mob',
+  social_optimize: 'team-so'
+};
+
+let _allAgents = [];
+let _currentFilter = 'all';
+let _openAgentId = null;
+
+async function loadAgents() {
+  const data = await (await fetch('/api/admin/agents')).json();
+  _allAgents = data.agents;
+  const s = data.stats;
+
+  document.getElementById('agent-stats-grid').innerHTML =
+    metricCard('Total Agents', s.total_agents, s.online + ' online, ' + s.offline + ' offline', 'gold') +
+    metricCard('Tasks Completed', fmt(s.tasks_completed), '', 'green') +
+    metricCard('Tasks Failed', fmt(s.tasks_failed), '', 'red') +
+    Object.entries(s.by_team).map(([team, info]) =>
+      metricCard(TEAM_NAMES[team] || team, info.online + '/' + info.total, 'agents online', '')
+    ).join('');
+
+  renderAgentGrid();
+  loadAgentLogs();
+}
+
+function filterAgentTeam(team, btn) {
+  _currentFilter = team;
+  document.querySelectorAll('.agent-filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderAgentGrid();
+}
+
+function renderAgentGrid() {
+  const grid = document.getElementById('agent-grid');
+  const filtered = _currentFilter === 'all' ? _allAgents : _allAgents.filter(a => a.team === _currentFilter);
+
+  grid.innerHTML = filtered.map(a => {
+    const cfg = typeof a.config === 'string' ? JSON.parse(a.config || '{}') : (a.config || {});
+    const icon = AGENT_ICONS[cfg.icon] || '🤖';
+    const teamCss = TEAM_CSS[a.team] || 'team-cc';
+    const statusLabel = a.status.charAt(0).toUpperCase() + a.status.slice(1);
+
+    return `<div class="agent-card ${teamCss}" onclick="openAgentDetail('${a.id}')">
+      <div class="agent-status-dot ${a.status}"></div>
+      <div class="agent-icon">${icon}</div>
+      <div style="font-size:15px;font-weight:800;margin-bottom:2px;">${a.codename}</div>
+      <div style="font-size:12px;color:var(--gold);font-weight:600;margin-bottom:8px;">${a.title}</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:12px;">${a.expertise}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto;">
+        <span style="font-size:10px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,.05);color:var(--muted);font-weight:600;">${TEAM_NAMES[a.team] || a.team}</span>
+        <span style="font-size:11px;font-weight:700;color:${a.status==='online'?'#2ecc71':a.status==='standby'?'#f39c12':'#e74c3c'}">${statusLabel}</span>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        <span style="font-size:11px;color:var(--muted);">Tasks: <strong style="color:var(--text);">${a.tasks_completed||0}</strong></span>
+        <span style="font-size:11px;color:var(--muted);">Failed: <strong style="color:#e74c3c;">${a.tasks_failed||0}</strong></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function openAgentDetail(agentId) {
+  _openAgentId = agentId;
+  const data = await (await fetch('/api/admin/agents/' + agentId)).json();
+  const a = data.agent;
+  const logs = data.logs;
+  const cfg = typeof a.config === 'string' ? JSON.parse(a.config || '{}') : (a.config || {});
+  const icon = AGENT_ICONS[cfg.icon] || '🤖';
+
+  document.getElementById('agent-modal-icon').textContent = icon;
+  document.getElementById('agent-modal-codename').textContent = a.codename;
+  document.getElementById('agent-modal-title').textContent = a.title;
+
+  const statusBadge = document.getElementById('agent-modal-status-badge');
+  statusBadge.textContent = a.status;
+  statusBadge.style.background = a.status === 'online' ? 'rgba(46,204,113,.15)' : a.status === 'standby' ? 'rgba(243,156,18,.15)' : 'rgba(231,76,60,.15)';
+  statusBadge.style.color = a.status === 'online' ? '#2ecc71' : a.status === 'standby' ? '#f39c12' : '#e74c3c';
+
+  const teamBadge = document.getElementById('agent-modal-team-badge');
+  teamBadge.textContent = TEAM_NAMES[a.team] || a.team;
+  teamBadge.style.background = 'rgba(212,175,55,.12)';
+  teamBadge.style.color = 'var(--gold)';
+
+  document.getElementById('agent-modal-expertise').innerHTML = a.expertise.split(',').map(s =>
+    `<span style="display:inline-block;padding:2px 8px;margin:2px 4px 2px 0;background:rgba(255,255,255,.04);border-radius:4px;font-size:11px;border:1px solid var(--border);">${s.trim()}</span>`
+  ).join('');
+  document.getElementById('agent-modal-role').textContent = a.role_description;
+  document.getElementById('agent-modal-tasks-done').textContent = a.tasks_completed || 0;
+  document.getElementById('agent-modal-tasks-failed').textContent = a.tasks_failed || 0;
+  document.getElementById('agent-modal-last-active').textContent = a.last_active ? timeAgo(a.last_active) : '—';
+  document.getElementById('agent-modal-set-status').value = a.status;
+  document.getElementById('agent-dispatch-form').style.display = 'none';
+
+  renderAgentModalLogs(logs);
+  document.getElementById('agent-modal').style.display = 'block';
+}
+
+function renderAgentModalLogs(logs) {
+  const container = document.getElementById('agent-modal-logs');
+  if (!logs || !logs.length) {
+    container.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No activity yet</div>';
+    return;
+  }
+  container.innerHTML = logs.map(l => `<div class="log-entry">
+    <span class="log-time">${(l.created_at||'').replace('T',' ').slice(0,19)}</span>
+    <span style="padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;background:${
+      l.event_type==='task_dispatched'?'rgba(212,175,55,.12)':
+      l.event_type==='status_change'?'rgba(52,152,219,.12)':
+      l.event_type==='error'?'rgba(231,76,60,.12)':'rgba(255,255,255,.05)'
+    };color:${
+      l.event_type==='task_dispatched'?'var(--gold)':
+      l.event_type==='status_change'?'#3498db':
+      l.event_type==='error'?'#e74c3c':'var(--muted)'
+    };">${l.event_type}</span>
+    <span class="log-msg">${l.message}</span>
+  </div>`).join('');
+}
+
+function closeAgentModal() {
+  document.getElementById('agent-modal').style.display = 'none';
+  _openAgentId = null;
+}
+
+async function setAgentStatus() {
+  if (!_openAgentId) return;
+  const status = document.getElementById('agent-modal-set-status').value;
+  await fetch('/api/admin/agents/' + _openAgentId + '/status', {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ status })
+  });
+  openAgentDetail(_openAgentId);
+  loadAgents();
+}
+
+function showDispatchForm() {
+  const form = document.getElementById('agent-dispatch-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function dispatchAgentTask() {
+  if (!_openAgentId) return;
+  const input = document.getElementById('agent-dispatch-input');
+  const task = input.value.trim();
+  if (!task) return;
+  await fetch('/api/admin/agents/' + _openAgentId + '/dispatch', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ task })
+  });
+  input.value = '';
+  document.getElementById('agent-dispatch-form').style.display = 'none';
+  openAgentDetail(_openAgentId);
+}
+
+async function loadAgentLogs() {
+  const data = await (await fetch('/api/admin/agents/logs?limit=30')).json();
+  const container = document.getElementById('agent-log-list');
+  if (!data.logs || !data.logs.length) {
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:13px;">No agent activity yet</div>';
+    return;
+  }
+  container.innerHTML = data.logs.map(l => {
+    const agent = _allAgents.find(a => a.id === l.agent_id);
+    const agentName = agent ? agent.codename : l.agent_id;
+    return `<div class="log-entry">
+      <span class="log-time">${(l.created_at||'').replace('T',' ').slice(0,19)}</span>
+      <span class="log-agent">${agentName}</span>
+      <span style="padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;background:rgba(255,255,255,.05);color:var(--muted);">${l.event_type}</span>
+      <span class="log-msg">${l.message}</span>
+    </div>`;
+  }).join('');
+}
+
+function timeAgo(iso) {
+  const now = new Date();
+  const then = new Date(iso);
+  const diff = Math.floor((now - then) / 1000);
+  if (diff < 60) return 'now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h';
+  return Math.floor(diff/86400) + 'd';
+}
 
 loadOverview();
 </script>

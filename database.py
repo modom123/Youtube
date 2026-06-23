@@ -337,6 +337,31 @@ def init_db():
             recorded_at     TEXT DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS agents (
+            id              TEXT PRIMARY KEY,
+            codename        TEXT NOT NULL UNIQUE,
+            title           TEXT NOT NULL,
+            team            TEXT NOT NULL,
+            expertise       TEXT DEFAULT '',
+            role_description TEXT DEFAULT '',
+            status          TEXT DEFAULT 'online',
+            tasks_completed INTEGER DEFAULT 0,
+            tasks_failed    INTEGER DEFAULT 0,
+            uptime_seconds  INTEGER DEFAULT 0,
+            last_active     TEXT DEFAULT (datetime('now')),
+            config          TEXT DEFAULT '{}',
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS agent_logs (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent_id        TEXT REFERENCES agents(id) ON DELETE CASCADE,
+            event_type      TEXT NOT NULL,
+            message         TEXT DEFAULT '',
+            details         TEXT DEFAULT '{}',
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS media_library (
             id              TEXT PRIMARY KEY,
             user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -1783,4 +1808,187 @@ def admin_get_system_health() -> dict:
         "disk_used_bytes": disk.used,
         "disk_free_bytes": disk.free,
         "disk_pct_used": round(disk.used / disk.total * 100, 1),
+    }
+
+
+# ── Agent Registry ────────────────────────────────────────────────────────────
+
+AGENT_ROSTER = [
+    {
+        "id": "agent-showrunner",
+        "codename": "The Showrunner",
+        "title": "Master Orchestrator & Dispatcher",
+        "team": "command_center",
+        "expertise": "Hierarchical multi-agent coordination, dynamic state management, semantic priority routing",
+        "role_description": "Central nervous system. Ingests the master client schedule, breaks tasks into atomic sub-goals, dispatches workloads to all teams, and ensures no two agents step on each other.",
+        "icon": "crown",
+    },
+    {
+        "id": "agent-ledger",
+        "codename": "The Ledger",
+        "title": "3-Tier Cost Routing Engine",
+        "team": "command_center",
+        "expertise": "Micro-transaction math, LLM context-window optimization, API cost-efficiency token management",
+        "role_description": "Evaluates every outgoing text or video request. Routes complex reasoning to high-tier models, downshifts routine formatting to ultra-cheap or open-source models to maximize profit margins.",
+        "icon": "calculator",
+    },
+    {
+        "id": "agent-ghost",
+        "codename": "The Ghost",
+        "title": "Spintax & Anti-Detect Shield",
+        "team": "command_center",
+        "expertise": "Fingerprint randomization, residential proxy rotation, Spintax variation engines, content mutation",
+        "role_description": "Ensures all automated platform interaction looks 100% human. Scrambles metadata, injects natural timing delays, rewrites text variations so platform algorithms never flag activity as bot behavior.",
+        "icon": "ghost",
+    },
+    {
+        "id": "agent-scout",
+        "codename": "The Scout",
+        "title": "Real-Time Trend & RSS Monitor",
+        "team": "command_center",
+        "expertise": "Vector search embeddings, semantic data parsing, API webhook ingestion, viral pattern recognition",
+        "role_description": "Constantly monitors RSS feeds, subreddits, and platform APIs. Identifies early spike indicators in traffic or keywords, bundles source data, and feeds it to the content engine before a trend hits mainstream.",
+        "icon": "radar",
+    },
+    {
+        "id": "agent-editor",
+        "codename": "The Editor",
+        "title": "Quality Assurance & Compliance Filter",
+        "team": "command_center",
+        "expertise": "Platform ToS guardrails, automated content moderation, sentiment analysis, copyright detection",
+        "role_description": "Final barrier before anything goes live. Reviews text scripts, tags, and titles to ensure they don't trigger copyright strikes, shadowbans, or community guideline violations.",
+        "icon": "shield-check",
+    },
+    {
+        "id": "agent-architect",
+        "codename": "The Architect",
+        "title": "UI/UX Fluid Layout Engineer",
+        "team": "website",
+        "expertise": "Responsive architectures, glassmorphic rendering, state-driven web animation, real-time dashboard design",
+        "role_description": "Owns the live Hollywood workspace visualization. Ensures that when backend agents run, users see a fluid, premium, high-fidelity dashboard communicating immense product value in real time.",
+        "icon": "layout",
+    },
+    {
+        "id": "agent-conduit",
+        "codename": "The Conduit",
+        "title": "API Pipeline & Webhook Manager",
+        "team": "website",
+        "expertise": "Serverless state synchronization, connection pooling, low-latency data streaming, webhook orchestration",
+        "role_description": "Glues the website interface to the Command Center. Ensures that when a user changes settings or uploads an asset, data is instantly sanitized, structured, and injected into the backend queue.",
+        "icon": "plug-zap",
+    },
+    {
+        "id": "agent-native",
+        "codename": "The Native",
+        "title": "Cross-Platform Mobile Engineer",
+        "team": "mobile",
+        "expertise": "Capacitor/native compilation, device caching architectures, mobile viewport optimization, battery-efficient rendering",
+        "role_description": "Controls mobile app performance. Optimizes layout for mobile viewports, handles data-dense readouts like cost savings and publishing queues without draining the user's battery.",
+        "icon": "smartphone",
+    },
+    {
+        "id": "agent-courier",
+        "codename": "The Courier",
+        "title": "Push Notification & Alert Strategist",
+        "team": "mobile",
+        "expertise": "APNS/FCM delivery protocols, contextual mobile deep-linking, high-impact micro-copy alerts",
+        "role_description": "Manages real-time mobile touchpoints. Detects critical moments (viral spikes, job completions), formats the mobile push, and deep-links users directly to the action screen.",
+        "icon": "bell-ring",
+    },
+    {
+        "id": "agent-growth-engine",
+        "codename": "The Growth Engine",
+        "title": "Multi-Platform Retention Specialist",
+        "team": "social_optimize",
+        "expertise": "Algorithmic watch-time retention dynamics, short-form thumbnail psychology, automated hashtag/SEO metadata creation",
+        "role_description": "Takes video and script outputs and refines them uniquely for every target platform. Custom-tailors hook-heavy descriptions for TikTok, structured paragraphs for Instagram, keyword-optimized metadata for YouTube.",
+        "icon": "trending-up",
+    },
+]
+
+
+def seed_agents():
+    with get_conn() as conn:
+        for agent in AGENT_ROSTER:
+            existing = conn.execute("SELECT id FROM agents WHERE id = ?", (agent["id"],)).fetchone()
+            if not existing:
+                conn.execute(
+                    """INSERT INTO agents (id, codename, title, team, expertise, role_description, config)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (agent["id"], agent["codename"], agent["title"], agent["team"],
+                     agent["expertise"], agent["role_description"],
+                     json.dumps({"icon": agent.get("icon", "bot")})),
+                )
+                conn.execute(
+                    "INSERT INTO agent_logs (agent_id, event_type, message) VALUES (?, 'init', 'Agent initialized')",
+                    (agent["id"],),
+                )
+
+
+def get_agents() -> list:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM agents ORDER BY team, codename"
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_agent(agent_id: str) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM agents WHERE id = ?", (agent_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def update_agent(agent_id: str, **kwargs) -> bool:
+    allowed = {"status", "config", "tasks_completed", "tasks_failed", "uptime_seconds"}
+    updates = {k: v for k, v in kwargs.items() if k in allowed}
+    if not updates:
+        return False
+    updates["last_active"] = datetime.utcnow().isoformat()
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    with get_conn() as conn:
+        conn.execute(f"UPDATE agents SET {set_clause} WHERE id = ?",
+                     (*updates.values(), agent_id))
+    return True
+
+
+def add_agent_log(agent_id: str, event_type: str, message: str = "", details: dict = None):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO agent_logs (agent_id, event_type, message, details) VALUES (?, ?, ?, ?)",
+            (agent_id, event_type, message, json.dumps(details or {})),
+        )
+
+
+def get_agent_logs(agent_id: str = None, limit: int = 50) -> list:
+    with get_conn() as conn:
+        if agent_id:
+            rows = conn.execute(
+                "SELECT * FROM agent_logs WHERE agent_id = ? ORDER BY created_at DESC LIMIT ?",
+                (agent_id, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM agent_logs ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_agent_stats() -> dict:
+    with get_conn() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM agents").fetchone()[0]
+        online = conn.execute("SELECT COUNT(*) FROM agents WHERE status = 'online'").fetchone()[0]
+        tasks_done = conn.execute("SELECT SUM(tasks_completed) FROM agents").fetchone()[0] or 0
+        tasks_failed = conn.execute("SELECT SUM(tasks_failed) FROM agents").fetchone()[0] or 0
+        by_team = {}
+        for row in conn.execute("SELECT team, COUNT(*) as c, SUM(CASE WHEN status='online' THEN 1 ELSE 0 END) as up FROM agents GROUP BY team"):
+            by_team[row[0]] = {"total": row[1], "online": row[2]}
+    return {
+        "total_agents": total,
+        "online": online,
+        "offline": total - online,
+        "tasks_completed": tasks_done,
+        "tasks_failed": tasks_failed,
+        "by_team": by_team,
     }
