@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% set active_page = "studio" %}
 
-{% block title %}Production Studio — Social Optimize{% endblock %}
+{% block title %}Studio 56 — Social Optimize{% endblock %}
 
-{% block topbar_title %}Production Studio{% endblock %}
+{% block topbar_title %}Studio 56{% endblock %}
 {% block topbar_sub %}5-Agent AI Pipeline · Trend Architect → Narrative Designer → Asset Curator → Cost Engineer → Growth Engineer{% endblock %}
 
 {% block topbar_actions %}
@@ -104,12 +104,31 @@
 
   <!-- ── Left: Config Panel ──────────────────────────────── -->
   <div>
+    <!-- System status bar -->
+    <div class="studio-card" style="margin-bottom:12px;padding:10px 14px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;">
+        <span style="color:var(--muted);font-weight:600;margin-right:4px;">SERVICES</span>
+        <span id="svc-hf-cli" class="badge badge-yellow">⏳ Higgsfield CLI</span>
+        <span id="svc-hf-mcp" class="badge badge-yellow">⏳ Higgsfield MCP</span>
+        <span id="svc-claude" class="badge badge-yellow">⏳ Claude AI</span>
+      </div>
+    </div>
+
     <div class="studio-card" style="margin-bottom:18px;">
       <h2>Production Configuration</h2>
 
       <div class="form-row">
         <label>Niche / Topic *</label>
         <input type="text" id="s-niche" placeholder="e.g. The fall of the Roman Empire" />
+      </div>
+
+      <!-- Trending Now section (loads via /api/trends) -->
+      <div class="form-row" id="trending-section" style="display:none;">
+        <label style="display:flex;align-items:center;gap:8px;">
+          <span>Trending Now</span>
+          <span style="font-size:10px;color:var(--muted);font-weight:400;">click to pre-fill niche</span>
+        </label>
+        <div id="trending-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
       </div>
 
       <div class="form-row">
@@ -123,11 +142,36 @@
           <select id="s-format" onchange="studioFormatChange()">
             <option value="long">Long-form (16:9)</option>
             <option value="short">Short / Reel (9:16)</option>
+            <option value="podcast">Podcast Episode</option>
+            <option value="commercial">Commercial / Ad</option>
           </select>
         </div>
-        <div class="form-row">
+        <div class="form-row" id="durationRow">
           <label>Target Duration (s)</label>
-          <input type="number" id="s-duration" value="480" min="30" max="3600" />
+          <input type="number" id="s-duration" value="480" min="30" max="5400" />
+        </div>
+      </div>
+
+      <!-- Podcast duration picker (shown only when podcast selected) -->
+      <div id="podcastDurationRow" style="display:none;margin-bottom:14px;">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Episode Length</label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+          <div onclick="studioPickPodcastDur(this,900)" data-pdur="900" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
+            <div style="font-size:15px;font-weight:800;">15 min</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Daily briefing</div>
+          </div>
+          <div onclick="studioPickPodcastDur(this,1800)" data-pdur="1800" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--accent);background:rgba(255,59,48,.08);">
+            <div style="font-size:15px;font-weight:800;">30 min</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Standard episode</div>
+          </div>
+          <div onclick="studioPickPodcastDur(this,3600)" data-pdur="3600" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
+            <div style="font-size:15px;font-weight:800;">60 min</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Full interview</div>
+          </div>
+          <div onclick="studioPickPodcastDur(this,5400)" data-pdur="5400" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
+            <div style="font-size:15px;font-weight:800;">90 min</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Deep dive</div>
+          </div>
         </div>
       </div>
 
@@ -135,9 +179,22 @@
         <div class="form-row">
           <label>Voice</label>
           <select id="s-voice">
+            {% if google_api_key and google_tts_voices %}
+            <optgroup label="Google Neural2 (HD quality)">
+              {% for v in google_tts_voices %}
+              <option value="{{ v.id }}" {% if v.id == 'en-US-Neural2-C' %}selected{% endif %}>{{ v.name }} ({{ v.locale }})</option>
+              {% endfor %}
+            </optgroup>
+            <optgroup label="Edge TTS (fallback)">
+              {% for v in voices %}
+              <option value="{{ v }}">{{ v }}</option>
+              {% endfor %}
+            </optgroup>
+            {% else %}
             {% for v in voices %}
             <option value="{{ v }}" {% if loop.first %}selected{% endif %}>{{ v }}</option>
             {% endfor %}
+            {% endif %}
           </select>
         </div>
         <div class="form-row">
@@ -148,6 +205,44 @@
             <option value="bold">Bold</option>
             <option value="dark">Dark</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Commercial settings (shown when commercial selected) -->
+      <div id="studioCommercialPanel" style="display:none;border:1px solid #f59e0b55;border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#f59e0b;margin-bottom:12px;">📺 Commercial Settings</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;" id="studioAdLenGrid">
+          <div onclick="studioPickAdLen(this,'commercial_6',6)" data-adlen="commercial_6" style="padding:8px 4px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
+            <div style="font-size:14px;font-weight:800;">6s</div><div style="font-size:10px;color:var(--muted);">Bumper</div>
+          </div>
+          <div onclick="studioPickAdLen(this,'commercial_15',15)" data-adlen="commercial_15" style="padding:8px 4px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
+            <div style="font-size:14px;font-weight:800;">15s</div><div style="font-size:10px;color:var(--muted);">Pre-roll</div>
+          </div>
+          <div onclick="studioPickAdLen(this,'commercial_30',30)" data-adlen="commercial_30" style="padding:8px 4px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid #f59e0b;background:rgba(245,158,11,.08);">
+            <div style="font-size:14px;font-weight:800;">30s</div><div style="font-size:10px;color:var(--muted);">Standard</div>
+          </div>
+          <div onclick="studioPickAdLen(this,'commercial_60',60)" data-adlen="commercial_60" style="padding:8px 4px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
+            <div style="font-size:14px;font-weight:800;">60s</div><div style="font-size:10px;color:var(--muted);">Story</div>
+          </div>
+        </div>
+        <input type="hidden" id="s-ad-format" value="commercial_30">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <div class="form-row" style="margin:0;"><label>Brand Name</label><input type="text" id="s-ad-brand" placeholder="Nike" /></div>
+          <div class="form-row" style="margin:0;"><label>Product</label><input type="text" id="s-ad-product" placeholder="Air Max 2025" /></div>
+        </div>
+        <div class="form-row" style="margin-bottom:8px;"><label>Key Benefit</label><input type="text" id="s-ad-benefit" placeholder="Run farther, recover faster" /></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="form-row" style="margin:0;"><label>CTA</label><input type="text" id="s-ad-cta" placeholder="Shop now at nike.com" /></div>
+          <div class="form-row" style="margin:0;"><label>Style</label>
+            <select id="s-ad-style">
+              <option value="cinematic">Cinematic</option>
+              <option value="ugc">UGC / Testimonial</option>
+              <option value="product_demo">Product Demo</option>
+              <option value="problem_solution">Problem → Solution</option>
+              <option value="lifestyle">Lifestyle</option>
+              <option value="direct_response">Direct Response</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -163,6 +258,20 @@
       <div class="form-row">
         <label>Competitor Titles (one per line, optional)</label>
         <textarea id="s-competitors" placeholder="Top 10 secrets of Ancient Rome&#10;Why Rome really fell…"></textarea>
+      </div>
+
+      <div class="form-row" style="margin-bottom:16px;">
+        <label>Publish To</label>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="youtube"> ▶️ YouTube</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="tiktok"> 🎵 TikTok</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="instagram"> 📸 Instagram</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="facebook"> 📘 Facebook</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="twitter"> 🐦 Twitter / X</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="linkedin"> 💼 LinkedIn</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="pinterest"> 📌 Pinterest</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" class="s-platform" value="threads"> 🧵 Threads</label>
+        </div>
       </div>
 
       <div class="form-grid-2" style="margin-bottom:16px;">
@@ -320,11 +429,72 @@
 let studioJobId = null;
 let studioES = null;
 
+// Check service status on page load
+(async function checkServices() {
+  function setBadge(id, ok, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.className = 'badge ' + (ok ? 'badge-green' : 'badge-red');
+    el.textContent = (ok ? '✓ ' : '✗ ') + label;
+  }
+  try {
+    const r = await fetch('/health');
+    const d = await r.json();
+    setBadge('svc-hf-cli', d.higgsfield_cli, 'Higgsfield CLI');
+  } catch (_) {
+    setBadge('svc-hf-cli', false, 'Higgsfield CLI');
+  }
+  // Claude — proxy check via a simple ping to confirm API key is set
+  const hasAnthropicKey = {{ 'true' if config.ANTHROPIC_API_KEY else 'false' }};
+  setBadge('svc-claude', hasAnthropicKey, 'Claude AI');
+  // MCP — check if MCP token is configured
+  const hasMcpToken = {{ 'true' if config.HIGGSFIELD_MCP_TOKEN else 'false' }};
+  setBadge('svc-hf-mcp', hasMcpToken, 'Higgsfield MCP');
+})();
+
 function studioFormatChange() {
   const fmt = document.getElementById('s-format').value;
   const dur = document.getElementById('s-duration');
-  if (fmt === 'short') { dur.value = 55; }
-  else { dur.value = 480; }
+  const podRow = document.getElementById('podcastDurationRow');
+  const durRow = document.getElementById('durationRow');
+  const commPanel = document.getElementById('studioCommercialPanel');
+  if (fmt === 'podcast') {
+    podRow.style.display = '';
+    durRow.style.display = 'none';
+    commPanel.style.display = 'none';
+    dur.value = 1800;
+  } else if (fmt === 'commercial') {
+    podRow.style.display = 'none';
+    durRow.style.display = 'none';
+    commPanel.style.display = '';
+    dur.value = 30;
+  } else {
+    podRow.style.display = 'none';
+    durRow.style.display = '';
+    commPanel.style.display = 'none';
+    dur.value = fmt === 'short' ? 55 : 480;
+  }
+}
+
+function studioPickAdLen(el, adFmt, seconds) {
+  document.querySelectorAll('#studioAdLenGrid [data-adlen]').forEach(c => {
+    c.style.borderColor = 'var(--border)';
+    c.style.background = 'var(--bg)';
+  });
+  el.style.borderColor = '#f59e0b';
+  el.style.background = 'rgba(245,158,11,.08)';
+  document.getElementById('s-ad-format').value = adFmt;
+  document.getElementById('s-duration').value = seconds;
+}
+
+function studioPickPodcastDur(el, seconds) {
+  document.querySelectorAll('#podcastDurationRow [data-pdur]').forEach(c => {
+    c.style.borderColor = 'var(--border)';
+    c.style.background = 'var(--bg)';
+  });
+  el.style.borderColor = 'var(--accent)';
+  el.style.background = 'rgba(255,59,48,.08)';
+  document.getElementById('s-duration').value = seconds;
 }
 
 function agentState(nodeId, state, statusText) {
@@ -474,11 +644,15 @@ function studioRun() {
   ['agent-1','agent-2','agent-3','agent-35','agent-4','agent-compile'].forEach(id => agentState(id, null, 'Waiting'));
 
   const competitors = document.getElementById('s-competitors').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const selectedPlatforms = Array.from(document.querySelectorAll('.s-platform:checked')).map(el => el.value);
 
+  const fmt = document.getElementById('s-format').value;
   const payload = {
     niche,
     audience: document.getElementById('s-audience').value.trim(),
-    is_portrait: document.getElementById('s-format').value === 'short',
+    format: fmt,
+    platforms: selectedPlatforms,
+    is_portrait: fmt === 'short',
     target_duration: parseInt(document.getElementById('s-duration').value) || 480,
     voice: document.getElementById('s-voice').value,
     thumbnail_style: document.getElementById('s-thumb-style').value,
@@ -487,6 +661,13 @@ function studioRun() {
     research_enabled: document.getElementById('s-research').checked,
     dry_run: document.getElementById('s-dryrun').checked,
     competitor_titles: competitors,
+    // Commercial fields
+    ad_format: document.getElementById('s-ad-format').value,
+    ad_brand: (document.getElementById('s-ad-brand').value || '').trim(),
+    ad_product: (document.getElementById('s-ad-product').value || '').trim(),
+    ad_benefit: (document.getElementById('s-ad-benefit').value || '').trim(),
+    ad_cta: (document.getElementById('s-ad-cta').value || '').trim(),
+    ad_style: document.getElementById('s-ad-style').value,
   };
 
   fetch('/api/studio/run', {
@@ -565,5 +746,34 @@ function pollStatus(jobId) {
       }
     });
 }
+
+// ── Trending Now ─────────────────────────────────────────────────────────────
+
+async function loadTrendingTopics() {
+  try {
+    const resp = await fetch('/api/trends');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const daily = data.daily_trends || [];
+    if (daily.length === 0) return;
+
+    const section = document.getElementById('trending-section');
+    const chips = document.getElementById('trending-chips');
+    chips.innerHTML = daily.slice(0, 10).map(t =>
+      `<span onclick="document.getElementById('s-niche').value='${t.replace(/'/g, "\\'")}'"
+        style="display:inline-block;padding:4px 10px;background:var(--border);border-radius:20px;
+               font-size:11px;cursor:pointer;white-space:nowrap;transition:background .15s;"
+        onmouseover="this.style.background='var(--accent)';this.style.color='#fff'"
+        onmouseout="this.style.background='var(--border)';this.style.color=''"
+      >${t}</span>`
+    ).join('');
+    section.style.display = '';
+  } catch (e) {
+    // Silently skip if trends unavailable
+  }
+}
+
+// Load trending topics on page load
+document.addEventListener('DOMContentLoaded', loadTrendingTopics);
 </script>
 {% endblock %}

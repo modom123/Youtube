@@ -38,10 +38,30 @@ Your persona: Cold, data-driven, results-obsessed. You don't guess — you analy
 
         research_str = f"\n\nResearch context:\n{research_context}" if research_context else ""
 
+        # Inject real Google Trends data if available
+        trends_str = ""
+        try:
+            from generators.google_trends import get_trending_topics
+            trend_data = get_trending_topics(niche)
+            if trend_data:
+                lines = ["\n\nREAL GOOGLE TRENDS DATA (use to calibrate trend score):"]
+                if trend_data.get("interest_score") is not None:
+                    lines.append(f"- 7-day interest score: {trend_data['interest_score']}/100")
+                if trend_data.get("peak_day"):
+                    lines.append(f"- Peak search day: {trend_data['peak_day']}")
+                if trend_data.get("trending_up"):
+                    lines.append(f"- Rising queries: {', '.join(trend_data['trending_up'][:5])}")
+                if trend_data.get("top_queries"):
+                    lines.append(f"- Top related queries: {', '.join(trend_data['top_queries'][:5])}")
+                trends_str = "\n".join(lines)
+        except Exception as e:
+            print(f"[trend_architect] trends fetch failed ({e})")
+
         prompt = (
             f"Analyse this niche and produce a winning video blueprint.\n\n"
             f"Niche/Topic: {niche}"
             f"{research_str}"
+            f"{trends_str}"
             f"{competitor_str}"
         )
         return self._call(prompt, VideoBlueprint)

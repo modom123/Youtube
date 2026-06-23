@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% set active_page = "batch" %}
+{% block title %}Batch Generator — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Batch Generator{% endblock %}
+{% block topbar_sub %}Generate a month of content in one click{% endblock %}
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+<style>
+  .batch-grid { display:grid; grid-template-columns:400px 1fr; gap:24px; align-items:start; }
+  .b-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:18px; }
+  .b-card h2 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 16px; }
+  .form-row { margin-bottom:14px; }
+  .form-row label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.06em; }
+  .form-row input, .form-row select, .form-row textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; box-sizing:border-box; }
+  .form-row textarea { min-height:160px; resize:vertical; font-family:monospace; }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline:none; border-color:var(--accent); }
+  .btn { padding:10px 20px; border-radius:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; }
+  .btn-primary { background:var(--accent); color:#fff; width:100%; }
+  .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+  .topic-count { font-size:11px; color:var(--muted); margin-top:4px; }
+
+  .batch-table { width:100%; border-collapse:collapse; }
+  .batch-table th { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); padding:8px 12px; text-align:left; border-bottom:1px solid var(--border); }
+  .batch-table td { padding:10px 12px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
+  .batch-table tr:last-child td { border-bottom:none; }
+  .status-icon { font-size:16px; }
+  .progress-mini { height:4px; background:var(--border); border-radius:2px; overflow:hidden; width:80px; }
+  .progress-mini-fill { height:100%; background:var(--accent); border-radius:2px; transition:width .4s; }
+
+  .batch-history-item { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px 16px; margin-bottom:8px; display:flex; align-items:center; gap:12px; cursor:pointer; }
+  .batch-history-item:hover { border-color:var(--accent); }
+  .batch-meta { flex:1; }
+  .batch-meta-title { font-size:13px; font-weight:600; margin-bottom:2px; }
+  .batch-meta-sub { font-size:11px; color:var(--muted); }
+  .badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+  .badge-running { background:rgba(255,204,0,.15); color:#ffd60a; }
+  .badge-done { background:rgba(48,209,88,.15); color:#30d158; }
+  .badge-error { background:rgba(255,59,48,.15); color:#ff453a; }
+  .badge-pending { background:rgba(150,150,150,.15); color:var(--muted); }
+  .empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
+  .empty-state .icon { font-size:40px; margin-bottom:12px; }
+</style>
+
+<div class="batch-grid">
+
+  <!-- Left: Config -->
+  <div>
+    <div class="b-card">
+      <h2>Topics</h2>
+      <div class="form-row">
+        <label>One topic per line *</label>
+        <textarea id="b-topics" placeholder="The fall of the Roman Empire&#10;Why the Titanic really sank&#10;Ancient Egyptian medicine&#10;The mystery of dark matter&#10;How GPS works"></textarea>
+        <div class="topic-count" id="topicCount">0 topics</div>
+      </div>
+    </div>
+
+    <div class="b-card">
+      <h2>Shared Settings</h2>
+      <div class="form-row">
+        <label>Format</label>
+        <select id="b-format">
+          <option value="short">Short (≤60s)</option>
+          <option value="long">Long (5–15min)</option>
+          <option value="podcast">Podcast</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Target Audience</label>
+        <input type="text" id="b-audience" value="general public" />
+      </div>
+      <div class="form-row">
+        <label>Voice</label>
+        <select id="b-voice">
+          {% for v in voices %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Platforms</label>
+        <select id="b-platform" multiple style="min-height:80px;">
+          <option value="youtube" selected>YouTube</option>
+          <option value="tiktok">TikTok</option>
+          <option value="instagram">Instagram</option>
+        </select>
+        <div class="topic-count">Hold Ctrl/Cmd to select multiple</div>
+      </div>
+      <button class="btn btn-primary" id="batchRunBtn" onclick="batchRun()">
+        Run Batch Pipeline
+      </button>
+    </div>
+  </div>
+
+  <!-- Right: Progress + History -->
+  <div>
+
+    <!-- Active batch progress -->
+    <div class="b-card" id="activeBatchCard" style="display:none;">
+      <h2>Running Batch — <span id="batchProgressLabel">0 / 0 complete</span></h2>
+      <div id="batchTopicRows"></div>
+    </div>
+
+    <!-- Batch history -->
+    <div class="b-card">
+      <h2>Batch History</h2>
+      <div id="batchHistory"><div class="empty-state"><div class="icon">📦</div><p>No batches yet. Run your first batch above.</p></div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let activeBatchId = null;
+let batchES = null;
+
+document.getElementById('b-topics').addEventListener('input', function() {
+  const lines = this.value.split('\n').map(l => l.trim()).filter(Boolean);
+  document.getElementById('topicCount').textContent = lines.length + ' topic' + (lines.length !== 1 ? 's' : '');
+});
+
+async function batchRun() {
+  const topicsRaw = document.getElementById('b-topics').value;
+  const topics = topicsRaw.split('\n').map(l => l.trim()).filter(Boolean);
+  if (topics.length === 0) { alert('Enter at least one topic.'); return; }
+
+  const platforms = Array.from(document.getElementById('b-platform').selectedOptions).map(o => o.value);
+  const btn = document.getElementById('batchRunBtn');
+  btn.disabled = true;
+  btn.textContent = 'Starting…';
+
+  const resp = await fetch('/api/batch/create', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      topics,
+      common_config: {
+        format: document.getElementById('b-format').value,
+        audience: document.getElementById('b-audience').value,
+        voice: document.getElementById('b-voice').value,
+        platforms,
+      }
+    })
+  });
+  const data = await resp.json();
+  if (!resp.ok) { alert(data.error || 'Failed to start batch'); btn.disabled = false; btn.textContent = 'Run Batch Pipeline'; return; }
+
+  activeBatchId = data.batch_id;
+  showActiveBatch(topics);
+  subscribeToStream(activeBatchId);
+  btn.textContent = 'Running…';
+}
+
+function showActiveBatch(topics) {
+  const card = document.getElementById('activeBatchCard');
+  card.style.display = '';
+  const rows = document.getElementById('batchTopicRows');
+  rows.innerHTML = `
+    <table class="batch-table">
+      <thead><tr><th>#</th><th>Topic</th><th>Status</th><th>Progress</th></tr></thead>
+      <tbody>
+        ${topics.map((t, i) => `<tr id="brow-${i}">
+          <td style="color:var(--muted)">${i+1}</td>
+          <td>${escHtml(t)}</td>
+          <td><span class="status-icon" id="bstat-${i}">⏳</span></td>
+          <td><div class="progress-mini"><div class="progress-mini-fill" id="bprog-${i}" style="width:0%"></div></div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function subscribeToStream(batchId) {
+  if (batchES) batchES.close();
+  batchES = new EventSource(`/api/batch/${batchId}/stream`);
+  batchES.onmessage = function(e) {
+    const d = JSON.parse(e.data);
+    if (d.type === 'topic_start') {
+      const idx = d.index;
+      const el = document.getElementById(`bstat-${idx}`);
+      if (el) el.textContent = '▶';
+      const pr = document.getElementById(`bprog-${idx}`);
+      if (pr) pr.style.width = '30%';
+    } else if (d.type === 'topic_done') {
+      const idx = d.index;
+      const el = document.getElementById(`bstat-${idx}`);
+      if (el) el.textContent = d.success ? '✓' : '✗';
+      const pr = document.getElementById(`bprog-${idx}`);
+      if (pr) pr.style.width = d.success ? '100%' : '0%';
+      document.getElementById('batchProgressLabel').textContent = `${d.completed} / ${d.total} complete`;
+    } else if (d.type === 'batch_done') {
+      batchES.close();
+      document.getElementById('batchRunBtn').disabled = false;
+      document.getElementById('batchRunBtn').textContent = 'Run Batch Pipeline';
+      loadHistory();
+    }
+  };
+}
+
+async function loadHistory() {
+  const resp = await fetch('/api/batch/list');
+  const data = await resp.json();
+  const el = document.getElementById('batchHistory');
+  if (!data.batches || data.batches.length === 0) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📦</div><p>No batches yet.</p></div>';
+    return;
+  }
+  el.innerHTML = data.batches.map(b => {
+    const topics = JSON.parse(b.topics_json || '[]');
+    const badgeClass = b.status === 'done' ? 'badge-done' : b.status === 'running' ? 'badge-running' : b.status === 'error' ? 'badge-error' : 'badge-pending';
+    return `<div class="batch-history-item" onclick="resumeBatch('${b.id}')">
+      <div class="batch-meta">
+        <div class="batch-meta-title">${topics.length} topics · ${b.status === 'done' ? b.completed_count + ' completed' : ''}</div>
+        <div class="batch-meta-sub">${new Date(b.created_at).toLocaleString()}</div>
+      </div>
+      <span class="badge ${badgeClass}">${b.status}</span>
+    </div>`;
+  }).join('');
+}
+
+async function resumeBatch(batchId) {
+  const resp = await fetch(`/api/batch/${batchId}/status`);
+  const d = await resp.json();
+  if (d.status === 'running') {
+    activeBatchId = batchId;
+    subscribeToStream(batchId);
+  }
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadHistory();
+</script>
+{% endblock %}

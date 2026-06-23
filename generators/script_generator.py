@@ -1,7 +1,7 @@
-"""Script generation using Claude AI."""
+"""Script generation using Claude AI (default) or Gemini Flash (batch/budget)."""
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 import anthropic
 import config
@@ -11,13 +11,14 @@ import config
 class ContentScript:
     title: str
     description: str
-    hashtags: list[str]
+    hashtags: list
     narration: str
-    sections: list[dict]
-    keywords: list[str]
+    sections: list
+    keywords: list
     content_type: str
     estimated_duration: int  # seconds
     thumbnail_prompt: str
+    seo_data: dict = field(default_factory=dict)
 
 
 def _build_prompt(
@@ -41,6 +42,35 @@ def _build_prompt(
             "Each chapter must have a distinct focus. Sections must reflect these chapters exactly."
         ),
         "reel": f"Create an Instagram REEL script (~{target_duration} seconds). Visually driven, trend-aware, highly shareable.",
+        "commercial_6": (
+            "Create a 6-SECOND BUMPER AD script. This is a YouTube bumper ad — unskippable, 6 seconds maximum. "
+            "Structure: One single punchy message + brand/product name. No fluff. Every word must earn its place. "
+            "The narration should be 10–15 words maximum. One unforgettable visual moment."
+        ),
+        "commercial_15": (
+            "Create a 15-SECOND AD script. Structure: "
+            "0–3s: Instant pattern interrupt / problem statement, "
+            "3–10s: Product/solution shown in action with key benefit, "
+            "10–15s: CTA + brand name. "
+            "No wasted words. Write for high energy, fast cuts. Narration ≤ 40 words."
+        ),
+        "commercial_30": (
+            "Create a 30-SECOND TV/DIGITAL AD script. This is the gold standard commercial format. Structure: "
+            "0–5s: Hook — emotional or surprising opening, "
+            "5–20s: Story or demonstration — show the problem being solved, "
+            "20–27s: Product benefit + social proof, "
+            "27–30s: Strong CTA + brand name/tagline. "
+            "Write cinematic scene descriptions in the sections. Narration ≤ 80 words."
+        ),
+        "commercial_60": (
+            "Create a 60-SECOND BRAND STORY / long-form ad script. Structure: "
+            "0–8s: Emotional hook — relatable problem or aspiration, "
+            "8–35s: Story arc — character encounters problem, discovers solution, "
+            "35–50s: Transformation — show the after state with product, "
+            "50–57s: Key features + social proof (stats, testimonial), "
+            "57–60s: CTA + brand name + tagline. "
+            "This should feel cinematic and emotional, not salesy. Narration ≤ 160 words."
+        ),
     }
 
     research_block = ""
@@ -78,6 +108,38 @@ Generate a complete content package. Return ONLY valid JSON in this exact struct
 Make it viral, engaging, and optimized for {content_type} format. The narration should be natural spoken language."""
 
 
+def _parse_script_json(raw: str, content_type: str, target_duration: int, topic: str) -> "ContentScript":
+    """Parse raw JSON string into a ContentScript dataclass."""
+    json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw)
+    if json_match:
+        raw = json_match.group(1)
+    data = json.loads(raw)
+    script = ContentScript(
+        title=data["title"],
+        description=data["description"],
+        hashtags=data.get("hashtags", []),
+        narration=data["narration"],
+        sections=data.get("sections", []),
+        keywords=data.get("keywords", []),
+        content_type=content_type,
+        estimated_duration=data.get("estimated_duration", target_duration),
+        thumbnail_prompt=data.get("thumbnail_prompt", f"Professional thumbnail for: {topic}"),
+    )
+    return script
+
+
+def _attach_seo_data(script: "ContentScript") -> None:
+    """Call Google Cloud NLP to extract SEO data from the narration and attach to script."""
+    try:
+        from generators.google_nlp import extract_seo_data
+        seo = extract_seo_data(script.narration)
+        if seo:
+            script.seo_data = seo
+            print(f"[script] SEO data attached: {len(seo.get('suggested_tags', []))} tags, sentiment={seo.get('sentiment')}")
+    except Exception as e:
+        print(f"[script] SEO extraction failed ({e})")
+
+
 def generate_script(
     topic: str,
     content_type: str = "short",
@@ -85,8 +147,46 @@ def generate_script(
     audience: str = "general public",
     custom_instructions: Optional[str] = None,
     research_context: str = "",
-) -> ContentScript:
-    """Generate a complete content script using Claude, optionally grounded with research."""
+    ai_model: str = "claude",
+) -> "ContentScript":
+    """
+    Generate a complete content script.
+
+    ai_model: "claude" (default, premium quality) or "gemini" (fast & budget for batch).
+    """
+    if ai_model == "gemini" and getattr(config, "GOOGLE_API_KEY", ""):
+        script = generate_script_gemini(
+            topic=topic,
+            content_type=content_type,
+            target_duration=target_duration,
+            audience=audience,
+            custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    else:
+        script = _generate_script_claude(
+            topic=topic,
+            content_type=content_type,
+            target_duration=target_duration,
+            audience=audience,
+            custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+
+    # Attach NLP SEO data regardless of which model was used
+    _attach_seo_data(script)
+    return script
+
+
+def _generate_script_claude(
+    topic: str,
+    content_type: str = "short",
+    target_duration: int = 60,
+    audience: str = "general public",
+    custom_instructions: Optional[str] = None,
+    research_context: str = "",
+) -> "ContentScript":
+    """Generate a complete content script using Claude AI."""
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
     prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
@@ -101,32 +201,65 @@ def generate_script(
     )
 
     raw = message.content[0].text.strip()
+    return _parse_script_json(raw, content_type, target_duration, topic)
 
-    # Extract JSON even if wrapped in markdown code blocks
-    json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw)
-    if json_match:
-        raw = json_match.group(1)
 
-    data = json.loads(raw)
+def generate_script_gemini(
+    topic: str,
+    content_type: str = "short",
+    target_duration: int = 60,
+    audience: str = "general public",
+    custom_instructions: Optional[str] = None,
+    research_context: str = "",
+) -> "ContentScript":
+    """
+    Generate script using Gemini 2.0 Flash (cheaper, faster for batch jobs).
+    Falls back to Claude if GOOGLE_API_KEY not set.
+    """
+    api_key = getattr(config, "GOOGLE_API_KEY", "")
+    if not api_key:
+        return _generate_script_claude(
+            topic=topic,
+            content_type=content_type,
+            target_duration=target_duration,
+            audience=audience,
+            custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
 
-    return ContentScript(
-        title=data["title"],
-        description=data["description"],
-        hashtags=data.get("hashtags", []),
-        narration=data["narration"],
-        sections=data.get("sections", []),
-        keywords=data.get("keywords", []),
-        content_type=content_type,
-        estimated_duration=data.get("estimated_duration", target_duration),
-        thumbnail_prompt=data.get("thumbnail_prompt", f"Professional thumbnail for: {topic}"),
-    )
+    try:
+        from google import genai
+        client = genai.Client(api_key=api_key)
+
+        prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
+        if custom_instructions:
+            prompt += f"\n\nAdditional instructions: {custom_instructions}"
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
+        raw = response.text.strip()
+        print(f"[script] Gemini 2.0 Flash generated script for: {topic}")
+        return _parse_script_json(raw, content_type, target_duration, topic)
+    except Exception as e:
+        print(f"[script] Gemini script generation failed ({e}) — falling back to Claude")
+        return _generate_script_claude(
+            topic=topic,
+            content_type=content_type,
+            target_duration=target_duration,
+            audience=audience,
+            custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
 
 
 def generate_multi_platform_package(
     topic: str,
-    platforms: list[str],
+    platforms: list,
     audience: str = "general public",
-) -> dict[str, ContentScript]:
+    ai_model: str = "claude",
+) -> dict:
     """Generate optimized scripts for multiple platforms at once."""
     platform_config = {
         "youtube": {"type": "long", "duration": 480},
@@ -144,5 +277,6 @@ def generate_multi_platform_package(
             content_type=cfg["type"],
             target_duration=cfg["duration"],
             audience=audience,
+            ai_model=ai_model,
         )
     return results

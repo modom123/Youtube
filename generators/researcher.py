@@ -133,6 +133,61 @@ def _extract_key_sentences(text: str, topic: str, max_sentences: int = 15) -> li
     return results
 
 
+# ── Gemini Flash Research ────────────────────────────────────────────────────
+
+def _research_with_gemini(topic: str) -> dict:
+    """
+    Use Gemini Flash to gather enhanced research data alongside Wikipedia.
+    Returns dict with facts/trends/statistics/sources, or empty dict if unavailable.
+    """
+    try:
+        import config as _config
+        if not getattr(_config, "GOOGLE_API_KEY", ""):
+            return {}
+        from google import genai
+        client = genai.Client(api_key=_config.GOOGLE_API_KEY)
+        prompt = (
+            f"Research the topic: {topic}. "
+            "Provide 10 key facts, current trends, and notable statistics. "
+            "Format as JSON with keys: facts (list of strings), trends (list of strings), "
+            "statistics (list of strings), sources (list of strings). "
+            "Return ONLY valid JSON, no markdown or code fences."
+        )
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
+        raw = response.text.strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception as e:
+        print(f"[research] Gemini research failed ({e})")
+        return {}
+
+
+def _merge_gemini_into_brief(brief: "ResearchBrief", gemini_data: dict) -> None:
+    """Merge Gemini research results into brief, deduplicating by 60-char prefix."""
+    if not gemini_data:
+        return
+    existing_lower = {f.lower()[:60] for f in brief.key_facts + brief.data_points}
+    for fact in gemini_data.get("facts", []):
+        if fact and fact.lower()[:60] not in existing_lower:
+            brief.key_facts.append(fact)
+            existing_lower.add(fact.lower()[:60])
+    for stat in gemini_data.get("statistics", []):
+        if stat and stat.lower()[:60] not in existing_lower:
+            brief.data_points.append(stat)
+            existing_lower.add(stat.lower()[:60])
+    for trend in gemini_data.get("trends", []):
+        if trend:
+            brief.related_topics.append(trend)
+    for src in gemini_data.get("sources", []):
+        if src and f"Gemini: {src}" not in brief.sources:
+            brief.sources.append(f"Gemini: {src}")
+
+
 # ── Main Research Function ────────────────────────────────────────────────────
 
 def research_topic(topic: str) -> ResearchBrief:
@@ -174,6 +229,13 @@ def research_topic(topic: str) -> ResearchBrief:
     full_corpus = brief.raw_text or brief.summary
     brief.key_facts = _extract_key_sentences(full_corpus, topic, max_sentences=20)
     brief.data_points = _extract_numbered_facts(full_corpus)
+
+    # Gemini Flash enhancement — runs alongside Wikipedia/DDG, merges results
+    try:
+        gemini_data = _research_with_gemini(topic)
+        _merge_gemini_into_brief(brief, gemini_data)
+    except Exception as e:
+        print(f"[research] Gemini merge failed ({e})")
 
     if not brief.summary and not brief.key_facts:
         brief.summary = f"Research on: {topic}"

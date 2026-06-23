@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% set active_page = "team" %}
+{% block title %}Team Workspace — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Team Workspace{% endblock %}
+{% block topbar_sub %}Collaborate with your team on content production{% endblock %}
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+<style>
+  .team-grid { display:grid; grid-template-columns:1fr 340px; gap:24px; align-items:start; }
+  .t-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:18px; }
+  .t-card h2 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 16px; }
+  .form-row { margin-bottom:14px; }
+  .form-row label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.06em; }
+  .form-row input, .form-row select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; box-sizing:border-box; }
+  .form-row input:focus, .form-row select:focus { outline:none; border-color:var(--accent); }
+  .btn { padding:9px 16px; border-radius:8px; font-size:13px; font-weight:600; border:none; cursor:pointer; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn-danger { background:transparent; border:1px solid var(--border); color:#ff453a; font-size:12px; padding:5px 10px; }
+  .btn-sm { padding:5px 12px; font-size:12px; }
+
+  .member-list { display:flex; flex-direction:column; gap:8px; }
+  .member-row { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:12px; }
+  .member-avatar { width:34px; height:34px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; flex-shrink:0; }
+  .member-info { flex:1; }
+  .member-name { font-size:13px; font-weight:600; margin-bottom:2px; }
+  .member-email { font-size:11px; color:var(--muted); }
+  .badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+  .badge-owner { background:rgba(255,204,0,.15); color:#ffd60a; }
+  .badge-editor { background:rgba(10,132,255,.15); color:#0a84ff; }
+  .badge-viewer { background:rgba(150,150,150,.15); color:var(--muted); }
+  .badge-pending { background:rgba(150,150,150,.1); color:var(--muted); border:1px dashed var(--border); }
+
+  .team-name { font-size:28px; font-weight:800; margin:0 0 6px; }
+  .team-sub { font-size:14px; color:var(--muted); }
+
+  .empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
+  .empty-state .icon { font-size:40px; margin-bottom:12px; }
+
+  .upgrade-notice { background:rgba(255,59,48,.08); border:1px solid rgba(255,59,48,.2); border-radius:10px; padding:16px 20px; margin-bottom:20px; font-size:13px; }
+  .upgrade-notice a { color:var(--accent); font-weight:600; }
+</style>
+
+<div id="agencyGate" style="display:none;" class="upgrade-notice">
+  Team workspaces require the <strong>Agency plan</strong>. <a href="/billing">Upgrade now →</a>
+</div>
+
+<div id="noTeamView" style="display:none;">
+  <div class="t-card" style="max-width:480px;margin:0 auto;">
+    <h2>Create Your Team</h2>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">Create a workspace to collaborate with editors and viewers.</p>
+    <div class="form-row">
+      <label>Team Name *</label>
+      <input type="text" id="new-team-name" placeholder="e.g. Acme Content Team" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;" onclick="createTeam()">Create Team</button>
+  </div>
+</div>
+
+<div id="teamView" style="display:none;">
+  <div class="team-grid">
+    <div>
+      <div class="t-card">
+        <div class="team-name" id="teamName">—</div>
+        <div class="team-sub" id="teamSub">Loading…</div>
+      </div>
+
+      <div class="t-card">
+        <h2>Members</h2>
+        <div class="member-list" id="memberList">
+          <div class="empty-state"><div class="icon">👥</div><p>Loading…</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="t-card">
+        <h2>Invite Member</h2>
+        <div class="form-row">
+          <label>Email Address</label>
+          <input type="email" id="invite-email" placeholder="colleague@example.com" />
+        </div>
+        <div class="form-row">
+          <label>Role</label>
+          <select id="invite-role">
+            <option value="editor">Editor — can create and manage content</option>
+            <option value="viewer">Viewer — read-only access</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="inviteMember()">Send Invite</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let teamData = null;
+
+async function loadTeam() {
+  const resp = await fetch('/api/team');
+  const data = await resp.json();
+
+  if (data.tier_required) {
+    document.getElementById('agencyGate').style.display = '';
+    return;
+  }
+
+  if (!data.team) {
+    document.getElementById('noTeamView').style.display = '';
+    return;
+  }
+
+  teamData = data;
+  document.getElementById('teamView').style.display = '';
+  document.getElementById('teamName').textContent = data.team.name;
+  document.getElementById('teamSub').textContent =
+    `${data.members.length} member${data.members.length !== 1 ? 's' : ''} · Created ${new Date(data.team.created_at).toLocaleDateString()}`;
+
+  renderMembers(data.members);
+}
+
+function renderMembers(members) {
+  const list = document.getElementById('memberList');
+  if (!members || members.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">👥</div><p>No members yet. Invite someone above.</p></div>';
+    return;
+  }
+  list.innerHTML = members.map(m => {
+    const initials = (m.name || m.email || '?')[0].toUpperCase();
+    const badgeClass = m.role === 'owner' ? 'badge-owner' : m.role === 'editor' ? 'badge-editor' : 'badge-viewer';
+    const isPending = m.status === 'pending';
+    const actions = m.role !== 'owner' ? `
+      <button class="btn btn-danger" onclick="removeMember('${m.id}')">Remove</button>
+    ` : '';
+    return `<div class="member-row">
+      <div class="member-avatar" style="${isPending ? 'opacity:.5' : ''}">${initials}</div>
+      <div class="member-info">
+        <div class="member-name">${escHtml(m.name || m.invited_email || m.email || '—')}${isPending ? ' <span style="color:var(--muted);font-weight:400;font-size:11px;">(pending)</span>' : ''}</div>
+        <div class="member-email">${escHtml(m.email || m.invited_email || '')}</div>
+      </div>
+      <span class="badge ${isPending ? 'badge-pending' : badgeClass}">${m.role}</span>
+      ${actions}
+    </div>`;
+  }).join('');
+}
+
+async function createTeam() {
+  const name = document.getElementById('new-team-name').value.trim();
+  if (!name) { alert('Team name is required.'); return; }
+  const resp = await fetch('/api/team/create', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name})
+  });
+  const data = await resp.json();
+  if (!resp.ok) { alert(data.error || 'Failed'); return; }
+  document.getElementById('noTeamView').style.display = 'none';
+  loadTeam();
+}
+
+async function inviteMember() {
+  const email = document.getElementById('invite-email').value.trim();
+  const role = document.getElementById('invite-role').value;
+  if (!email) { alert('Email is required.'); return; }
+  const resp = await fetch('/api/team/invite', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({email, role})
+  });
+  const data = await resp.json();
+  if (!resp.ok) { alert(data.error || 'Failed'); return; }
+  document.getElementById('invite-email').value = '';
+  loadTeam();
+}
+
+async function removeMember(memberId) {
+  if (!confirm('Remove this member?')) return;
+  await fetch(`/api/team/members/${memberId}`, {method:'DELETE'});
+  loadTeam();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadTeam();
+</script>
+{% endblock %}

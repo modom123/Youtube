@@ -6,7 +6,7 @@ load_dotenv()
 
 # ── App ───────────────────────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(32).hex())
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5000")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "https://socialoptimize.online")
 
 # ── Persistent data directory ─────────────────────────────────────────────────
 # Locally this is the project root; on Render it's the mounted disk at /data
@@ -45,7 +45,7 @@ TIERS = {
         "videos_per_month": 50,
         "higgsfield_credits": 500,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
-        "features": ["50 videos/month", "500 AI video credits", "All platforms", "Production Studio"],
+        "features": ["50 videos/month", "500 AI video credits", "All platforms", "Studio 56"],
     },
     "agency": {
         "label": "Agency",
@@ -76,10 +76,7 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 # Google Flow / Veo 2
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-# Higgsfield AI
-HIGGSFIELD_API_KEY = os.getenv("HIGGSFIELD_API_KEY", "")  # format: "key:secret"
-# MCP auth token — used by the https://mcp.higgsfield.ai/mcp HTTP client.
-# Falls back to HIGGSFIELD_API_KEY (key portion) if not set separately.
+# Higgsfield AI — single token used by both the CLI and MCP HTTP client
 HIGGSFIELD_MCP_TOKEN = os.getenv("HIGGSFIELD_MCP_TOKEN", "")
 
 # YouTube
@@ -92,6 +89,7 @@ YOUTUBE_TOKEN_FILE = BASE_DIR / "youtube_token.json"
 YOUTUBE_SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/yt-analytics.readonly",
 ]
 
 # TikTok
@@ -102,6 +100,24 @@ TIKTOK_ACCESS_TOKEN = os.getenv("TIKTOK_ACCESS_TOKEN", "")
 # Instagram
 INSTAGRAM_ACCESS_TOKEN = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
 INSTAGRAM_ACCOUNT_ID = os.getenv("INSTAGRAM_ACCOUNT_ID", "")
+
+# Facebook
+FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "")
+FACEBOOK_ACCESS_TOKEN = os.getenv("FACEBOOK_ACCESS_TOKEN", "")
+
+# Twitter/X
+TWITTER_API_KEY = os.getenv("TWITTER_API_KEY", "")
+TWITTER_API_SECRET = os.getenv("TWITTER_API_SECRET", "")
+TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN", "")
+TWITTER_ACCESS_TOKEN_SECRET = os.getenv("TWITTER_ACCESS_TOKEN_SECRET", "")
+
+# LinkedIn
+LINKEDIN_ACCESS_TOKEN = os.getenv("LINKEDIN_ACCESS_TOKEN", "")
+LINKEDIN_PERSON_ID = os.getenv("LINKEDIN_PERSON_ID", "")
+
+# Pinterest
+PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN", "")
+PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID", "")
 
 # Video settings
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en-US")
@@ -124,6 +140,38 @@ AVAILABLE_VOICES = [
     "en-GB-SoniaNeural",
     "en-AU-NatashaNeural",
 ]
+
+# SMTP (for email notifications — all optional, silently skipped if not set)
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASS = os.getenv("SMTP_PASS", "")
+SMTP_FROM = os.getenv("SMTP_FROM", "noreply@socialoptimize.online")
+
+# Google Cloud TTS Neural2 voices
+GOOGLE_TTS_VOICE = os.getenv("GOOGLE_TTS_VOICE", "en-US-Neural2-C")
+GOOGLE_TTS_VOICES = [
+    {"id": "en-US-Neural2-A", "name": "US Male A", "locale": "en-US"},
+    {"id": "en-US-Neural2-C", "name": "US Female C", "locale": "en-US"},
+    {"id": "en-US-Neural2-D", "name": "US Male D", "locale": "en-US"},
+    {"id": "en-US-Neural2-F", "name": "US Female F", "locale": "en-US"},
+    {"id": "en-US-Neural2-G", "name": "US Female G", "locale": "en-US"},
+    {"id": "en-US-Neural2-H", "name": "US Female H", "locale": "en-US"},
+    {"id": "en-US-Neural2-I", "name": "US Male I", "locale": "en-US"},
+    {"id": "en-US-Neural2-J", "name": "US Male J", "locale": "en-US"},
+    {"id": "en-GB-Neural2-A", "name": "UK Female A", "locale": "en-GB"},
+    {"id": "en-GB-Neural2-B", "name": "UK Male B", "locale": "en-GB"},
+    {"id": "en-AU-Neural2-A", "name": "AU Female A", "locale": "en-AU"},
+    {"id": "en-AU-Neural2-B", "name": "AU Male B", "locale": "en-AU"},
+]
+
+# Cloud Translation supported languages
+TRANSLATION_LANGUAGES = {
+    "es": "Spanish", "fr": "French", "de": "German", "pt": "Portuguese",
+    "ja": "Japanese", "ko": "Korean", "zh": "Chinese (Simplified)",
+    "ar": "Arabic", "hi": "Hindi", "it": "Italian", "ru": "Russian",
+    "nl": "Dutch", "pl": "Polish", "tr": "Turkish", "sv": "Swedish",
+}
 
 # AI Video providers
 AI_VIDEO_PROVIDERS = ["none", "higgsville", "google_flow", "both"]
