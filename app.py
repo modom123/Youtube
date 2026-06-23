@@ -1633,6 +1633,298 @@ def start_background_threads():
     t2.start()
 
 
+# ── AI Personas & Avatars ──────────────────────────────────────────────────
+
+@app.route("/personas")
+@login_required
+def personas_page():
+    from ai_personas import get_all_personas, AVATAR_MODELS
+    personas = get_all_personas(current_user.id)
+    return render_template("personas.html", personas=personas, avatar_models=AVATAR_MODELS,
+                           voices=config.AVAILABLE_VOICES,
+                           google_tts_voices=config.GOOGLE_TTS_VOICES)
+
+
+@app.route("/api/personas", methods=["GET"])
+@login_required
+def api_list_personas():
+    from ai_personas import get_all_personas
+    return jsonify(get_all_personas(current_user.id))
+
+
+@app.route("/api/personas", methods=["POST"])
+@login_required
+def api_create_persona():
+    from ai_personas import create_custom_persona
+    data = request.json or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "Persona name is required"}), 400
+    persona_id = create_custom_persona(current_user.id, name, **{
+        k: v for k, v in data.items() if k != "name"
+    })
+    return jsonify({"id": persona_id, "status": "created"})
+
+
+@app.route("/api/personas/<persona_id>", methods=["PUT"])
+@login_required
+def api_update_persona(persona_id):
+    from ai_personas import update_persona
+    data = request.json or {}
+    update_persona(persona_id, current_user.id, **data)
+    return jsonify({"status": "updated"})
+
+
+@app.route("/api/personas/<persona_id>", methods=["DELETE"])
+@login_required
+def api_delete_persona(persona_id):
+    from ai_personas import delete_persona
+    delete_persona(persona_id, current_user.id)
+    return jsonify({"status": "deleted"})
+
+
+@app.route("/api/personas/<persona_id>/generate", methods=["POST"])
+@login_required
+def api_generate_avatar(persona_id):
+    from ai_personas import get_persona, generate_avatar_clips
+    allowed, err = check_usage_gate(current_user.id)
+    if not allowed:
+        return jsonify({"error": err, "upgrade": True}), 403
+    persona = get_persona(persona_id, current_user.id)
+    if not persona:
+        return jsonify({"error": "Persona not found"}), 404
+    data = request.json or {}
+    scenes = data.get("scenes", ["speaking to camera about the topic"])
+    format_type = data.get("format_type", "talking_head")
+    clips = generate_avatar_clips(
+        persona, scenes,
+        output_dir=str(config.VIDEOS_DIR / "avatars"),
+        format_type=format_type,
+        aspect_ratio=data.get("aspect_ratio", "16:9"),
+    )
+    return jsonify({"clips": clips, "count": len(clips)})
+
+
+@app.route("/api/personas/models", methods=["GET"])
+@login_required
+def api_avatar_models():
+    from ai_personas import get_avatar_models
+    return jsonify(get_avatar_models())
+
+
+# ── Ad Creatives ───────────────────────────────────────────────────────────
+
+@app.route("/api/ads/creatives", methods=["POST"])
+@login_required
+def api_generate_ad_creatives():
+    from ad_creatives import generate_ad_creative
+    data = request.json or {}
+    headline = data.get("headline", "")
+    body_text = data.get("body", "")
+    if not headline:
+        return jsonify({"error": "headline is required"}), 400
+    result = generate_ad_creative(
+        headline=headline,
+        body_text=body_text,
+        cta_text=data.get("cta", "Learn More"),
+        thumbnail_path=data.get("thumbnail_path"),
+        formats=data.get("formats"),
+        color_scheme=data.get("color_scheme", "dark"),
+    )
+    return jsonify(result)
+
+
+@app.route("/api/ads/creatives/bulk", methods=["POST"])
+@login_required
+def api_bulk_ad_creatives():
+    from ad_creatives import generate_bulk_creatives
+    data = request.json or {}
+    variants = data.get("variants", [])
+    if not variants:
+        return jsonify({"error": "variants list required"}), 400
+    results = generate_bulk_creatives(
+        variants=variants,
+        thumbnail_path=data.get("thumbnail_path"),
+        formats=data.get("formats"),
+        color_scheme=data.get("color_scheme", "dark"),
+    )
+    return jsonify({"creatives": results, "count": len(results)})
+
+
+# ── Ad Copywriting ─────────────────────────────────────────────────────────
+
+@app.route("/api/ads/copy", methods=["POST"])
+@login_required
+def api_generate_ad_copy():
+    from generators.agents.ad_copywriter import AdCopywriter
+    data = request.json or {}
+    product_name = data.get("product_name", "")
+    description = data.get("description", "")
+    if not product_name or not description:
+        return jsonify({"error": "product_name and description are required"}), 400
+    agent = AdCopywriter()
+    result = agent.run(
+        product_name=product_name,
+        description=description,
+        target_audience=data.get("target_audience", "general audience"),
+        tone=data.get("tone", "conversational"),
+    )
+    return jsonify(result.model_dump())
+
+
+# ── Landing Pages ──────────────────────────────────────────────────────────
+
+@app.route("/api/landing-pages", methods=["POST"])
+@login_required
+def api_create_landing_page():
+    from landing_page_generator import generate_landing_page
+    data = request.json or {}
+    title = data.get("title", "")
+    if not title:
+        return jsonify({"error": "title is required"}), 400
+    result = generate_landing_page(
+        title=title,
+        description=data.get("description", ""),
+        target_audience=data.get("target_audience", "general"),
+        video_url=data.get("video_url", ""),
+        thumbnail_url=data.get("thumbnail_url", ""),
+        cta_text=data.get("cta_text", "Get Started"),
+        cta_url=data.get("cta_url", ""),
+        style=data.get("style", "modern_dark"),
+        features=data.get("features"),
+        testimonials=data.get("testimonials"),
+        pricing=data.get("pricing"),
+    )
+    return jsonify(result)
+
+
+@app.route("/api/landing-pages", methods=["GET"])
+@login_required
+def api_list_landing_pages():
+    from landing_page_generator import list_landing_pages
+    return jsonify(list_landing_pages())
+
+
+@app.route("/lp/<page_id>")
+def serve_landing_page(page_id):
+    from landing_page_generator import get_landing_page_path
+    path = get_landing_page_path(page_id)
+    if not path:
+        return "Page not found", 404
+    return send_file(path, mimetype="text/html")
+
+
+@app.route("/api/landing-pages/<page_id>", methods=["DELETE"])
+@login_required
+def api_delete_landing_page(page_id):
+    from landing_page_generator import delete_landing_page
+    if delete_landing_page(page_id):
+        return jsonify({"status": "deleted"})
+    return jsonify({"error": "Page not found"}), 404
+
+
+# ── A/B Testing ────────────────────────────────────────────────────────────
+
+@app.route("/api/ab-tests", methods=["POST"])
+@login_required
+def api_create_ab_test():
+    from ab_testing import create_test
+    data = request.json or {}
+    test_type = data.get("test_type", "")
+    variants = data.get("variants", [])
+    if not test_type or len(variants) < 2:
+        return jsonify({"error": "test_type and at least 2 variants required"}), 400
+    test = create_test(
+        user_id=current_user.id,
+        test_type=test_type,
+        variants=variants,
+        job_id=data.get("job_id"),
+    )
+    return jsonify(test)
+
+
+@app.route("/api/ab-tests", methods=["GET"])
+@login_required
+def api_list_ab_tests():
+    from ab_testing import list_tests
+    return jsonify(list_tests(current_user.id))
+
+
+@app.route("/api/ab-tests/<test_id>", methods=["GET"])
+@login_required
+def api_get_ab_test(test_id):
+    from ab_testing import get_test_results
+    test = get_test_results(test_id)
+    if not test:
+        return jsonify({"error": "Test not found"}), 404
+    return jsonify(test)
+
+
+@app.route("/api/ab-tests/<test_id>/event", methods=["POST"])
+def api_ab_test_event(test_id):
+    from ab_testing import record_event
+    data = request.json or {}
+    variant_id = data.get("variant_id", "")
+    event_type = data.get("event_type", "")
+    if not variant_id or event_type not in ("impression", "click", "conversion"):
+        return jsonify({"error": "variant_id and valid event_type required"}), 400
+    record_event(variant_id, event_type)
+    return jsonify({"status": "recorded"})
+
+
+@app.route("/api/ab-tests/<test_id>/end", methods=["POST"])
+@login_required
+def api_end_ab_test(test_id):
+    from ab_testing import end_test
+    data = request.json or {}
+    end_test(test_id, data.get("winner_id"))
+    return jsonify({"status": "ended"})
+
+
+# ── Meta Ad Campaigns ──────────────────────────────────────────────────────
+
+@app.route("/api/ads/campaigns", methods=["POST"])
+@login_required
+def api_create_campaign():
+    from meta_ads import quick_campaign
+    data = request.json or {}
+    required = ["access_token", "ad_account_id", "page_id", "headline", "body", "link_url"]
+    missing = [f for f in required if not data.get(f)]
+    if missing:
+        return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+    result = quick_campaign(
+        access_token=data["access_token"],
+        ad_account_id=data["ad_account_id"],
+        page_id=data["page_id"],
+        campaign_name=data.get("campaign_name", "SOM Campaign"),
+        headline=data["headline"],
+        body=data["body"],
+        link_url=data["link_url"],
+        image_path=data.get("image_path"),
+        video_path=data.get("video_path"),
+        daily_budget_cents=int(data.get("daily_budget_cents", 2000)),
+        countries=data.get("countries"),
+        age_min=int(data.get("age_min", 18)),
+        age_max=int(data.get("age_max", 65)),
+        cta_type=data.get("cta_type", "LEARN_MORE"),
+    )
+    return jsonify(result)
+
+
+@app.route("/api/ads/interests", methods=["GET"])
+@login_required
+def api_search_interests():
+    from meta_ads import MetaAdsManager
+    token = request.args.get("access_token", "")
+    account = request.args.get("ad_account_id", "")
+    query = request.args.get("q", "")
+    if not token or not query:
+        return jsonify({"error": "access_token and q required"}), 400
+    mgr = MetaAdsManager(token, account)
+    results = mgr.search_interests(query)
+    return jsonify(results)
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 db.init_db()
@@ -1640,6 +1932,9 @@ start_background_threads()
 
 from lifecycle_agent import start_lifecycle_agent
 start_lifecycle_agent()
+
+from ai_personas import init_preset_personas
+init_preset_personas()
 
 if __name__ == "__main__":
     print("\n  Social Optimize Machine - Command Center")

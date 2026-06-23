@@ -216,6 +216,61 @@ def init_db():
             created_at      TEXT DEFAULT (datetime('now'))
         );
 
+        -- Feature 10: A/B Testing
+        CREATE TABLE IF NOT EXISTS ab_tests (
+            id          TEXT PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            job_id      INTEGER REFERENCES jobs(id) ON DELETE SET NULL,
+            test_type   TEXT NOT NULL,
+            status      TEXT DEFAULT 'running',
+            winner_id   TEXT,
+            created_at  TEXT DEFAULT (datetime('now')),
+            ended_at    TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS ab_variants (
+            id          TEXT PRIMARY KEY,
+            test_id     TEXT REFERENCES ab_tests(id) ON DELETE CASCADE,
+            label       TEXT NOT NULL,
+            content     TEXT NOT NULL,
+            impressions INTEGER DEFAULT 0,
+            clicks      INTEGER DEFAULT 0,
+            conversions INTEGER DEFAULT 0,
+            ctr         REAL DEFAULT 0,
+            confidence  REAL DEFAULT 0
+        );
+
+        -- Feature 11: AI Avatars & Personas
+        CREATE TABLE IF NOT EXISTS ai_personas (
+            id              TEXT PRIMARY KEY,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name            TEXT NOT NULL,
+            avatar_style    TEXT DEFAULT 'professional',
+            gender          TEXT DEFAULT 'neutral',
+            age_range       TEXT DEFAULT '25-35',
+            ethnicity       TEXT DEFAULT 'diverse',
+            appearance_desc TEXT DEFAULT '',
+            voice_id        TEXT DEFAULT 'en-US-AriaNeural',
+            personality     TEXT DEFAULT 'friendly and authoritative',
+            speaking_style  TEXT DEFAULT 'conversational',
+            niche           TEXT DEFAULT 'general',
+            reference_image TEXT,
+            model_preference TEXT DEFAULT 'seedance_2_0',
+            is_preset       INTEGER DEFAULT 0,
+            use_count       INTEGER DEFAULT 0,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS persona_generations (
+            id          TEXT PRIMARY KEY,
+            persona_id  TEXT REFERENCES ai_personas(id) ON DELETE CASCADE,
+            job_id      INTEGER REFERENCES jobs(id) ON DELETE SET NULL,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            video_path  TEXT,
+            status      TEXT DEFAULT 'pending',
+            created_at  TEXT DEFAULT (datetime('now'))
+        );
+
         -- Feature 9: Lifecycle / Checkout Tracking
         CREATE TABLE IF NOT EXISTS checkout_events (
             id          TEXT PRIMARY KEY,
@@ -972,6 +1027,179 @@ def get_all_competitor_channels_for_refresh():
     with get_conn() as conn:
         rows = conn.execute("SELECT * FROM competitor_channels").fetchall()
     return [row_to_dict(r) for r in rows]
+
+
+# ── Feature 11: AI Avatars & Personas ───────────────────────────────────────
+
+def create_persona(user_id: int, name: str, **kwargs) -> str:
+    persona_id = str(uuid.uuid4())
+    with get_conn() as conn:
+        fields = ["id", "user_id", "name"] + list(kwargs.keys())
+        placeholders = ",".join(["?"] * len(fields))
+        values = [persona_id, user_id, name] + list(kwargs.values())
+        conn.execute(
+            f"INSERT INTO ai_personas ({','.join(fields)}) VALUES ({placeholders})",
+            values
+        )
+    return persona_id
+
+
+def get_persona(persona_id: str, user_id: int = None):
+    with get_conn() as conn:
+        if user_id:
+            row = conn.execute(
+                "SELECT * FROM ai_personas WHERE id=? AND (user_id=? OR is_preset=1)",
+                (persona_id, user_id)
+            ).fetchone()
+        else:
+            row = conn.execute("SELECT * FROM ai_personas WHERE id=?", (persona_id,)).fetchone()
+    return row_to_dict(row)
+
+
+def get_personas(user_id: int):
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT * FROM ai_personas
+            WHERE user_id=? OR is_preset=1
+            ORDER BY is_preset DESC, use_count DESC, created_at DESC
+        """, (user_id,)).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def update_persona(persona_id: str, user_id: int, **kwargs):
+    if not kwargs:
+        return
+    cols = ", ".join(f"{k}=?" for k in kwargs)
+    vals = list(kwargs.values()) + [persona_id, user_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE ai_personas SET {cols} WHERE id=? AND user_id=?", vals)
+
+
+def delete_persona(persona_id: str, user_id: int):
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM ai_personas WHERE id=? AND user_id=? AND is_preset=0",
+            (persona_id, user_id)
+        )
+
+
+def increment_persona_use(persona_id: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE ai_personas SET use_count=use_count+1 WHERE id=?",
+            (persona_id,)
+        )
+
+
+def create_persona_generation(persona_id: str, user_id: int, job_id: int = None) -> str:
+    gen_id = str(uuid.uuid4())
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO persona_generations (id, persona_id, user_id, job_id)
+            VALUES (?,?,?,?)
+        """, (gen_id, persona_id, user_id, job_id))
+    return gen_id
+
+
+def update_persona_generation(gen_id: str, **kwargs):
+    if not kwargs:
+        return
+    cols = ", ".join(f"{k}=?" for k in kwargs)
+    vals = list(kwargs.values()) + [gen_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE persona_generations SET {cols} WHERE id=?", vals)
+
+
+# ── Feature 10: A/B Testing ────────────────────────────────────────────────
+
+def create_ab_test(user_id: int, test_type: str, job_id: int = None) -> str:
+    test_id = str(uuid.uuid4())
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO ab_tests (id, user_id, job_id, test_type)
+            VALUES (?,?,?,?)
+        """, (test_id, user_id, job_id, test_type))
+    return test_id
+
+
+def add_ab_variant(test_id: str, label: str, content: str) -> str:
+    variant_id = str(uuid.uuid4())
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO ab_variants (id, test_id, label, content)
+            VALUES (?,?,?,?)
+        """, (variant_id, test_id, label, content))
+    return variant_id
+
+
+def record_ab_impression(variant_id: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE ab_variants SET impressions=impressions+1 WHERE id=?",
+            (variant_id,)
+        )
+
+
+def record_ab_click(variant_id: str):
+    with get_conn() as conn:
+        conn.execute("""
+            UPDATE ab_variants SET clicks=clicks+1,
+            ctr=CAST(clicks+1 AS REAL)/CASE WHEN impressions=0 THEN 1 ELSE impressions END
+            WHERE id=?
+        """, (variant_id,))
+
+
+def record_ab_conversion(variant_id: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE ab_variants SET conversions=conversions+1 WHERE id=?",
+            (variant_id,)
+        )
+
+
+def get_ab_test(test_id: str):
+    with get_conn() as conn:
+        test = row_to_dict(conn.execute("SELECT * FROM ab_tests WHERE id=?", (test_id,)).fetchone())
+        if test:
+            variants = conn.execute(
+                "SELECT * FROM ab_variants WHERE test_id=? ORDER BY ctr DESC",
+                (test_id,)
+            ).fetchall()
+            test["variants"] = [row_to_dict(v) for v in variants]
+    return test
+
+
+def get_ab_tests(user_id: int):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM ab_tests WHERE user_id=? ORDER BY created_at DESC",
+            (user_id,)
+        ).fetchall()
+    tests = []
+    for row in rows:
+        t = row_to_dict(row)
+        with get_conn() as conn:
+            variants = conn.execute(
+                "SELECT * FROM ab_variants WHERE test_id=? ORDER BY ctr DESC",
+                (t["id"],)
+            ).fetchall()
+            t["variants"] = [row_to_dict(v) for v in variants]
+        tests.append(t)
+    return tests
+
+
+def end_ab_test(test_id: str, winner_id: str = None):
+    with get_conn() as conn:
+        if not winner_id:
+            top = conn.execute(
+                "SELECT id FROM ab_variants WHERE test_id=? ORDER BY ctr DESC LIMIT 1",
+                (test_id,)
+            ).fetchone()
+            winner_id = top["id"] if top else None
+        conn.execute(
+            "UPDATE ab_tests SET status='completed', winner_id=?, ended_at=datetime('now') WHERE id=?",
+            (winner_id, test_id)
+        )
 
 
 # ── Feature 9: Checkout & Lifecycle Tracking ────────────────────────────────

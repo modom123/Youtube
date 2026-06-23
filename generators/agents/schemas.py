@@ -97,6 +97,26 @@ class SEOPackage(BaseModel):
     ab_title_variants: list[str] = Field(min_length=2, max_length=3)
 
 
+# ── Ad Copywriter output ───────────────────────────────────────────────────
+
+class AdCopyVariant(BaseModel):
+    framework: Literal["aida", "pas", "bab", "4u", "fab"]
+    headline: str = Field(description="Primary ad headline (max 40 chars)")
+    body: str = Field(description="Ad body copy (max 125 chars for Meta)")
+    cta: str = Field(description="Call-to-action button text")
+    long_copy: str = Field(description="Extended version for long-form placements")
+
+
+class AdCopyPackage(BaseModel):
+    product_name: str
+    target_audience: str
+    variants: list[AdCopyVariant] = Field(min_length=5, max_length=5, description="One variant per framework")
+    hashtags: list[str] = Field(min_length=5, max_length=15)
+    hook_options: list[str] = Field(min_length=3, max_length=5, description="Opening hooks for video ads")
+    email_subject_lines: list[str] = Field(min_length=3, max_length=5)
+    social_captions: list[str] = Field(min_length=3, max_length=5, description="Ready-to-paste social media captions")
+
+
 # ── Pipeline result ──────────────────────────────────────────────────────────
 
 class ProductionResult(BaseModel):
