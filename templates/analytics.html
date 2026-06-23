@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% set active_page = "analytics" %}
+{% block title %}Analytics — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Analytics{% endblock %}
+{% block topbar_sub %}YouTube video performance and revenue estimates{% endblock %}
+{% block topbar_actions %}
+<button onclick="refreshAnalytics()" class="btn btn-primary" id="refresh-btn">Refresh from YouTube</button>
+{% endblock %}
+
+{% block content %}
+<style>
+  .analytics-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:16px; margin-bottom:24px; }
+  .a-stat { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; }
+  .a-stat-val { font-size:28px; font-weight:900; margin:4px 0; }
+  .a-stat-lbl { font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  .analytics-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:20px; }
+  .analytics-card h2 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 16px; }
+  .vid-table { width:100%; border-collapse:collapse; }
+  .vid-table th { text-align:left; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; padding:8px 12px; border-bottom:1px solid var(--border); }
+  .vid-table td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.04); font-size:13px; vertical-align:middle; }
+  .vid-table tr:last-child td { border-bottom:none; }
+  .vid-table tr:hover td { background:rgba(255,255,255,.02); }
+  .bar-wrap { width:100px; height:6px; background:var(--border); border-radius:3px; overflow:hidden; display:inline-block; vertical-align:middle; }
+  .bar-fill { height:100%; border-radius:3px; background:var(--accent); }
+  .chart-bars { display:flex; align-items:flex-end; gap:6px; height:120px; padding:0 4px; }
+  .chart-bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .chart-bar { width:100%; background:var(--accent); border-radius:4px 4px 0 0; min-height:2px; opacity:.85; transition:opacity .2s; cursor:pointer; }
+  .chart-bar:hover { opacity:1; }
+  .chart-label { font-size:9px; color:var(--muted); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:60px; }
+</style>
+
+<!-- Stats Row -->
+<div class="analytics-stats">
+  <div class="a-stat">
+    <div class="a-stat-lbl">Total Views</div>
+    <div class="a-stat-val" style="color:var(--accent);">{{ "{:,}".format(total_views) }}</div>
+  </div>
+  <div class="a-stat">
+    <div class="a-stat-lbl">Videos Tracked</div>
+    <div class="a-stat-val" style="color:#0a84ff;">{{ analytics|length }}</div>
+  </div>
+  <div class="a-stat">
+    <div class="a-stat-lbl">Est. Revenue</div>
+    <div class="a-stat-val" style="color:#30d158;">${{ "%.2f"|format(total_revenue) }}</div>
+  </div>
+  <div class="a-stat">
+    <div class="a-stat-lbl">Avg Views/Video</div>
+    <div class="a-stat-val" style="color:#ff9f0a;">{{ "{:,}".format((total_views // analytics|length) if analytics else 0) }}</div>
+  </div>
+</div>
+
+{% if analytics %}
+<!-- Bar Chart -->
+<div class="analytics-card">
+  <h2>Views by Video</h2>
+  {% set max_views = analytics|map(attribute='views')|max %}
+  <div class="chart-bars">
+    {% for v in analytics[:20] %}
+    {% set pct = (v.views / max_views * 100) if max_views > 0 else 0 %}
+    <div class="chart-bar-col">
+      <div class="chart-bar" style="height:{{ pct|round }}%;" title="{{ v.title }}: {{ '{:,}'.format(v.views) }} views"></div>
+      <div class="chart-label">{{ (v.title or v.video_id or '')[:12] }}</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Top Videos Table -->
+<div class="analytics-card">
+  <h2>Top Performing Videos</h2>
+  <table class="vid-table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Platform</th>
+        <th>Views</th>
+        <th>Likes</th>
+        <th>Comments</th>
+        <th>CTR</th>
+        <th>Retention</th>
+        <th>Est. Revenue</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for v in analytics %}
+      {% set max_v = analytics|map(attribute='views')|max %}
+      <tr>
+        <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="{{ v.title }}">
+          {{ v.title or v.video_id }}
+        </td>
+        <td><span style="font-size:11px;background:rgba(10,132,255,.15);color:#0a84ff;padding:2px 8px;border-radius:10px;font-weight:600;">{{ v.platform }}</span></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-weight:700;">{{ "{:,}".format(v.views) }}</span>
+            <div class="bar-wrap"><div class="bar-fill" style="width:{{ ((v.views / max_v * 100)|round) if max_v else 0 }}%;"></div></div>
+          </div>
+        </td>
+        <td>{{ "{:,}".format(v.likes) }}</td>
+        <td>{{ "{:,}".format(v.comments) }}</td>
+        <td>{{ "%.1f"|format(v.ctr) }}%</td>
+        <td>{{ "%.0f"|format(v.avg_retention_pct) }}%</td>
+        <td style="color:#30d158;font-weight:700;">${{ "%.2f"|format(v.revenue_estimate) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+<div class="analytics-card" style="text-align:center;padding:60px 20px;">
+  <div style="font-size:48px;margin-bottom:16px;">📊</div>
+  <div style="font-size:16px;font-weight:700;margin-bottom:8px;">No analytics data yet</div>
+  <div style="color:var(--muted);margin-bottom:24px;">Connect your YouTube account and publish videos to see stats here.</div>
+  <button onclick="refreshAnalytics()" class="btn btn-primary">Refresh from YouTube</button>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function refreshAnalytics() {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing...';
+  try {
+    const resp = await fetch('/api/analytics/refresh');
+    const data = await resp.json();
+    if (data.error) {
+      alert('Error: ' + data.error);
+    } else {
+      window.location.reload();
+    }
+  } catch(e) {
+    alert('Failed to refresh: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Refresh from YouTube';
+}
+</script>
+{% endblock %}

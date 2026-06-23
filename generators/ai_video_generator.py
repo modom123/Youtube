@@ -47,13 +47,11 @@ HIGGSVILLE_API_BASE = "https://api.higgsfield.ai/v1"
 # ── Higgsville REST API client ────────────────────────────────────────────────
 
 def _higgsville_headers() -> dict:
-    key = config.HIGGSFIELD_API_KEY
+    key = config.HIGGSFIELD_MCP_TOKEN
     if not key:
-        raise RuntimeError("HIGGSFIELD_API_KEY not set in .env")
-    # Format may be "key:secret" or just the key
-    api_key = key.split(":")[0] if ":" in key else key
+        raise RuntimeError("HIGGSFIELD_MCP_TOKEN not set in .env")
     return {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
@@ -192,7 +190,7 @@ def _try_sdk_clip(
     """Attempt generation via higgsfield-client SDK. Returns path or None."""
     try:
         import higgsfield_client as hf
-        os.environ["HF_KEY"] = config.HIGGSFIELD_API_KEY
+        os.environ["HF_KEY"] = config.HIGGSFIELD_MCP_TOKEN
 
         # Map new model IDs to SDK paths where known
         sdk_paths = {
@@ -366,6 +364,9 @@ def generate_ai_clips(
     """
     Generate AI video clips using the specified provider.
     provider: "higgsville" | "google_flow" | "both" | "none"
+
+    Higgsfield path tries the MCP endpoint first (https://mcp.higgsfield.ai/mcp),
+    then falls back to the higgsfield-client SDK, then the REST API.
     """
     output_dir = Path(output_dir)
     prompts = build_video_prompts(
@@ -375,8 +376,8 @@ def generate_ai_clips(
     clips = []
 
     if provider in ("higgsville", "both"):
-        if config.HIGGSFIELD_API_KEY:
-            hv_clips = generate_higgsville_clips(
+        if config.HIGGSFIELD_MCP_TOKEN:
+            hv_clips = _generate_higgsville_with_mcp_fallback(
                 prompts=prompts,
                 output_dir=output_dir / "higgsville",
                 model_id=model_key,
@@ -384,7 +385,7 @@ def generate_ai_clips(
             )
             clips.extend(hv_clips)
         else:
-            print("[ai_video] HIGGSFIELD_API_KEY not set — skipping Higgsville")
+            print("[ai_video] HIGGSFIELD_MCP_TOKEN not set — skipping Higgsville")
 
     if provider in ("google_flow", "both"):
         if config.GOOGLE_API_KEY:
@@ -398,3 +399,59 @@ def generate_ai_clips(
             print("[ai_video] GOOGLE_API_KEY not set — skipping Google Flow/Veo")
 
     return clips
+
+
+def _generate_higgsville_with_mcp_fallback(
+    prompts: list[str],
+    output_dir: Path,
+    model_id: str,
+    aspect_ratio: str,
+    duration: int = 5,
+) -> list[Path]:
+    """
+    Try Higgsfield CLI first (non-interactive, seeds token from env).
+    Fall back to MCP endpoint → SDK → REST API.
+    """
+    # 1. CLI path (preferred — single binary, no SDK dependency)
+    try:
+        from generators.higgsfield_cli import generate_clips_via_cli, is_authenticated
+        if is_authenticated():
+            cli_clips = generate_clips_via_cli(
+                prompts=prompts,
+                output_dir=output_dir / "cli",
+                model_id=model_id,
+                aspect_ratio=aspect_ratio,
+                duration=duration,
+            )
+            if cli_clips:
+                print(f"[ai_video] ✓ {len(cli_clips)} clips via Higgsfield CLI")
+                return cli_clips
+            print("[ai_video] CLI returned 0 clips — falling back to MCP")
+    except Exception as e:
+        print(f"[ai_video] CLI path error ({e}) — falling back to MCP")
+
+    # 2. MCP path
+    try:
+        from generators.higgsfield_mcp import generate_clips_via_mcp
+        mcp_clips = generate_clips_via_mcp(
+            prompts=prompts,
+            output_dir=output_dir / "mcp",
+            model_id=model_id,
+            aspect_ratio=aspect_ratio,
+            duration=duration,
+        )
+        if mcp_clips:
+            print(f"[ai_video] ✓ {len(mcp_clips)} clips via Higgsfield MCP")
+            return mcp_clips
+        print("[ai_video] MCP returned 0 clips — falling back to SDK/REST")
+    except Exception as e:
+        print(f"[ai_video] MCP path error ({e}) — falling back to SDK/REST")
+
+    # 3. SDK / REST fallback
+    return generate_higgsville_clips(
+        prompts=prompts,
+        output_dir=output_dir,
+        model_id=model_id,
+        aspect_ratio=aspect_ratio,
+        duration=duration,
+    )

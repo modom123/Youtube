@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Social Optimize — AI Content Creation Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+
+    /* ── Nav ── */
+    .nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 48px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 100; }
+    .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; text-decoration: none; color: var(--text); }
+    .nav-logo span { color: var(--accent); }
+    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta { display: flex; gap: 10px; }
+
+    /* ── Hero ── */
+    .hero { max-width: 900px; margin: 0 auto; padding: 80px 24px 60px; text-align: center; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,59,48,.1); border: 1px solid rgba(255,59,48,.3); border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 24px; text-transform: uppercase; letter-spacing: .08em; }
+    .hero h1 { font-size: clamp(36px, 6vw, 68px); font-weight: 900; line-height: 1.08; letter-spacing: -.03em; margin-bottom: 20px; }
+    .hero h1 .red { color: var(--accent); }
+    .hero h1 .dim { color: var(--muted); }
+    .hero-sub { font-size: 18px; color: var(--muted); max-width: 600px; margin: 0 auto 36px; line-height: 1.6; }
+    .hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .hero-ctas .btn { padding: 14px 28px; font-size: 16px; }
+    .hero-stats { display: flex; gap: 40px; justify-content: center; margin-top: 52px; flex-wrap: wrap; }
+    .hero-stat { text-align: center; }
+    .hero-stat .val { font-size: 32px; font-weight: 900; }
+    .hero-stat .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+
+    /* ── Feature section ── */
+    .section { max-width: 1100px; margin: 0 auto; padding: 72px 24px; }
+    .section-label { text-align: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin-bottom: 12px; }
+    .section-title { text-align: center; font-size: clamp(28px, 4vw, 42px); font-weight: 800; margin-bottom: 16px; letter-spacing: -.02em; }
+    .section-sub { text-align: center; font-size: 16px; color: var(--muted); max-width: 580px; margin: 0 auto 52px; line-height: 1.6; }
+
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; transition: border-color .2s; }
+    .feature-card:hover { border-color: var(--accent); }
+    .feature-icon { font-size: 28px; margin-bottom: 14px; }
+    .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* ── Agent pipeline ── */
+    .pipeline { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 32px 0; justify-content: center; flex-wrap: wrap; gap: 0; }
+    .pipe-node { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; text-align: center; min-width: 160px; }
+    .pipe-node .pn-icon { font-size: 28px; margin-bottom: 8px; }
+    .pipe-node .pn-name { font-size: 13px; font-weight: 700; }
+    .pipe-node .pn-desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .pipe-arrow { font-size: 20px; color: var(--muted); margin: 0 8px; flex-shrink: 0; }
+
+    /* ── Pricing ── */
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+    .pricing-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; position: relative; transition: border-color .2s; }
+    .pricing-card.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .pricing-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+    .pricing-tier { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
+    .pricing-price { font-size: 42px; font-weight: 900; margin-bottom: 4px; }
+    .pricing-price span { font-size: 16px; font-weight: 500; color: var(--muted); }
+    .pricing-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    .pricing-features { list-style: none; margin-bottom: 24px; }
+    .pricing-features li { font-size: 13px; padding: 5px 0; display: flex; align-items: center; gap: 8px; }
+    .pricing-features li::before { content: "✓"; color: #30d158; font-weight: 700; flex-shrink: 0; }
+    .pricing-btn { width: 100%; padding: 12px; font-size: 14px; font-weight: 700; }
+
+    /* ── CTA band ── */
+    .cta-band { background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 64px 24px; text-align: center; }
+    .cta-band h2 { font-size: clamp(26px, 4vw, 40px); font-weight: 900; margin-bottom: 12px; }
+    .cta-band p { color: var(--muted); font-size: 16px; margin-bottom: 28px; }
+
+    /* ── Footer ── */
+    .footer { max-width: 1100px; margin: 0 auto; padding: 32px 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+    .footer p { font-size: 12px; color: var(--muted); }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; }
+    .footer-links a:hover { color: var(--text); }
+
+    @media (max-width: 600px) {
+      .nav { padding: 14px 20px; }
+      .nav-links { display: none; }
+      .hero { padding: 48px 20px 40px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <a class="nav-logo" href="/">🎬 <span>Social</span> Optimize</a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#agents">Pipeline</a>
+    <a href="#pricing">Pricing</a>
+  </div>
+  <div class="nav-cta">
+    <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Sign In</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-badge">🚀 5-Agent AI Pipeline</div>
+  <h1>Turn any idea into a<br><span class="red">published video</span><br><span class="dim">in minutes.</span></h1>
+  <p class="hero-sub">AI researches your topic, writes the script, generates visuals, assembles the video, and publishes to YouTube, TikTok, and Instagram — automatically.</p>
+  <div class="hero-ctas">
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start for Free — 2 Videos</a>
+    <a href="#pricing" class="btn btn-secondary">See Pricing</a>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="val">5</div><div class="lbl">AI Agents</div></div>
+    <div class="hero-stat"><div class="val">17+</div><div class="lbl">Video Models</div></div>
+    <div class="hero-stat"><div class="val">3</div><div class="lbl">Platforms</div></div>
+    <div class="hero-stat"><div class="val">~5 min</div><div class="lbl">Avg. Production</div></div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="section" id="features">
+  <div class="section-label">Everything included</div>
+  <h2 class="section-title">One pipeline, full production</h2>
+  <p class="section-sub">No juggling 5 tools. Research, scripting, voice, video, SEO, and publishing all happen in one automated run.</p>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">🔍</div>
+      <h3>AI Research</h3>
+      <p>Pulls real facts, statistics, and sources from Wikipedia and the web before writing a single word.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">✍️</div>
+      <h3>Retention-Engineered Scripts</h3>
+      <p>Hooks, open loops, emotional beats — scripts written to keep viewers watching, not just informed.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎙</div>
+      <h3>AI Voiceover</h3>
+      <p>6 neural voices with natural cadence. Your script read aloud in seconds, not hours.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎬</div>
+      <h3>AI Video Generation</h3>
+      <p>17+ Higgsfield models — Kling 3.0, Veo 3.1, Cinema Studio 3.0. Cinematic B-roll generated from your script prompts.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📈</div>
+      <h3>SEO Optimisation</h3>
+      <p>Growth Engineer agent writes your title, description, tags, thumbnail text, and A/B variants.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">💰</div>
+      <h3>Budget-Smart Credits</h3>
+      <p>Cost Engineer routes assets between AI generation and free stock to stretch your credits further.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🚀</div>
+      <h3>One-Click Publishing</h3>
+      <p>Upload directly to YouTube, TikTok, and Instagram from the same dashboard.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎙</div>
+      <h3>Podcast Mode</h3>
+      <p>Animated waveform, chapter cards, and progress bar — turn any topic into a full podcast episode.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📊</div>
+      <h3>Content Analytics</h3>
+      <p>Track every job, review scripts, download videos, and monitor publishing results in one place.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Agent pipeline -->
+<div style="background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <section class="section" id="agents" style="padding-top:56px;padding-bottom:56px;">
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">5 specialized agents, 1 seamless pipeline</h2>
+    <div class="pipeline">
+      <div class="pipe-node">
+        <div class="pn-icon">🔍</div>
+        <div class="pn-name">Trend Architect</div>
+        <div class="pn-desc">Niche analysis<br>Winning angle</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node">
+        <div class="pn-icon">✍️</div>
+        <div class="pn-name">Narrative Designer</div>
+        <div class="pn-desc">Full script<br>Emotional beats</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node">
+        <div class="pn-icon">🎨</div>
+        <div class="pn-name">Asset Curator</div>
+        <div class="pn-desc">Visual plan<br>Source routing</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node">
+        <div class="pn-icon">💰</div>
+        <div class="pn-name">Cost Engineer</div>
+        <div class="pn-desc">Budget optimise<br>Credit swaps</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-node">
+        <div class="pn-icon">📈</div>
+        <div class="pn-name">Growth Engineer</div>
+        <div class="pn-desc">SEO package<br>A/B titles</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Pricing -->
+<section class="section" id="pricing">
+  <div class="section-label">Simple pricing</div>
+  <h2 class="section-title">Pick your plan</h2>
+  <p class="section-sub">All plans include the full 5-agent pipeline, AI voiceover, and multi-platform publishing. Credits cover AI video generation.</p>
+  <div class="pricing-grid">
+    {% for tier_key, tier in tiers.items() %}
+    <div class="pricing-card {% if tier_key == 'creator' %}featured{% endif %}">
+      {% if tier_key == 'creator' %}<div class="pricing-popular">Most Popular</div>{% endif %}
+      <div class="pricing-tier">{{ tier.label }}</div>
+      <div class="pricing-price">
+        {% if tier.price_monthly == 0 %}Free{% else %}${{ tier.price_monthly }}{% endif %}
+        {% if tier.price_monthly > 0 %}<span>/mo</span>{% endif %}
+      </div>
+      <div class="pricing-desc">
+        {% if tier_key == 'free' %}Try before you buy
+        {% elif tier_key == 'starter' %}Solo creators getting started
+        {% elif tier_key == 'creator' %}Full-time content creators
+        {% else %}Agencies &amp; power users{% endif %}
+      </div>
+      <ul class="pricing-features">
+        {% for f in tier.features %}
+        <li>{{ f }}</li>
+        {% endfor %}
+      </ul>
+      {% if tier_key == 'free' %}
+        <a href="{{ url_for('auth.register') }}" class="btn btn-secondary pricing-btn">Start Free</a>
+      {% else %}
+        <a href="{{ url_for('auth.register') }}" class="btn {% if tier_key == 'creator' %}btn-primary{% else %}btn-secondary{% endif %} pricing-btn">Get Started</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- CTA Band -->
+<div class="cta-band">
+  <h2>Ready to automate your channel?</h2>
+  <p>Join creators using Social Optimize to publish faster and smarter.</p>
+  <a href="{{ url_for('auth.register') }}" class="btn btn-primary" style="padding:14px 32px;font-size:16px;">Create Free Account</a>
+</div>
+
+<!-- Footer -->
+<footer class="footer">
+  <p>© 2025 Social Optimize Machine. All rights reserved.</p>
+  <div class="footer-links">
+    <a href="{{ url_for('auth.login') }}">Sign In</a>
+    <a href="{{ url_for('auth.register') }}">Register</a>
+  </div>
+</footer>
+
+</body>
+</html>

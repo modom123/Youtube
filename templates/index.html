@@ -7,6 +7,37 @@
 
 {% block content %}
 
+<!-- Usage / Plan Banner -->
+{% if tier %}
+{% set vlimit = tier.videos_per_month %}
+{% set vused = current_user.videos_used %}
+{% set vpct = 0 %}
+{% if vlimit > 0 %}{% set vpct = [(vused / vlimit * 100)|round|int, 100]|min %}{% endif %}
+<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+  <div>
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);">Your Plan</div>
+    <div style="font-size:16px;font-weight:800;">{{ tier.label }}
+      {% if tier.price_monthly > 0 %}<span style="font-size:12px;color:var(--muted);font-weight:500;">· ${{ tier.price_monthly }}/mo</span>{% endif %}
+    </div>
+  </div>
+  <div style="flex:1;min-width:180px;">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:5px;">
+      Videos this month: <strong>{{ vused }} / {% if vlimit == -1 %}∞{% else %}{{ vlimit }}{% endif %}</strong>
+    </div>
+    {% if vlimit > 0 %}
+    <div style="height:5px;background:var(--border);border-radius:3px;overflow:hidden;">
+      <div style="height:100%;border-radius:3px;width:{{ vpct }}%;background:{% if vpct >= 90 %}var(--accent){% elif vpct >= 70 %}#ff9f0a{% else %}#30d158{% endif %};transition:width .4s;"></div>
+    </div>
+    {% endif %}
+  </div>
+  {% if tier.price_monthly == 0 or vused >= vlimit and vlimit != -1 %}
+  <a href="/billing" class="btn btn-primary" style="white-space:nowrap;">Upgrade Plan</a>
+  {% else %}
+  <a href="/billing" class="btn btn-secondary" style="white-space:nowrap;">Manage Plan</a>
+  {% endif %}
+</div>
+{% endif %}
+
 <!-- Stats Row -->
 <div class="stats-grid">
   <div class="stat-card red-accent">
