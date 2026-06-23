@@ -225,7 +225,7 @@
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free</button>
       <ul class="pricing-features">
         <li>3 videos/month</li>
-        <li>2 platforms</li>
+        <li>All 8 platforms</li>
         <li>Basic research</li>
         <li>Community support</li>
         <li>7-day retention</li>
@@ -236,12 +236,12 @@
     <div class="pricing-card">
       <div class="pricing-tier">Tier 02</div>
       <h3 class="pricing-name">Starter</h3>
-      <div class="pricing-price"><span id="starter-price">$49</span><span>/mo</span></div>
+      <div class="pricing-price"><span id="starter-price">$29</span><span>/mo</span></div>
       <p class="pricing-desc">For growing creators</p>
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start 14-day Trial</button>
       <ul class="pricing-features">
         <li>15 videos/month</li>
-        <li>3 platforms</li>
+        <li>All 8 platforms</li>
         <li>Full research</li>
         <li>Email support</li>
         <li>Advanced scripting</li>
@@ -254,7 +254,7 @@
       <div class="pricing-popular">Most Popular</div>
       <div class="pricing-tier">Tier 03</div>
       <h3 class="pricing-name">Pro</h3>
-      <div class="pricing-price"><span id="pro-price">$149</span><span>/mo</span></div>
+      <div class="pricing-price"><span id="pro-price">$79</span><span>/mo</span></div>
       <p class="pricing-desc">For serious creators</p>
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start 14-day Trial</button>
       <ul class="pricing-features">
@@ -273,7 +273,7 @@
     <div class="pricing-card">
       <div class="pricing-tier">Tier 04</div>
       <h3 class="pricing-name">Agency</h3>
-      <div class="pricing-price"><span id="agency-price">$399</span><span>/mo</span></div>
+      <div class="pricing-price"><span id="agency-price">$199</span><span>/mo</span></div>
       <p class="pricing-desc">For teams & agencies</p>
       <button class="pricing-cta" onclick="window.location.href='/contact'">Contact Sales</button>
       <ul class="pricing-features">
@@ -316,8 +316,8 @@
         </tr>
         <tr>
           <td class="comp-feature">Platforms supported</td>
-          <td><span class="comp-check">2</span></td>
-          <td><span class="comp-check">3</span></td>
+          <td><span class="comp-check">8</span></td>
+          <td><span class="comp-check">8</span></td>
           <td><span class="comp-check">8</span></td>
           <td><span class="comp-check">8</span></td>
         </tr>
@@ -462,8 +462,8 @@
 
 <script>
 const priceMap = {
-  'monthly': { starter: 49, pro: 149, agency: 399 },
-  'annual': { starter: 39, pro: 119, agency: 319 }
+  'monthly': { starter: 29, pro: 79, agency: 199 },
+  'annual': { starter: 23, pro: 63, agency: 159 }
 };
 
 function togglePricing(period) {
