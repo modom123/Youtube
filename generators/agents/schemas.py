@@ -99,6 +99,31 @@ class SEOPackage(BaseModel):
 
 # ── Pipeline result ──────────────────────────────────────────────────────────
 
+# ── Community Engineer output ──────────────────────────────────────────────
+
+class EngagementAction(BaseModel):
+    platform: str
+    action_type: str
+    target_description: str = ""
+    target_username: str = ""
+    comment_text: str = ""
+    timing: str = ""
+    priority: int = Field(ge=1, le=5, default=3)
+    strategy_tier: str = ""
+    rationale: str = ""
+
+
+class EngagementPlan(BaseModel):
+    daily_actions: list[EngagementAction] = Field(default_factory=list)
+    total_actions: int = 0
+    platform_breakdown: dict[str, int] = Field(default_factory=dict)
+    estimated_reach: int = 0
+    key_focus: str = ""
+    notes: str = ""
+
+
+# ── Pipeline result ──────────────────────────────────────────────────────────
+
 class ProductionResult(BaseModel):
     niche: str
     blueprint: VideoBlueprint
