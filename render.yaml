@@ -1,13 +1,11 @@
 services:
   - type: web
     name: social-optimize
-    runtime: python
+    runtime: docker
     plan: starter          # $7/mo — needed for persistent disk support
     region: oregon         # or frankfurt / singapore
     branch: main           # change to your production branch
-
-    buildCommand: "bash build.sh"
-    startCommand: "gunicorn app:app -c gunicorn.conf.py"
+    dockerfilePath: ./Dockerfile
 
     healthCheckPath: /health
 
