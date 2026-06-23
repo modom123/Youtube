@@ -134,6 +134,7 @@
             <option value="long">Long-form (16:9)</option>
             <option value="short">Short / Reel (9:16)</option>
             <option value="podcast">Podcast Episode</option>
+            <option value="commercial">Commercial / Ad</option>
           </select>
         </div>
         <div class="form-row" id="durationRow">
@@ -182,6 +183,44 @@
             <option value="bold">Bold</option>
             <option value="dark">Dark</option>
           </select>
+        </div>
+      </div>
+
+      <!-- Commercial settings (shown when commercial selected) -->
+      <div id="studioCommercialPanel" style="display:none;border:1px solid #f59e0b55;border-radius:10px;padding:14px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#f59e0b;margin-bottom:12px;">📺 Commercial Settings</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px;" id="studioAdLenGrid">
+          <div onclick="studioPickAdLen(this,'commercial_6',6)" data-adlen="commercial_6" style="padding:8px 4px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
+            <div style="font-size:14px;font-weight:800;">6s</div><div style="font-size:10px;color:var(--muted);">Bumper</div>
+          </div>
+          <div onclick="studioPickAdLen(this,'commercial_15',15)" data-adlen="commercial_15" style="padding:8px 4px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
+            <div style="font-size:14px;font-weight:800;">15s</div><div style="font-size:10px;color:var(--muted);">Pre-roll</div>
+          </div>
+          <div onclick="studioPickAdLen(this,'commercial_30',30)" data-adlen="commercial_30" style="padding:8px 4px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid #f59e0b;background:rgba(245,158,11,.08);">
+            <div style="font-size:14px;font-weight:800;">30s</div><div style="font-size:10px;color:var(--muted);">Standard</div>
+          </div>
+          <div onclick="studioPickAdLen(this,'commercial_60',60)" data-adlen="commercial_60" style="padding:8px 4px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
+            <div style="font-size:14px;font-weight:800;">60s</div><div style="font-size:10px;color:var(--muted);">Story</div>
+          </div>
+        </div>
+        <input type="hidden" id="s-ad-format" value="commercial_30">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <div class="form-row" style="margin:0;"><label>Brand Name</label><input type="text" id="s-ad-brand" placeholder="Nike" /></div>
+          <div class="form-row" style="margin:0;"><label>Product</label><input type="text" id="s-ad-product" placeholder="Air Max 2025" /></div>
+        </div>
+        <div class="form-row" style="margin-bottom:8px;"><label>Key Benefit</label><input type="text" id="s-ad-benefit" placeholder="Run farther, recover faster" /></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="form-row" style="margin:0;"><label>CTA</label><input type="text" id="s-ad-cta" placeholder="Shop now at nike.com" /></div>
+          <div class="form-row" style="margin:0;"><label>Style</label>
+            <select id="s-ad-style">
+              <option value="cinematic">Cinematic</option>
+              <option value="ugc">UGC / Testimonial</option>
+              <option value="product_demo">Product Demo</option>
+              <option value="problem_solution">Problem → Solution</option>
+              <option value="lifestyle">Lifestyle</option>
+              <option value="direct_response">Direct Response</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -382,15 +421,34 @@ function studioFormatChange() {
   const dur = document.getElementById('s-duration');
   const podRow = document.getElementById('podcastDurationRow');
   const durRow = document.getElementById('durationRow');
+  const commPanel = document.getElementById('studioCommercialPanel');
   if (fmt === 'podcast') {
     podRow.style.display = '';
     durRow.style.display = 'none';
+    commPanel.style.display = 'none';
     dur.value = 1800;
+  } else if (fmt === 'commercial') {
+    podRow.style.display = 'none';
+    durRow.style.display = 'none';
+    commPanel.style.display = '';
+    dur.value = 30;
   } else {
     podRow.style.display = 'none';
     durRow.style.display = '';
+    commPanel.style.display = 'none';
     dur.value = fmt === 'short' ? 55 : 480;
   }
+}
+
+function studioPickAdLen(el, adFmt, seconds) {
+  document.querySelectorAll('#studioAdLenGrid [data-adlen]').forEach(c => {
+    c.style.borderColor = 'var(--border)';
+    c.style.background = 'var(--bg)';
+  });
+  el.style.borderColor = '#f59e0b';
+  el.style.background = 'rgba(245,158,11,.08)';
+  document.getElementById('s-ad-format').value = adFmt;
+  document.getElementById('s-duration').value = seconds;
 }
 
 function studioPickPodcastDur(el, seconds) {
@@ -551,10 +609,12 @@ function studioRun() {
 
   const competitors = document.getElementById('s-competitors').value.split('\n').map(s=>s.trim()).filter(Boolean);
 
+  const fmt = document.getElementById('s-format').value;
   const payload = {
     niche,
     audience: document.getElementById('s-audience').value.trim(),
-    is_portrait: document.getElementById('s-format').value === 'short',
+    format: fmt,
+    is_portrait: fmt === 'short',
     target_duration: parseInt(document.getElementById('s-duration').value) || 480,
     voice: document.getElementById('s-voice').value,
     thumbnail_style: document.getElementById('s-thumb-style').value,
@@ -563,6 +623,13 @@ function studioRun() {
     research_enabled: document.getElementById('s-research').checked,
     dry_run: document.getElementById('s-dryrun').checked,
     competitor_titles: competitors,
+    // Commercial fields
+    ad_format: document.getElementById('s-ad-format').value,
+    ad_brand: (document.getElementById('s-ad-brand').value || '').trim(),
+    ad_product: (document.getElementById('s-ad-product').value || '').trim(),
+    ad_benefit: (document.getElementById('s-ad-benefit').value || '').trim(),
+    ad_cta: (document.getElementById('s-ad-cta').value || '').trim(),
+    ad_style: document.getElementById('s-ad-style').value,
   };
 
   fetch('/api/studio/run', {

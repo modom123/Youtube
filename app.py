@@ -195,8 +195,9 @@ def api_create():
         skip_research=skip_research, user_id=current_user.id,
     )
     db.increment_user_usage(current_user.id, videos=1)
+    fmt = data.get("format", "short")
     params = {
-        "topic": topic, "format": data.get("format", "short"),
+        "topic": topic, "format": fmt,
         "platforms": platforms, "audience": data.get("audience", "general public"),
         "voice": data.get("voice") or config.DEFAULT_VOICE,
         "thumbnail_style": data.get("style", "fire"),
@@ -210,6 +211,15 @@ def api_create():
         "podcast_name": (data.get("podcast_name") or "").strip() or topic,
         "episode_number": int(data.get("episode_number") or 1),
         "guest_name": (data.get("guest_name") or "").strip(),
+        "target_duration": int(data.get("target_duration") or 0) or None,
+        # Commercial params
+        "ad_format": data.get("ad_format") or "",
+        "ad_brand": (data.get("ad_brand") or "").strip(),
+        "ad_product": (data.get("ad_product") or "").strip(),
+        "ad_benefit": (data.get("ad_benefit") or "").strip(),
+        "ad_cta": (data.get("ad_cta") or "").strip(),
+        "ad_style": data.get("ad_style") or "cinematic",
+        "ad_platforms": data.get("ad_platforms") or [],
     }
     t = threading.Thread(target=_run_job_thread, args=(job_id, params, current_user.id), daemon=True)
     t.start()

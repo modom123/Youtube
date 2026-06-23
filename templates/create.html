@@ -54,6 +54,11 @@
           <div class="format-desc">Conversational audio+visual · 10 min</div>
           <span class="format-badge badge-green">16:9 Landscape</span>
         </div>
+        <div class="format-card" data-format="commercial" onclick="selectFormat(this,'commercial')" style="border-color:#f59e0b55;">
+          <div class="format-name" style="color:#f59e0b;">📺 Commercial</div>
+          <div class="format-desc">Brand ad · 6 / 15 / 30 / 60 sec</div>
+          <span class="format-badge" style="background:rgba(245,158,11,.15);color:#f59e0b;">Any Ratio</span>
+        </div>
       </div>
     </div>
 
@@ -160,6 +165,86 @@
       </div>
       <div class="text-dim text-xs mt-8">
         The podcast video will include an animated equalizer, chapter markers, and a progress bar.
+      </div>
+    </div>
+
+    <!-- Commercial Settings -->
+    <div class="card" id="commercialPanel" style="display:none;border-color:#f59e0b55;">
+      <div class="card-title mb-16">
+        <span style="color:#f59e0b;">📺</span> Commercial Settings
+      </div>
+
+      <!-- Ad length -->
+      <div class="form-group mb-16">
+        <label>Ad Length</label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;" id="adLengthGrid">
+          <div class="format-card" data-adlen="commercial_6" onclick="selectAdLen(this,'commercial_6',6)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">6s</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Bumper ad</div>
+          </div>
+          <div class="format-card" data-adlen="commercial_15" onclick="selectAdLen(this,'commercial_15',15)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">15s</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Pre-roll</div>
+          </div>
+          <div class="format-card selected" data-adlen="commercial_30" onclick="selectAdLen(this,'commercial_30',30)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">30s</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Standard</div>
+          </div>
+          <div class="format-card" data-adlen="commercial_60" onclick="selectAdLen(this,'commercial_60',60)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">60s</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Brand story</div>
+          </div>
+        </div>
+        <input type="hidden" id="ad_format" value="commercial_30">
+        <input type="hidden" id="ad_duration" value="30">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label>Brand / Company Name *</label>
+          <input type="text" id="ad_brand" placeholder="e.g. Nike">
+        </div>
+        <div class="form-group">
+          <label>Product / Service</label>
+          <input type="text" id="ad_product" placeholder="e.g. Air Max 2025">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Key Benefit / Value Proposition</label>
+        <input type="text" id="ad_benefit" placeholder="e.g. Run farther, recover faster">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label>Call to Action</label>
+          <input type="text" id="ad_cta" placeholder="e.g. Shop now at nike.com">
+        </div>
+        <div class="form-group">
+          <label>Ad Style</label>
+          <select id="ad_style">
+            <option value="cinematic">Cinematic / Emotional</option>
+            <option value="ugc">UGC / Testimonial</option>
+            <option value="product_demo">Product Demo</option>
+            <option value="problem_solution">Problem → Solution</option>
+            <option value="lifestyle">Lifestyle / Aspirational</option>
+            <option value="direct_response">Direct Response</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Target Platform</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="ad_platform" value="youtube" checked> YouTube Ads</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="ad_platform" value="meta"> Meta Ads</label>
+          <label style="display:flex;align-items:center;gap=6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="ad_platform" value="tiktok"> TikTok Ads</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="ad_platform" value="ctv"> CTV / Streaming</label>
+        </div>
+      </div>
+
+      <div class="text-dim text-xs mt-4">
+        Uses Higgsfield Marketing Studio model for cinematic ad-quality footage. AI-written ad copy follows proven AIDA framework.
       </div>
     </div>
 
@@ -299,6 +384,14 @@ function selectFormat(el, fmt) {
   el.classList.add('selected');
   _format = fmt;
   document.getElementById('podcastPanel').style.display = (fmt === 'podcast') ? '' : 'none';
+  document.getElementById('commercialPanel').style.display = (fmt === 'commercial') ? '' : 'none';
+}
+
+function selectAdLen(el, adFmt, seconds) {
+  document.querySelectorAll('#adLengthGrid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('ad_format').value = adFmt;
+  document.getElementById('ad_duration').value = seconds;
 }
 
 function selectPodcastDuration(el, seconds) {
@@ -397,7 +490,17 @@ async function startCreate() {
     podcast_name: document.getElementById('podcast_name').value || topic,
     episode_number: parseInt(document.getElementById('episode_number').value) || 1,
     guest_name: document.getElementById('guest_name').value || '',
-    target_duration: parseInt(document.getElementById('podcast_duration').value) || 1800,
+    target_duration: _format === 'commercial'
+      ? parseInt(document.getElementById('ad_duration').value) || 30
+      : parseInt(document.getElementById('podcast_duration').value) || 1800,
+    // Commercial-specific fields
+    ad_format: _format === 'commercial' ? document.getElementById('ad_format').value : null,
+    ad_brand: document.getElementById('ad_brand').value || '',
+    ad_product: document.getElementById('ad_product').value || '',
+    ad_benefit: document.getElementById('ad_benefit').value || '',
+    ad_cta: document.getElementById('ad_cta').value || '',
+    ad_style: document.getElementById('ad_style').value || 'cinematic',
+    ad_platforms: Array.from(document.querySelectorAll('input[name="ad_platform"]:checked')).map(c => c.value),
   };
 
   await launchJob(payload);

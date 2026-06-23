@@ -41,6 +41,35 @@ def _build_prompt(
             "Each chapter must have a distinct focus. Sections must reflect these chapters exactly."
         ),
         "reel": f"Create an Instagram REEL script (~{target_duration} seconds). Visually driven, trend-aware, highly shareable.",
+        "commercial_6": (
+            "Create a 6-SECOND BUMPER AD script. This is a YouTube bumper ad — unskippable, 6 seconds maximum. "
+            "Structure: One single punchy message + brand/product name. No fluff. Every word must earn its place. "
+            "The narration should be 10–15 words maximum. One unforgettable visual moment."
+        ),
+        "commercial_15": (
+            "Create a 15-SECOND AD script. Structure: "
+            "0–3s: Instant pattern interrupt / problem statement, "
+            "3–10s: Product/solution shown in action with key benefit, "
+            "10–15s: CTA + brand name. "
+            "No wasted words. Write for high energy, fast cuts. Narration ≤ 40 words."
+        ),
+        "commercial_30": (
+            "Create a 30-SECOND TV/DIGITAL AD script. This is the gold standard commercial format. Structure: "
+            "0–5s: Hook — emotional or surprising opening, "
+            "5–20s: Story or demonstration — show the problem being solved, "
+            "20–27s: Product benefit + social proof, "
+            "27–30s: Strong CTA + brand name/tagline. "
+            "Write cinematic scene descriptions in the sections. Narration ≤ 80 words."
+        ),
+        "commercial_60": (
+            "Create a 60-SECOND BRAND STORY / long-form ad script. Structure: "
+            "0–8s: Emotional hook — relatable problem or aspiration, "
+            "8–35s: Story arc — character encounters problem, discovers solution, "
+            "35–50s: Transformation — show the after state with product, "
+            "50–57s: Key features + social proof (stats, testimonial), "
+            "57–60s: CTA + brand name + tagline. "
+            "This should feel cinematic and emotional, not salesy. Narration ≤ 160 words."
+        ),
     }
 
     research_block = ""

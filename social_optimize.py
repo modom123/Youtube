@@ -52,6 +52,16 @@ CONTENT_PROFILES = {
         "is_short": True,
         "content_type": "reel",
     },
+    # Commercials — content_type is set dynamically based on ad_format
+    "commercial": {
+        "label": "Commercial / Ad",
+        "duration": 30,
+        "width": config.VIDEO_WIDTH,
+        "height": config.VIDEO_HEIGHT,
+        "is_portrait": False,
+        "is_short": False,
+        "content_type": "commercial_30",  # overridden at runtime
+    },
 }
 
 
@@ -72,6 +82,15 @@ def run(
     podcast_name: str = "",
     episode_number: int = 1,
     guest_name: str = "",
+    # Commercial-specific params
+    ad_format: str = "",
+    ad_brand: str = "",
+    ad_product: str = "",
+    ad_benefit: str = "",
+    ad_cta: str = "",
+    ad_style: str = "cinematic",
+    ad_platforms: list = None,
+    target_duration: int = None,
 ) -> dict:
     """
     Full pipeline: topic → research → script → audio → video → publish.
@@ -93,8 +112,30 @@ def run(
         Manifest dict with all outputs and publish results
     """
     platforms = platforms or []
-    profile = CONTENT_PROFILES.get(format, CONTENT_PROFILES["short"])
+    ad_platforms = ad_platforms or []
+    profile = CONTENT_PROFILES.get(format, CONTENT_PROFILES["short"]).copy()
     voice = voice or config.DEFAULT_VOICE
+
+    # Commercial: set content_type and duration from ad_format
+    if format == "commercial":
+        profile["content_type"] = ad_format or "commercial_30"
+        dur_map = {"commercial_6": 6, "commercial_15": 15, "commercial_30": 30, "commercial_60": 60}
+        profile["duration"] = dur_map.get(ad_format, 30)
+        # Inject brand context into topic for script generation
+        if ad_brand:
+            brand_ctx = f"{ad_brand}"
+            if ad_product:
+                brand_ctx += f" — {ad_product}"
+            if ad_benefit:
+                brand_ctx += f". Key benefit: {ad_benefit}"
+            if ad_cta:
+                brand_ctx += f". CTA: {ad_cta}"
+            topic = f"{topic} | {brand_ctx}"
+        # Use marketing_studio model for Higgsfield
+        if ai_video_provider != "none":
+            higgsfield_model = "marketing_studio_video"
+    elif target_duration and format == "podcast":
+        profile["duration"] = target_duration
 
     logger.header("Social Optimize Machine")
     logger.info(f"Topic: [bold]{topic}[/bold]")
