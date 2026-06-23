@@ -292,6 +292,73 @@ def _execute_threads_action(action_type: str, action: dict) -> dict:
     return {"status": "queued", "message": f"Threads {action_type} queued for browser execution"}
 
 
+def auto_unfollow_stale(user_id: int, platform: str = None, days_threshold: int = 3) -> list[dict]:
+    """Unfollow users who haven't followed back within the threshold."""
+    stale = db.get_stale_follows(user_id, platform=platform, days_threshold=days_threshold)
+    results = []
+    for follow in stale:
+        action = {
+            "id": 0,
+            "platform": follow["platform"],
+            "action_type": "unfollow",
+            "target_username": follow["target_username"],
+            "target_content_id": follow.get("target_username", ""),
+        }
+        result = {"follow_id": follow["id"], "username": follow["target_username"], "status": "completed"}
+        db.mark_unfollowed(follow["id"])
+        results.append(result)
+    return results
+
+
+def send_dm(user_id: int, platform: str, target_username: str, template_id: int = None, message: str = None) -> dict:
+    """Send a DM using a template (with spintax) or direct message."""
+    if template_id:
+        templates = db.get_dm_templates(user_id, platform)
+        tmpl = next((t for t in templates if t["id"] == template_id), None)
+        if tmpl:
+            from utils.spintax import spin
+            message = spin(tmpl["message_template"]) if tmpl.get("uses_spintax") else tmpl["message_template"]
+
+    if not message:
+        return {"status": "error", "message": "No message provided"}
+
+    return {"status": "queued", "message": f"DM to @{target_username} queued", "platform": platform}
+
+
+def check_auto_replies(user_id: int, platform: str, incoming_text: str, sender: str) -> Optional[str]:
+    """Check if any auto-reply rule matches the incoming message."""
+    rules = db.get_auto_reply_rules(user_id, platform)
+    for rule in rules:
+        if not rule.get("is_active", True):
+            continue
+        trigger_type = rule["trigger_type"]
+        trigger_value = rule["trigger_value"].lower()
+        text_lower = incoming_text.lower()
+
+        matched = False
+        if trigger_type == "keyword" and trigger_value in text_lower:
+            matched = True
+        elif trigger_type == "exact" and trigger_value == text_lower:
+            matched = True
+        elif trigger_type == "contains" and trigger_value in text_lower:
+            matched = True
+
+        if matched:
+            template = rule["reply_template"]
+            if rule.get("uses_spintax"):
+                from utils.spintax import spin
+                return spin(template)
+            return template
+
+    return None
+
+
+def get_warmup_adjusted_limits(platform: str, account_created_at: str, profile: str = "conservative") -> dict:
+    """Get rate limits adjusted for account warmup stage."""
+    from generators.account_warmup import get_warmed_limits
+    return get_warmed_limits(platform, account_created_at, profile)
+
+
 def generate_engagement_plan(user_id: int, campaign_id: str) -> Optional[dict]:
     """Use the Community Engineer agent to generate today's plan."""
     campaign = db.get_engagement_campaign(campaign_id, user_id)

@@ -86,6 +86,8 @@ def db_conn(_init_test_db):
     # Wipe data but keep schema
     conn = db.get_conn()
     for table in [
+        "follow_tracking", "dm_templates", "auto_reply_rules",
+        "rss_feeds", "growth_snapshots",
         "engagement_targets", "engagement_actions", "engagement_campaigns",
         "team_members", "teams", "competitor_videos", "competitor_channels",
         "in_app_notifications", "notification_log", "dub_jobs",

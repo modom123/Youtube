@@ -289,6 +289,75 @@ def init_db():
             notes           TEXT,
             added_at        TEXT DEFAULT (datetime('now'))
         );
+
+        -- Feature 10: Growth Analytics (time-series)
+        CREATE TABLE IF NOT EXISTS growth_snapshots (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            account_id      INTEGER REFERENCES social_accounts(id) ON DELETE CASCADE,
+            platform        TEXT NOT NULL,
+            followers       INTEGER DEFAULT 0,
+            following       INTEGER DEFAULT 0,
+            posts           INTEGER DEFAULT 0,
+            engagement_rate REAL DEFAULT 0.0,
+            views_total     INTEGER DEFAULT 0,
+            likes_total     INTEGER DEFAULT 0,
+            snapshot_at     TEXT DEFAULT (datetime('now'))
+        );
+
+        -- Feature 11: RSS Feed Subscriptions
+        CREATE TABLE IF NOT EXISTS rss_feeds (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            url             TEXT NOT NULL,
+            name            TEXT,
+            category        TEXT DEFAULT 'general',
+            is_active       INTEGER DEFAULT 1,
+            last_fetched    TEXT,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
+
+        -- Feature 12: Auto-Reply Templates
+        CREATE TABLE IF NOT EXISTS auto_reply_rules (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            platform        TEXT NOT NULL,
+            trigger_type    TEXT DEFAULT 'keyword',
+            trigger_value   TEXT,
+            reply_template  TEXT NOT NULL,
+            is_active       INTEGER DEFAULT 1,
+            uses_spintax    INTEGER DEFAULT 0,
+            max_replies_day INTEGER DEFAULT 20,
+            replies_today   INTEGER DEFAULT 0,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
+
+        -- Feature 13: DM Templates
+        CREATE TABLE IF NOT EXISTS dm_templates (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name            TEXT NOT NULL,
+            platform        TEXT DEFAULT 'all',
+            message_template TEXT NOT NULL,
+            uses_spintax    INTEGER DEFAULT 1,
+            trigger_on      TEXT DEFAULT 'new_follower',
+            delay_minutes   INTEGER DEFAULT 30,
+            is_active       INTEGER DEFAULT 1,
+            sent_count      INTEGER DEFAULT 0,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
+
+        -- Feature 14: Follow tracking (for auto-unfollow)
+        CREATE TABLE IF NOT EXISTS follow_tracking (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            platform        TEXT NOT NULL,
+            target_username TEXT NOT NULL,
+            followed_at     TEXT DEFAULT (datetime('now')),
+            followed_back   INTEGER DEFAULT 0,
+            unfollowed_at   TEXT,
+            status          TEXT DEFAULT 'following'
+        );
         """)
 
         # Migrate: add user_id columns if upgrading from an older schema
@@ -1264,3 +1333,226 @@ def get_daily_action_count(user_id: int, campaign_id: str = None) -> int:
             params.append(campaign_id)
         row = conn.execute(query, params).fetchone()
     return row["cnt"] if row else 0
+
+
+# ── Feature 10: Growth Analytics ──────────────────────────────────────────────
+
+def add_growth_snapshot(user_id: int, account_id: int, platform: str,
+                         followers: int = 0, following: int = 0, posts: int = 0,
+                         engagement_rate: float = 0.0, views_total: int = 0,
+                         likes_total: int = 0) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO growth_snapshots
+            (user_id, account_id, platform, followers, following, posts,
+             engagement_rate, views_total, likes_total)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        """, (user_id, account_id, platform, followers, following, posts,
+              engagement_rate, views_total, likes_total))
+        return cur.lastrowid
+
+
+def get_growth_history(user_id: int, account_id: int = None,
+                        platform: str = None, days: int = 30) -> list:
+    with get_conn() as conn:
+        query = """SELECT * FROM growth_snapshots
+                   WHERE user_id=? AND snapshot_at >= datetime('now', ?)"""
+        params = [user_id, f"-{days} days"]
+        if account_id:
+            query += " AND account_id=?"
+            params.append(account_id)
+        if platform:
+            query += " AND platform=?"
+            params.append(platform)
+        query += " ORDER BY snapshot_at ASC"
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_growth_summary(user_id: int, platform: str = None) -> dict:
+    with get_conn() as conn:
+        query = """SELECT platform,
+                          MAX(followers) as max_followers,
+                          MIN(followers) as min_followers,
+                          MAX(followers) - MIN(followers) as growth,
+                          COUNT(*) as snapshots
+                   FROM growth_snapshots
+                   WHERE user_id=? AND snapshot_at >= datetime('now', '-30 days')"""
+        params = [user_id]
+        if platform:
+            query += " AND platform=?"
+            params.append(platform)
+        query += " GROUP BY platform"
+        rows = conn.execute(query, params).fetchall()
+    return {r["platform"]: row_to_dict(r) for r in rows}
+
+
+# ── Feature 11: RSS Feeds ────────────────────────────────────────────────────
+
+def add_rss_feed(user_id: int, url: str, name: str = "", category: str = "general") -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO rss_feeds (user_id, url, name, category) VALUES (?,?,?,?)
+        """, (user_id, url, name or url, category))
+        return cur.lastrowid
+
+
+def get_rss_feeds(user_id: int) -> list:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM rss_feeds WHERE user_id=? ORDER BY created_at DESC",
+            (user_id,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def delete_rss_feed(feed_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM rss_feeds WHERE id=? AND user_id=?", (feed_id, user_id))
+
+
+def update_rss_feed(feed_id: int, **kwargs):
+    if not kwargs:
+        return
+    cols = ", ".join(f"{k}=?" for k in kwargs)
+    vals = list(kwargs.values()) + [feed_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE rss_feeds SET {cols} WHERE id=?", vals)
+
+
+# ── Feature 12: Auto-Reply Rules ─────────────────────────────────────────────
+
+def create_auto_reply_rule(user_id: int, platform: str, trigger_type: str,
+                            trigger_value: str, reply_template: str,
+                            uses_spintax: bool = False, max_replies_day: int = 20) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO auto_reply_rules
+            (user_id, platform, trigger_type, trigger_value, reply_template,
+             uses_spintax, max_replies_day)
+            VALUES (?,?,?,?,?,?,?)
+        """, (user_id, platform, trigger_type, trigger_value, reply_template,
+              1 if uses_spintax else 0, max_replies_day))
+        return cur.lastrowid
+
+
+def get_auto_reply_rules(user_id: int, platform: str = None) -> list:
+    with get_conn() as conn:
+        query = "SELECT * FROM auto_reply_rules WHERE user_id=?"
+        params = [user_id]
+        if platform:
+            query += " AND platform=?"
+            params.append(platform)
+        query += " ORDER BY created_at DESC"
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def update_auto_reply_rule(rule_id: int, **kwargs):
+    if not kwargs:
+        return
+    cols = ", ".join(f"{k}=?" for k in kwargs)
+    vals = list(kwargs.values()) + [rule_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE auto_reply_rules SET {cols} WHERE id=?", vals)
+
+
+def delete_auto_reply_rule(rule_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM auto_reply_rules WHERE id=? AND user_id=?", (rule_id, user_id))
+
+
+# ── Feature 13: DM Templates ─────────────────────────────────────────────────
+
+def create_dm_template(user_id: int, name: str, message_template: str,
+                        platform: str = "all", trigger_on: str = "new_follower",
+                        delay_minutes: int = 30, uses_spintax: bool = True) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO dm_templates
+            (user_id, name, platform, message_template, uses_spintax,
+             trigger_on, delay_minutes)
+            VALUES (?,?,?,?,?,?,?)
+        """, (user_id, name, platform, message_template,
+              1 if uses_spintax else 0, trigger_on, delay_minutes))
+        return cur.lastrowid
+
+
+def get_dm_templates(user_id: int, platform: str = None) -> list:
+    with get_conn() as conn:
+        query = "SELECT * FROM dm_templates WHERE user_id=?"
+        params = [user_id]
+        if platform:
+            query += " AND (platform=? OR platform='all')"
+            params.append(platform)
+        query += " ORDER BY created_at DESC"
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def update_dm_template(template_id: int, **kwargs):
+    if not kwargs:
+        return
+    cols = ", ".join(f"{k}=?" for k in kwargs)
+    vals = list(kwargs.values()) + [template_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE dm_templates SET {cols} WHERE id=?", vals)
+
+
+def delete_dm_template(template_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM dm_templates WHERE id=? AND user_id=?", (template_id, user_id))
+
+
+# ── Feature 14: Follow Tracking ──────────────────────────────────────────────
+
+def track_follow(user_id: int, platform: str, target_username: str) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO follow_tracking (user_id, platform, target_username)
+            VALUES (?,?,?)
+        """, (user_id, platform, target_username))
+        return cur.lastrowid
+
+
+def get_follows(user_id: int, platform: str = None, status: str = "following") -> list:
+    with get_conn() as conn:
+        query = "SELECT * FROM follow_tracking WHERE user_id=? AND status=?"
+        params = [user_id, status]
+        if platform:
+            query += " AND platform=?"
+            params.append(platform)
+        query += " ORDER BY followed_at DESC"
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_stale_follows(user_id: int, platform: str = None, days_threshold: int = 3) -> list:
+    with get_conn() as conn:
+        query = """SELECT * FROM follow_tracking
+                   WHERE user_id=? AND status='following' AND followed_back=0
+                   AND followed_at <= datetime('now', ?)"""
+        params = [user_id, f"-{days_threshold} days"]
+        if platform:
+            query += " AND platform=?"
+            params.append(platform)
+        query += " ORDER BY followed_at ASC"
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def mark_follow_back(user_id: int, platform: str, target_username: str):
+    with get_conn() as conn:
+        conn.execute("""
+            UPDATE follow_tracking SET followed_back=1
+            WHERE user_id=? AND platform=? AND target_username=? AND status='following'
+        """, (user_id, platform, target_username))
+
+
+def mark_unfollowed(follow_id: int):
+    with get_conn() as conn:
+        conn.execute("""
+            UPDATE follow_tracking
+            SET status='unfollowed', unfollowed_at=datetime('now')
+            WHERE id=?
+        """, (follow_id,))

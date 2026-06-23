@@ -836,6 +836,309 @@ def api_engagement_stats():
     return jsonify(stats)
 
 
+# ── RSS Feeds ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/rss/feeds", methods=["GET"])
+@login_required
+def api_get_rss_feeds():
+    feeds = db.get_rss_feeds(current_user.id)
+    return jsonify(feeds)
+
+
+@app.route("/api/rss/feeds", methods=["POST"])
+@login_required
+def api_add_rss_feed():
+    data = request.json or {}
+    url = data.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "URL required"}), 400
+    feed_id = db.add_rss_feed(
+        current_user.id, url,
+        name=data.get("name", ""),
+        category=data.get("category", "general"),
+    )
+    return jsonify({"id": feed_id, "status": "added"})
+
+
+@app.route("/api/rss/feeds/<int:feed_id>", methods=["DELETE"])
+@login_required
+def api_delete_rss_feed(feed_id):
+    db.delete_rss_feed(feed_id, current_user.id)
+    return jsonify({"status": "deleted"})
+
+
+@app.route("/api/rss/trending", methods=["GET"])
+@login_required
+def api_rss_trending():
+    from generators.rss_monitor import create_niche_monitor
+    niche = request.args.get("niche", "tech")
+    monitor = create_niche_monitor(niche)
+    try:
+        items = monitor.fetch_all()
+        return jsonify([{
+            "title": i.title, "url": i.url, "published": i.published,
+            "summary": i.summary, "source": i.source,
+        } for i in items[:20]])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── DM Templates ──────────────────────────────────────────────────────────────
+
+@app.route("/api/dm/templates", methods=["GET"])
+@login_required
+def api_get_dm_templates():
+    platform = request.args.get("platform")
+    templates = db.get_dm_templates(current_user.id, platform)
+    return jsonify(templates)
+
+
+@app.route("/api/dm/templates", methods=["POST"])
+@login_required
+def api_create_dm_template():
+    data = request.json or {}
+    name = data.get("name", "").strip()
+    message = data.get("message_template", "").strip()
+    if not name or not message:
+        return jsonify({"error": "Name and message_template required"}), 400
+    tmpl_id = db.create_dm_template(
+        current_user.id, name, message,
+        platform=data.get("platform", "all"),
+        trigger_on=data.get("trigger_on", "new_follower"),
+        delay_minutes=data.get("delay_minutes", 30),
+        uses_spintax=data.get("uses_spintax", True),
+    )
+    return jsonify({"id": tmpl_id, "status": "created"})
+
+
+@app.route("/api/dm/templates/<int:tmpl_id>", methods=["DELETE"])
+@login_required
+def api_delete_dm_template(tmpl_id):
+    db.delete_dm_template(tmpl_id, current_user.id)
+    return jsonify({"status": "deleted"})
+
+
+@app.route("/api/dm/send", methods=["POST"])
+@login_required
+def api_send_dm():
+    data = request.json or {}
+    from generators.engagement_engine import send_dm
+    result = send_dm(
+        current_user.id,
+        platform=data.get("platform", ""),
+        target_username=data.get("target_username", ""),
+        template_id=data.get("template_id"),
+        message=data.get("message"),
+    )
+    return jsonify(result)
+
+
+# ── Auto-Reply Rules ─────────────────────────────────────────────────────────
+
+@app.route("/api/auto-reply/rules", methods=["GET"])
+@login_required
+def api_get_auto_reply_rules():
+    platform = request.args.get("platform")
+    rules = db.get_auto_reply_rules(current_user.id, platform)
+    return jsonify(rules)
+
+
+@app.route("/api/auto-reply/rules", methods=["POST"])
+@login_required
+def api_create_auto_reply_rule():
+    data = request.json or {}
+    platform = data.get("platform", "").strip()
+    trigger_type = data.get("trigger_type", "").strip()
+    trigger_value = data.get("trigger_value", "").strip()
+    reply_template = data.get("reply_template", "").strip()
+    if not all([platform, trigger_type, trigger_value, reply_template]):
+        return jsonify({"error": "platform, trigger_type, trigger_value, and reply_template required"}), 400
+    rule_id = db.create_auto_reply_rule(
+        current_user.id, platform, trigger_type, trigger_value, reply_template,
+        uses_spintax=data.get("uses_spintax", False),
+        max_replies_day=data.get("max_replies_day", 20),
+    )
+    return jsonify({"id": rule_id, "status": "created"})
+
+
+@app.route("/api/auto-reply/rules/<int:rule_id>", methods=["DELETE"])
+@login_required
+def api_delete_auto_reply_rule(rule_id):
+    db.delete_auto_reply_rule(rule_id, current_user.id)
+    return jsonify({"status": "deleted"})
+
+
+# ── Hashtag Research ──────────────────────────────────────────────────────────
+
+@app.route("/api/hashtags/research", methods=["GET"])
+@login_required
+def api_hashtag_research():
+    topic = request.args.get("topic", "").strip()
+    platform = request.args.get("platform")
+    count = min(int(request.args.get("count", 15)), 50)
+    if not topic:
+        return jsonify({"error": "topic required"}), 400
+    from generators.hashtag_research import get_best_hashtags
+    hashtags = get_best_hashtags(topic, platform=platform, count=count)
+    return jsonify({"topic": topic, "hashtags": hashtags, "count": len(hashtags)})
+
+
+# ── Growth Analytics ──────────────────────────────────────────────────────────
+
+@app.route("/api/growth/snapshot", methods=["POST"])
+@login_required
+def api_add_growth_snapshot():
+    data = request.json or {}
+    account_id = data.get("account_id")
+    platform = data.get("platform", "").strip()
+    if not account_id or not platform:
+        return jsonify({"error": "account_id and platform required"}), 400
+    snap_id = db.add_growth_snapshot(
+        current_user.id, account_id, platform,
+        followers=data.get("followers", 0),
+        following=data.get("following", 0),
+        posts=data.get("posts", 0),
+        engagement_rate=data.get("engagement_rate", 0.0),
+        views_total=data.get("views_total", 0),
+        likes_total=data.get("likes_total", 0),
+    )
+    return jsonify({"id": snap_id, "status": "recorded"})
+
+
+@app.route("/api/growth/history", methods=["GET"])
+@login_required
+def api_growth_history():
+    account_id = request.args.get("account_id", type=int)
+    platform = request.args.get("platform")
+    days = request.args.get("days", 30, type=int)
+    history = db.get_growth_history(current_user.id, account_id=account_id, platform=platform, days=days)
+    return jsonify(history)
+
+
+@app.route("/api/growth/summary", methods=["GET"])
+@login_required
+def api_growth_summary():
+    platform = request.args.get("platform")
+    summary = db.get_growth_summary(current_user.id, platform=platform)
+    return jsonify(summary)
+
+
+# ── Follow Tracking ──────────────────────────────────────────────────────────
+
+@app.route("/api/follows", methods=["GET"])
+@login_required
+def api_get_follows():
+    platform = request.args.get("platform")
+    status = request.args.get("status", "following")
+    follows = db.get_follows(current_user.id, platform=platform, status=status)
+    return jsonify(follows)
+
+
+@app.route("/api/follows", methods=["POST"])
+@login_required
+def api_track_follow():
+    data = request.json or {}
+    platform = data.get("platform", "").strip()
+    target = data.get("target_username", "").strip()
+    if not platform or not target:
+        return jsonify({"error": "platform and target_username required"}), 400
+    follow_id = db.track_follow(current_user.id, platform, target)
+    return jsonify({"id": follow_id, "status": "tracking"})
+
+
+@app.route("/api/follows/stale", methods=["GET"])
+@login_required
+def api_stale_follows():
+    platform = request.args.get("platform")
+    days = request.args.get("days", 3, type=int)
+    stale = db.get_stale_follows(current_user.id, platform=platform, days_threshold=days)
+    return jsonify(stale)
+
+
+@app.route("/api/follows/auto-unfollow", methods=["POST"])
+@login_required
+def api_auto_unfollow():
+    data = request.json or {}
+    from generators.engagement_engine import auto_unfollow_stale
+    results = auto_unfollow_stale(
+        current_user.id,
+        platform=data.get("platform"),
+        days_threshold=data.get("days_threshold", 3),
+    )
+    return jsonify({"unfollowed": len(results), "details": results})
+
+
+# ── Account Warmup ────────────────────────────────────────────────────────────
+
+@app.route("/api/warmup/status", methods=["GET"])
+@login_required
+def api_warmup_status():
+    account_created = request.args.get("account_created", "")
+    profile = request.args.get("profile", "conservative")
+    if not account_created:
+        return jsonify({"error": "account_created parameter required"}), 400
+    from generators.account_warmup import get_warmup_status, should_rest
+    status = get_warmup_status(account_created, profile)
+    status["should_rest"] = should_rest(account_created, profile)
+    return jsonify(status)
+
+
+@app.route("/api/warmup/limits", methods=["GET"])
+@login_required
+def api_warmup_limits():
+    platform = request.args.get("platform", "").strip()
+    account_created = request.args.get("account_created", "")
+    profile = request.args.get("profile", "conservative")
+    if not platform or not account_created:
+        return jsonify({"error": "platform and account_created required"}), 400
+    from generators.account_warmup import get_warmed_limits
+    limits = get_warmed_limits(platform, account_created, profile)
+    return jsonify({"platform": platform, "limits": limits, "profile": profile})
+
+
+# ── Spintax Preview ───────────────────────────────────────────────────────────
+
+@app.route("/api/spintax/preview", methods=["POST"])
+@login_required
+def api_spintax_preview():
+    data = request.json or {}
+    text = data.get("text", "")
+    count = min(data.get("count", 5), 20)
+    if not text:
+        return jsonify({"error": "text required"}), 400
+    from utils.spintax import spin_batch, validate, estimate_variations
+    is_valid, error_msg = validate(text)
+    if not is_valid:
+        return jsonify({"error": "Invalid spintax", "details": error_msg}), 400
+    variations = spin_batch(text, count)
+    return jsonify({
+        "variations": variations,
+        "total_possible": estimate_variations(text),
+    })
+
+
+# ── User Scraper ──────────────────────────────────────────────────────────────
+
+@app.route("/api/scraper/run", methods=["POST"])
+@login_required
+def api_run_scraper():
+    data = request.json or {}
+    platform = data.get("platform", "").strip()
+    target = data.get("target", "").strip()
+    method = data.get("method", "commenters")
+    max_results = min(data.get("max_results", 50), 100)
+    if not platform or not target:
+        return jsonify({"error": "platform and target required"}), 400
+    from generators.user_scraper import scrape_by_platform
+    users = scrape_by_platform(platform, target, method=method, max_results=max_results)
+    return jsonify({
+        "users": [u.to_dict() for u in users],
+        "count": len(users),
+        "platform": platform,
+        "method": method,
+    })
+
+
 # ── Settings ──────────────────────────────────────────────────────────────────
 
 @app.route("/settings")
