@@ -2010,6 +2010,99 @@ def start_background_threads():
     t2.start()
 
 
+# ── Admin Command Center ─────────────────────────────────────────────────────────────────────
+
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    @login_required
+    def decorated(*args, **kwargs):
+        if not getattr(current_user, "is_admin", False):
+            return jsonify({"error": "Admin access required"}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/admin")
+@login_required
+def admin_page():
+    if not getattr(current_user, "is_admin", False):
+        return redirect(url_for("dashboard"))
+    return render_template("admin.html")
+
+
+@app.route("/api/admin/overview")
+@admin_required
+def api_admin_overview():
+    return jsonify(db.admin_get_overview())
+
+
+@app.route("/api/admin/revenue")
+@admin_required
+def api_admin_revenue():
+    return jsonify(db.admin_get_revenue_estimate())
+
+
+@app.route("/api/admin/users", methods=["GET"])
+@admin_required
+def api_admin_users():
+    search = request.args.get("search")
+    tier = request.args.get("tier")
+    limit = int(request.args.get("limit", 50))
+    offset = int(request.args.get("offset", 0))
+    users = db.admin_list_users(limit=limit, offset=offset, search=search, tier=tier)
+    total = db.admin_get_user_count()
+    return jsonify({"users": users, "total": total})
+
+
+@app.route("/api/admin/users/<int:user_id>", methods=["PATCH"])
+@admin_required
+def api_admin_update_user(user_id):
+    data = request.get_json(silent=True) or {}
+    allowed = {"tier", "is_admin", "name", "email"}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        return jsonify({"error": "No valid fields"}), 400
+    db.admin_update_user(user_id, **updates)
+    return jsonify({"status": "updated"})
+
+
+@app.route("/api/admin/jobs")
+@admin_required
+def api_admin_jobs():
+    return jsonify(db.admin_get_job_stats())
+
+
+@app.route("/api/admin/growth")
+@admin_required
+def api_admin_growth():
+    return jsonify(db.admin_get_growth_metrics())
+
+
+@app.route("/api/admin/health")
+@admin_required
+def api_admin_health():
+    return jsonify(db.admin_get_system_health())
+
+
+@app.route("/api/admin/config")
+@admin_required
+def api_admin_config():
+    import config as cfg
+    api_keys = {}
+    for key in ["ANTHROPIC_API_KEY", "PEXELS_API_KEY", "GOOGLE_API_KEY",
+                "HIGGSFIELD_MCP_TOKEN", "STRIPE_SECRET_KEY",
+                "YOUTUBE_CLIENT_ID", "TIKTOK_CLIENT_KEY",
+                "INSTAGRAM_ACCESS_TOKEN"]:
+        val = getattr(cfg, key, "")
+        api_keys[key] = "configured" if val else "missing"
+    return jsonify({
+        "tiers": cfg.TIERS,
+        "api_keys": api_keys,
+        "app_base_url": cfg.APP_BASE_URL,
+    })
+
+
 # ── Media Library ────────────────────────────────────────────────────────────────────────────
 
 @app.route("/media")

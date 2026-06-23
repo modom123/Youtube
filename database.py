@@ -441,7 +441,7 @@ def reset_monthly_usage(user_id: int):
         )
 
 
-TIER_LIMITS = {"free": 5, "starter": 30, "creator": 100, "agency": 9999}
+TIER_LIMITS = {"free": 2, "starter": 15, "creator": 50, "agency": 9999}
 
 
 def check_usage_allowed(user_id: int) -> dict:
@@ -1604,3 +1604,183 @@ def delete_media(media_id: str, user_id: int) -> str | None:
             (media_id, user_id)
         )
     return file_path
+
+
+# ── Admin / Business Intelligence ─────────────────────────────────────────────
+
+def admin_get_overview() -> dict:
+    with get_conn() as conn:
+        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        users_by_tier = {}
+        for row in conn.execute(
+            "SELECT COALESCE(tier,'free') as t, COUNT(*) as c FROM users GROUP BY t"
+        ).fetchall():
+            users_by_tier[row[0]] = row[1]
+
+        total_jobs = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+        completed_jobs = conn.execute(
+            "SELECT COUNT(*) FROM jobs WHERE status='completed'"
+        ).fetchone()[0]
+        failed_jobs = conn.execute(
+            "SELECT COUNT(*) FROM jobs WHERE status='failed'"
+        ).fetchone()[0]
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        jobs_today = conn.execute(
+            "SELECT COUNT(*) FROM jobs WHERE created_at LIKE ?", (f"{today}%",)
+        ).fetchone()[0]
+        new_users_today = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE created_at LIKE ?", (f"{today}%",)
+        ).fetchone()[0]
+
+        total_media = conn.execute("SELECT COUNT(*) FROM media_library").fetchone()[0]
+        media_size = conn.execute(
+            "SELECT COALESCE(SUM(file_size),0) FROM media_library"
+        ).fetchone()[0]
+
+        total_campaigns = conn.execute(
+            "SELECT COUNT(*) FROM engagement_campaigns"
+        ).fetchone()[0]
+        total_actions = conn.execute(
+            "SELECT COUNT(*) FROM engagement_actions"
+        ).fetchone()[0]
+
+    return {
+        "total_users": total_users,
+        "users_by_tier": users_by_tier,
+        "total_jobs": total_jobs,
+        "completed_jobs": completed_jobs,
+        "failed_jobs": failed_jobs,
+        "jobs_today": jobs_today,
+        "new_users_today": new_users_today,
+        "total_media": total_media,
+        "media_size_bytes": media_size,
+        "total_campaigns": total_campaigns,
+        "total_actions": total_actions,
+    }
+
+
+def admin_get_revenue_estimate() -> dict:
+    from config import TIERS
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT COALESCE(tier,'free') as t, COUNT(*) as c FROM users GROUP BY t"
+        ).fetchall()
+    mrr = 0
+    breakdown = {}
+    for row in rows:
+        tier_key = row[0]
+        count = row[1]
+        price = TIERS.get(tier_key, {}).get("price_monthly", 0)
+        rev = price * count
+        mrr += rev
+        breakdown[tier_key] = {"users": count, "price": price, "revenue": rev}
+    return {
+        "mrr": mrr,
+        "arr": mrr * 12,
+        "breakdown": breakdown,
+    }
+
+
+def admin_list_users(limit: int = 50, offset: int = 0, search: str = None,
+                     tier: str = None) -> list:
+    query = "SELECT id, email, name, tier, is_admin, videos_used_this_month, created_at FROM users WHERE 1=1"
+    params: list = []
+    if search:
+        query += " AND (email LIKE ? OR name LIKE ?)"
+        like = f"%{search}%"
+        params.extend([like, like])
+    if tier:
+        query += " AND COALESCE(tier,'free')=?"
+        params.append(tier)
+    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+    with get_conn() as conn:
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def admin_get_user_count() -> int:
+    with get_conn() as conn:
+        return conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+
+
+def admin_update_user(user_id: int, **kwargs):
+    if not kwargs:
+        return
+    cols = ", ".join(f"{k}=?" for k in kwargs)
+    vals = list(kwargs.values()) + [user_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE users SET {cols} WHERE id=?", vals)
+
+
+def admin_get_job_stats() -> dict:
+    with get_conn() as conn:
+        by_status = {}
+        for row in conn.execute(
+            "SELECT status, COUNT(*) FROM jobs GROUP BY status"
+        ).fetchall():
+            by_status[row[0]] = row[1]
+
+        by_niche = {}
+        for row in conn.execute(
+            "SELECT niche, COUNT(*) as c FROM jobs GROUP BY niche ORDER BY c DESC LIMIT 10"
+        ).fetchall():
+            by_niche[row[0]] = row[1]
+
+        recent_7d = conn.execute("""
+            SELECT DATE(created_at) as day, COUNT(*) as c
+            FROM jobs WHERE created_at >= datetime('now', '-7 days')
+            GROUP BY day ORDER BY day
+        """).fetchall()
+        daily = [{"date": r[0], "count": r[1]} for r in recent_7d]
+
+    return {"by_status": by_status, "top_niches": by_niche, "daily_7d": daily}
+
+
+def admin_get_growth_metrics() -> dict:
+    with get_conn() as conn:
+        signups_7d = []
+        for row in conn.execute("""
+            SELECT DATE(created_at) as day, COUNT(*) as c
+            FROM users WHERE created_at >= datetime('now', '-7 days')
+            GROUP BY day ORDER BY day
+        """).fetchall():
+            signups_7d.append({"date": row[0], "count": row[1]})
+
+        signups_30d = []
+        for row in conn.execute("""
+            SELECT DATE(created_at) as day, COUNT(*) as c
+            FROM users WHERE created_at >= datetime('now', '-30 days')
+            GROUP BY day ORDER BY day
+        """).fetchall():
+            signups_30d.append({"date": row[0], "count": row[1]})
+
+        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        paid_users = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE tier IS NOT NULL AND tier != 'free'"
+        ).fetchone()[0]
+
+    return {
+        "signups_7d": signups_7d,
+        "signups_30d": signups_30d,
+        "total_users": total_users,
+        "paid_users": paid_users,
+        "conversion_rate": round(paid_users / max(total_users, 1) * 100, 1),
+    }
+
+
+def admin_get_system_health() -> dict:
+    import shutil
+    db_size = DB_PATH.stat().st_size if DB_PATH.exists() else 0
+    upload_dir = Path(_os.getenv("DATA_DIR", Path(__file__).parent)) / "uploads"
+    upload_size = sum(f.stat().st_size for f in upload_dir.rglob("*") if f.is_file()) if upload_dir.exists() else 0
+    disk = shutil.disk_usage(str(DB_PATH.parent))
+    return {
+        "db_size_bytes": db_size,
+        "upload_size_bytes": upload_size,
+        "disk_total_bytes": disk.total,
+        "disk_used_bytes": disk.used,
+        "disk_free_bytes": disk.free,
+        "disk_pct_used": round(disk.used / disk.total * 100, 1),
+    }

@@ -77,6 +77,12 @@
       <a href="/settings" class="nav-item {% if active_page=='settings' %}active{% endif %}">
         <span class="icon">⚙️</span> Settings
       </a>
+      {% if current_user.is_authenticated and current_user.is_admin %}
+      <span class="sidebar-section-label">Admin</span>
+      <a href="/admin" class="nav-item {% if active_page=='admin' %}active{% endif %}">
+        <span class="icon">🏠</span> Command Center
+      </a>
+      {% endif %}
     </nav>
 
     <div class="sidebar-footer">

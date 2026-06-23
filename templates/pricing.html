@@ -224,11 +224,11 @@
       <p class="pricing-desc">Perfect for testing the platform</p>
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free</button>
       <ul class="pricing-features">
-        <li>3 videos/month</li>
-        <li>2 platforms</li>
-        <li>Basic research</li>
+        <li>2 videos/month</li>
+        <li>All 8 platforms</li>
+        <li>Pexels stock media</li>
+        <li>Basic scripts</li>
         <li>Community support</li>
-        <li>7-day retention</li>
       </ul>
     </div>
 
@@ -236,16 +236,15 @@
     <div class="pricing-card">
       <div class="pricing-tier">Tier 02</div>
       <h3 class="pricing-name">Starter</h3>
-      <div class="pricing-price"><span id="starter-price">$49</span><span>/mo</span></div>
+      <div class="pricing-price"><span id="starter-price">$29</span><span>/mo</span></div>
       <p class="pricing-desc">For growing creators</p>
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start 14-day Trial</button>
       <ul class="pricing-features">
         <li>15 videos/month</li>
-        <li>3 platforms</li>
-        <li>Full research</li>
+        <li>All 8 platforms</li>
+        <li>150 AI video credits</li>
+        <li>5-agent pipeline</li>
         <li>Email support</li>
-        <li>Advanced scripting</li>
-        <li>30-day retention</li>
       </ul>
     </div>
 
@@ -253,19 +252,18 @@
     <div class="pricing-card featured">
       <div class="pricing-popular">Most Popular</div>
       <div class="pricing-tier">Tier 03</div>
-      <h3 class="pricing-name">Pro</h3>
-      <div class="pricing-price"><span id="pro-price">$149</span><span>/mo</span></div>
+      <h3 class="pricing-name">Creator</h3>
+      <div class="pricing-price"><span id="creator-price">$79</span><span>/mo</span></div>
       <p class="pricing-desc">For serious creators</p>
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start 14-day Trial</button>
       <ul class="pricing-features">
         <li>50 videos/month</li>
-        <li>All 8 platforms</li>
+        <li>500 AI video credits</li>
+        <li>All platforms + Studio 56</li>
         <li>Hollywood AI agent</li>
         <li>Advanced analytics</li>
-        <li>Competitor tracking</li>
         <li>Batch creation</li>
         <li>Priority support</li>
-        <li>Unlimited retention</li>
       </ul>
     </div>
 
@@ -273,17 +271,17 @@
     <div class="pricing-card">
       <div class="pricing-tier">Tier 04</div>
       <h3 class="pricing-name">Agency</h3>
-      <div class="pricing-price"><span id="agency-price">$399</span><span>/mo</span></div>
+      <div class="pricing-price"><span id="agency-price">$199</span><span>/mo</span></div>
       <p class="pricing-desc">For teams & agencies</p>
       <button class="pricing-cta" onclick="window.location.href='/contact'">Contact Sales</button>
       <ul class="pricing-features">
-        <li>Unlimited videos/month</li>
+        <li>Unlimited videos</li>
+        <li>2000 AI video credits</li>
         <li>All 8 platforms</li>
         <li>5 team seats</li>
-        <li>White-label exports</li>
+        <li>Priority processing</li>
         <li>API access</li>
-        <li>Dedicated manager</li>
-        <li>24/7 priority support</li>
+        <li>24/7 dedicated support</li>
       </ul>
     </div>
   </div>
@@ -302,24 +300,24 @@
           <th style="width: 25%;">Feature</th>
           <th style="width: 18.75%;">Free</th>
           <th style="width: 18.75%;">Starter</th>
-          <th style="width: 18.75%;">Pro</th>
+          <th style="width: 18.75%;">Creator</th>
           <th style="width: 18.75%;">Agency</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td class="comp-feature">Videos per month</td>
-          <td><span class="comp-check">3</span></td>
+          <td><span class="comp-check">2</span></td>
           <td><span class="comp-check">15</span></td>
           <td><span class="comp-check">50</span></td>
           <td><span class="comp-check">Unlimited</span></td>
         </tr>
         <tr>
           <td class="comp-feature">Platforms supported</td>
-          <td><span class="comp-check">2</span></td>
-          <td><span class="comp-check">3</span></td>
-          <td><span class="comp-check">8</span></td>
-          <td><span class="comp-check">8</span></td>
+          <td><span class="comp-check">All 8</span></td>
+          <td><span class="comp-check">All 8</span></td>
+          <td><span class="comp-check">All 8</span></td>
+          <td><span class="comp-check">All 8</span></td>
         </tr>
         <tr>
           <td class="comp-feature">Research suite</td>
@@ -440,7 +438,7 @@
 <!-- FINAL CTA -->
 <section class="final-cta">
   <h2>Ready to create?</h2>
-  <p>Start free — no credit card required. 3 videos included. Cancel anytime.</p>
+  <p>Start free — no credit card required. 2 videos included. Cancel anytime.</p>
   <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free →</a>
 </section>
 
@@ -462,8 +460,8 @@
 
 <script>
 const priceMap = {
-  'monthly': { starter: 49, pro: 149, agency: 399 },
-  'annual': { starter: 39, pro: 119, agency: 319 }
+  'monthly': { starter: 29, creator: 79, agency: 199 },
+  'annual': { starter: 23, creator: 63, agency: 159 }
 };
 
 function togglePricing(period) {
@@ -474,7 +472,7 @@ function togglePricing(period) {
   savingsLabel.style.display = period === 'annual' ? 'block' : 'none';
 
   document.getElementById('starter-price').textContent = '$' + priceMap[period].starter;
-  document.getElementById('pro-price').textContent = '$' + priceMap[period].pro;
+  document.getElementById('creator-price').textContent = '$' + priceMap[period].creator;
   document.getElementById('agency-price').textContent = '$' + priceMap[period].agency;
 }
 

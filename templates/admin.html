@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+{% set active_page = "admin" %}
+{% block title %}Command Center - Admin{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Command Center</h1>
+  <p class="page-subtitle">Business intelligence, user management, and system health.</p>
+</div>
+
+<!-- Tab Navigation -->
+<div style="display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap;">
+  <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+  <button class="tab-btn" onclick="switchTab('revenue')">Revenue</button>
+  <button class="tab-btn" onclick="switchTab('users')">Users</button>
+  <button class="tab-btn" onclick="switchTab('content')">Content</button>
+  <button class="tab-btn" onclick="switchTab('growth')">Growth</button>
+  <button class="tab-btn" onclick="switchTab('system')">System</button>
+  <button class="tab-btn" onclick="switchTab('config')">Config</button>
+</div>
+
+<style>
+.tab-btn{background:var(--bg-secondary);border:1px solid var(--border);color:var(--muted);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;transition:all .2s;}
+.tab-btn.active{background:var(--gold);color:#000;border-color:var(--gold);}
+.tab-btn:hover:not(.active){color:var(--text);border-color:var(--gold);}
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:20px;}
+.metric-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.metric-label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+.metric-value{font-size:28px;font-weight:800;margin-top:4px;line-height:1.2;}
+.metric-sub{font-size:12px;color:var(--muted);margin-top:4px;}
+.gold{color:var(--gold);}
+.green{color:#2ecc71;}
+.red{color:#e74c3c;}
+.data-table{width:100%;border-collapse:collapse;font-size:13px;}
+.data-table th{text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+.data-table td{padding:10px 12px;border-bottom:1px solid var(--border);}
+.data-table tr:hover td{background:rgba(212,175,55,.03);}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;}
+.badge-free{background:rgba(255,255,255,.05);color:var(--muted);}
+.badge-starter{background:rgba(212,175,55,.1);color:var(--gold);}
+.badge-creator{background:rgba(168,85,247,.1);color:#a855f7;}
+.badge-agency{background:rgba(46,204,113,.1);color:#2ecc71;}
+.badge-admin{background:rgba(231,76,60,.1);color:#e74c3c;}
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:120px;margin-top:12px;}
+.bar{background:var(--gold);border-radius:4px 4px 0 0;min-width:28px;transition:height .5s;position:relative;}
+.bar-label{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--muted);white-space:nowrap;}
+.bar-val{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;font-weight:700;color:var(--text);}
+.progress-bar-bg{background:var(--border);border-radius:4px;height:8px;overflow:hidden;margin-top:8px;}
+.progress-bar-fill{height:100%;border-radius:4px;transition:width .5s;}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
+.status-ok{background:#2ecc71;}
+.status-warn{background:#f39c12;}
+.status-err{background:#e74c3c;}
+</style>
+
+<!-- OVERVIEW TAB -->
+<div id="tab-overview" class="tab-content">
+  <div class="metric-grid" id="overview-metrics"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="card" style="padding:20px;">
+      <h3 style="font-size:14px;margin-bottom:12px;">Users by Tier</h3>
+      <div id="tier-breakdown"></div>
+    </div>
+    <div class="card" style="padding:20px;">
+      <h3 style="font-size:14px;margin-bottom:12px;">Quick Actions</h3>
+      <div style="display:grid;gap:8px;">
+        <button class="btn btn-primary" onclick="switchTab('users')" style="width:100%;text-align:left;">Manage Users</button>
+        <button class="btn btn-secondary" onclick="switchTab('revenue')" style="width:100%;text-align:left;">View Revenue</button>
+        <button class="btn btn-secondary" onclick="switchTab('system')" style="width:100%;text-align:left;">System Health</button>
+        <button class="btn btn-secondary" onclick="switchTab('config')" style="width:100%;text-align:left;">API Configuration</button>
+        <a href="/analytics" class="btn btn-secondary" style="width:100%;text-align:left;text-decoration:none;">Content Analytics</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REVENUE TAB -->
+<div id="tab-revenue" class="tab-content" style="display:none;">
+  <div class="metric-grid" id="revenue-metrics"></div>
+  <div class="card" style="padding:20px;">
+    <h3 style="font-size:14px;margin-bottom:16px;">Revenue by Tier</h3>
+    <table class="data-table" id="revenue-table">
+      <thead><tr><th>Tier</th><th>Users</th><th>Price</th><th>MRR</th><th>% of Revenue</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- USERS TAB -->
+<div id="tab-users" class="tab-content" style="display:none;">
+  <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+    <input id="user-search" class="input" placeholder="Search by email or name..." style="flex:1;min-width:200px;" oninput="debounceUsers()">
+    <select id="user-tier-filter" class="input" style="width:auto;" onchange="loadUsers()">
+      <option value="">All Tiers</option>
+      <option value="free">Free</option>
+      <option value="starter">Starter</option>
+      <option value="creator">Creator</option>
+      <option value="agency">Agency</option>
+    </select>
+    <span class="dim" id="user-count-label"></span>
+  </div>
+  <div class="card" style="padding:0;overflow-x:auto;">
+    <table class="data-table" id="users-table">
+      <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Tier</th><th>Videos Used</th><th>Admin</th><th>Joined</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div style="display:flex;justify-content:center;gap:8px;margin-top:16px;" id="user-pagination"></div>
+</div>
+
+<!-- CONTENT TAB -->
+<div id="tab-content" class="tab-content" style="display:none;">
+  <div class="metric-grid" id="content-metrics"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="card" style="padding:20px;">
+      <h3 style="font-size:14px;margin-bottom:12px;">Jobs by Status</h3>
+      <div id="jobs-status"></div>
+    </div>
+    <div class="card" style="padding:20px;">
+      <h3 style="font-size:14px;margin-bottom:12px;">Top Niches</h3>
+      <div id="top-niches"></div>
+    </div>
+  </div>
+  <div class="card" style="padding:20px;margin-top:16px;">
+    <h3 style="font-size:14px;margin-bottom:12px;">Jobs - Last 7 Days</h3>
+    <div class="bar-chart" id="jobs-chart"></div>
+    <div style="height:24px;"></div>
+  </div>
+</div>
+
+<!-- GROWTH TAB -->
+<div id="tab-growth" class="tab-content" style="display:none;">
+  <div class="metric-grid" id="growth-metrics"></div>
+  <div class="card" style="padding:20px;">
+    <h3 style="font-size:14px;margin-bottom:12px;">Signups - Last 30 Days</h3>
+    <div class="bar-chart" id="signups-chart" style="height:150px;"></div>
+    <div style="height:24px;"></div>
+  </div>
+</div>
+
+<!-- SYSTEM TAB -->
+<div id="tab-system" class="tab-content" style="display:none;">
+  <div class="metric-grid" id="system-metrics"></div>
+  <div class="card" style="padding:20px;">
+    <h3 style="font-size:14px;margin-bottom:16px;">Disk Usage</h3>
+    <div id="disk-bars"></div>
+  </div>
+</div>
+
+<!-- CONFIG TAB -->
+<div id="tab-config" class="tab-content" style="display:none;">
+  <div class="card" style="padding:20px;">
+    <h3 style="font-size:14px;margin-bottom:16px;">API Keys Status</h3>
+    <div id="api-keys-status"></div>
+  </div>
+  <div class="card" style="padding:20px;margin-top:16px;">
+    <h3 style="font-size:14px;margin-bottom:16px;">Pricing Tiers</h3>
+    <table class="data-table" id="tiers-table">
+      <thead><tr><th>Tier</th><th>Label</th><th>Price/mo</th><th>Videos/mo</th><th>AI Credits</th><th>Features</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- USER EDIT MODAL -->
+<div id="user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;overflow-y:auto;">
+  <div style="max-width:480px;margin:80px auto;padding:24px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 id="modal-user-title" style="margin:0;"></h3>
+      <button onclick="closeUserModal()" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;">&times;</button>
+    </div>
+    <div style="display:grid;gap:12px;">
+      <div>
+        <label class="dim" style="font-size:12px;">Name</label>
+        <input id="modal-user-name" class="input">
+      </div>
+      <div>
+        <label class="dim" style="font-size:12px;">Email</label>
+        <input id="modal-user-email" class="input">
+      </div>
+      <div>
+        <label class="dim" style="font-size:12px;">Tier</label>
+        <select id="modal-user-tier" class="input">
+          <option value="free">Free</option>
+          <option value="starter">Starter</option>
+          <option value="creator">Creator</option>
+          <option value="agency">Agency</option>
+        </select>
+      </div>
+      <div>
+        <label class="dim" style="font-size:12px;">Admin</label>
+        <select id="modal-user-admin" class="input">
+          <option value="0">No</option>
+          <option value="1">Yes</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="saveUser()" style="width:100%;">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let userDebounce = null;
+let userOffset = 0;
+let editUserId = null;
+const USER_LIMIT = 25;
+
+function fmt(n) { return n.toLocaleString(); }
+function fmtMoney(n) { return '$' + n.toLocaleString(); }
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  if (b < 1073741824) return (b/1048576).toFixed(1) + ' MB';
+  return (b/1073741824).toFixed(2) + ' GB';
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).style.display = 'block';
+  event.target.classList.add('active');
+  if (name === 'overview') loadOverview();
+  else if (name === 'revenue') loadRevenue();
+  else if (name === 'users') loadUsers();
+  else if (name === 'content') loadContent();
+  else if (name === 'growth') loadGrowth();
+  else if (name === 'system') loadSystem();
+  else if (name === 'config') loadConfig();
+}
+
+function metricCard(label, value, sub, cls) {
+  return `<div class="metric-card"><div class="metric-label">${label}</div><div class="metric-value ${cls||''}">${value}</div>${sub?'<div class="metric-sub">'+sub+'</div>':''}</div>`;
+}
+
+// OVERVIEW
+async function loadOverview() {
+  const data = await (await fetch('/api/admin/overview')).json();
+  const rev = await (await fetch('/api/admin/revenue')).json();
+  document.getElementById('overview-metrics').innerHTML =
+    metricCard('Monthly Revenue', fmtMoney(rev.mrr), 'ARR: ' + fmtMoney(rev.arr), 'gold') +
+    metricCard('Total Users', fmt(data.total_users), data.new_users_today + ' new today', '') +
+    metricCard('Total Jobs', fmt(data.total_jobs), data.jobs_today + ' today', '') +
+    metricCard('Completed', fmt(data.completed_jobs), fmt(data.failed_jobs) + ' failed', 'green') +
+    metricCard('Media Files', fmt(data.total_media), fmtBytes(data.media_size_bytes), '') +
+    metricCard('Campaigns', fmt(data.total_campaigns), fmt(data.total_actions) + ' actions', '');
+
+  let tierHtml = '';
+  const tiers = data.users_by_tier;
+  for (const [t, c] of Object.entries(tiers)) {
+    const pct = Math.round(c / Math.max(data.total_users, 1) * 100);
+    tierHtml += `<div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;"><span><span class="badge badge-${t}">${t}</span></span><span>${c} users (${pct}%)</span></div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%;background:var(--gold);"></div></div>
+    </div>`;
+  }
+  document.getElementById('tier-breakdown').innerHTML = tierHtml || '<p class="dim">No users yet</p>';
+}
+
+// REVENUE
+async function loadRevenue() {
+  const data = await (await fetch('/api/admin/revenue')).json();
+  document.getElementById('revenue-metrics').innerHTML =
+    metricCard('MRR', fmtMoney(data.mrr), 'Monthly Recurring Revenue', 'gold') +
+    metricCard('ARR', fmtMoney(data.arr), 'Annual Recurring Revenue', 'gold') +
+    metricCard('Paid Plans', Object.entries(data.breakdown).filter(([k])=>k!=='free').reduce((s,[,v])=>s+v.users,0).toString(), 'paying subscribers', 'green');
+
+  const tbody = document.querySelector('#revenue-table tbody');
+  tbody.innerHTML = '';
+  const totalRev = data.mrr || 1;
+  for (const [tier, info] of Object.entries(data.breakdown)) {
+    const pct = Math.round(info.revenue / totalRev * 100);
+    tbody.innerHTML += `<tr>
+      <td><span class="badge badge-${tier}">${tier}</span></td>
+      <td>${info.users}</td>
+      <td>${fmtMoney(info.price)}/mo</td>
+      <td class="gold">${fmtMoney(info.revenue)}</td>
+      <td><div class="progress-bar-bg" style="width:120px;display:inline-block;vertical-align:middle;"><div class="progress-bar-fill" style="width:${pct}%;background:var(--gold);"></div></div> ${pct}%</td>
+    </tr>`;
+  }
+}
+
+// USERS
+function debounceUsers() { clearTimeout(userDebounce); userDebounce = setTimeout(() => { userOffset=0; loadUsers(); }, 300); }
+async function loadUsers() {
+  const search = document.getElementById('user-search').value;
+  const tier = document.getElementById('user-tier-filter').value;
+  const params = new URLSearchParams({limit: USER_LIMIT, offset: userOffset});
+  if (search) params.set('search', search);
+  if (tier) params.set('tier', tier);
+  const data = await (await fetch('/api/admin/users?' + params)).json();
+  document.getElementById('user-count-label').textContent = data.total + ' total users';
+
+  const tbody = document.querySelector('#users-table tbody');
+  tbody.innerHTML = '';
+  data.users.forEach(u => {
+    const t = u.tier || 'free';
+    tbody.innerHTML += `<tr>
+      <td>${u.id}</td>
+      <td>${u.name||'-'}</td>
+      <td>${u.email}</td>
+      <td><span class="badge badge-${t}">${t}</span></td>
+      <td>${u.videos_used_this_month||0}</td>
+      <td>${u.is_admin ? '<span class="badge badge-admin">admin</span>' : '-'}</td>
+      <td>${(u.created_at||'').split('T')[0]||'-'}</td>
+      <td><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;" onclick="editUser(${u.id},'${(u.name||'').replace(/'/g,"\\'")}','${u.email}','${t}',${u.is_admin||0})">Edit</button></td>
+    </tr>`;
+  });
+
+  const pages = Math.ceil(data.total / USER_LIMIT);
+  const current = Math.floor(userOffset / USER_LIMIT);
+  let pag = '';
+  for (let i = 0; i < Math.min(pages, 10); i++) {
+    pag += `<button class="btn ${i===current?'btn-primary':'btn-secondary'}" style="padding:4px 12px;font-size:12px;" onclick="userOffset=${i*USER_LIMIT};loadUsers()">${i+1}</button>`;
+  }
+  document.getElementById('user-pagination').innerHTML = pag;
+}
+
+function editUser(id, name, email, tier, admin) {
+  editUserId = id;
+  document.getElementById('modal-user-title').textContent = 'Edit User #' + id;
+  document.getElementById('modal-user-name').value = name;
+  document.getElementById('modal-user-email').value = email;
+  document.getElementById('modal-user-tier').value = tier;
+  document.getElementById('modal-user-admin').value = admin;
+  document.getElementById('user-modal').style.display = 'block';
+}
+function closeUserModal() { document.getElementById('user-modal').style.display = 'none'; editUserId = null; }
+
+async function saveUser() {
+  if (!editUserId) return;
+  await fetch('/api/admin/users/' + editUserId, {
+    method: 'PATCH', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      name: document.getElementById('modal-user-name').value,
+      email: document.getElementById('modal-user-email').value,
+      tier: document.getElementById('modal-user-tier').value,
+      is_admin: parseInt(document.getElementById('modal-user-admin').value),
+    })
+  });
+  closeUserModal();
+  loadUsers();
+}
+
+// CONTENT
+async function loadContent() {
+  const data = await (await fetch('/api/admin/jobs')).json();
+  const overview = await (await fetch('/api/admin/overview')).json();
+
+  document.getElementById('content-metrics').innerHTML =
+    metricCard('Total Jobs', fmt(overview.total_jobs), '', '') +
+    metricCard('Completed', fmt(overview.completed_jobs), '', 'green') +
+    metricCard('Failed', fmt(overview.failed_jobs), '', 'red') +
+    metricCard('Today', fmt(overview.jobs_today), '', 'gold');
+
+  let statusHtml = '';
+  for (const [s, c] of Object.entries(data.by_status)) {
+    const cls = s==='completed'?'green':s==='failed'?'red':'gold';
+    statusHtml += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>${s}</span><span class="${cls}" style="font-weight:700;">${c}</span></div>`;
+  }
+  document.getElementById('jobs-status').innerHTML = statusHtml || '<p class="dim">No jobs</p>';
+
+  let nicheHtml = '';
+  for (const [n, c] of Object.entries(data.top_niches)) {
+    nicheHtml += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>${n}</span><span style="font-weight:700;">${c}</span></div>`;
+  }
+  document.getElementById('top-niches').innerHTML = nicheHtml || '<p class="dim">No data</p>';
+
+  renderBarChart('jobs-chart', data.daily_7d.map(d => ({label: d.date.slice(5), value: d.count})));
+}
+
+// GROWTH
+async function loadGrowth() {
+  const data = await (await fetch('/api/admin/growth')).json();
+  document.getElementById('growth-metrics').innerHTML =
+    metricCard('Total Users', fmt(data.total_users), '', '') +
+    metricCard('Paid Users', fmt(data.paid_users), '', 'green') +
+    metricCard('Conversion Rate', data.conversion_rate + '%', 'free to paid', 'gold') +
+    metricCard('7d Signups', fmt(data.signups_7d.reduce((s,d)=>s+d.count,0)), '', '');
+
+  renderBarChart('signups-chart', data.signups_30d.map(d => ({label: d.date.slice(5), value: d.count})));
+}
+
+// SYSTEM
+async function loadSystem() {
+  const data = await (await fetch('/api/admin/health')).json();
+  const diskPct = data.disk_pct_used;
+  const diskCls = diskPct > 90 ? 'red' : diskPct > 70 ? 'gold' : 'green';
+
+  document.getElementById('system-metrics').innerHTML =
+    metricCard('Database Size', fmtBytes(data.db_size_bytes), '', '') +
+    metricCard('Upload Storage', fmtBytes(data.upload_size_bytes), '', '') +
+    metricCard('Disk Used', diskPct + '%', fmtBytes(data.disk_used_bytes) + ' / ' + fmtBytes(data.disk_total_bytes), diskCls) +
+    metricCard('Disk Free', fmtBytes(data.disk_free_bytes), '', 'green');
+
+  document.getElementById('disk-bars').innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;"><span>Disk Usage</span><span class="${diskCls}">${diskPct}%</span></div>
+      <div class="progress-bar-bg" style="height:12px;"><div class="progress-bar-fill" style="width:${diskPct}%;background:${diskPct>90?'#e74c3c':diskPct>70?'#f39c12':'#2ecc71'};"></div></div>
+    </div>
+    <div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;"><span>Database</span><span>${fmtBytes(data.db_size_bytes)}</span></div>
+      <div class="progress-bar-bg" style="height:8px;margin-bottom:8px;"><div class="progress-bar-fill" style="width:${Math.min(data.db_size_bytes/1073741824*100,100).toFixed(1)}%;background:var(--gold);"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;"><span>Uploads</span><span>${fmtBytes(data.upload_size_bytes)}</span></div>
+      <div class="progress-bar-bg" style="height:8px;"><div class="progress-bar-fill" style="width:${Math.min(data.upload_size_bytes/1073741824*100,100).toFixed(1)}%;background:#a855f7;"></div></div>
+    </div>`;
+}
+
+// CONFIG
+async function loadConfig() {
+  const data = await (await fetch('/api/admin/config')).json();
+  let keysHtml = '';
+  for (const [key, status] of Object.entries(data.api_keys)) {
+    const ok = status === 'configured';
+    keysHtml += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;">${key}</span>
+      <span><span class="status-dot ${ok?'status-ok':'status-err'}"></span>${status}</span>
+    </div>`;
+  }
+  document.getElementById('api-keys-status').innerHTML = keysHtml;
+
+  const tbody = document.querySelector('#tiers-table tbody');
+  tbody.innerHTML = '';
+  for (const [key, tier] of Object.entries(data.tiers)) {
+    tbody.innerHTML += `<tr>
+      <td><span class="badge badge-${key}">${key}</span></td>
+      <td>${tier.label}</td>
+      <td class="gold">${fmtMoney(tier.price_monthly)}</td>
+      <td>${tier.videos_per_month === -1 ? 'Unlimited' : tier.videos_per_month}</td>
+      <td>${tier.higgsfield_credits}</td>
+      <td style="font-size:11px;">${tier.features.join(', ')}</td>
+    </tr>`;
+  }
+}
+
+function renderBarChart(containerId, data) {
+  const container = document.getElementById(containerId);
+  if (!data.length) { container.innerHTML = '<p class="dim" style="padding:20px;">No data</p>'; return; }
+  const max = Math.max(...data.map(d => d.value), 1);
+  const height = parseInt(container.style.height || '120');
+  container.innerHTML = data.map(d => {
+    const h = Math.max((d.value / max) * (height - 30), 2);
+    return `<div class="bar" style="height:${h}px;flex:1;">
+      <span class="bar-val">${d.value}</span>
+      <span class="bar-label">${d.label}</span>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('user-modal').addEventListener('click', e => { if (e.target.id === 'user-modal') closeUserModal(); });
+
+loadOverview();
+</script>
+{% endblock %}
