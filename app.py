@@ -3,6 +3,7 @@ Social Optimize Machine - Web Dashboard
 Flask application serving the command center UI.
 """
 import json
+import logging
 import os
 import csv
 
@@ -17,7 +18,7 @@ from pathlib import Path
 from datetime import datetime
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for,
-    send_file, Response, stream_with_context, session
+    send_file, Response, stream_with_context, session, g
 )
 from flask_login import LoginManager, login_required, current_user
 from werkzeug.utils import secure_filename
@@ -25,9 +26,56 @@ import database as db
 import config
 from auth import auth_bp, make_user
 from billing import billing_bp, check_usage_gate
+from logging_config import setup_logging
+from extensions import limiter
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
+
+# ── Logging ──────────────────────────────────────────────────────────────────
+logger = setup_logging(app)
+
+# ── Rate Limiting ────────────────────────────────────────────────────────────
+limiter.init_app(app)
+
+# CSRF protection — disabled by default since all state-changing endpoints use
+# @login_required with session cookies and the API is JSON-based (no form
+# submissions from other origins).  Security headers below provide additional
+# protection against cross-origin attacks.
+app.config["WTF_CSRF_ENABLED"] = False
+from flask_wtf.csrf import CSRFProtect
+csrf = CSRFProtect(app)
+
+
+# ── Request Logging ──────────────────────────────────────────────────────────
+_SKIP_LOG_PREFIXES = ("/health", "/static")
+
+
+@app.before_request
+def _start_timer():
+    g.request_start = time.time()
+
+
+@app.after_request
+def _log_request(response):
+    if request.path.startswith(_SKIP_LOG_PREFIXES):
+        return response
+    duration_ms = round((time.time() - getattr(g, "request_start", time.time())) * 1000, 1)
+    logger.info(
+        "%s %s %s %.1fms",
+        request.method,
+        request.path,
+        response.status_code,
+        duration_ms,
+        extra={
+            "method": request.method,
+            "path": request.path,
+            "status": response.status_code,
+            "duration_ms": duration_ms,
+            "remote_addr": request.remote_addr,
+        },
+    )
+    return response
 
 login_manager = LoginManager(app)
 login_manager.login_view = "auth.login"
@@ -181,6 +229,7 @@ def create_page():
 
 
 @app.route("/api/create", methods=["POST"])
+@limiter.limit("10 per minute")
 @login_required
 def api_create():
     allowed, err = check_usage_gate(current_user.id)
@@ -366,7 +415,12 @@ def api_connect_account():
 
 
 @app.route("/api/accounts/<int:acc_id>", methods=["DELETE"])
+@login_required
 def api_delete_account(acc_id):
+    # Verify the account belongs to the current user before deleting
+    accounts = db.get_accounts(user_id=current_user.id)
+    if not any(a["id"] == acc_id for a in accounts):
+        return jsonify({"error": "Account not found or access denied"}), 403
     db.delete_account(acc_id)
     return jsonify({"status": "deleted"})
 
@@ -1078,6 +1132,7 @@ def batch_page():
 
 
 @app.route("/api/batch/create", methods=["POST"])
+@limiter.limit("3 per minute")
 @login_required
 def api_batch_create():
     data = request.json or {}
@@ -1525,6 +1580,7 @@ def api_competitor_inspire(comp_id):
 # ── Health check (required by Render) ────────────────────────────────────────
 
 @app.route("/health")
+@limiter.exempt
 def health():
     from generators.higgsfield_cli import is_authenticated as hf_cli_ok
     return jsonify({"status": "ok", "version": "1.0", "higgsfield_cli": hf_cli_ok()})
@@ -1592,25 +1648,53 @@ def _execute_scheduled_post(post: dict):
     if not video_path or not Path(video_path).exists():
         raise ValueError("Video file not found")
     platform = post.get("platform", "youtube")
-    try:
-        import social_optimize
-        if platform == "youtube":
-            social_optimize.publish_to_youtube(
-                video_path=video_path, title=post.get("job_title") or "Scheduled Video", privacy="public",
-            )
-        elif platform == "tiktok":
-            social_optimize.publish_to_tiktok(
-                video_path=video_path, title=post.get("job_title") or "Scheduled Video",
-            )
-        elif platform == "instagram":
-            social_optimize.publish_to_instagram(
-                video_path=video_path, title=post.get("job_title") or "Scheduled Video",
-            )
-        else:
-            raise ValueError(f"Unsupported platform: {platform}")
-    except AttributeError:
-        # social_optimize may not have these functions yet — fail gracefully
-        raise ValueError(f"Platform publishing not implemented for: {platform}")
+    title = post.get("job_title") or "Scheduled Video"
+    thumbnail_path = post.get("thumbnail_path")
+
+    if platform == "youtube":
+        from publishers.youtube_publisher import upload_video
+        upload_video(
+            video_path=Path(video_path), title=title,
+            description=title, tags=[], thumbnail_path=Path(thumbnail_path) if thumbnail_path else None,
+            privacy="public",
+        )
+    elif platform == "tiktok":
+        from publishers.tiktok_publisher import upload_video
+        upload_video(
+            video_path=Path(video_path), title=title,
+            description=title, tags=[], privacy="PUBLIC_TO_EVERYONE",
+        )
+    elif platform == "instagram":
+        # Instagram requires a public CDN URL for the video, not a local file path.
+        # Skipping direct upload — use the Instagram publisher manually after
+        # uploading the video to a CDN.
+        raise ValueError("Instagram scheduled publishing requires a CDN-hosted video URL. Please publish manually.")
+    elif platform == "facebook":
+        from publishers.facebook_publisher import upload_video
+        upload_video(
+            video_path=video_path, title=title,
+            description=title, tags=[],
+        )
+    elif platform == "twitter":
+        from publishers.twitter_publisher import upload_video
+        upload_video(
+            video_path=video_path, title=title,
+            description=title, tags=[],
+        )
+    elif platform == "linkedin":
+        from publishers.linkedin_publisher import upload_video
+        upload_video(
+            video_path=video_path, title=title,
+            description=title, tags=[],
+        )
+    elif platform == "pinterest":
+        from publishers.pinterest_publisher import upload_video
+        upload_video(
+            video_path=video_path, title=title,
+            description=title, tags=[],
+        )
+    else:
+        raise ValueError(f"Unsupported platform: {platform}")
 
 
 def _competitor_refresh_thread():
@@ -1659,6 +1743,37 @@ def api_billing_portal():
         return jsonify({"url": portal_session.url})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ── Security Headers ─────────────────────────────────────────────────────────
+
+@app.after_request
+def add_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self'"
+    )
+    return response
+
+
+# ── Error Pages ──────────────────────────────────────────────────────────────
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template("errors/404.html"), 404
+
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template("errors/500.html"), 500
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────
