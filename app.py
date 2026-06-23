@@ -148,6 +148,11 @@ def landing():
     return render_template("landing.html", tiers=config.TIERS)
 
 
+@app.route("/pricing")
+def pricing():
+    return render_template("pricing.html", tiers=config.TIERS)
+
+
 @app.route("/dashboard")
 @login_required
 def dashboard():
