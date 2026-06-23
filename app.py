@@ -2011,6 +2011,105 @@ def start_background_threads():
     t2.start()
 
 
+# ── Admin Dashboard ───────────────────────────────────────────────────────────────────────────
+
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_admin:
+            return redirect(url_for("dashboard"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/admin")
+@login_required
+@admin_required
+def admin_dashboard():
+    users = db.list_users(limit=500)
+    tier_counts = {"free": 0, "starter": 0, "creator": 0, "agency": 0}
+    status_counts = {"active": 0, "canceled": 0, "past_due": 0, "other": 0}
+    mrr = 0
+    tier_prices = {"starter": 29, "creator": 79, "agency": 199}
+    for u in users:
+        t = u.get("subscription_tier", "free")
+        tier_counts[t] = tier_counts.get(t, 0) + 1
+        s = u.get("subscription_status", "active")
+        if s in status_counts:
+            status_counts[s] += 1
+        else:
+            status_counts["other"] += 1
+        if s == "active" and t in tier_prices:
+            mrr += tier_prices[t]
+    return render_template(
+        "admin.html",
+        users=users,
+        tier_counts=tier_counts,
+        status_counts=status_counts,
+        mrr=mrr,
+        total_users=len(users),
+        active_page="admin",
+    )
+
+
+@app.route("/admin/user/<int:uid>", methods=["GET"])
+@login_required
+@admin_required
+def admin_user_detail(uid):
+    user = db.get_user_by_id(uid)
+    if not user:
+        return "User not found", 404
+    jobs = db.get_jobs(user_id=uid, limit=20)
+    return render_template("admin_user.html", u=user, jobs=jobs, active_page="admin")
+
+
+@app.route("/api/admin/user/<int:uid>/tier", methods=["POST"])
+@login_required
+@admin_required
+def admin_set_tier(uid):
+    data = request.get_json(silent=True) or {}
+    tier = data.get("tier", "").lower()
+    if tier not in ("free", "starter", "creator", "agency"):
+        return jsonify({"error": "invalid tier"}), 400
+    db.update_user(uid, subscription_tier=tier)
+    return jsonify({"ok": True, "tier": tier})
+
+
+@app.route("/api/admin/user/<int:uid>/status", methods=["POST"])
+@login_required
+@admin_required
+def admin_set_status(uid):
+    data = request.get_json(silent=True) or {}
+    status = data.get("status", "").lower()
+    if status not in ("active", "canceled", "past_due", "suspended"):
+        return jsonify({"error": "invalid status"}), 400
+    db.update_user(uid, subscription_status=status)
+    return jsonify({"ok": True, "status": status})
+
+
+@app.route("/api/admin/user/<int:uid>/toggle-admin", methods=["POST"])
+@login_required
+@admin_required
+def admin_toggle_admin(uid):
+    if uid == current_user.id:
+        return jsonify({"error": "cannot change your own admin status"}), 400
+    user = db.get_user_by_id(uid)
+    if not user:
+        return jsonify({"error": "not found"}), 404
+    new_val = 0 if user.get("is_admin") else 1
+    db.update_user(uid, is_admin=new_val)
+    return jsonify({"ok": True, "is_admin": bool(new_val)})
+
+
+@app.route("/api/admin/user/<int:uid>/reset-usage", methods=["POST"])
+@login_required
+@admin_required
+def admin_reset_usage(uid):
+    db.update_user(uid, videos_used_this_month=0, videos_used=0, credits_used=0)
+    return jsonify({"ok": True})
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────────────────────
 
 db.init_db()
