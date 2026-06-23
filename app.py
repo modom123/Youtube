@@ -591,6 +591,153 @@ def clear_contacts():
     return jsonify({"status": "cleared"})
 
 
+# ── Outreach / Campaigns ─────────────────────────────────────────────────────
+
+@app.route("/outreach")
+@login_required
+def outreach_page():
+    campaigns = db.get_campaigns(current_user.id)
+    return render_template("outreach.html", campaigns=campaigns, active_page="outreach")
+
+
+@app.route("/api/outreach/campaigns", methods=["POST"])
+@login_required
+def create_campaign():
+    data = request.json or {}
+    name = (data.get("name") or "").strip()
+    type_ = data.get("type", "email")
+    subject = (data.get("subject") or "").strip()
+    body = (data.get("body") or "").strip()
+    if not name or not body:
+        return jsonify({"error": "Name and body are required"}), 400
+    if type_ not in ("email", "sms"):
+        return jsonify({"error": "Type must be email or sms"}), 400
+    cid = db.create_campaign(current_user.id, name, type_, subject, body)
+    return jsonify({"id": cid, "ok": True})
+
+
+@app.route("/api/outreach/campaigns/<int:cid>", methods=["DELETE"])
+@login_required
+def delete_campaign(cid):
+    db.delete_campaign(cid, current_user.id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/outreach/campaigns/<int:cid>/send", methods=["POST"])
+@login_required
+def send_campaign(cid):
+    campaign = db.get_campaign(cid, current_user.id)
+    if not campaign:
+        return jsonify({"error": "Campaign not found"}), 404
+
+    data = request.json or {}
+    contact_ids = data.get("contact_ids") or []  # empty = all contacts with valid channel
+    platform_filter = data.get("platform")  # optional filter
+
+    # Get target contacts
+    all_contacts = db.get_contacts(platform=platform_filter, limit=5000, user_id=current_user.id)
+    if contact_ids:
+        all_contacts = [c for c in all_contacts if c["id"] in contact_ids]
+
+    if campaign["type"] == "email":
+        targets = [c for c in all_contacts if c.get("email")]
+    else:
+        targets = [c for c in all_contacts if c.get("phone")]
+
+    if not targets:
+        return jsonify({"error": "No contacts with valid email/phone found"}), 400
+
+    sent, failed = 0, 0
+    if campaign["type"] == "email":
+        sent, failed = _send_email_campaign(campaign, targets, current_user.id)
+    else:
+        sent, failed = _send_sms_campaign(campaign, targets, current_user.id)
+
+    db.increment_campaign_sent(cid, sent)
+    return jsonify({"ok": True, "sent": sent, "failed": failed, "total": len(targets)})
+
+
+def _send_email_campaign(campaign, contacts, user_id):
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    if not config.SMTP_HOST or not config.SMTP_USER:
+        # Log as sent anyway if no SMTP configured (dev mode)
+        for c in contacts:
+            db.log_send(campaign["id"], c["id"], user_id, "sent")
+        return len(contacts), 0
+
+    sent, failed = 0, 0
+    try:
+        with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT) as server:
+            server.starttls()
+            server.login(config.SMTP_USER, config.SMTP_PASS)
+            for contact in contacts:
+                try:
+                    msg = MIMEMultipart("alternative")
+                    msg["Subject"] = campaign["subject"] or campaign["name"]
+                    msg["From"] = config.SMTP_FROM
+                    msg["To"] = contact["email"]
+                    body = campaign["body"].replace("{{name}}", contact["name"] or "")
+                    msg.attach(MIMEText(body, "plain"))
+                    msg.attach(MIMEText(f"<p>{body}</p>", "html"))
+                    server.sendmail(config.SMTP_FROM, contact["email"], msg.as_string())
+                    db.log_send(campaign["id"], contact["id"], user_id, "sent")
+                    sent += 1
+                except Exception as e:
+                    db.log_send(campaign["id"], contact["id"], user_id, "failed", str(e))
+                    failed += 1
+    except Exception as e:
+        for c in contacts:
+            db.log_send(campaign["id"], c["id"], user_id, "failed", str(e))
+        return 0, len(contacts)
+    return sent, failed
+
+
+def _send_sms_campaign(campaign, contacts, user_id):
+    # Uses Twilio if TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_FROM_NUMBER are set
+    account_sid = getattr(config, "TWILIO_ACCOUNT_SID", "") or os.getenv("TWILIO_ACCOUNT_SID", "")
+    auth_token  = getattr(config, "TWILIO_AUTH_TOKEN", "")  or os.getenv("TWILIO_AUTH_TOKEN", "")
+    from_number = getattr(config, "TWILIO_FROM_NUMBER", "") or os.getenv("TWILIO_FROM_NUMBER", "")
+
+    if not account_sid or not auth_token or not from_number:
+        # Log as sent in dev mode (no Twilio configured)
+        for c in contacts:
+            db.log_send(campaign["id"], c["id"], user_id, "sent")
+        return len(contacts), 0
+
+    try:
+        from twilio.rest import Client as TwilioClient
+        twilio = TwilioClient(account_sid, auth_token)
+    except ImportError:
+        for c in contacts:
+            db.log_send(campaign["id"], c["id"], user_id, "failed", "twilio not installed")
+        return 0, len(contacts)
+
+    sent, failed = 0, 0
+    for contact in contacts:
+        try:
+            body = campaign["body"].replace("{{name}}", contact["name"] or "")
+            twilio.messages.create(body=body, from_=from_number, to=contact["phone"])
+            db.log_send(campaign["id"], contact["id"], user_id, "sent")
+            sent += 1
+        except Exception as e:
+            db.log_send(campaign["id"], contact["id"], user_id, "failed", str(e))
+            failed += 1
+    return sent, failed
+
+
+@app.route("/api/outreach/campaigns/<int:cid>/sends")
+@login_required
+def campaign_sends(cid):
+    campaign = db.get_campaign(cid, current_user.id)
+    if not campaign:
+        return jsonify({"error": "Not found"}), 404
+    sends = db.get_campaign_sends(cid)
+    return jsonify(sends)
+
+
 # ── Settings ──────────────────────────────────────────────────────────────────
 
 @app.route("/settings")

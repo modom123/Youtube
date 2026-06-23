@@ -69,6 +69,31 @@ def init_db():
             imported_at TEXT DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS outreach_campaigns (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name        TEXT NOT NULL,
+            type        TEXT NOT NULL DEFAULT 'email',
+            subject     TEXT,
+            body        TEXT NOT NULL,
+            status      TEXT DEFAULT 'draft',
+            sent_count  INTEGER DEFAULT 0,
+            open_count  INTEGER DEFAULT 0,
+            created_at  TEXT DEFAULT (datetime('now')),
+            sent_at     TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS outreach_sends (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id     INTEGER REFERENCES outreach_campaigns(id) ON DELETE CASCADE,
+            contact_id      INTEGER REFERENCES contacts(id) ON DELETE CASCADE,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            status          TEXT DEFAULT 'pending',
+            sent_at         TEXT,
+            error_msg       TEXT,
+            UNIQUE(campaign_id, contact_id)
+        );
+
         CREATE TABLE IF NOT EXISTS jobs (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -938,3 +963,60 @@ def get_all_competitor_channels_for_refresh():
     with get_conn() as conn:
         rows = conn.execute("SELECT * FROM competitor_channels").fetchall()
     return [row_to_dict(r) for r in rows]
+
+
+# ── Feature 9: Outreach Campaigns ────────────────────────────────────────────
+
+def create_campaign(user_id, name, type_, subject, body):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO outreach_campaigns (user_id, name, type, subject, body) VALUES (?,?,?,?,?)",
+            (user_id, name, type_, subject, body)
+        )
+        return cur.lastrowid
+
+
+def get_campaigns(user_id):
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM outreach_campaigns WHERE user_id=? ORDER BY created_at DESC", (user_id,)
+        ).fetchall()]
+
+
+def get_campaign(campaign_id, user_id):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM outreach_campaigns WHERE id=? AND user_id=?", (campaign_id, user_id)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def delete_campaign(campaign_id, user_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM outreach_campaigns WHERE id=? AND user_id=?", (campaign_id, user_id))
+
+
+def log_send(campaign_id, contact_id, user_id, status, error_msg=None):
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR REPLACE INTO outreach_sends (campaign_id, contact_id, user_id, status, sent_at, error_msg)
+               VALUES (?,?,?,?,datetime('now'),?)""",
+            (campaign_id, contact_id, user_id, status, error_msg)
+        )
+
+
+def increment_campaign_sent(campaign_id, count=1):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE outreach_campaigns SET sent_count=sent_count+?, sent_at=datetime('now'), status='sent' WHERE id=?",
+            (count, campaign_id)
+        )
+
+
+def get_campaign_sends(campaign_id):
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            """SELECT os.*, c.name, c.email, c.phone FROM outreach_sends os
+               JOIN contacts c ON c.id=os.contact_id
+               WHERE os.campaign_id=?""", (campaign_id,)
+        ).fetchall()]
