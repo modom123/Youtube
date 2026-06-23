@@ -37,10 +37,5 @@ youtube_token.json
 *.pem
 *.key
 
-# Testing / coverage
-.pytest_cache/
-htmlcov/
-.coverage
-
 # Claude Code agent worktrees
 .claude/worktrees/

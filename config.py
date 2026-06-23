@@ -29,7 +29,7 @@ TIERS = {
         "videos_per_month": 2,
         "higgsfield_credits": 0,
         "stripe_price_id": None,
-        "features": ["2 videos/month", "Pexels stock media", "Basic scripts"],
+        "features": ["2 videos/month", "All 8 platforms", "Pexels stock media", "Basic scripts"],
     },
     "starter": {
         "label": "Starter",
@@ -37,7 +37,7 @@ TIERS = {
         "videos_per_month": 15,
         "higgsfield_credits": 150,
         "stripe_price_id": STRIPE_PRICE_STARTER,
-        "features": ["15 videos/month", "150 AI video credits", "5-agent pipeline", "YouTube publishing"],
+        "features": ["15 videos/month", "All 8 platforms", "150 AI video credits", "5-agent pipeline"],
     },
     "creator": {
         "label": "Creator",
@@ -78,9 +78,6 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
 # Higgsfield AI — single token used by both the CLI and MCP HTTP client
 HIGGSFIELD_MCP_TOKEN = os.getenv("HIGGSFIELD_MCP_TOKEN", "")
-
-# Render — API key for Hollywood to manage deployments and env vars
-RENDER_API_KEY = os.getenv("RENDER_API_KEY", "")
 
 # YouTube
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID", "")
@@ -177,21 +174,7 @@ TRANSLATION_LANGUAGES = {
 }
 
 # AI Video providers
-AI_VIDEO_PROVIDERS = ["none", "higgsville", "google_flow", "chinese_opensource", "both"]
-
-# ── Chinese Open-Source Models (Serverless GPU) ──────────────────────────────
-RUNPOD_API_KEY = os.getenv("RUNPOD_API_KEY", "")
-RUNPOD_WAN_ENDPOINT = os.getenv("RUNPOD_WAN_ENDPOINT", "")
-RUNPOD_HUNYUAN_ENDPOINT = os.getenv("RUNPOD_HUNYUAN_ENDPOINT", "")
-RUNPOD_SEEDANCE_ENDPOINT = os.getenv("RUNPOD_SEEDANCE_ENDPOINT", "")
-
-CHINESE_MODEL_COST_PER_CLIP = {
-    "wan2_7_opensource": float(os.getenv("WAN_COST_PER_CLIP", "0.02")),
-    "hunyuan_video": float(os.getenv("HUNYUAN_COST_PER_CLIP", "0.05")),
-    "seedance2_opensource": float(os.getenv("SEEDANCE_COST_PER_CLIP", "0.04")),
-}
-
-MONTHLY_DOLLAR_BUDGET = float(os.getenv("MONTHLY_DOLLAR_BUDGET", "20.0"))
+AI_VIDEO_PROVIDERS = ["none", "higgsville", "google_flow", "both"]
 
 HIGGSVILLE_MODELS = {
     # Kling
@@ -216,4 +199,3 @@ HIGGSVILLE_MODELS = {
     "grok_video_v15":         "Grok Imagine 1.5 — Cinematic",
     "grok_video":             "Grok Imagine — Versatile",
 }
-
