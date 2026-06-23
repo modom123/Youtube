@@ -3,7 +3,6 @@ Social Optimize Machine - Web Dashboard
 Flask application serving the command center UI.
 """
 import json
-import logging
 import os
 import csv
 
@@ -18,7 +17,7 @@ from pathlib import Path
 from datetime import datetime
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for,
-    send_file, Response, stream_with_context, session, g
+    send_file, Response, stream_with_context, session
 )
 from flask_login import LoginManager, login_required, current_user
 from werkzeug.utils import secure_filename
@@ -26,56 +25,9 @@ import database as db
 import config
 from auth import auth_bp, make_user
 from billing import billing_bp, check_usage_gate
-from logging_config import setup_logging
-from extensions import limiter
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
-
-# ── Logging ──────────────────────────────────────────────────────────────────
-logger = setup_logging(app)
-
-# ── Rate Limiting ────────────────────────────────────────────────────────────
-limiter.init_app(app)
-
-# CSRF protection — disabled by default since all state-changing endpoints use
-# @login_required with session cookies and the API is JSON-based (no form
-# submissions from other origins).  Security headers below provide additional
-# protection against cross-origin attacks.
-app.config["WTF_CSRF_ENABLED"] = False
-from flask_wtf.csrf import CSRFProtect
-csrf = CSRFProtect(app)
-
-
-# ── Request Logging ──────────────────────────────────────────────────────────
-_SKIP_LOG_PREFIXES = ("/health", "/static")
-
-
-@app.before_request
-def _start_timer():
-    g.request_start = time.time()
-
-
-@app.after_request
-def _log_request(response):
-    if request.path.startswith(_SKIP_LOG_PREFIXES):
-        return response
-    duration_ms = round((time.time() - getattr(g, "request_start", time.time())) * 1000, 1)
-    logger.info(
-        "%s %s %s %.1fms",
-        request.method,
-        request.path,
-        response.status_code,
-        duration_ms,
-        extra={
-            "method": request.method,
-            "path": request.path,
-            "status": response.status_code,
-            "duration_ms": duration_ms,
-            "remote_addr": request.remote_addr,
-        },
-    )
-    return response
 
 login_manager = LoginManager(app)
 login_manager.login_view = "auth.login"
@@ -229,7 +181,6 @@ def create_page():
 
 
 @app.route("/api/create", methods=["POST"])
-@limiter.limit("10 per minute")
 @login_required
 def api_create():
     allowed, err = check_usage_gate(current_user.id)
@@ -378,7 +329,7 @@ def get_thumbnail(job_id):
     return send_file(str(path), mimetype="image/jpeg")
 
 
-# ── Social Accounts ───────────────────────────────────────────────────────────
+# ── Social Accounts ───────────────────────────────────────────────────────────────────────────────
 
 @app.route("/accounts")
 @login_required
@@ -415,12 +366,7 @@ def api_connect_account():
 
 
 @app.route("/api/accounts/<int:acc_id>", methods=["DELETE"])
-@login_required
 def api_delete_account(acc_id):
-    # Verify the account belongs to the current user before deleting
-    accounts = db.get_accounts(user_id=current_user.id)
-    if not any(a["id"] == acc_id for a in accounts):
-        return jsonify({"error": "Account not found or access denied"}), 403
     db.delete_account(acc_id)
     return jsonify({"status": "deleted"})
 
@@ -531,7 +477,7 @@ def oauth_instagram_start():
     return redirect("/accounts?modal=instagram")
 
 
-# ── Contacts ─────────────────────────────────────────────────────────────────
+# ── Contacts ─────────────────────────────────────────────────────────────────────────────────
 
 @app.route("/contacts")
 @login_required
@@ -645,626 +591,7 @@ def clear_contacts():
     return jsonify({"status": "cleared"})
 
 
-# ── Engagement Center ─────────────────────────────────────────────────────────
-
-@app.route("/engagement")
-@login_required
-def engagement_page():
-    campaigns = db.get_engagement_campaigns(current_user.id)
-    stats = db.get_engagement_stats(current_user.id)
-    return render_template("engagement.html", campaigns=campaigns, stats=stats)
-
-
-@app.route("/api/engagement/campaigns", methods=["GET"])
-@login_required
-def api_list_campaigns():
-    campaigns = db.get_engagement_campaigns(current_user.id)
-    return jsonify(campaigns)
-
-
-@app.route("/api/engagement/campaigns", methods=["POST"])
-@login_required
-@limiter.limit("10/minute")
-def api_create_campaign():
-    data = request.json or {}
-    name = (data.get("name") or "").strip()
-    if not name:
-        return jsonify({"error": "Campaign name is required"}), 400
-
-    platforms = data.get("platforms", [])
-    if not platforms:
-        return jsonify({"error": "At least one platform is required"}), 400
-
-    campaign_id = db.create_engagement_campaign(
-        user_id=current_user.id,
-        name=name,
-        strategy=data.get("strategy", "growth"),
-        platforms=platforms,
-        target_niche=data.get("target_niche", ""),
-        daily_limit=min(data.get("daily_limit", 50), 100),
-        config_json=data.get("config", {}),
-    )
-    return jsonify({"campaign_id": campaign_id, "status": "created"})
-
-
-@app.route("/api/engagement/campaigns/<campaign_id>", methods=["GET"])
-@login_required
-def api_get_campaign(campaign_id):
-    campaign = db.get_engagement_campaign(campaign_id, current_user.id)
-    if not campaign:
-        return jsonify({"error": "Campaign not found"}), 404
-    stats = db.get_engagement_stats(current_user.id, campaign_id)
-    actions = db.get_engagement_actions(current_user.id, campaign_id=campaign_id, limit=20)
-    targets = db.get_engagement_targets(current_user.id, campaign_id=campaign_id)
-    return jsonify({
-        "campaign": campaign,
-        "stats": stats,
-        "recent_actions": actions,
-        "targets": targets,
-    })
-
-
-@app.route("/api/engagement/campaigns/<campaign_id>", methods=["PUT"])
-@login_required
-def api_update_campaign(campaign_id):
-    campaign = db.get_engagement_campaign(campaign_id, current_user.id)
-    if not campaign:
-        return jsonify({"error": "Campaign not found"}), 404
-    data = request.json or {}
-    updates = {}
-    if "name" in data:
-        updates["name"] = data["name"].strip()
-    if "is_active" in data:
-        updates["is_active"] = 1 if data["is_active"] else 0
-    if "daily_limit" in data:
-        updates["daily_limit"] = min(data["daily_limit"], 100)
-    if "target_niche" in data:
-        updates["target_niche"] = data["target_niche"]
-    if "platforms" in data:
-        updates["platforms"] = json.dumps(data["platforms"])
-    if updates:
-        db.update_engagement_campaign(campaign_id, **updates)
-    return jsonify({"status": "updated"})
-
-
-@app.route("/api/engagement/campaigns/<campaign_id>", methods=["DELETE"])
-@login_required
-def api_delete_campaign(campaign_id):
-    db.delete_engagement_campaign(campaign_id, current_user.id)
-    return jsonify({"status": "deleted"})
-
-
-@app.route("/api/engagement/campaigns/<campaign_id>/targets", methods=["POST"])
-@login_required
-@limiter.limit("30/minute")
-def api_add_targets(campaign_id):
-    campaign = db.get_engagement_campaign(campaign_id, current_user.id)
-    if not campaign:
-        return jsonify({"error": "Campaign not found"}), 404
-
-    data = request.json or {}
-    targets = data.get("targets", [])
-    if not targets:
-        return jsonify({"error": "No targets provided"}), 400
-
-    added = 0
-    for t in targets[:50]:
-        if not t.get("username") or not t.get("platform"):
-            continue
-        db.add_engagement_target(
-            user_id=current_user.id,
-            campaign_id=campaign_id,
-            platform=t["platform"],
-            username=t["username"],
-            profile_url=t.get("profile_url"),
-            content_url=t.get("content_url"),
-            followers=t.get("followers", 0),
-            relevance_score=t.get("relevance_score", 0.5),
-            notes=t.get("notes"),
-        )
-        added += 1
-    return jsonify({"added": added})
-
-
-@app.route("/api/engagement/campaigns/<campaign_id>/generate", methods=["POST"])
-@login_required
-@limiter.limit("5/minute")
-def api_generate_engagement_plan(campaign_id):
-    campaign = db.get_engagement_campaign(campaign_id, current_user.id)
-    if not campaign:
-        return jsonify({"error": "Campaign not found"}), 404
-
-    from generators.engagement_engine import generate_engagement_plan
-    result = generate_engagement_plan(current_user.id, campaign_id)
-    if not result:
-        return jsonify({"error": "Failed to generate plan"}), 500
-    return jsonify(result)
-
-
-@app.route("/api/engagement/campaigns/<campaign_id>/execute", methods=["POST"])
-@login_required
-@limiter.limit("5/minute")
-def api_execute_engagement(campaign_id):
-    campaign = db.get_engagement_campaign(campaign_id, current_user.id)
-    if not campaign:
-        return jsonify({"error": "Campaign not found"}), 404
-
-    if not campaign.get("is_active"):
-        return jsonify({"error": "Campaign is paused"}), 400
-
-    from generators.engagement_engine import execute_pending_actions
-    batch_size = min((request.json or {}).get("batch_size", 10), 20)
-    results = execute_pending_actions(current_user.id, campaign_id, batch_size=batch_size)
-    return jsonify({"executed": len(results), "results": results})
-
-
-@app.route("/api/engagement/actions", methods=["POST"])
-@login_required
-@limiter.limit("20/minute")
-def api_create_action():
-    data = request.json or {}
-    required = ["platform", "action_type"]
-    for field in required:
-        if not data.get(field):
-            return jsonify({"error": f"{field} is required"}), 400
-
-    from generators.engagement_engine import check_rate_limit
-    allowed, err = check_rate_limit(current_user.id, data["platform"], data["action_type"])
-    if not allowed:
-        return jsonify({"error": err}), 429
-
-    action_id = db.create_engagement_action(
-        user_id=current_user.id,
-        platform=data["platform"],
-        action_type=data["action_type"],
-        target_url=data.get("target_url"),
-        target_username=data.get("target_username"),
-        target_content_id=data.get("target_content_id"),
-        comment_text=data.get("comment_text"),
-        campaign_id=data.get("campaign_id"),
-    )
-    return jsonify({"action_id": action_id, "status": "queued"})
-
-
-@app.route("/api/engagement/stats", methods=["GET"])
-@login_required
-def api_engagement_stats():
-    campaign_id = request.args.get("campaign_id")
-    stats = db.get_engagement_stats(current_user.id, campaign_id)
-    daily_count = db.get_daily_action_count(current_user.id, campaign_id)
-    stats["daily_count"] = daily_count
-    return jsonify(stats)
-
-
-# ── RSS Feeds ─────────────────────────────────────────────────────────────────
-
-@app.route("/api/rss/feeds", methods=["GET"])
-@login_required
-def api_get_rss_feeds():
-    feeds = db.get_rss_feeds(current_user.id)
-    return jsonify(feeds)
-
-
-@app.route("/api/rss/feeds", methods=["POST"])
-@login_required
-def api_add_rss_feed():
-    data = request.json or {}
-    url = data.get("url", "").strip()
-    if not url:
-        return jsonify({"error": "URL required"}), 400
-    feed_id = db.add_rss_feed(
-        current_user.id, url,
-        name=data.get("name", ""),
-        category=data.get("category", "general"),
-    )
-    return jsonify({"id": feed_id, "status": "added"})
-
-
-@app.route("/api/rss/feeds/<int:feed_id>", methods=["DELETE"])
-@login_required
-def api_delete_rss_feed(feed_id):
-    db.delete_rss_feed(feed_id, current_user.id)
-    return jsonify({"status": "deleted"})
-
-
-@app.route("/api/rss/trending", methods=["GET"])
-@login_required
-def api_rss_trending():
-    from generators.rss_monitor import create_niche_monitor
-    niche = request.args.get("niche", "tech")
-    monitor = create_niche_monitor(niche)
-    try:
-        items = monitor.fetch_all()
-        return jsonify([{
-            "title": i.title, "url": i.url, "published": i.published,
-            "summary": i.summary, "source": i.source,
-        } for i in items[:20]])
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# ── DM Templates ──────────────────────────────────────────────────────────────
-
-@app.route("/api/dm/templates", methods=["GET"])
-@login_required
-def api_get_dm_templates():
-    platform = request.args.get("platform")
-    templates = db.get_dm_templates(current_user.id, platform)
-    return jsonify(templates)
-
-
-@app.route("/api/dm/templates", methods=["POST"])
-@login_required
-def api_create_dm_template():
-    data = request.json or {}
-    name = data.get("name", "").strip()
-    message = data.get("message_template", "").strip()
-    if not name or not message:
-        return jsonify({"error": "Name and message_template required"}), 400
-    tmpl_id = db.create_dm_template(
-        current_user.id, name, message,
-        platform=data.get("platform", "all"),
-        trigger_on=data.get("trigger_on", "new_follower"),
-        delay_minutes=data.get("delay_minutes", 30),
-        uses_spintax=data.get("uses_spintax", True),
-    )
-    return jsonify({"id": tmpl_id, "status": "created"})
-
-
-@app.route("/api/dm/templates/<int:tmpl_id>", methods=["DELETE"])
-@login_required
-def api_delete_dm_template(tmpl_id):
-    db.delete_dm_template(tmpl_id, current_user.id)
-    return jsonify({"status": "deleted"})
-
-
-@app.route("/api/dm/send", methods=["POST"])
-@login_required
-def api_send_dm():
-    data = request.json or {}
-    from generators.engagement_engine import send_dm
-    result = send_dm(
-        current_user.id,
-        platform=data.get("platform", ""),
-        target_username=data.get("target_username", ""),
-        template_id=data.get("template_id"),
-        message=data.get("message"),
-    )
-    return jsonify(result)
-
-
-# ── Auto-Reply Rules ─────────────────────────────────────────────────────────
-
-@app.route("/api/auto-reply/rules", methods=["GET"])
-@login_required
-def api_get_auto_reply_rules():
-    platform = request.args.get("platform")
-    rules = db.get_auto_reply_rules(current_user.id, platform)
-    return jsonify(rules)
-
-
-@app.route("/api/auto-reply/rules", methods=["POST"])
-@login_required
-def api_create_auto_reply_rule():
-    data = request.json or {}
-    platform = data.get("platform", "").strip()
-    trigger_type = data.get("trigger_type", "").strip()
-    trigger_value = data.get("trigger_value", "").strip()
-    reply_template = data.get("reply_template", "").strip()
-    if not all([platform, trigger_type, trigger_value, reply_template]):
-        return jsonify({"error": "platform, trigger_type, trigger_value, and reply_template required"}), 400
-    rule_id = db.create_auto_reply_rule(
-        current_user.id, platform, trigger_type, trigger_value, reply_template,
-        uses_spintax=data.get("uses_spintax", False),
-        max_replies_day=data.get("max_replies_day", 20),
-    )
-    return jsonify({"id": rule_id, "status": "created"})
-
-
-@app.route("/api/auto-reply/rules/<int:rule_id>", methods=["DELETE"])
-@login_required
-def api_delete_auto_reply_rule(rule_id):
-    db.delete_auto_reply_rule(rule_id, current_user.id)
-    return jsonify({"status": "deleted"})
-
-
-# ── Hashtag Research ──────────────────────────────────────────────────────────
-
-@app.route("/api/hashtags/research", methods=["GET"])
-@login_required
-def api_hashtag_research():
-    topic = request.args.get("topic", "").strip()
-    platform = request.args.get("platform")
-    count = min(int(request.args.get("count", 15)), 50)
-    if not topic:
-        return jsonify({"error": "topic required"}), 400
-    from generators.hashtag_research import get_best_hashtags
-    hashtags = get_best_hashtags(topic, platform=platform, count=count)
-    return jsonify({"topic": topic, "hashtags": hashtags, "count": len(hashtags)})
-
-
-# ── Growth Analytics ──────────────────────────────────────────────────────────
-
-@app.route("/api/growth/snapshot", methods=["POST"])
-@login_required
-def api_add_growth_snapshot():
-    data = request.json or {}
-    account_id = data.get("account_id")
-    platform = data.get("platform", "").strip()
-    if not account_id or not platform:
-        return jsonify({"error": "account_id and platform required"}), 400
-    snap_id = db.add_growth_snapshot(
-        current_user.id, account_id, platform,
-        followers=data.get("followers", 0),
-        following=data.get("following", 0),
-        posts=data.get("posts", 0),
-        engagement_rate=data.get("engagement_rate", 0.0),
-        views_total=data.get("views_total", 0),
-        likes_total=data.get("likes_total", 0),
-    )
-    return jsonify({"id": snap_id, "status": "recorded"})
-
-
-@app.route("/api/growth/history", methods=["GET"])
-@login_required
-def api_growth_history():
-    account_id = request.args.get("account_id", type=int)
-    platform = request.args.get("platform")
-    days = request.args.get("days", 30, type=int)
-    history = db.get_growth_history(current_user.id, account_id=account_id, platform=platform, days=days)
-    return jsonify(history)
-
-
-@app.route("/api/growth/summary", methods=["GET"])
-@login_required
-def api_growth_summary():
-    platform = request.args.get("platform")
-    summary = db.get_growth_summary(current_user.id, platform=platform)
-    return jsonify(summary)
-
-
-# ── Follow Tracking ──────────────────────────────────────────────────────────
-
-@app.route("/api/follows", methods=["GET"])
-@login_required
-def api_get_follows():
-    platform = request.args.get("platform")
-    status = request.args.get("status", "following")
-    follows = db.get_follows(current_user.id, platform=platform, status=status)
-    return jsonify(follows)
-
-
-@app.route("/api/follows", methods=["POST"])
-@login_required
-def api_track_follow():
-    data = request.json or {}
-    platform = data.get("platform", "").strip()
-    target = data.get("target_username", "").strip()
-    if not platform or not target:
-        return jsonify({"error": "platform and target_username required"}), 400
-    follow_id = db.track_follow(current_user.id, platform, target)
-    return jsonify({"id": follow_id, "status": "tracking"})
-
-
-@app.route("/api/follows/stale", methods=["GET"])
-@login_required
-def api_stale_follows():
-    platform = request.args.get("platform")
-    days = request.args.get("days", 3, type=int)
-    stale = db.get_stale_follows(current_user.id, platform=platform, days_threshold=days)
-    return jsonify(stale)
-
-
-@app.route("/api/follows/auto-unfollow", methods=["POST"])
-@login_required
-def api_auto_unfollow():
-    data = request.json or {}
-    from generators.engagement_engine import auto_unfollow_stale
-    results = auto_unfollow_stale(
-        current_user.id,
-        platform=data.get("platform"),
-        days_threshold=data.get("days_threshold", 3),
-    )
-    return jsonify({"unfollowed": len(results), "details": results})
-
-
-# ── Account Warmup ────────────────────────────────────────────────────────────
-
-@app.route("/api/warmup/status", methods=["GET"])
-@login_required
-def api_warmup_status():
-    account_created = request.args.get("account_created", "")
-    profile = request.args.get("profile", "conservative")
-    if not account_created:
-        return jsonify({"error": "account_created parameter required"}), 400
-    from generators.account_warmup import get_warmup_status, should_rest
-    status = get_warmup_status(account_created, profile)
-    status["should_rest"] = should_rest(account_created, profile)
-    return jsonify(status)
-
-
-@app.route("/api/warmup/limits", methods=["GET"])
-@login_required
-def api_warmup_limits():
-    platform = request.args.get("platform", "").strip()
-    account_created = request.args.get("account_created", "")
-    profile = request.args.get("profile", "conservative")
-    if not platform or not account_created:
-        return jsonify({"error": "platform and account_created required"}), 400
-    from generators.account_warmup import get_warmed_limits
-    limits = get_warmed_limits(platform, account_created, profile)
-    return jsonify({"platform": platform, "limits": limits, "profile": profile})
-
-
-# ── Spintax Preview ───────────────────────────────────────────────────────────
-
-@app.route("/api/spintax/preview", methods=["POST"])
-@login_required
-def api_spintax_preview():
-    data = request.json or {}
-    text = data.get("text", "")
-    count = min(data.get("count", 5), 20)
-    if not text:
-        return jsonify({"error": "text required"}), 400
-    from utils.spintax import spin_batch, validate, estimate_variations
-    is_valid, error_msg = validate(text)
-    if not is_valid:
-        return jsonify({"error": "Invalid spintax", "details": error_msg}), 400
-    variations = spin_batch(text, count)
-    return jsonify({
-        "variations": variations,
-        "total_possible": estimate_variations(text),
-    })
-
-
-# ── User Scraper ──────────────────────────────────────────────────────────────
-
-@app.route("/api/scraper/run", methods=["POST"])
-@login_required
-def api_run_scraper():
-    data = request.json or {}
-    platform = data.get("platform", "").strip()
-    target = data.get("target", "").strip()
-    method = data.get("method", "commenters")
-    max_results = min(data.get("max_results", 50), 100)
-    if not platform or not target:
-        return jsonify({"error": "platform and target required"}), 400
-    from generators.user_scraper import scrape_by_platform
-    users = scrape_by_platform(platform, target, method=method, max_results=max_results)
-    return jsonify({
-        "users": [u.to_dict() for u in users],
-        "count": len(users),
-        "platform": platform,
-        "method": method,
-    })
-
-
-# ── Render Deploy ─────────────────────────────────────────────────────────────
-
-@app.route("/api/render/deploy", methods=["POST"])
-@login_required
-def api_render_deploy():
-    import requests as req
-    hook = "https://api.render.com/deploy/srv-d8t0do77f7vs73bkq11g?key=VDe3ZfxMdGk"
-    try:
-        resp = req.get(hook, timeout=30)
-        return jsonify({
-            "status": "triggered" if resp.status_code == 200 else "failed",
-            "http_status": resp.status_code,
-            "message": "Deployment triggered! Render will rebuild from latest commit."
-                if resp.status_code == 200
-                else f"Deploy hook returned {resp.status_code}",
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 502
-
-
-RENDER_SERVICE_ID = "srv-d8t0do77f7vs73bkq11g"
-RENDER_API_BASE = "https://api.render.com/v1"
-
-
-def _render_api_call(method, path, json_data=None):
-    import requests as req
-    api_key = os.environ.get("RENDER_API_KEY", "")
-    if not api_key:
-        return None, "RENDER_API_KEY not set"
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    resp = req.request(method, f"{RENDER_API_BASE}{path}", headers=headers, json=json_data, timeout=30)
-    return resp, None
-
-
-@app.route("/api/render/env-vars", methods=["GET"])
-@login_required
-def api_render_get_env_vars():
-    resp, err = _render_api_call("GET", f"/services/{RENDER_SERVICE_ID}/env-vars")
-    if err:
-        return jsonify({"error": err}), 400
-    if resp.status_code != 200:
-        return jsonify({"error": f"Render API returned {resp.status_code}"}), resp.status_code
-    env_list = resp.json()
-    summary = []
-    for ev in env_list:
-        summary.append({
-            "key": ev.get("key", ""),
-            "has_value": bool(ev.get("value")),
-        })
-    return jsonify({"env_vars": summary, "total": len(summary)})
-
-
-@app.route("/api/render/env-vars", methods=["PUT"])
-@login_required
-def api_render_set_env_vars():
-    data = request.json or {}
-    env_vars = data.get("env_vars", {})
-    if not env_vars:
-        return jsonify({"error": "env_vars dict required"}), 400
-    resp, err = _render_api_call("GET", f"/services/{RENDER_SERVICE_ID}/env-vars")
-    if err:
-        return jsonify({"error": err}), 400
-    existing = resp.json() if resp.status_code == 200 else []
-    existing_map = {ev["key"]: ev["value"] for ev in existing}
-    existing_map.update(env_vars)
-    payload = [{"key": k, "value": v} for k, v in existing_map.items()]
-    put_resp, err = _render_api_call("PUT", f"/services/{RENDER_SERVICE_ID}/env-vars", json_data=payload)
-    if err:
-        return jsonify({"error": err}), 400
-    return jsonify({
-        "status": "success",
-        "set_count": len(env_vars),
-        "keys_set": list(env_vars.keys()),
-    })
-
-
-@app.route("/api/render/status", methods=["GET"])
-@login_required
-def api_render_status():
-    resp, err = _render_api_call("GET", f"/services/{RENDER_SERVICE_ID}/deploys?limit=5")
-    if err:
-        return jsonify({"error": err}), 400
-    if resp.status_code != 200:
-        return jsonify({"error": f"Render API returned {resp.status_code}"}), resp.status_code
-    deploys = []
-    for d in resp.json()[:5]:
-        dep = d.get("deploy", d)
-        deploys.append({
-            "id": dep.get("id", ""),
-            "status": dep.get("status", ""),
-            "created_at": dep.get("createdAt", ""),
-        })
-    return jsonify({"deploys": deploys})
-
-
-@app.route("/api/render/setup", methods=["POST"])
-@login_required
-def api_render_setup():
-    """One-shot: push all known env vars to Render from current config."""
-    import config as cfg
-    env_map = {
-        "ANTHROPIC_API_KEY": cfg.ANTHROPIC_API_KEY,
-        "PEXELS_API_KEY": cfg.PEXELS_API_KEY,
-        "STRIPE_SECRET_KEY": getattr(cfg, "STRIPE_SECRET_KEY", ""),
-        "STRIPE_PUBLISHABLE_KEY": getattr(cfg, "STRIPE_PUBLISHABLE_KEY", ""),
-        "GOOGLE_API_KEY": getattr(cfg, "GOOGLE_API_KEY", ""),
-        "RENDER_API_KEY": os.environ.get("RENDER_API_KEY", ""),
-    }
-    to_set = {k: v for k, v in env_map.items() if v}
-    if not to_set:
-        return jsonify({"error": "No API keys found in current config to push"}), 400
-    resp, err = _render_api_call("GET", f"/services/{RENDER_SERVICE_ID}/env-vars")
-    if err:
-        return jsonify({"error": err}), 400
-    existing = resp.json() if resp.status_code == 200 else []
-    existing_map = {ev["key"]: ev["value"] for ev in existing}
-    existing_map.update(to_set)
-    payload = [{"key": k, "value": v} for k, v in existing_map.items()]
-    put_resp, err = _render_api_call("PUT", f"/services/{RENDER_SERVICE_ID}/env-vars", json_data=payload)
-    if err:
-        return jsonify({"error": err}), 400
-    return jsonify({"status": "success", "keys_pushed": list(to_set.keys()), "count": len(to_set)})
-
-
-
-# ── Settings ──────────────────────────────────────────────────────────────────
+# ── Settings ─────────────────────────────────────────────────────────────────────────────────
 
 @app.route("/settings")
 @login_required
@@ -1321,7 +648,7 @@ def api_settings_check():
     })
 
 
-# ── Production Studio ─────────────────────────────────────────────────────────
+# ── Production Studio ─────────────────────────────────────────────────────────────────────────────
 
 _studio_jobs: dict = {}
 _studio_events: dict = {}
@@ -1464,7 +791,7 @@ def studio_status(studio_job_id):
     return jsonify(job)
 
 
-# ── Hollywood AI Agent ────────────────────────────────────────────────────────
+# ── Hollywood AI Agent ────────────────────────────────────────────────────────────────────────────
 
 @app.route("/hollywood")
 @login_required
@@ -1482,32 +809,13 @@ def hollywood_chat():
         return jsonify({"error": "No message"}), 400
     try:
         from generators.hollywood_agent import chat as hollywood_chat_fn
-        result = hollywood_chat_fn(message=message, history=history, user_id=current_user.id)
-        # result is a dict: {"reply": str, "screenshots": list[str], "tool_calls": list[str]}
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e), "reply": f"I hit a snag: {str(e)}"}), 500
-
-
-@app.route("/api/hollywood/screenshot")
-@login_required
-def hollywood_screenshot():
-    """Return the latest screenshot Hollywood took."""
-    try:
-        import glob as glob_mod
-        screenshots = sorted(glob_mod.glob("/tmp/hollywood_screenshots/hw_*.png"))
-        if not screenshots:
-            return jsonify({"error": "No screenshots yet"}), 404
-        latest = screenshots[-1]
-        import base64
-        with open(latest, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-        return jsonify({"screenshot_b64": b64, "path": latest})
+        reply = hollywood_chat_fn(message=message, history=history, user_id=current_user.id)
+        return jsonify({"reply": reply})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
-# ── Feature 1: Analytics Dashboard ───────────────────────────────────────────
+# ── Feature 1: Analytics Dashboard ─────────────────────────────────────────────────────────────────
 
 @app.route("/analytics")
 @login_required
@@ -1563,7 +871,7 @@ def api_analytics_refresh():
         return jsonify({"error": str(e)}), 500
 
 
-# ── Google Trends API ────────────────────────────────────────────────────────
+# ── Google Trends API ────────────────────────────────────────────────────────────────────────────
 
 @app.route("/api/trends")
 @login_required
@@ -1586,7 +894,7 @@ def api_trends():
         return jsonify({"error": str(e), "daily_trends": [], "niche": {}}), 500
 
 
-# ── Thumbnail Vision Score API ───────────────────────────────────────────────
+# ── Thumbnail Vision Score API ──────────────────────────────────────────────────────────────────────
 
 @app.route("/api/jobs/<int:job_id>/thumbnail-score")
 @login_required
@@ -1616,7 +924,7 @@ def api_thumbnail_score(job_id):
         return jsonify({"error": str(e)}), 500
 
 
-# ── Feature 2: Content Calendar + Scheduler ───────────────────────────────────
+# ── Feature 2: Content Calendar + Scheduler ───────────────────────────────────────────────────
 
 @app.route("/calendar")
 @login_required
@@ -1659,7 +967,7 @@ def api_get_schedule():
     return jsonify(posts)
 
 
-# ── Feature 3: Batch Mode ────────────────────────────────────────────────────
+# ── Feature 3: Batch Mode ──────────────────────────────────────────────────────────────────────────
 
 _batch_events: dict = {}
 _batch_lock = threading.Lock()
@@ -1751,7 +1059,6 @@ def batch_page():
 
 
 @app.route("/api/batch/create", methods=["POST"])
-@limiter.limit("3 per minute")
 @login_required
 def api_batch_create():
     data = request.json or {}
@@ -1815,7 +1122,7 @@ def api_batch_stream(batch_id):
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
-# ── Feature 4: Template Library ──────────────────────────────────────────────
+# ── Feature 4: Template Library ────────────────────────────────────────────────────────────────────────
 
 @app.route("/templates-library")
 @login_required
@@ -1862,7 +1169,7 @@ def api_use_template(tmpl_id):
     return jsonify(tmpl)
 
 
-# ── Feature 5: Multi-language Auto-Dub ───────────────────────────────────────
+# ── Feature 5: Multi-language Auto-Dub ─────────────────────────────────────────────────────────────────
 
 DUB_LANGUAGES = {
     "es": "Spanish", "fr": "French", "de": "German", "pt": "Portuguese",
@@ -1943,7 +1250,7 @@ def api_dub_for_job(job_id):
     return jsonify(dubs)
 
 
-# ── Feature 6: Notifications ─────────────────────────────────────────────────
+# ── Feature 6: Notifications ────────────────────────────────────────────────────────────────────────
 
 @app.route("/api/notifications")
 @login_required
@@ -1959,7 +1266,7 @@ def api_mark_notification_read(notif_id):
     return jsonify({"status": "read"})
 
 
-# ── Feature 7: Team Workspaces ────────────────────────────────────────────────
+# ── Feature 7: Team Workspaces ───────────────────────────────────────────────────────────────────────────
 
 @app.route("/team")
 @login_required
@@ -2046,7 +1353,7 @@ def api_update_team_member(member_id):
     return jsonify({"status": "updated"})
 
 
-# ── Feature 8: Competitor Tracker ────────────────────────────────────────────
+# ── Feature 8: Competitor Tracker ────────────────────────────────────────────────────────────────────────
 
 @app.route("/competitors")
 @login_required
@@ -2196,10 +1503,9 @@ def api_competitor_inspire(comp_id):
     })
 
 
-# ── Health check (required by Render) ────────────────────────────────────────
+# ── Health check (required by Render) ────────────────────────────────────────────────────────────────────
 
 @app.route("/health")
-@limiter.exempt
 def health():
     from generators.higgsfield_cli import is_authenticated as hf_cli_ok
     return jsonify({"status": "ok", "version": "1.0", "higgsfield_cli": hf_cli_ok()})
@@ -2222,7 +1528,7 @@ def set_higgsfield_token():
     return jsonify({"ok": True, "message": "Higgsfield CLI token updated"})
 
 
-# ── Background Threads ────────────────────────────────────────────────────────
+# ── Background Threads ──────────────────────────────────────────────────────────────────────────────
 
 _bg_threads_started = False
 _bg_threads_lock = threading.Lock()
@@ -2267,53 +1573,25 @@ def _execute_scheduled_post(post: dict):
     if not video_path or not Path(video_path).exists():
         raise ValueError("Video file not found")
     platform = post.get("platform", "youtube")
-    title = post.get("job_title") or "Scheduled Video"
-    thumbnail_path = post.get("thumbnail_path")
-
-    if platform == "youtube":
-        from publishers.youtube_publisher import upload_video
-        upload_video(
-            video_path=Path(video_path), title=title,
-            description=title, tags=[], thumbnail_path=Path(thumbnail_path) if thumbnail_path else None,
-            privacy="public",
-        )
-    elif platform == "tiktok":
-        from publishers.tiktok_publisher import upload_video
-        upload_video(
-            video_path=Path(video_path), title=title,
-            description=title, tags=[], privacy="PUBLIC_TO_EVERYONE",
-        )
-    elif platform == "instagram":
-        # Instagram requires a public CDN URL for the video, not a local file path.
-        # Skipping direct upload — use the Instagram publisher manually after
-        # uploading the video to a CDN.
-        raise ValueError("Instagram scheduled publishing requires a CDN-hosted video URL. Please publish manually.")
-    elif platform == "facebook":
-        from publishers.facebook_publisher import upload_video
-        upload_video(
-            video_path=video_path, title=title,
-            description=title, tags=[],
-        )
-    elif platform == "twitter":
-        from publishers.twitter_publisher import upload_video
-        upload_video(
-            video_path=video_path, title=title,
-            description=title, tags=[],
-        )
-    elif platform == "linkedin":
-        from publishers.linkedin_publisher import upload_video
-        upload_video(
-            video_path=video_path, title=title,
-            description=title, tags=[],
-        )
-    elif platform == "pinterest":
-        from publishers.pinterest_publisher import upload_video
-        upload_video(
-            video_path=video_path, title=title,
-            description=title, tags=[],
-        )
-    else:
-        raise ValueError(f"Unsupported platform: {platform}")
+    try:
+        import social_optimize
+        if platform == "youtube":
+            social_optimize.publish_to_youtube(
+                video_path=video_path, title=post.get("job_title") or "Scheduled Video", privacy="public",
+            )
+        elif platform == "tiktok":
+            social_optimize.publish_to_tiktok(
+                video_path=video_path, title=post.get("job_title") or "Scheduled Video",
+            )
+        elif platform == "instagram":
+            social_optimize.publish_to_instagram(
+                video_path=video_path, title=post.get("job_title") or "Scheduled Video",
+            )
+        else:
+            raise ValueError(f"Unsupported platform: {platform}")
+    except AttributeError:
+        # social_optimize may not have these functions yet — fail gracefully
+        raise ValueError(f"Platform publishing not implemented for: {platform}")
 
 
 def _competitor_refresh_thread():
@@ -2342,136 +1620,7 @@ def start_background_threads():
     t2.start()
 
 
-# ── Billing API ──────────────────────────────────────────────────────────────
-
-@app.route("/api/billing/portal", methods=["POST"])
-@login_required
-def api_billing_portal():
-    """JSON endpoint: returns Stripe Customer Portal URL."""
-    try:
-        import stripe as _stripe
-        _stripe.api_key = config.STRIPE_SECRET_KEY
-        user = db.get_user_by_id(current_user.id)
-        customer_id = user.get("stripe_customer_id") if user else None
-        if not customer_id:
-            return jsonify({"error": "No billing account found"}), 400
-        portal_session = _stripe.billing_portal.Session.create(
-            customer=customer_id,
-            return_url=f"{config.APP_BASE_URL}/billing",
-        )
-        return jsonify({"url": portal_session.url})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-# ── Security Headers ─────────────────────────────────────────────────────────
-
-@app.after_request
-def add_security_headers(response):
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com; "
-        "img-src 'self' data: https:; "
-        "connect-src 'self'"
-    )
-    return response
-
-
-# ── Landing Pages ───────────────────────────────────────────────────────────
-
-@app.route("/pricing")
-def pricing():
-    return render_template("pricing.html")
-
-
-@app.route("/docs")
-def docs():
-    return render_template("docs.html")
-
-
-@app.route("/about")
-def about():
-    return render_template("about.html")
-
-
-@app.route("/contact")
-def contact():
-    return render_template("contact.html")
-
-
-@app.route("/blog")
-def blog():
-    return render_template("blog.html")
-
-
-@app.route("/legal/privacy")
-def privacy():
-    return render_template("legal/privacy.html")
-
-
-@app.route("/legal/terms")
-def terms():
-    return render_template("legal/terms.html")
-
-
-@app.route("/api/contact", methods=["POST"])
-def api_contact():
-    """Handle contact form submissions."""
-    data = request.get_json() or {}
-    name = data.get("name", "").strip()
-    email = data.get("email", "").strip()
-    subject = data.get("subject", "").strip()
-    message = data.get("message", "").strip()
-
-    # Validation
-    if not all([name, email, subject, message]):
-        return jsonify({"success": False, "message": "All fields required"}), 400
-
-    if len(message) < 10:
-        return jsonify({"success": False, "message": "Message too short"}), 400
-
-    try:
-        # Log the contact form submission for now
-        logger.info(
-            "Contact form submitted: %s (%s) - %s",
-            name,
-            email,
-            subject,
-            extra={"email": email, "subject": subject},
-        )
-
-        # In production, you would send an email here using SendGrid or similar
-        # For now, we just log it and return success
-
-        return jsonify({"success": True, "message": "Thank you for reaching out. We'll be in touch soon!"}), 200
-
-    except Exception as e:
-        logger.error("Error processing contact form: %s", str(e))
-        return (
-            jsonify({"success": False, "message": "An error occurred. Please try again later."}),
-            500,
-        )
-
-
-# ── Error Pages ──────────────────────────────────────────────────────────────
-
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template("errors/404.html"), 404
-
-
-@app.errorhandler(500)
-def internal_server_error(e):
-    return render_template("errors/500.html"), 500
-
-
-# ── Startup ───────────────────────────────────────────────────────────────────
+# ── Startup ───────────────────────────────────────────────────────────────────────────────────
 
 db.init_db()
 start_background_threads()
