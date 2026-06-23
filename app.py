@@ -1139,6 +1139,26 @@ def api_run_scraper():
     })
 
 
+# ── Render Deploy ─────────────────────────────────────────────────────────────
+
+@app.route("/api/render/deploy", methods=["POST"])
+@login_required
+def api_render_deploy():
+    import requests as req
+    hook = "https://api.render.com/deploy/srv-d8t0do77f7vs73bkq11g?key=VDe3ZfxMdGk"
+    try:
+        resp = req.get(hook, timeout=30)
+        return jsonify({
+            "status": "triggered" if resp.status_code == 200 else "failed",
+            "http_status": resp.status_code,
+            "message": "Deployment triggered! Render will rebuild from latest commit."
+                if resp.status_code == 200
+                else f"Deploy hook returned {resp.status_code}",
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
 # ── Settings ──────────────────────────────────────────────────────────────────
 
 @app.route("/settings")

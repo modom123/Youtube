@@ -377,6 +377,19 @@ TOOLS = [
         "description": "Return the current render.yaml content from this repo so Hollywood can review it before deploying.",
         "input_schema": {"type": "object", "properties": {}}
     },
+    {
+        "name": "trigger_render_deploy",
+        "description": "Trigger an immediate Render deployment using the deploy hook. No browser needed — just fires the hook and Render rebuilds from latest commit.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "deploy_hook_url": {
+                    "type": "string",
+                    "description": "The Render deploy hook URL. If not provided, uses the saved hook."
+                }
+            }
+        }
+    },
 
     # ── Blueprint Tools ──────────────────────────────────────────────────────
     {
@@ -1093,6 +1106,8 @@ def _tool_content_calendar_view() -> dict:
 
 # ── Render deployment tool implementations ───────────────────────────────────
 
+RENDER_DEPLOY_HOOK = "https://api.render.com/deploy/srv-d8t0do77f7vs73bkq11g?key=VDe3ZfxMdGk"
+
 RENDER_DASHBOARD_PAGES = {
     "blueprint_new": "https://dashboard.render.com/blueprint/new",
     "services": "https://dashboard.render.com/services",
@@ -1337,6 +1352,33 @@ def _tool_get_render_blueprint_yaml() -> dict:
         "manual_vars": sum(1 for v in env_vars_list if v["needs_manual"]),
         "auto_vars": sum(1 for v in env_vars_list if v["auto_generated"]),
     }
+
+
+def _tool_trigger_render_deploy(deploy_hook_url: str = None) -> dict:
+    """Trigger a Render deployment via deploy hook URL."""
+    import requests
+    url = deploy_hook_url or RENDER_DEPLOY_HOOK
+    if not url:
+        return {"error": "No deploy hook URL provided and no default configured"}
+    try:
+        resp = requests.get(url, timeout=30)
+        return {
+            "status": "triggered" if resp.status_code == 200 else "failed",
+            "http_status": resp.status_code,
+            "response": resp.text[:500],
+            "deploy_hook": url.split("?")[0] + "?key=***",
+            "message": "Deployment triggered! Render will pull latest code and rebuild."
+                if resp.status_code == 200
+                else f"Deploy hook returned status {resp.status_code}. Check the URL.",
+        }
+    except requests.exceptions.ConnectionError as e:
+        return {
+            "error": "Cannot reach api.render.com — network may be restricted",
+            "details": str(e)[:200],
+            "suggestion": "Try running this from your local machine or add api.render.com to network egress allowlist.",
+        }
+    except Exception as e:
+        return {"error": f"Deploy hook request failed: {str(e)}"}
 
 
 # ── Blueprint tool implementations ────────────────────────────────────────────
@@ -1905,6 +1947,10 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
             )
         elif tool_name == "get_render_blueprint_yaml":
             result = _tool_get_render_blueprint_yaml()
+        elif tool_name == "trigger_render_deploy":
+            result = _tool_trigger_render_deploy(
+                deploy_hook_url=tool_input.get("deploy_hook_url", ""),
+            )
 
         # Analytics
         elif tool_name == "get_analytics_summary":
