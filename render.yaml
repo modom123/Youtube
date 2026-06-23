@@ -18,7 +18,7 @@ services:
 
       # ── Set these in the Render dashboard ──────────────────
       - key: APP_BASE_URL
-        sync: false          # paste your Render URL: https://social-optimize.onrender.com
+        value: https://socialoptimize.online
 
       # Anthropic
       - key: ANTHROPIC_API_KEY
@@ -28,9 +28,7 @@ services:
       - key: PEXELS_API_KEY
         sync: false
 
-      # Higgsfield
-      - key: HIGGSFIELD_API_KEY
-        sync: false
+      # Higgsfield (single MCP token — authenticates CLI + MCP HTTP client)
       - key: HIGGSFIELD_MCP_TOKEN
         sync: false
 
@@ -70,6 +68,16 @@ services:
 
       # Google Veo
       - key: GOOGLE_API_KEY
+        sync: false
+
+      # Email notifications (optional — leave blank to disable)
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
         sync: false
 
       # Persistent data directory — must match disk mountPath below

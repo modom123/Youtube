@@ -6,7 +6,7 @@ load_dotenv()
 
 # ── App ───────────────────────────────────────────────────────────────────────
 SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(32).hex())
-APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:5000")
+APP_BASE_URL = os.getenv("APP_BASE_URL", "https://socialoptimize.online")
 
 # ── Persistent data directory ─────────────────────────────────────────────────
 # Locally this is the project root; on Render it's the mounted disk at /data
@@ -76,10 +76,7 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 # Google Flow / Veo 2
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-# Higgsfield AI
-HIGGSFIELD_API_KEY = os.getenv("HIGGSFIELD_API_KEY", "")  # format: "key:secret"
-# MCP auth token — used by the https://mcp.higgsfield.ai/mcp HTTP client.
-# Falls back to HIGGSFIELD_API_KEY (key portion) if not set separately.
+# Higgsfield AI — single token used by both the CLI and MCP HTTP client
 HIGGSFIELD_MCP_TOKEN = os.getenv("HIGGSFIELD_MCP_TOKEN", "")
 
 # YouTube
@@ -124,6 +121,13 @@ AVAILABLE_VOICES = [
     "en-GB-SoniaNeural",
     "en-AU-NatashaNeural",
 ]
+
+# SMTP (for email notifications — all optional, silently skipped if not set)
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASS = os.getenv("SMTP_PASS", "")
+SMTP_FROM = os.getenv("SMTP_FROM", f"noreply@socialoptimize.online")
 
 # AI Video providers
 AI_VIDEO_PROVIDERS = ["none", "higgsville", "google_flow", "both"]

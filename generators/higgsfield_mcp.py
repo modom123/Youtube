@@ -19,10 +19,10 @@ _PROTO_VERSION = "2024-11-05"
 
 
 def _token() -> str:
-    tok = getattr(config, "HIGGSFIELD_MCP_TOKEN", "") or config.HIGGSFIELD_API_KEY
+    tok = config.HIGGSFIELD_MCP_TOKEN
     if not tok:
-        raise RuntimeError("Set HIGGSFIELD_API_KEY (or HIGGSFIELD_MCP_TOKEN) in .env")
-    return tok.split(":")[0] if ":" in tok else tok
+        raise RuntimeError("Set HIGGSFIELD_MCP_TOKEN in .env")
+    return tok
 
 
 class _MCPSession:

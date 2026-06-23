@@ -24,10 +24,6 @@ def _seed_credentials() -> bool:
         return _CRED_FILE.exists()
 
     token = config.HIGGSFIELD_MCP_TOKEN
-    if not token and config.HIGGSFIELD_API_KEY:
-        # Fall back to key portion of "key:secret"
-        token = config.HIGGSFIELD_API_KEY.split(":")[0]
-
     if not token:
         return False
 

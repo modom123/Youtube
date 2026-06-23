@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% set active_page = "templates" %}
+{% block title %}Template Library — Social Optimize Machine{% endblock %}
+{% block topbar_title %}Template Library{% endblock %}
+{% block topbar_sub %}Save and reuse your best pipeline configurations{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-primary" onclick="showSaveModal()">+ Save Current Config</button>
+{% endblock %}
+
+{% block content %}
+<style>
+  .tl-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+  .tl-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:10px; }
+  .tl-card:hover { border-color:var(--accent); }
+  .tl-name { font-size:16px; font-weight:700; }
+  .tl-desc { font-size:13px; color:var(--muted); flex:1; }
+  .tl-meta { font-size:11px; color:var(--muted); display:flex; gap:12px; }
+  .tl-actions { display:flex; gap:8px; margin-top:4px; }
+  .btn { padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; border:none; cursor:pointer; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn-danger { background:transparent; border:1px solid var(--border); color:#ff453a; }
+  .btn:hover { opacity:.85; }
+  .empty-state { text-align:center; padding:80px 20px; color:var(--muted); grid-column:1/-1; }
+  .empty-state .icon { font-size:48px; margin-bottom:12px; }
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:440px; }
+  .modal h3 { font-size:18px; font-weight:800; margin:0 0 20px; }
+  .form-row { margin-bottom:14px; }
+  .form-row label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.06em; }
+  .form-row input, .form-row textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; box-sizing:border-box; }
+  .form-row input:focus, .form-row textarea:focus { outline:none; border-color:var(--accent); }
+  .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+  .config-preview { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px; font-size:11px; font-family:monospace; color:var(--muted); margin-top:8px; max-height:100px; overflow:auto; white-space:pre-wrap; }
+</style>
+
+<!-- Save Template Modal -->
+<div class="modal-overlay" id="saveModal">
+  <div class="modal">
+    <h3>Save as Template</h3>
+    <div class="form-row">
+      <label>Template Name *</label>
+      <input type="text" id="tmpl-name" placeholder="e.g. History Shorts — High Engagement" />
+    </div>
+    <div class="form-row">
+      <label>Description</label>
+      <textarea id="tmpl-desc" placeholder="What makes this config work well…" style="min-height:80px;"></textarea>
+    </div>
+    <div class="form-row">
+      <label>Config (JSON)</label>
+      <textarea id="tmpl-config" placeholder='{"format":"short","voice":"en-US-AriaNeural","style":"fire"}' style="min-height:80px;font-family:monospace;font-size:11px;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTemplate()">Save Template</button>
+    </div>
+  </div>
+</div>
+
+<!-- Template Grid -->
+<div class="tl-grid" id="templateGrid">
+  <div class="empty-state">
+    <div class="icon">📋</div>
+    <p>Loading templates…</p>
+  </div>
+</div>
+
+<script>
+async function loadTemplates() {
+  const resp = await fetch('/api/templates');
+  const data = await resp.json();
+  const grid = document.getElementById('templateGrid');
+  if (!data.templates || data.templates.length === 0) {
+    grid.innerHTML = `<div class="empty-state">
+      <div class="icon">📋</div>
+      <p>No templates yet. Save a studio configuration to get started.</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = data.templates.map(t => {
+    let cfg = {};
+    try { cfg = JSON.parse(t.config_json); } catch(e) {}
+    const cfgStr = JSON.stringify(cfg, null, 2);
+    return `<div class="tl-card">
+      <div class="tl-name">${escHtml(t.name)}</div>
+      <div class="tl-desc">${escHtml(t.description || 'No description')}</div>
+      <div class="config-preview">${escHtml(cfgStr)}</div>
+      <div class="tl-meta">
+        <span>Used ${t.use_count || 0}×</span>
+        <span>${new Date(t.created_at).toLocaleDateString()}</span>
+      </div>
+      <div class="tl-actions">
+        <button class="btn btn-primary" onclick="useTemplate('${t.id}')">Load in Studio</button>
+        <button class="btn btn-danger" onclick="deleteTemplate('${t.id}')">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function useTemplate(id) {
+  const resp = await fetch(`/api/templates/${id}/use`, {method:'POST'});
+  const data = await resp.json();
+  if (!resp.ok) { alert(data.error || 'Failed'); return; }
+  // Store config in sessionStorage and redirect to studio
+  sessionStorage.setItem('loadTemplate', JSON.stringify(data.config));
+  window.location.href = '/studio';
+}
+
+async function deleteTemplate(id) {
+  if (!confirm('Delete this template?')) return;
+  await fetch(`/api/templates/${id}`, {method:'DELETE'});
+  loadTemplates();
+}
+
+function showSaveModal() {
+  document.getElementById('saveModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('saveModal').classList.remove('open');
+}
+
+async function saveTemplate() {
+  const name = document.getElementById('tmpl-name').value.trim();
+  if (!name) { alert('Name is required.'); return; }
+  let config = {};
+  try {
+    const raw = document.getElementById('tmpl-config').value.trim();
+    if (raw) config = JSON.parse(raw);
+  } catch(e) { alert('Config JSON is invalid.'); return; }
+
+  const resp = await fetch('/api/templates', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      name,
+      description: document.getElementById('tmpl-desc').value.trim(),
+      config
+    })
+  });
+  const data = await resp.json();
+  if (!resp.ok) { alert(data.error || 'Failed'); return; }
+  closeModal();
+  loadTemplates();
+  document.getElementById('tmpl-name').value = '';
+  document.getElementById('tmpl-desc').value = '';
+  document.getElementById('tmpl-config').value = '';
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Close modal on overlay click
+document.getElementById('saveModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+loadTemplates();
+</script>
+{% endblock %}

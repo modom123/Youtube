@@ -47,13 +47,11 @@ HIGGSVILLE_API_BASE = "https://api.higgsfield.ai/v1"
 # ── Higgsville REST API client ────────────────────────────────────────────────
 
 def _higgsville_headers() -> dict:
-    key = config.HIGGSFIELD_API_KEY
+    key = config.HIGGSFIELD_MCP_TOKEN
     if not key:
-        raise RuntimeError("HIGGSFIELD_API_KEY not set in .env")
-    # Format may be "key:secret" or just the key
-    api_key = key.split(":")[0] if ":" in key else key
+        raise RuntimeError("HIGGSFIELD_MCP_TOKEN not set in .env")
     return {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
@@ -192,7 +190,7 @@ def _try_sdk_clip(
     """Attempt generation via higgsfield-client SDK. Returns path or None."""
     try:
         import higgsfield_client as hf
-        os.environ["HF_KEY"] = config.HIGGSFIELD_API_KEY
+        os.environ["HF_KEY"] = config.HIGGSFIELD_MCP_TOKEN
 
         # Map new model IDs to SDK paths where known
         sdk_paths = {
@@ -378,7 +376,7 @@ def generate_ai_clips(
     clips = []
 
     if provider in ("higgsville", "both"):
-        if config.HIGGSFIELD_API_KEY:
+        if config.HIGGSFIELD_MCP_TOKEN:
             hv_clips = _generate_higgsville_with_mcp_fallback(
                 prompts=prompts,
                 output_dir=output_dir / "higgsville",
@@ -387,7 +385,7 @@ def generate_ai_clips(
             )
             clips.extend(hv_clips)
         else:
-            print("[ai_video] HIGGSFIELD_API_KEY not set — skipping Higgsville")
+            print("[ai_video] HIGGSFIELD_MCP_TOKEN not set — skipping Higgsville")
 
     if provider in ("google_flow", "both"):
         if config.GOOGLE_API_KEY:
