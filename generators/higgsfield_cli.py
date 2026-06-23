@@ -1,7 +1,7 @@
 """
 Higgsfield CLI wrapper — generates video clips via the `higgsfield` CLI binary.
-Seeds credentials from HIGGSFIELD_MCP_TOKEN (or the key portion of HIGGSFIELD_API_KEY)
-into ~/.config/higgsfield/credentials.json so the CLI can run non-interactively on servers.
+Seeds credentials from HIGGSFIELD_MCP_TOKEN into ~/.config/higgsfield/credentials.json
+so the CLI can run non-interactively on servers.
 """
 import json
 import os

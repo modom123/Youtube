@@ -641,7 +641,7 @@ def api_settings_check():
         "anthropic":   bool(config.ANTHROPIC_API_KEY),
         "pexels":      bool(config.PEXELS_API_KEY),
         "google_flow": bool(config.GOOGLE_API_KEY),
-        "higgsville":  bool(config.HIGGSFIELD_API_KEY),
+        "higgsville":  bool(config.HIGGSFIELD_MCP_TOKEN),
         "youtube":     bool(config.YOUTUBE_CLIENT_ID),
         "tiktok":      bool(config.TIKTOK_CLIENT_KEY),
         "instagram":   bool(config.INSTAGRAM_ACCESS_TOKEN),
@@ -789,6 +789,49 @@ def studio_status(studio_job_id):
     if job is None:
         return jsonify({"error": "Not found"}), 404
     return jsonify(job)
+
+
+# ── Hollywood AI Agent ────────────────────────────────────────────────────────
+
+@app.route("/hollywood")
+@login_required
+def hollywood_page():
+    return render_template("hollywood.html")
+
+
+@app.route("/api/hollywood/chat", methods=["POST"])
+@login_required
+def hollywood_chat():
+    data = request.get_json(silent=True) or {}
+    message = (data.get("message") or "").strip()
+    history = data.get("history") or []
+    if not message:
+        return jsonify({"error": "No message"}), 400
+    try:
+        from generators.hollywood_agent import chat as hollywood_chat_fn
+        result = hollywood_chat_fn(message=message, history=history, user_id=current_user.id)
+        # result is a dict: {"reply": str, "screenshots": list[str], "tool_calls": list[str]}
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e), "reply": f"I hit a snag: {str(e)}"}), 500
+
+
+@app.route("/api/hollywood/screenshot")
+@login_required
+def hollywood_screenshot():
+    """Return the latest screenshot Hollywood took."""
+    try:
+        import glob as glob_mod
+        screenshots = sorted(glob_mod.glob("/tmp/hollywood_screenshots/hw_*.png"))
+        if not screenshots:
+            return jsonify({"error": "No screenshots yet"}), 404
+        latest = screenshots[-1]
+        import base64
+        with open(latest, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        return jsonify({"screenshot_b64": b64, "path": latest})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Feature 1: Analytics Dashboard ───────────────────────────────────────────
@@ -1594,6 +1637,28 @@ def start_background_threads():
     t1.start()
     t2 = threading.Thread(target=_competitor_refresh_thread, daemon=True, name="competitor_refresh")
     t2.start()
+
+
+# ── Billing API ──────────────────────────────────────────────────────────────
+
+@app.route("/api/billing/portal", methods=["POST"])
+@login_required
+def api_billing_portal():
+    """JSON endpoint: returns Stripe Customer Portal URL."""
+    try:
+        import stripe as _stripe
+        _stripe.api_key = config.STRIPE_SECRET_KEY
+        user = db.get_user_by_id(current_user.id)
+        customer_id = user.get("stripe_customer_id") if user else None
+        if not customer_id:
+            return jsonify({"error": "No billing account found"}), 400
+        portal_session = _stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=f"{config.APP_BASE_URL}/billing",
+        )
+        return jsonify({"url": portal_session.url})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────

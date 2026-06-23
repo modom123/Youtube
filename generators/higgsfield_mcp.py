@@ -3,7 +3,7 @@ Higgsfield MCP HTTP client for the Social Optimize pipeline.
 
 Connects to https://mcp.higgsfield.ai/mcp using the MCP Streamable HTTP
 transport to generate AI video and image clips without leaving the pipeline.
-Authentication uses HIGGSFIELD_MCP_TOKEN (falls back to HIGGSFIELD_API_KEY).
+Authentication uses HIGGSFIELD_MCP_TOKEN.
 """
 import json
 import re

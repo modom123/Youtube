@@ -9,4 +9,7 @@ echo "==> Installing Python dependencies"
 pip install --upgrade pip -q
 pip install -r requirements.txt -q
 
+echo "==> Installing Playwright browsers"
+playwright install chromium --with-deps
+
 echo "==> Build complete"

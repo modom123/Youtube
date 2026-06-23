@@ -254,6 +254,17 @@ def init_db():
         if "webhook_url" not in user_cols:
             conn.execute("ALTER TABLE users ADD COLUMN webhook_url TEXT")
 
+        # Migrate: subscription tracking columns
+        for col, defn in [
+            ("plan",                   "TEXT DEFAULT 'free'"),
+            ("plan_expires_at",        "TEXT"),
+            ("videos_used_this_month", "INTEGER DEFAULT 0"),
+            ("videos_reset_at",        "TEXT"),
+            ("monthly_limit",          "INTEGER DEFAULT 0"),
+        ]:
+            if col not in user_cols:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
+
 
 def row_to_dict(row):
     if row is None:
@@ -329,6 +340,104 @@ def get_user_by_stripe_subscription(stripe_subscription_id: str):
         return row_to_dict(conn.execute(
             "SELECT * FROM users WHERE stripe_subscription_id=?", (stripe_subscription_id,)
         ).fetchone())
+
+
+PLAN_LIMITS = {
+    "free":    {"videos": 3,   "platforms": 2, "features": ["basic"]},
+    "starter": {"videos": 15,  "platforms": 3, "features": ["basic", "analytics"]},
+    "creator": {"videos": 50,  "platforms": 8, "features": ["basic", "analytics", "hollywood", "batch", "competitors"]},
+    "pro":     {"videos": 50,  "platforms": 8, "features": ["basic", "analytics", "hollywood", "batch", "competitors"]},
+    "agency":  {"videos": 999, "platforms": 8, "features": ["basic", "analytics", "hollywood", "batch", "competitors", "team", "api"]},
+}
+
+
+def get_plan_limits(plan: str) -> dict:
+    """Return limits dict for a plan name."""
+    return PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
+
+
+def update_subscription(user_id: int, status: str, plan: str,
+                        stripe_subscription_id: str = None,
+                        stripe_customer_id: str = None,
+                        expires_at: str = None):
+    """Update a user's subscription details after a Stripe event."""
+    limits = get_plan_limits(plan)
+    updates = {
+        "subscription_status": status,
+        "subscription_tier": plan,
+        "plan": plan,
+        "monthly_limit": limits["videos"],
+    }
+    if stripe_subscription_id is not None:
+        updates["stripe_subscription_id"] = stripe_subscription_id
+    if stripe_customer_id is not None:
+        updates["stripe_customer_id"] = stripe_customer_id
+    if expires_at is not None:
+        updates["plan_expires_at"] = expires_at
+    update_user(user_id, **updates)
+
+
+def increment_videos_used(user_id: int) -> int:
+    """Increment videos_used_this_month and return the new count."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET videos_used_this_month = videos_used_this_month + 1 WHERE id=?",
+            (user_id,),
+        )
+        row = conn.execute(
+            "SELECT videos_used_this_month FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+    return row["videos_used_this_month"] if row else 0
+
+
+def reset_monthly_usage(user_id: int):
+    """Reset the monthly video counter and record the reset date."""
+    now_str = datetime.now().strftime("%Y-%m-01")
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET videos_used_this_month=0, videos_reset_at=? WHERE id=?",
+            (now_str, user_id),
+        )
+
+
+def check_usage_allowed(user_id: int) -> dict:
+    """
+    Check whether a user is allowed to create a new video.
+    Returns {"allowed": bool, "used": int, "limit": int, "reason": str}.
+    Admin users are always allowed.
+    """
+    user = get_user_by_id(user_id)
+    if not user:
+        return {"allowed": False, "used": 0, "limit": 0, "reason": "User not found"}
+
+    # Admins are never limited
+    if user.get("is_admin"):
+        return {"allowed": True, "used": 0, "limit": 999, "reason": ""}
+
+    # Check whether we need to reset for a new month
+    now_month_start = datetime.now().strftime("%Y-%m-01")
+    reset_at = user.get("videos_reset_at") or ""
+    if reset_at < now_month_start:
+        reset_monthly_usage(user_id)
+        user = get_user_by_id(user_id)  # re-fetch after reset
+
+    used = user.get("videos_used_this_month") or 0
+    limit = user.get("monthly_limit") or 0
+
+    # If monthly_limit is 0, fall back to tier-based limit from config
+    if limit == 0:
+        plan = user.get("subscription_tier") or "free"
+        limit = get_plan_limits(plan)["videos"]
+
+    if used < limit:
+        return {"allowed": True, "used": used, "limit": limit, "reason": ""}
+
+    return {
+        "allowed": False,
+        "used": used,
+        "limit": limit,
+        "reason": f"You've used {used}/{limit} videos this month. Upgrade your plan to continue.",
+    }
 
 
 def list_users(limit=200):
