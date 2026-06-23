@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing — Social Optimize Machine</title>
+  <meta name="description" content="Simple, transparent pricing for content creators. Start free, scale as you grow.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050507;
+      --bg2: #0a0a0e;
+      --bg3: #111116;
+      --card: #131318;
+      --card-hover: #1a1a20;
+      --border: #1e1e25;
+      --border-hover: #2a2a32;
+      --text: #f0f0f2;
+      --text-secondary: #c8c8d0;
+      --muted: #6e6e7a;
+      --gold: #c9a227;
+      --gold-light: #ddb63e;
+      --gold-dim: rgba(201,162,39,.06);
+      --gold-glow: rgba(201,162,39,.15);
+      --purple: #a855f7;
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; }
+    img { max-width: 100%; display: block; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    h1, h2, h3 { font-weight: 800; line-height: 1.1; }
+    p { color: var(--muted); }
+
+    /* NAV */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: 64px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 48px;
+      background: rgba(5,5,7,.6); backdrop-filter: blur(24px);
+      border-bottom: 1px solid transparent; transition: all .35s;
+    }
+    .nav.scrolled { background: rgba(5,5,7,.92); border-bottom-color: var(--border); }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 16px; font-weight: 800; }
+    .nav-logo-mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--gold), #8b6914); display: flex; align-items: center; justify-content: center; }
+    .nav-logo-mark svg { width: 16px; height: 16px; fill: #000; }
+    .nav-logo span { color: var(--gold); }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta { display: flex; gap: 10px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 12px; font-family: var(--font); font-weight: 700; cursor: pointer; text-decoration: none; transition: all .25s; }
+    .btn-primary { background: var(--gold); color: #000; padding: 10px 20px; font-size: 14px; }
+    .btn-primary:hover { background: var(--gold-light); }
+    .btn-secondary { background: rgba(255,255,255,.05); color: var(--text); border: 1px solid var(--border); padding: 10px 20px; font-size: 14px; }
+    .btn-secondary:hover { background: rgba(255,255,255,.08); }
+
+    /* HERO */
+    .pricing-hero { padding: 140px 24px 80px; text-align: center; position: relative; }
+    .pricing-hero h1 { font-size: clamp(36px, 5vw, 56px); margin-bottom: 20px; }
+    .pricing-hero p { font-size: 16px; max-width: 540px; margin: 0 auto 48px; }
+    .pricing-hero-badge { display: inline-block; background: var(--gold-dim); border: 1px solid rgba(201,162,39,.2); border-radius: 100px; padding: 8px 16px; font-size: 12px; font-weight: 600; color: var(--gold); margin-bottom: 24px; }
+
+    /* TOGGLE */
+    .pricing-toggle-wrap { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 56px; }
+    .pricing-toggle { display: flex; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 12px; padding: 4px; }
+    .pricing-toggle button { background: none; border: none; color: var(--muted); font-family: var(--font); font-weight: 600; font-size: 14px; padding: 10px 16px; cursor: pointer; transition: all .2s; border-radius: 8px; }
+    .pricing-toggle button.active { background: var(--gold); color: #000; }
+    .pricing-savings { background: linear-gradient(135deg, var(--purple), var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 700; font-size: 14px; }
+
+    /* PRICING GRID */
+    .pricing-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 80px; }
+    .pricing-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 24px;
+      padding: 40px 28px; position: relative; transition: all .3s; display: flex; flex-direction: column;
+    }
+    .pricing-card:hover { border-color: rgba(201,162,39,.2); transform: translateY(-4px); }
+    .pricing-card.featured {
+      border: 2px solid var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 32px rgba(201,162,39,.2);
+      transform: scale(1.05); padding: 40px 28px;
+    }
+    .pricing-card.featured:hover { transform: scale(1.05) translateY(-4px); }
+    .pricing-popular {
+      position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--gold), #8b6914); color: #000;
+      font-size: 11px; font-weight: 800; padding: 6px 18px; border-radius: 100px;
+      text-transform: uppercase; letter-spacing: .1em; white-space: nowrap;
+    }
+    .pricing-tier { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 16px; }
+    .pricing-name { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+    .pricing-price { font-size: 48px; font-weight: 900; margin-bottom: 4px; }
+    .pricing-price span { font-size: 16px; font-weight: 500; color: var(--muted); }
+    .pricing-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 28px; line-height: 1.6; }
+    .pricing-cta { width: 100%; padding: 12px 20px; border-radius: 12px; font-weight: 700; font-size: 14px; border: none; cursor: pointer; transition: all .2s; margin-bottom: 28px; }
+    .pricing-card.featured .pricing-cta { background: var(--gold); color: #000; }
+    .pricing-card.featured .pricing-cta:hover { background: var(--gold-light); }
+    .pricing-card:not(.featured) .pricing-cta { background: rgba(255,255,255,.05); color: var(--text); border: 1px solid var(--border); }
+    .pricing-card:not(.featured) .pricing-cta:hover { background: rgba(255,255,255,.08); }
+    .pricing-features { list-style: none; flex: 1; margin-bottom: 0; }
+    .pricing-features li {
+      font-size: 13px; padding: 12px 0; display: flex; align-items: flex-start; gap: 10px;
+      color: var(--text-secondary); border-bottom: 1px solid var(--border-hover);
+    }
+    .pricing-features li:last-child { border-bottom: none; }
+    .pricing-features li::before { content: '✓'; color: var(--gold); font-weight: 800; flex-shrink: 0; margin-top: -2px; }
+
+    /* COMPARISON TABLE */
+    .comparison-section { padding: 80px 24px; background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .comparison-header { text-align: center; margin-bottom: 48px; }
+    .comparison-header h2 { font-size: 36px; margin-bottom: 12px; }
+    .comparison-header p { font-size: 16px; max-width: 480px; margin: 0 auto; }
+    .comparison-table { overflow-x: auto; }
+    .comp-table { width: 100%; border-collapse: collapse; }
+    .comp-table thead th { background: var(--card); padding: 16px; text-align: left; font-weight: 700; font-size: 13px; border-bottom: 1px solid var(--border); }
+    .comp-table tbody td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text-secondary); }
+    .comp-table tbody tr:last-child td { border-bottom: none; }
+    .comp-feature { font-weight: 600; color: var(--text); max-width: 240px; }
+    .comp-check { color: var(--gold); font-weight: 700; }
+    .comp-cross { color: var(--muted); }
+
+    /* FAQ */
+    .faq-section { padding: 80px 24px; }
+    .faq-header { text-align: center; margin-bottom: 56px; }
+    .faq-header h2 { font-size: 36px; margin-bottom: 12px; }
+    .faq-list { max-width: 760px; margin: 0 auto; }
+    .faq-item { border-bottom: 1px solid var(--border); }
+    .faq-q {
+      width: 100%; background: none; border: none; color: var(--text); font-family: var(--font);
+      font-size: 16px; font-weight: 600; text-align: left; padding: 24px 0; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      transition: color .2s;
+    }
+    .faq-q:hover { color: var(--gold); }
+    .faq-toggle { width: 24px; height: 24px; border-radius: 6px; background: rgba(255,255,255,.04); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .3s; }
+    .faq-toggle svg { width: 12px; height: 12px; transition: transform .3s; }
+    .faq-q.open .faq-toggle { background: var(--gold-dim); }
+    .faq-q.open .faq-toggle svg { transform: rotate(45deg); }
+    .faq-a { max-height: 0; overflow: hidden; transition: max-height .4s; }
+    .faq-a.open { max-height: 400px; padding-bottom: 24px; }
+    .faq-a p { font-size: 14px; line-height: 1.7; }
+
+    /* FINAL CTA */
+    .final-cta { padding: 120px 24px; text-align: center; }
+    .final-cta h2 { font-size: 40px; margin-bottom: 16px; }
+    .final-cta p { font-size: 16px; margin-bottom: 32px; max-width: 480px; margin-left: auto; margin-right: auto; }
+    .final-cta .btn-primary { padding: 18px 40px; font-size: 16px; border-radius: 14px; }
+
+    /* FOOTER */
+    .footer { max-width: 1200px; margin: 0 auto; padding: 40px 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 20px; }
+    .footer-brand { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; transition: color .2s; }
+    .footer-links a:hover { color: var(--text); }
+
+    /* RESPONSIVE */
+    @media (max-width: 1024px) {
+      .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+      .pricing-card.featured { transform: scale(1); }
+      .pricing-card.featured:hover { transform: translateY(-4px); }
+    }
+    @media (max-width: 768px) {
+      .nav { padding: 0 20px; }
+      .nav-links { display: none; }
+      .pricing-hero { padding: 100px 20px 60px; }
+      .pricing-hero h1 { font-size: 32px; }
+      .pricing-grid { grid-template-columns: 1fr; gap: 16px; margin-bottom: 60px; }
+      .pricing-card { padding: 32px 24px; }
+      .pricing-card.featured { padding: 32px 24px; }
+      .comparison-section { padding: 60px 20px; }
+      .faq-section { padding: 60px 20px; }
+      .final-cta { padding: 80px 20px; }
+      .footer { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" id="mainNav">
+  <a class="nav-logo" href="/">
+    <div class="nav-logo-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#000"/></svg>
+    </div>
+    <div><span>Social</span> Optimize</div>
+  </a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/docs">Docs</a>
+    <a href="/blog">Blog</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+  </div>
+  <div class="nav-cta">
+    <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Sign In</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free</a>
+  </div>
+</nav>
+
+<!-- PRICING HERO -->
+<section class="pricing-hero">
+  <div class="pricing-hero-badge">Transparent Pricing</div>
+  <h1>Plans for every creator</h1>
+  <p>Start free, scale as you grow. No hidden fees, cancel anytime. All plans include 30 days of support.</p>
+
+  <!-- Toggle -->
+  <div class="pricing-toggle-wrap">
+    <span>Monthly</span>
+    <div class="pricing-toggle">
+      <button class="active" onclick="togglePricing('monthly')">Monthly</button>
+      <button onclick="togglePricing('annual')">Annual</button>
+    </div>
+    <div class="pricing-savings" id="savingsLabel" style="display: none;">Save 20%</div>
+  </div>
+
+  <!-- Pricing Grid -->
+  <div class="pricing-grid">
+    <!-- FREE -->
+    <div class="pricing-card">
+      <div class="pricing-tier">Tier 01</div>
+      <h3 class="pricing-name">Free</h3>
+      <div class="pricing-price">$<span style="font-size: 36px;">0</span><span>/mo</span></div>
+      <p class="pricing-desc">Perfect for testing the platform</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free</button>
+      <ul class="pricing-features">
+        <li>3 videos/month</li>
+        <li>2 platforms</li>
+        <li>Basic research</li>
+        <li>Community support</li>
+        <li>7-day retention</li>
+      </ul>
+    </div>
+
+    <!-- STARTER -->
+    <div class="pricing-card">
+      <div class="pricing-tier">Tier 02</div>
+      <h3 class="pricing-name">Starter</h3>
+      <div class="pricing-price"><span id="starter-price">$49</span><span>/mo</span></div>
+      <p class="pricing-desc">For growing creators</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start 14-day Trial</button>
+      <ul class="pricing-features">
+        <li>15 videos/month</li>
+        <li>3 platforms</li>
+        <li>Full research</li>
+        <li>Email support</li>
+        <li>Advanced scripting</li>
+        <li>30-day retention</li>
+      </ul>
+    </div>
+
+    <!-- PRO (FEATURED) -->
+    <div class="pricing-card featured">
+      <div class="pricing-popular">Most Popular</div>
+      <div class="pricing-tier">Tier 03</div>
+      <h3 class="pricing-name">Pro</h3>
+      <div class="pricing-price"><span id="pro-price">$149</span><span>/mo</span></div>
+      <p class="pricing-desc">For serious creators</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start 14-day Trial</button>
+      <ul class="pricing-features">
+        <li>50 videos/month</li>
+        <li>All 8 platforms</li>
+        <li>Hollywood AI agent</li>
+        <li>Advanced analytics</li>
+        <li>Competitor tracking</li>
+        <li>Batch creation</li>
+        <li>Priority support</li>
+        <li>Unlimited retention</li>
+      </ul>
+    </div>
+
+    <!-- AGENCY -->
+    <div class="pricing-card">
+      <div class="pricing-tier">Tier 04</div>
+      <h3 class="pricing-name">Agency</h3>
+      <div class="pricing-price"><span id="agency-price">$399</span><span>/mo</span></div>
+      <p class="pricing-desc">For teams & agencies</p>
+      <button class="pricing-cta" onclick="window.location.href='/contact'">Contact Sales</button>
+      <ul class="pricing-features">
+        <li>Unlimited videos/month</li>
+        <li>All 8 platforms</li>
+        <li>5 team seats</li>
+        <li>White-label exports</li>
+        <li>API access</li>
+        <li>Dedicated manager</li>
+        <li>24/7 priority support</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARISON TABLE -->
+<section class="comparison-section">
+  <div class="comparison-header">
+    <h2>Feature Comparison</h2>
+    <p>Choose the plan that fits your needs. Upgrade or downgrade anytime.</p>
+  </div>
+  <div class="comparison-table">
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th style="width: 25%;">Feature</th>
+          <th style="width: 18.75%;">Free</th>
+          <th style="width: 18.75%;">Starter</th>
+          <th style="width: 18.75%;">Pro</th>
+          <th style="width: 18.75%;">Agency</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="comp-feature">Videos per month</td>
+          <td><span class="comp-check">3</span></td>
+          <td><span class="comp-check">15</span></td>
+          <td><span class="comp-check">50</span></td>
+          <td><span class="comp-check">Unlimited</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Platforms supported</td>
+          <td><span class="comp-check">2</span></td>
+          <td><span class="comp-check">3</span></td>
+          <td><span class="comp-check">8</span></td>
+          <td><span class="comp-check">8</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Research suite</td>
+          <td><span class="comp-check">Basic</span></td>
+          <td><span class="comp-check">Full</span></td>
+          <td><span class="comp-check">Full</span></td>
+          <td><span class="comp-check">Full</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Hollywood AI agent</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">Yes</span></td>
+          <td><span class="comp-check">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Analytics & tracking</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">Basic</span></td>
+          <td><span class="comp-check">Advanced</span></td>
+          <td><span class="comp-check">Advanced</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Batch creation</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">Yes</span></td>
+          <td><span class="comp-check">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Team seats</td>
+          <td><span class="comp-check">1</span></td>
+          <td><span class="comp-check">2</span></td>
+          <td><span class="comp-check">3</span></td>
+          <td><span class="comp-check">5</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">API access</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">White-label</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Support</td>
+          <td><span class="comp-check">Community</span></td>
+          <td><span class="comp-check">Email</span></td>
+          <td><span class="comp-check">Priority</span></td>
+          <td><span class="comp-check">24/7 Dedicated</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq-section">
+  <div class="faq-header">
+    <h2>Frequently Asked</h2>
+    <p>Everything you need to know about Social Optimize pricing and plans.</p>
+  </div>
+  <div class="faq-list">
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        <span>Can I switch plans anytime?</span>
+        <div class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+      </button>
+      <div class="faq-a">
+        <p>Yes! You can upgrade or downgrade your plan anytime. Changes take effect immediately, and we'll prorate your billing based on your monthly usage.</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        <span>What happens after my free trial?</span>
+        <div class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+      </button>
+      <div class="faq-a">
+        <p>After 14 days, your trial expires and you'll need to add a payment method to continue. No charges are made until you do. You can cancel anytime before that.</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        <span>Do you offer annual discounts?</span>
+        <div class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+      </button>
+      <div class="faq-a">
+        <p>Yes! Our annual plans save you 20% compared to monthly billing. Pay once per year and lock in that rate.</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        <span>What counts as a video?</span>
+        <div class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+      </button>
+      <div class="faq-a">
+        <p>One video = one complete piece of content, regardless of length or format. So a TikTok, YouTube Shorts, and Instagram Reel all count as separate videos.</p>
+      </div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">
+        <span>Can I get a refund?</span>
+        <div class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+      </button>
+      <div class="faq-a">
+        <p>We offer a 30-day money-back guarantee. If you're not happy, contact support and we'll refund your subscription.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-cta">
+  <h2>Ready to create?</h2>
+  <p>Start free — no credit card required. 3 videos included. Cancel anytime.</p>
+  <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free →</a>
+</section>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-brand">
+    <span style="color: var(--gold); margin-right: 4px;">⚡</span>
+    <span>Social Optimize</span>
+  </div>
+  <div class="footer-links">
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+    <a href="/blog">Blog</a>
+    <a href="/contact">Contact</a>
+    <a href="/legal/privacy">Privacy</a>
+    <a href="/legal/terms">Terms</a>
+  </div>
+</div>
+
+<script>
+const priceMap = {
+  'monthly': { starter: 49, pro: 149, agency: 399 },
+  'annual': { starter: 39, pro: 119, agency: 319 }
+};
+
+function togglePricing(period) {
+  document.querySelectorAll('.pricing-toggle button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const savingsLabel = document.getElementById('savingsLabel');
+  savingsLabel.style.display = period === 'annual' ? 'block' : 'none';
+
+  document.getElementById('starter-price').textContent = '$' + priceMap[period].starter;
+  document.getElementById('pro-price').textContent = '$' + priceMap[period].pro;
+  document.getElementById('agency-price').textContent = '$' + priceMap[period].agency;
+}
+
+function toggleFaq(button) {
+  const answer = button.nextElementSibling;
+  const isOpen = button.classList.contains('open');
+
+  document.querySelectorAll('.faq-q.open').forEach(q => {
+    q.classList.remove('open');
+    q.nextElementSibling.classList.remove('open');
+  });
+
+  if (!isOpen) {
+    button.classList.add('open');
+    answer.classList.add('open');
+  }
+}
+
+// Scroll effect
+window.addEventListener('scroll', () => {
+  const nav = document.getElementById('mainNav');
+  nav.classList.toggle('scrolled', window.scrollY > 0);
+});
+</script>
+
+</body>
+</html>

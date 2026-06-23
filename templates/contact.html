@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us — Social Optimize Machine</title>
+  <meta name="description" content="Get in touch with our team. Sales, support, partnerships, and more.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050507;
+      --bg2: #0a0a0e;
+      --card: #131318;
+      --border: #1e1e25;
+      --text: #f0f0f2;
+      --text-secondary: #c8c8d0;
+      --muted: #6e6e7a;
+      --gold: #c9a227;
+      --gold-light: #ddb63e;
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; }
+    img { max-width: 100%; display: block; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    h1, h2, h3 { font-weight: 800; }
+    p { color: var(--muted); }
+
+    /* NAV */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: 64px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 48px;
+      background: rgba(5,5,7,.6); backdrop-filter: blur(24px);
+      border-bottom: 1px solid transparent; transition: all .35s;
+    }
+    .nav.scrolled { background: rgba(5,5,7,.92); border-bottom-color: var(--border); }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 16px; font-weight: 800; }
+    .nav-logo-mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--gold), #8b6914); display: flex; align-items: center; justify-content: center; }
+    .nav-logo-mark svg { width: 16px; height: 16px; fill: #000; }
+    .nav-logo span { color: var(--gold); }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta { display: flex; gap: 10px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 12px; font-family: var(--font); font-weight: 700; cursor: pointer; text-decoration: none; transition: all .25s; }
+    .btn-primary { background: var(--gold); color: #000; padding: 10px 20px; font-size: 14px; }
+    .btn-primary:hover { background: var(--gold-light); }
+    .btn-secondary { background: rgba(255,255,255,.05); color: var(--text); border: 1px solid var(--border); padding: 10px 20px; font-size: 14px; }
+
+    /* HERO */
+    .contact-hero { padding: 140px 24px 80px; text-align: center; }
+    .contact-hero h1 { font-size: clamp(36px, 5vw, 56px); margin-bottom: 20px; }
+    .contact-hero p { font-size: 16px; max-width: 540px; margin: 0 auto; }
+
+    /* LAYOUT */
+    .contact-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; max-width: 1000px; margin: 80px auto; padding: 0 24px; align-items: start; }
+
+    /* FORM */
+    .contact-form { }
+    .form-group { margin-bottom: 24px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px 14px; font-family: var(--font); color: var(--text); font-size: 14px; transition: all .2s;
+    }
+    .form-input::placeholder, .form-textarea::placeholder { color: var(--muted); }
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none; border-color: var(--gold); background: rgba(201,162,39,.05);
+    }
+    .form-textarea { resize: vertical; min-height: 120px; }
+    .form-submit {
+      width: 100%; background: var(--gold); color: #000; padding: 12px 20px; border: none; border-radius: 8px;
+      font-family: var(--font); font-weight: 700; font-size: 14px; cursor: pointer; transition: all .2s;
+    }
+    .form-submit:hover { background: var(--gold-light); }
+    .form-status { margin-top: 16px; padding: 12px 14px; border-radius: 8px; font-size: 13px; text-align: center; display: none; }
+    .form-status.success { background: rgba(34,197,94,.1); color: #22c55e; display: block; }
+    .form-status.error { background: rgba(239,68,68,.1); color: #ef4444; display: block; }
+
+    /* INFO CARDS */
+    .contact-info { display: flex; flex-direction: column; gap: 24px; }
+    .info-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 32px; transition: all .3s;
+    }
+    .info-card:hover { border-color: rgba(201,162,39,.2); transform: translateY(-2px); }
+    .info-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 12px; }
+    .info-content { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+    .info-content a { color: var(--gold); text-decoration: none; transition: color .2s; }
+    .info-content a:hover { color: var(--gold-light); }
+    .info-desc { font-size: 13px; color: var(--muted); }
+
+    /* FOOTER */
+    .footer { max-width: 1200px; margin: 0 auto; padding: 40px 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 20px; }
+    .footer-brand { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; transition: color .2s; }
+    .footer-links a:hover { color: var(--text); }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .nav { padding: 0 20px; }
+      .nav-links { display: none; }
+      .contact-hero { padding: 100px 20px 60px; }
+      .contact-layout { grid-template-columns: 1fr; gap: 40px; margin: 60px auto; padding: 0 20px; }
+      .footer { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" id="mainNav">
+  <a class="nav-logo" href="/">
+    <div class="nav-logo-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#000"/></svg>
+    </div>
+    <div><span>Social</span> Optimize</div>
+  </a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/docs">Docs</a>
+    <a href="/blog">Blog</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+  </div>
+  <div class="nav-cta">
+    <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Sign In</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="contact-hero">
+  <h1>Get in touch</h1>
+  <p>Have a question? We'd love to hear from you. Send us a message and we'll respond as soon as possible.</p>
+</section>
+
+<!-- CONTACT LAYOUT -->
+<div class="contact-layout">
+  <!-- FORM -->
+  <div class="contact-form">
+    <form onsubmit="handleContactSubmit(event)">
+      <div class="form-group">
+        <label class="form-label">Your Name</label>
+        <input type="text" class="form-input" name="name" placeholder="Full name" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" class="form-input" name="email" placeholder="you@example.com" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select class="form-select" name="subject" required>
+          <option value="">Select a subject</option>
+          <option value="sales">Sales Question</option>
+          <option value="support">Technical Support</option>
+          <option value="partnership">Partnership Inquiry</option>
+          <option value="media">Media & Press</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Message</label>
+        <textarea class="form-textarea" name="message" placeholder="Tell us what's on your mind..." required></textarea>
+      </div>
+
+      <button type="submit" class="form-submit">Send Message</button>
+      <div class="form-status" id="formStatus"></div>
+    </form>
+  </div>
+
+  <!-- INFO -->
+  <div class="contact-info">
+    <div class="info-card">
+      <div class="info-title">Email</div>
+      <div class="info-content">
+        <a href="mailto:hello@socialoptimize.online">hello@socialoptimize.online</a>
+      </div>
+      <div class="info-desc">We typically respond within 2-4 hours during business hours</div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-title">Twitter / X</div>
+      <div class="info-content">
+        <a href="https://twitter.com/socialoptimize" target="_blank">@socialoptimize</a>
+      </div>
+      <div class="info-desc">DM us for quick questions or updates</div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-title">Discord Community</div>
+      <div class="info-content">
+        <a href="https://discord.gg/socialoptimize" target="_blank">Join our Discord</a>
+      </div>
+      <div class="info-desc">Connect with creators, get support, share ideas</div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-title">Status Page</div>
+      <div class="info-content">
+        <a href="https://status.socialoptimize.online" target="_blank">status.socialoptimize.online</a>
+      </div>
+      <div class="info-desc">Check service status and incident history</div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer" style="margin-top: 120px;">
+  <div class="footer-brand">
+    <span style="color: var(--gold); margin-right: 4px;">⚡</span>
+    <span>Social Optimize</span>
+  </div>
+  <div class="footer-links">
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+    <a href="/blog">Blog</a>
+    <a href="/contact">Contact</a>
+    <a href="/legal/privacy">Privacy</a>
+    <a href="/legal/terms">Terms</a>
+  </div>
+</div>
+
+<script>
+window.addEventListener('scroll', () => {
+  const nav = document.getElementById('mainNav');
+  nav.classList.toggle('scrolled', window.scrollY > 0);
+});
+
+async function handleContactSubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData);
+
+  try {
+    const response = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+    const status = document.getElementById('formStatus');
+
+    if (response.ok) {
+      status.textContent = 'Message sent! We\'ll get back to you soon.';
+      status.className = 'form-status success';
+      form.reset();
+      setTimeout(() => status.style.display = 'none', 5000);
+    } else {
+      status.textContent = result.message || 'Something went wrong. Please try again.';
+      status.className = 'form-status error';
+    }
+  } catch (error) {
+    const status = document.getElementById('formStatus');
+    status.textContent = 'Error sending message. Please try again later.';
+    status.className = 'form-status error';
+  }
+}
+</script>
+
+</body>
+</html>

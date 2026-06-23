@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About Us — Social Optimize Machine</title>
+  <meta name="description" content="The story behind Social Optimize Machine and our mission to democratize video creation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050507;
+      --bg2: #0a0a0e;
+      --card: #131318;
+      --border: #1e1e25;
+      --text: #f0f0f2;
+      --text-secondary: #c8c8d0;
+      --muted: #6e6e7a;
+      --gold: #c9a227;
+      --gold-dim: rgba(201,162,39,.06);
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; }
+    img { max-width: 100%; display: block; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    h1, h2, h3 { font-weight: 800; line-height: 1.1; }
+    p { color: var(--muted); }
+
+    /* NAV */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: 64px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 48px;
+      background: rgba(5,5,7,.6); backdrop-filter: blur(24px);
+      border-bottom: 1px solid transparent; transition: all .35s;
+    }
+    .nav.scrolled { background: rgba(5,5,7,.92); border-bottom-color: var(--border); }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 16px; font-weight: 800; }
+    .nav-logo-mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--gold), #8b6914); display: flex; align-items: center; justify-content: center; }
+    .nav-logo-mark svg { width: 16px; height: 16px; fill: #000; }
+    .nav-logo span { color: var(--gold); }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta { display: flex; gap: 10px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 12px; font-family: var(--font); font-weight: 700; cursor: pointer; text-decoration: none; transition: all .25s; }
+    .btn-primary { background: var(--gold); color: #000; padding: 10px 20px; font-size: 14px; }
+    .btn-primary:hover { background: #ddb63e; }
+    .btn-secondary { background: rgba(255,255,255,.05); color: var(--text); border: 1px solid var(--border); padding: 10px 20px; font-size: 14px; }
+
+    /* SECTIONS */
+    .section { padding: 100px 24px; }
+    .section-header { text-align: center; }
+    .section h1 { font-size: clamp(36px, 5vw, 56px); margin-bottom: 20px; }
+    .section h2 { font-size: clamp(32px, 4vw, 48px); margin-bottom: 28px; }
+    .section h3 { font-size: 20px; margin-bottom: 16px; }
+    .section-sub { font-size: 16px; max-width: 540px; margin: 0 auto 40px; }
+
+    /* HERO */
+    .hero-section {
+      padding: 140px 24px 80px; background: linear-gradient(135deg, var(--bg2) 0%, var(--bg) 100%); text-align: center;
+    }
+
+    /* STORY */
+    .story-section { padding: 100px 24px; }
+    .story-content { max-width: 720px; margin: 0 auto; }
+    .story-content p { font-size: 16px; margin-bottom: 20px; line-height: 1.8; }
+
+    /* MISSION */
+    .mission-section { padding: 100px 24px; background: var(--bg2); }
+    .mission-box {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 48px 40px; text-align: center; max-width: 680px; margin: 0 auto;
+    }
+    .mission-box h2 { font-size: 36px; margin-bottom: 20px; color: var(--gold); }
+    .mission-box p { font-size: 16px; line-height: 1.8; }
+
+    /* TEAM */
+    .team-section { padding: 100px 24px; }
+    .team-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px; max-width: 800px; margin: 40px auto 0; }
+    .team-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 36px 28px; text-align: center; transition: all .3s;
+    }
+    .team-card:hover { border-color: rgba(201,162,39,.2); transform: translateY(-4px); }
+    .team-avatar { width: 96px; height: 96px; border-radius: 16px; background: linear-gradient(135deg, var(--gold), #8b6914); margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 48px; }
+    .team-card h3 { font-size: 18px; margin-bottom: 4px; }
+    .team-card .role { font-size: 12px; color: var(--gold); font-weight: 600; margin-bottom: 12px; }
+    .team-card p { font-size: 13px; margin-bottom: 16px; line-height: 1.6; }
+    .team-social { display: flex; gap: 12px; justify-content: center; }
+    .team-social a { width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,.05); display: flex; align-items: center; justify-content: center; color: var(--gold); text-decoration: none; transition: all .2s; }
+    .team-social a:hover { background: var(--gold-dim); }
+
+    /* VALUES */
+    .values-section { padding: 100px 24px; background: var(--bg2); }
+    .values-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px; max-width: 840px; margin: 40px auto 0; }
+    .value-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 32px; text-align: center; transition: all .3s;
+    }
+    .value-card:hover { border-color: rgba(201,162,39,.2); }
+    .value-icon { font-size: 48px; margin-bottom: 16px; }
+    .value-card h3 { font-size: 18px; margin-bottom: 12px; }
+    .value-card p { font-size: 13px; }
+
+    /* PARTNERS */
+    .partners-section { padding: 100px 24px; }
+    .partners-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; max-width: 800px; margin: 40px auto 0; }
+    .partner-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 24px; text-align: center; display: flex; align-items: center; justify-content: center;
+      height: 120px; font-size: 28px; transition: all .3s;
+    }
+    .partner-card:hover { border-color: rgba(201,162,39,.2); }
+
+    /* CTA */
+    .cta-section { padding: 100px 24px; text-align: center; }
+    .cta-section h2 { font-size: 40px; margin-bottom: 20px; }
+    .cta-section p { font-size: 16px; margin-bottom: 32px; max-width: 480px; margin-left: auto; margin-right: auto; }
+
+    /* FOOTER */
+    .footer { max-width: 1200px; margin: 0 auto; padding: 40px 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 20px; }
+    .footer-brand { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; transition: color .2s; }
+    .footer-links a:hover { color: var(--text); }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .nav { padding: 0 20px; }
+      .nav-links { display: none; }
+      .section { padding: 60px 20px; }
+      .team-grid, .values-grid, .partners-grid { grid-template-columns: 1fr; }
+      .section h1 { font-size: 32px; }
+      .section h2 { font-size: 28px; }
+      .footer { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" id="mainNav">
+  <a class="nav-logo" href="/">
+    <div class="nav-logo-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#000"/></svg>
+    </div>
+    <div><span>Social</span> Optimize</div>
+  </a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/docs">Docs</a>
+    <a href="/blog">Blog</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+  </div>
+  <div class="nav-cta">
+    <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Sign In</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero-section">
+  <div class="container">
+    <h1>Building the future of content creation</h1>
+    <p class="section-sub">We're on a mission to make video production accessible to everyone, powered by AI.</p>
+  </div>
+</section>
+
+<!-- STORY -->
+<section class="story-section">
+  <div class="container">
+    <h2 style="text-align: center; margin-bottom: 40px;">Our Story</h2>
+    <div class="story-content">
+      <p>Social Optimize Machine was born from a simple observation: small businesses spend thousands of dollars on video production but never see the ROI. Content creators spend hours filming, editing, and uploading only to get lost in the noise.</p>
+
+      <p>We started by asking a different question: What if AI could handle the mechanical parts of content creation? Not to replace creativity, but to eliminate the busywork. What if a creator could spend their time on strategy and storytelling while AI handled research, scripting, voiceover, video generation, and publishing?</p>
+
+      <p>In 2023, we assembled a team of AI researchers, filmmakers, and product designers with a single goal: build the most capable content creation platform on earth. Today, Social Optimize powers creators and teams across 150+ countries, producing over 10,000 videos per week.</p>
+    </div>
+  </div>
+</section>
+
+<!-- MISSION -->
+<section class="mission-section">
+  <div class="container">
+    <div class="mission-box">
+      <h2>Our Mission</h2>
+      <p>To democratize video production and put professional content creation tools in the hands of anyone with a story to tell. No expensive equipment. No editing skills required. Just ideas.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TEAM -->
+<section class="team-section">
+  <div class="container">
+    <h2 style="text-align: center; margin-bottom: 12px;">The Team</h2>
+    <p class="section-sub">Passionate makers building tools for creators</p>
+
+    <div class="team-grid">
+      <div class="team-card">
+        <div class="team-avatar">👨‍💻</div>
+        <h3>Alex Chen</h3>
+        <div class="role">Founder & CEO</div>
+        <p>Former ML engineer at Google. Built the first version of Studio 56 in a weekend. Obsessed with content velocity.</p>
+        <div class="team-social">
+          <a href="#" title="Twitter">𝕏</a>
+          <a href="#" title="LinkedIn">💼</a>
+          <a href="#" title="GitHub">🐙</a>
+        </div>
+      </div>
+
+      <div class="team-card">
+        <div class="team-avatar">👩‍🎬</div>
+        <h3>Sarah Williams</h3>
+        <div class="role">VP Product</div>
+        <p>Previously at MidJourney. Directed 200+ music videos. She ensures every feature ships with creator-first design.</p>
+        <div class="team-social">
+          <a href="#" title="Twitter">𝕏</a>
+          <a href="#" title="LinkedIn">💼</a>
+          <a href="#" title="GitHub">🐙</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VALUES -->
+<section class="values-section">
+  <div class="container">
+    <h2 style="text-align: center; margin-bottom: 12px;">Our Values</h2>
+    <p class="section-sub" style="max-width: 480px;">What we believe and how we work</p>
+
+    <div class="values-grid">
+      <div class="value-card">
+        <div class="value-icon">⚡</div>
+        <h3>Speed</h3>
+        <p>Videos in minutes, not days. Every second of friction eliminated.</p>
+      </div>
+      <div class="value-card">
+        <div class="value-icon">🎯</div>
+        <h3>Quality</h3>
+        <p>Retention-optimized scripts. Cinema-grade visuals. Professional audio.</p>
+      </div>
+      <div class="value-card">
+        <div class="value-icon">🌍</div>
+        <h3>Accessibility</h3>
+        <p>No skills required. No expensive gear. Content creation for everyone.</p>
+      </div>
+      <div class="value-card">
+        <div class="value-icon">🧠</div>
+        <h3>Intelligence</h3>
+        <p>AI that learns your voice and grows with you, not against you.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PARTNERS -->
+<section class="partners-section">
+  <div class="container">
+    <h2 style="text-align: center; margin-bottom: 12px;">Backed By</h2>
+    <p class="section-sub">Trusted by leading investors and partners</p>
+
+    <div class="partners-grid">
+      <div class="partner-card" title="Stripe">🔴</div>
+      <div class="partner-card" title="Anthropic">🧬</div>
+      <div class="partner-card" title="Render">⚙️</div>
+      <div class="partner-card" title="Y Combinator">🔶</div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2>We're hiring</h2>
+    <p>Join us in building the future of content creation. We're looking for engineers, designers, and product people who are passionate about creator tools.</p>
+    <a href="/contact" class="btn btn-primary" style="padding: 14px 32px; font-size: 15px;">Get in Touch</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-brand">
+    <span style="color: var(--gold); margin-right: 4px;">⚡</span>
+    <span>Social Optimize</span>
+  </div>
+  <div class="footer-links">
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+    <a href="/blog">Blog</a>
+    <a href="/contact">Contact</a>
+    <a href="/legal/privacy">Privacy</a>
+    <a href="/legal/terms">Terms</a>
+  </div>
+</div>
+
+<script>
+window.addEventListener('scroll', () => {
+  const nav = document.getElementById('mainNav');
+  nav.classList.toggle('scrolled', window.scrollY > 0);
+});
+</script>
+
+</body>
+</html>

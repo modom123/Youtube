@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog — Social Optimize Machine</title>
+  <meta name="description" content="Tips, guides, and updates on AI video creation and content strategy.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050507;
+      --bg2: #0a0a0e;
+      --card: #131318;
+      --border: #1e1e25;
+      --text: #f0f0f2;
+      --text-secondary: #c8c8d0;
+      --muted: #6e6e7a;
+      --gold: #c9a227;
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; }
+    img { max-width: 100%; display: block; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    h1, h2, h3 { font-weight: 800; }
+    p { color: var(--muted); }
+
+    /* NAV */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: 64px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 48px;
+      background: rgba(5,5,7,.6); backdrop-filter: blur(24px);
+      border-bottom: 1px solid transparent; transition: all .35s;
+    }
+    .nav.scrolled { background: rgba(5,5,7,.92); border-bottom-color: var(--border); }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 16px; font-weight: 800; }
+    .nav-logo-mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--gold), #8b6914); display: flex; align-items: center; justify-content: center; }
+    .nav-logo-mark svg { width: 16px; height: 16px; fill: #000; }
+    .nav-logo span { color: var(--gold); }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta { display: flex; gap: 10px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 12px; font-family: var(--font); font-weight: 700; cursor: pointer; text-decoration: none; transition: all .25s; }
+    .btn-primary { background: var(--gold); color: #000; padding: 10px 20px; font-size: 14px; }
+    .btn-primary:hover { background: #ddb63e; }
+
+    /* HERO */
+    .blog-hero { padding: 140px 24px 80px; text-align: center; }
+    .blog-hero h1 { font-size: clamp(36px, 5vw, 56px); margin-bottom: 20px; }
+    .blog-hero p { font-size: 16px; max-width: 540px; margin: 0 auto; }
+
+    /* FILTERS & SEARCH */
+    .blog-controls { max-width: 1000px; margin: 60px auto; padding: 0 24px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; justify-content: center; }
+    .blog-search { flex: 1; min-width: 200px; }
+    .blog-search input {
+      width: 100%; background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; font-family: var(--font); color: var(--text); font-size: 13px;
+    }
+    .blog-search input::placeholder { color: var(--muted); }
+    .blog-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter-btn {
+      background: rgba(255,255,255,.03); border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 16px; font-family: var(--font); font-size: 13px; color: var(--muted);
+      cursor: pointer; transition: all .2s; white-space: nowrap;
+    }
+    .filter-btn.active { background: var(--gold); color: #000; border-color: var(--gold); }
+    .filter-btn:hover { border-color: var(--border); }
+
+    /* GRID */
+    .blog-grid { max-width: 1200px; margin: 60px auto; padding: 0 24px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+    .blog-post {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+      transition: all .3s; cursor: pointer; text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    }
+    .blog-post:hover { border-color: rgba(201,162,39,.2); transform: translateY(-4px); box-shadow: 0 12px 32px rgba(0,0,0,.3); }
+    .blog-post-thumb { width: 100%; height: 200px; background: linear-gradient(135deg, var(--border), var(--muted)); display: flex; align-items: center; justify-content: center; font-size: 56px; }
+    .blog-post-content { padding: 24px; flex: 1; display: flex; flex-direction: column; }
+    .blog-post-meta { display: flex; gap: 12px; font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+    .blog-post-category { background: rgba(201,162,39,.1); color: var(--gold); padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+    .blog-post-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+    .blog-post-excerpt { font-size: 13px; color: var(--muted); margin-bottom: 12px; flex: 1; }
+    .blog-post-footer { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+    .read-time { font-size: 11px; color: var(--muted); }
+
+    /* FOOTER */
+    .footer { max-width: 1200px; margin: 0 auto; padding: 40px 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 20px; }
+    .footer-brand { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; transition: color .2s; }
+
+    /* RESPONSIVE */
+    @media (max-width: 1024px) {
+      .blog-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .nav { padding: 0 20px; }
+      .nav-links { display: none; }
+      .blog-hero { padding: 100px 20px 60px; }
+      .blog-grid { grid-template-columns: 1fr; gap: 20px; padding: 0 20px; }
+      .blog-controls { padding: 0 20px; flex-direction: column; }
+      .blog-search { width: 100%; }
+      .footer { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" id="mainNav">
+  <a class="nav-logo" href="/">
+    <div class="nav-logo-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#000"/></svg>
+    </div>
+    <div><span>Social</span> Optimize</div>
+  </a>
+  <div class="nav-links">
+    <a href="/">Home</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/docs">Docs</a>
+    <a href="/blog">Blog</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+  </div>
+  <div class="nav-cta">
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="blog-hero">
+  <h1>The Creator's Resource Center</h1>
+  <p>Tips, guides, and insights on AI video creation, content strategy, and growing your audience.</p>
+</section>
+
+<!-- CONTROLS -->
+<div class="blog-controls">
+  <div class="blog-search">
+    <input type="text" id="searchInput" placeholder="Search articles..." onkeyup="filterPosts()">
+  </div>
+  <div class="blog-filters">
+    <button class="filter-btn active" onclick="filterByCategory('all'); event.target.classList.add('active'); document.querySelectorAll('.filter-btn').forEach(b => { if(b !== event.target) b.classList.remove('active'); })">All</button>
+    <button class="filter-btn" onclick="filterByCategory('how-to'); event.target.classList.add('active'); document.querySelectorAll('.filter-btn').forEach(b => { if(b !== event.target) b.classList.remove('active'); })">How-To</button>
+    <button class="filter-btn" onclick="filterByCategory('case-study'); event.target.classList.add('active'); document.querySelectorAll('.filter-btn').forEach(b => { if(b !== event.target) b.classList.remove('active'); })">Case Studies</button>
+    <button class="filter-btn" onclick="filterByCategory('update'); event.target.classList.add('active'); document.querySelectorAll('.filter-btn').forEach(b => { if(b !== event.target) b.classList.remove('active'); })">Updates</button>
+  </div>
+</div>
+
+<!-- GRID -->
+<div class="blog-grid" id="blogGrid">
+  <!-- Post 1 -->
+  <a href="#" class="blog-post" data-category="how-to" data-title="How to Create Viral Shorts in 5 Minutes" onclick="return false;">
+    <div class="blog-post-thumb">🎬</div>
+    <div class="blog-post-content">
+      <div class="blog-post-meta">
+        <span class="blog-post-category">How-To</span>
+        <span>Jun 20, 2026</span>
+        <span class="read-time">5 min read</span>
+      </div>
+      <h3 class="blog-post-title">How to Create Viral Shorts in 5 Minutes</h3>
+      <p class="blog-post-excerpt">Master the hook, open loop, and CTA formula that keeps viewers watching past 3 seconds. Real examples from trending creators.</p>
+      <div class="blog-post-footer">
+        <span>By Alex Chen</span>
+      </div>
+    </div>
+  </a>
+
+  <!-- Post 2 -->
+  <a href="#" class="blog-post" data-category="how-to" data-title="Podcast to Social Media: The Repurposing Guide" onclick="return false;">
+    <div class="blog-post-thumb">🎙</div>
+    <div class="blog-post-content">
+      <div class="blog-post-meta">
+        <span class="blog-post-category">How-To</span>
+        <span>Jun 18, 2026</span>
+        <span class="read-time">8 min read</span>
+      </div>
+      <h3 class="blog-post-title">Podcast to Social Media: The Repurposing Guide</h3>
+      <p class="blog-post-excerpt">Turn one 60-minute podcast episode into 20+ social media videos. The complete workflow from Studio 56 to publishing.</p>
+      <div class="blog-post-footer">
+        <span>By Sarah Williams</span>
+      </div>
+    </div>
+  </a>
+
+  <!-- Post 3 -->
+  <a href="#" class="blog-post" data-category="how-to" data-title="Product Ads That Sell: 6-Second Bumpers That Work" onclick="return false;">
+    <div class="blog-post-thumb">🛍</div>
+    <div class="blog-post-content">
+      <div class="blog-post-meta">
+        <span class="blog-post-category">How-To</span>
+        <span>Jun 15, 2026</span>
+        <span class="read-time">6 min read</span>
+      </div>
+      <h3 class="blog-post-title">Product Ads That Sell: 6-Second Bumpers That Work</h3>
+      <p class="blog-post-excerpt">Proven formula for short-form ads with high CTR. How to structure your message, hook your audience, and drive conversions.</p>
+      <div class="blog-post-footer">
+        <span>By Jane Smith</span>
+      </div>
+    </div>
+  </a>
+
+  <!-- Post 4 -->
+  <a href="#" class="blog-post" data-category="how-to" data-title="Using Google Trends to Find Your Next Video Topic" onclick="return false;">
+    <div class="blog-post-thumb">📈</div>
+    <div class="blog-post-content">
+      <div class="blog-post-meta">
+        <span class="blog-post-category">How-To</span>
+        <span>Jun 12, 2026</span>
+        <span class="read-time">7 min read</span>
+      </div>
+      <h3 class="blog-post-title">Using Google Trends to Find Your Next Video Topic</h3>
+      <p class="blog-post-excerpt">How our Research Agent finds trending topics before they peak. Data-driven content strategy that keeps you ahead of competitors.</p>
+      <div class="blog-post-footer">
+        <span>By Alex Chen</span>
+      </div>
+    </div>
+  </a>
+
+  <!-- Post 5 -->
+  <a href="#" class="blog-post" data-category="update" data-title="Hollywood Agent: Your AI Content Manager" onclick="return false;">
+    <div class="blog-post-thumb">🎭</div>
+    <div class="blog-post-content">
+      <div class="blog-post-meta">
+        <span class="blog-post-category">Product Update</span>
+        <span>Jun 10, 2026</span>
+        <span class="read-time">5 min read</span>
+      </div>
+      <h3 class="blog-post-title">Introducing Hollywood Agent: Your AI Content Manager</h3>
+      <p class="blog-post-excerpt">Automate engagement, track competitors, optimize posting times, and manage comments across all platforms from one dashboard.</p>
+      <div class="blog-post-footer">
+        <span>By Sarah Williams</span>
+      </div>
+    </div>
+  </a>
+
+  <!-- Post 6 -->
+  <a href="#" class="blog-post" data-category="case-study" data-title="From Solo Creator to Agency: Scaling with Social Optimize" onclick="return false;">
+    <div class="blog-post-thumb">🚀</div>
+    <div class="blog-post-content">
+      <div class="blog-post-meta">
+        <span class="blog-post-category">Case Study</span>
+        <span>Jun 8, 2026</span>
+        <span class="read-time">10 min read</span>
+      </div>
+      <h3 class="blog-post-title">From Solo Creator to Agency: Scaling with Social Optimize</h3>
+      <p class="blog-post-excerpt">How @CreativeStudio went from 1 creator to a 5-person agency using batch creation, team seats, and the Hollywood Agent.</p>
+      <div class="blog-post-footer">
+        <span>By John Doe</span>
+      </div>
+    </div>
+  </a>
+</div>
+
+<!-- FOOTER -->
+<div class="footer" style="margin-top: 120px;">
+  <div class="footer-brand">
+    <span style="color: var(--gold); margin-right: 4px;">⚡</span>
+    <span>Social Optimize</span>
+  </div>
+  <div class="footer-links">
+    <a href="/">Home</a>
+    <a href="/about">About</a>
+    <a href="/blog">Blog</a>
+    <a href="/contact">Contact</a>
+    <a href="/legal/privacy">Privacy</a>
+    <a href="/legal/terms">Terms</a>
+  </div>
+</div>
+
+<script>
+window.addEventListener('scroll', () => {
+  const nav = document.getElementById('mainNav');
+  nav.classList.toggle('scrolled', window.scrollY > 0);
+});
+
+function filterByCategory(category) {
+  const posts = document.querySelectorAll('.blog-post');
+  posts.forEach(post => {
+    if (category === 'all' || post.dataset.category === category) {
+      post.style.display = '';
+    } else {
+      post.style.display = 'none';
+    }
+  });
+}
+
+function filterPosts() {
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+  const posts = document.querySelectorAll('.blog-post');
+  posts.forEach(post => {
+    const title = post.dataset.title.toLowerCase();
+    if (searchTerm === '' || title.includes(searchTerm)) {
+      post.style.display = '';
+    } else {
+      post.style.display = 'none';
+    }
+  });
+}
+</script>
+
+</body>
+</html>

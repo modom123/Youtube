@@ -2383,6 +2383,82 @@ def add_security_headers(response):
     return response
 
 
+# ── Landing Pages ───────────────────────────────────────────────────────────
+
+@app.route("/pricing")
+def pricing():
+    return render_template("pricing.html")
+
+
+@app.route("/docs")
+def docs():
+    return render_template("docs.html")
+
+
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+
+@app.route("/contact")
+def contact():
+    return render_template("contact.html")
+
+
+@app.route("/blog")
+def blog():
+    return render_template("blog.html")
+
+
+@app.route("/legal/privacy")
+def privacy():
+    return render_template("legal/privacy.html")
+
+
+@app.route("/legal/terms")
+def terms():
+    return render_template("legal/terms.html")
+
+
+@app.route("/api/contact", methods=["POST"])
+def api_contact():
+    """Handle contact form submissions."""
+    data = request.get_json() or {}
+    name = data.get("name", "").strip()
+    email = data.get("email", "").strip()
+    subject = data.get("subject", "").strip()
+    message = data.get("message", "").strip()
+
+    # Validation
+    if not all([name, email, subject, message]):
+        return jsonify({"success": False, "message": "All fields required"}), 400
+
+    if len(message) < 10:
+        return jsonify({"success": False, "message": "Message too short"}), 400
+
+    try:
+        # Log the contact form submission for now
+        logger.info(
+            "Contact form submitted: %s (%s) - %s",
+            name,
+            email,
+            subject,
+            extra={"email": email, "subject": subject},
+        )
+
+        # In production, you would send an email here using SendGrid or similar
+        # For now, we just log it and return success
+
+        return jsonify({"success": True, "message": "Thank you for reaching out. We'll be in touch soon!"}), 200
+
+    except Exception as e:
+        logger.error("Error processing contact form: %s", str(e))
+        return (
+            jsonify({"success": False, "message": "An error occurred. Please try again later."}),
+            500,
+        )
+
+
 # ── Error Pages ──────────────────────────────────────────────────────────────
 
 @app.errorhandler(404)
