@@ -371,6 +371,26 @@
       </div>
     </div>
 
+    <!-- Media Library -->
+    <div class="card">
+      <div class="card-title mb-8"><span class="accent">🖼️</span> Media Library</div>
+      <div class="text-dim text-sm mb-12">Use previously uploaded or generated assets in your video.</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-secondary" style="flex:1;font-size:12px;padding:8px;" onclick="openMediaPicker('video', setLibraryBroll)">🎬 Browse B-Roll</button>
+          <span id="lib-broll-name" class="text-dim text-xs" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-secondary" style="flex:1;font-size:12px;padding:8px;" onclick="openMediaPicker('audio', setLibraryMusic)">🎵 Browse Music</button>
+          <span id="lib-music-name" class="text-dim text-xs" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-secondary" style="flex:1;font-size:12px;padding:8px;" onclick="openMediaPicker('image', setLibraryThumb)">🖼️ Browse Thumbnails</button>
+          <span id="lib-thumb-name" class="text-dim text-xs" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+        </div>
+      </div>
+    </div>
+
     <!-- BLITZ Mode -->
     <div class="card" style="border-color:var(--red);background:var(--red-glow);">
       <div class="card-title mb-8"><span class="accent glow-red">🔥</span> BLITZ Mode</div>
@@ -417,6 +437,7 @@
   </div>
 </div>
 
+{% include "partials/media_picker.html" %}
 {% endblock %}
 
 {% block scripts %}
@@ -550,6 +571,9 @@ async function startCreate() {
     ad_cta: document.getElementById('ad_cta').value || '',
     ad_style: document.getElementById('ad_style').value || 'cinematic',
     ad_platforms: Array.from(document.querySelectorAll('input[name="ad_platform"]:checked')).map(c => c.value),
+    library_broll: _libraryBroll ? _libraryBroll.id : null,
+    library_music: _libraryMusic ? _libraryMusic.id : null,
+    library_thumbnail: _libraryThumb ? _libraryThumb.id : null,
   };
 
   await launchJob(payload);
@@ -662,5 +686,20 @@ function resetForm() {
       data.google_flow ? '<span style="color:var(--green);">✓ API key set</span>' : '<span style="color:var(--yellow);">✗ Key missing</span>';
   } catch (_) {}
 })();
+
+let _libraryBroll = null, _libraryMusic = null, _libraryThumb = null;
+
+function setLibraryBroll(item) {
+  _libraryBroll = item;
+  document.getElementById('lib-broll-name').textContent = item.name;
+}
+function setLibraryMusic(item) {
+  _libraryMusic = item;
+  document.getElementById('lib-music-name').textContent = item.name;
+}
+function setLibraryThumb(item) {
+  _libraryThumb = item;
+  document.getElementById('lib-thumb-name').textContent = item.name;
+}
 </script>
 {% endblock %}

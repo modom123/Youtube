@@ -283,6 +283,17 @@
         </label>
       </div>
 
+      <!-- Media Library -->
+      <div style="margin-bottom:16px;padding:12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">🖼️ Media Library</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;" onclick="openMediaPicker('video', setStudioBroll)">🎬 B-Roll</button>
+          <button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;" onclick="openMediaPicker('audio', setStudioMusic)">🎵 Music</button>
+          <button class="btn btn-secondary" style="font-size:11px;padding:6px 10px;" onclick="openMediaPicker('image', setStudioThumb)">🖼️ Thumbnail</button>
+        </div>
+        <div id="studio-lib-status" style="font-size:11px;color:var(--muted);margin-top:6px;"></div>
+      </div>
+
       <button class="btn btn-primary run-btn" id="studioRunBtn" onclick="studioRun()">
         Run Production Pipeline
       </button>
@@ -424,6 +435,8 @@
     </div><!-- /studioResults -->
   </div>
 </div>
+
+{% include "partials/media_picker.html" %}
 
 <script>
 let studioJobId = null;
@@ -668,6 +681,9 @@ function studioRun() {
     ad_benefit: (document.getElementById('s-ad-benefit').value || '').trim(),
     ad_cta: (document.getElementById('s-ad-cta').value || '').trim(),
     ad_style: document.getElementById('s-ad-style').value,
+    library_broll: _studioBroll ? _studioBroll.id : null,
+    library_music: _studioMusic ? _studioMusic.id : null,
+    library_thumbnail: _studioThumb ? _studioThumb.id : null,
   };
 
   fetch('/api/studio/run', {
@@ -775,5 +791,17 @@ async function loadTrendingTopics() {
 
 // Load trending topics on page load
 document.addEventListener('DOMContentLoaded', loadTrendingTopics);
+
+let _studioBroll = null, _studioMusic = null, _studioThumb = null;
+function _updateStudioLibStatus() {
+  const parts = [];
+  if (_studioBroll) parts.push('B-Roll: ' + _studioBroll.name);
+  if (_studioMusic) parts.push('Music: ' + _studioMusic.name);
+  if (_studioThumb) parts.push('Thumb: ' + _studioThumb.name);
+  document.getElementById('studio-lib-status').textContent = parts.join(' · ') || '';
+}
+function setStudioBroll(item) { _studioBroll = item; _updateStudioLibStatus(); }
+function setStudioMusic(item) { _studioMusic = item; _updateStudioLibStatus(); }
+function setStudioThumb(item) { _studioThumb = item; _updateStudioLibStatus(); }
 </script>
 {% endblock %}

@@ -48,6 +48,35 @@ UPLOAD_DIR = Path(os.getenv("DATA_DIR", Path(__file__).parent)) / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _auto_save_to_library(user_id, manifest):
+    """Save generated video/thumbnail/audio to the user's media library."""
+    if not user_id or not manifest:
+        return
+    files = manifest.get("files", {})
+    title = manifest.get("title", "Untitled")
+    for key, category in [("video", "generated-video"), ("thumbnail", "generated-thumbnail"),
+                          ("audio", "generated-audio"), ("script", "generated-script")]:
+        path = files.get(key)
+        if not path or not Path(path).exists():
+            continue
+        try:
+            p = Path(path)
+            db.add_media(
+                user_id=user_id,
+                filename=p.name,
+                original_name=f"{title} - {key}{p.suffix}",
+                file_path=str(p),
+                file_size=p.stat().st_size,
+                mime_type={"video": "video/mp4", "thumbnail": "image/png",
+                           "audio": "audio/mpeg", "script": "text/plain"}.get(key, ""),
+                category=category,
+                tags=[title, key, "auto-generated"],
+                description=f"Auto-saved from job: {title}",
+            )
+        except Exception:
+            pass
+
+
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -127,6 +156,7 @@ def _run_job_thread(job_id: int, params: dict, user_id: int = None):
             "video_path": manifest.get("files", {}).get("video"),
         })
         if user_id:
+            _auto_save_to_library(user_id, manifest)
             try:
                 from notifications import send_notification
                 send_notification(user_id, "job_complete", {"job_id": job_id, "title": job_title})
@@ -713,6 +743,10 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
                 send_notification(user_id, "job_complete", {
                     "job_id": studio_job_id, "title": result_dict.get("title", "Studio Production"),
                 })
+            except Exception:
+                pass
+            try:
+                _auto_save_to_library(user_id, result_dict)
             except Exception:
                 pass
     except Exception as e:
@@ -2254,6 +2288,33 @@ def api_delete_media(media_id):
     except OSError:
         pass
     return jsonify({"status": "deleted"})
+
+
+@app.route("/api/media/picker")
+@login_required
+def api_media_picker():
+    """Return media items for the in-app picker, grouped by type."""
+    media_type = request.args.get("type")
+    category = request.args.get("category")
+    search = request.args.get("search")
+    items = db.get_media_library(
+        current_user.id, media_type=media_type, category=category,
+        search=search, limit=100
+    )
+    grouped = {}
+    for item in items:
+        t = item["media_type"]
+        if t not in grouped:
+            grouped[t] = []
+        grouped[t].append({
+            "id": item["id"],
+            "name": item["original_name"],
+            "category": item["category"],
+            "size": item["file_size"],
+            "tags": item["tags"],
+            "url": f"/api/media/{item['id']}/download",
+        })
+    return jsonify({"media": grouped, "total": len(items)})
 
 
 @app.route("/api/media/<media_id>/download")
