@@ -42,10 +42,11 @@ def get_page():
     _playwright_instance = sync_playwright().start()
     _browser_instance = _playwright_instance.chromium.launch(
         headless=True,
-        args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+        args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--ignore-certificate-errors"]
     )
     context = _browser_instance.new_context(
         viewport={"width": 1280, "height": 800},
+        ignore_https_errors=True,
         user_agent=(
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
