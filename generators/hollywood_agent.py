@@ -134,6 +134,65 @@ TOOLS = [
             "type": "object",
             "properties": {}
         }
+    },
+    {
+        "name": "list_stripe_webhooks",
+        "description": "List all webhook endpoints configured in Stripe.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "stripe_api_key": {
+                    "type": "string",
+                    "description": "Stripe secret API key (starts with sk_live_ or sk_test_)"
+                }
+            },
+            "required": ["stripe_api_key"]
+        }
+    },
+    {
+        "name": "create_stripe_webhook",
+        "description": "Create a new webhook endpoint in Stripe to listen for subscription and billing events.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "stripe_api_key": {
+                    "type": "string",
+                    "description": "Stripe secret API key"
+                },
+                "endpoint_url": {
+                    "type": "string",
+                    "description": "The URL where Stripe will send webhook events (e.g. https://socialoptimize.online/billing/webhook)"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of Stripe events to listen for"
+                }
+            },
+            "required": ["stripe_api_key", "endpoint_url", "events"]
+        }
+    },
+    {
+        "name": "test_stripe_webhook",
+        "description": "Send a test event to a Stripe webhook endpoint to verify it's working.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "stripe_api_key": {
+                    "type": "string",
+                    "description": "Stripe secret API key"
+                },
+                "webhook_id": {
+                    "type": "string",
+                    "description": "The webhook endpoint ID (starts with we_)"
+                },
+                "event_type": {
+                    "type": "string",
+                    "description": "The event type to test (e.g. 'checkout.session.completed')"
+                }
+            },
+            "required": ["stripe_api_key", "webhook_id", "event_type"]
+        }
     }
 ]
 
@@ -328,6 +387,85 @@ def _tool_get_all_required_env_vars() -> dict:
     }
 
 
+def _tool_list_stripe_webhooks(stripe_api_key: str) -> dict:
+    """List all webhook endpoints configured in Stripe."""
+    try:
+        url = "https://api.stripe.com/v1/webhook_endpoints"
+        headers = {"Authorization": f"Bearer {stripe_api_key}"}
+        resp = requests.get(url, headers=headers, timeout=15)
+        if resp.status_code == 401:
+            return {"error": "Invalid Stripe API key"}
+        resp.raise_for_status()
+        data = resp.json()
+        webhooks = []
+        for endpoint in data.get("data", []):
+            webhooks.append({
+                "id": endpoint.get("id"),
+                "url": endpoint.get("url"),
+                "events": endpoint.get("enabled_events", []),
+                "status": endpoint.get("status"),
+                "created": endpoint.get("created")
+            })
+        return {"webhooks": webhooks, "total": len(webhooks)}
+    except requests.RequestException as e:
+        return {"error": f"Stripe API request failed: {str(e)}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _tool_create_stripe_webhook(stripe_api_key: str, endpoint_url: str, events: list) -> dict:
+    """Create a new webhook endpoint in Stripe."""
+    try:
+        url = "https://api.stripe.com/v1/webhook_endpoints"
+        headers = {"Authorization": f"Bearer {stripe_api_key}"}
+        data = {
+            "url": endpoint_url,
+            "enabled_events": events
+        }
+        resp = requests.post(url, headers=headers, data=data, timeout=15)
+        if resp.status_code == 401:
+            return {"error": "Invalid Stripe API key"}
+        resp.raise_for_status()
+        endpoint = resp.json()
+        return {
+            "success": True,
+            "webhook_id": endpoint.get("id"),
+            "url": endpoint.get("url"),
+            "secret": endpoint.get("secret"),
+            "events": endpoint.get("enabled_events", []),
+            "note": "Store the 'secret' value in STRIPE_WEBHOOK_SECRET environment variable"
+        }
+    except requests.RequestException as e:
+        return {"error": f"Stripe API request failed: {str(e)}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _tool_test_stripe_webhook(stripe_api_key: str, webhook_id: str, event_type: str) -> dict:
+    """Send a test event to a Stripe webhook endpoint."""
+    try:
+        url = f"https://api.stripe.com/v1/webhook_endpoints/{webhook_id}/test_helpers/send_sample_event"
+        headers = {"Authorization": f"Bearer {stripe_api_key}"}
+        data = {"enabled_events": [event_type]}
+        resp = requests.post(url, headers=headers, data=data, timeout=15)
+        if resp.status_code == 401:
+            return {"error": "Invalid Stripe API key"}
+        if resp.status_code == 404:
+            return {"error": f"Webhook endpoint {webhook_id} not found"}
+        resp.raise_for_status()
+        result = resp.json()
+        return {
+            "success": True,
+            "event_id": result.get("id"),
+            "event_type": result.get("type"),
+            "note": "Check your webhook endpoint logs to verify this test event was received"
+        }
+    except requests.RequestException as e:
+        return {"error": f"Stripe API request failed: {str(e)}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ── Tool dispatch ──────────────────────────────────────────────────────────────
 
 def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
@@ -359,6 +497,20 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
             result = _tool_generate_secret_key()
         elif tool_name == "get_all_required_env_vars":
             result = _tool_get_all_required_env_vars()
+        elif tool_name == "list_stripe_webhooks":
+            result = _tool_list_stripe_webhooks(stripe_api_key=tool_input["stripe_api_key"])
+        elif tool_name == "create_stripe_webhook":
+            result = _tool_create_stripe_webhook(
+                stripe_api_key=tool_input["stripe_api_key"],
+                endpoint_url=tool_input["endpoint_url"],
+                events=tool_input["events"]
+            )
+        elif tool_name == "test_stripe_webhook":
+            result = _tool_test_stripe_webhook(
+                stripe_api_key=tool_input["stripe_api_key"],
+                webhook_id=tool_input["webhook_id"],
+                event_type=tool_input["event_type"]
+            )
         else:
             result = {"error": f"Unknown tool: {tool_name}"}
     except Exception as e:
