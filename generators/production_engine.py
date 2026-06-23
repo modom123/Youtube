@@ -54,7 +54,7 @@ class ProductionStudioEngine:
         self.cost_engineer = CostEngineer()
         self.growth_engineer = GrowthEngineer()
 
-    # ── Public entry point ───────────────────────────────────────────────────
+    # ── Public entry point ───────────────────────────────────────────────────────────────────
 
     def run_daily_pipeline(
         self,
@@ -94,7 +94,7 @@ class ProductionStudioEngine:
 
         self.cb("Setting up job directory…", 2)
 
-        # ── Research ─────────────────────────────────────────────────────────
+        # ── Research ────────────────────────────────────────────────────────────────────────────────────
         research_context = ""
         if research_enabled:
             self.cb("Researching topic…", 5)
@@ -112,7 +112,7 @@ class ProductionStudioEngine:
             except Exception as e:
                 errors.append(f"Research failed: {e}")
 
-        # ── Agent 1: Trend Architect ──────────────────────────────────────────
+        # ── Agent 1: Trend Architect ──────────────────────────────────────────────────────────────────
         self.cb("Agent 1/5 — Trend Architect analysing niche…", 12)
         try:
             blueprint = self.trend_architect.run(
@@ -130,7 +130,7 @@ class ProductionStudioEngine:
                 status="failed", errors=errors,
             )
 
-        # ── Agent 2: Narrative Designer ───────────────────────────────────────
+        # ── Agent 2: Narrative Designer ───────────────────────────────────────────────────────────────
         self.cb("Agent 2/5 — Narrative Designer writing script…", 25)
         try:
             script = self.narrative_designer.run(
@@ -148,7 +148,7 @@ class ProductionStudioEngine:
                 pipeline_cost_credits=0, status="failed", errors=errors,
             )
 
-        # ── Agent 3: Asset Curator ────────────────────────────────────────────
+        # ── Agent 3: Asset Curator ────────────────────────────────────────────────────────────────────
         self.cb("Agent 3/5 — Asset Curator planning visuals…", 38)
         try:
             raw_asset_plan = self.asset_curator.run(
@@ -161,14 +161,13 @@ class ProductionStudioEngine:
             errors.append(f"Asset Curator failed: {e}")
             raw_asset_plan = AssetPlan(assets=[], total_credit_estimate=0, free_asset_count=0, paid_asset_count=0, notes="failed")
 
-        # ── Agent 3.5: Cost Engineer (3-tier routing) ────────────────────────
-        self.cb("Agent 3.5/5 — Cost Engineer optimising budget (3-tier routing)…", 45)
+        # ── Agent 3.5: Cost Engineer ────────────────────────────────────────────────────────────────────
+        self.cb("Agent 3.5/5 — Cost Engineer optimising budget…", 45)
         try:
             asset_plan = self.cost_engineer.run(
                 asset_plan=raw_asset_plan,
                 remaining_credits=remaining_credits,
                 monthly_budget=self.monthly_budget,
-                dollar_budget=config.MONTHLY_DOLLAR_BUDGET,
             )
             (job_dir / "asset_plan_optimised.json").write_text(asset_plan.model_dump_json(indent=2))
         except Exception as e:
@@ -182,7 +181,7 @@ class ProductionStudioEngine:
                 quality_impact="Optimisation skipped due to error",
             )
 
-        # ── Agent 4: Growth Engineer ──────────────────────────────────────────
+        # ── Agent 4: Growth Engineer ────────────────────────────────────────────────────────────────────
         self.cb("Agent 4/5 — Growth Engineer crafting SEO package…", 52)
         try:
             seo = self.growth_engineer.run(blueprint=blueprint, script=script)
@@ -191,7 +190,7 @@ class ProductionStudioEngine:
             errors.append(f"Growth Engineer failed: {e}")
             seo = SEOPackage(**_blank_seo(blueprint.title))
 
-        # ── Generate audio ────────────────────────────────────────────────────
+        # ── Generate audio ──────────────────────────────────────────────────────────────────────────────────
         self.cb("Generating voiceover…", 58)
         audio_path = job_dir / "voiceover.mp3"
         try:
@@ -205,18 +204,17 @@ class ProductionStudioEngine:
             errors.append(f"Audio generation failed: {e}")
             duration = target_duration
 
-        # ── Fetch / generate assets ───────────────────────────────────────────
+        # ── Fetch / generate assets ───────────────────────────────────────────────────────────────────────
         self.cb("Fetching and generating visual assets…", 65)
         stock_dir = job_dir / "stock"
         ai_clips_dir = job_dir / "ai_clips"
         ai_clips_dir.mkdir(parents=True, exist_ok=True)
 
-        # Group assets by source (3-tier routing)
+        # Group assets by source
         higgsfield_assets = [a for a in asset_plan.assets if a.source.startswith("higgsfield_")]
-        chinese_assets = [a for a in asset_plan.assets if a.source == "chinese_open_source_api"]
-        pexels_assets = [a for a in asset_plan.assets if a.source in ("free_pexels_api", "free_stock_internal")]
+        pexels_assets = [a for a in asset_plan.assets if a.source == "free_pexels_api"]
 
-        # Tier 1: FREE — Stock media from Pexels
+        # Stock media from Pexels
         pexels_keywords = list({kw for a in pexels_assets for kw in a.prompt.split()[:3]})
         pexels_keywords = pexels_keywords or script.sections[0].b_roll_keywords[:3] if script.sections else ["abstract background"]
 
@@ -232,37 +230,10 @@ class ProductionStudioEngine:
         except Exception as e:
             errors.append(f"Pexels fetch failed: {e}")
 
-        # Tier 2: ULTRA-CHEAP — Chinese open-source models via serverless GPU
-        chinese_clips: list[Path] = []
-        if chinese_assets and not dry_run:
-            self.cb("Generating AI clips via Chinese open-source models…", 68)
-            try:
-                from generators.chinese_video_client import generate_chinese_clips
-                cn_by_model: dict[str, list] = {}
-                for a in chinese_assets[:8]:
-                    key = a.model_key or "wan2_7_opensource"
-                    cn_by_model.setdefault(key, []).append(a)
-
-                for model_id, model_assets in cn_by_model.items():
-                    prompts = [a.prompt for a in model_assets]
-                    aspect = model_assets[0].aspect_ratio
-                    cn_clips = generate_chinese_clips(
-                        prompts=prompts,
-                        output_dir=ai_clips_dir / "chinese",
-                        model_id=model_id,
-                        aspect_ratio=aspect,
-                    )
-                    chinese_clips.extend(cn_clips)
-                if chinese_clips:
-                    cost = sum(a.dollar_cost for a in chinese_assets)
-                    print(f"[production] Tier 2: {len(chinese_clips)} clips via Chinese models (${cost:.2f})")
-            except Exception as e:
-                errors.append(f"Chinese model generation failed: {e}")
-
-        # Tier 3: PREMIUM — Higgsfield AI clips via MCP
+        # Higgsfield AI clips via MCP
         ai_clips: list[Path] = []
         if higgsfield_assets and not dry_run:
-            self.cb("Generating premium AI video clips via Higgsfield…", 75)
+            self.cb("Generating AI video clips via Higgsfield…", 72)
             try:
                 prompts = [a.prompt for a in higgsfield_assets[:6]]
                 model_key = higgsfield_assets[0].model_key or "cinematic_studio_3_0"
@@ -273,15 +244,12 @@ class ProductionStudioEngine:
                     model_id=model_key,
                     aspect_ratio=aspect,
                 )
-                if ai_clips:
-                    credits = sum(a.credit_cost for a in higgsfield_assets)
-                    print(f"[production] Tier 3: {len(ai_clips)} clips via Higgsfield ({credits} credits)")
             except Exception as e:
                 errors.append(f"Higgsfield generation failed: {e}")
 
-        all_video_clips = ai_clips + chinese_clips + list(video_clips)
+        all_video_clips = ai_clips + list(video_clips)
 
-        # ── Thumbnail ─────────────────────────────────────────────────────────
+        # ── Thumbnail ───────────────────────────────────────────────────────────────────────────────────
         self.cb("Generating thumbnail…", 78)
         thumbnail_path = job_dir / "thumbnail.jpg"
         try:
@@ -296,7 +264,7 @@ class ProductionStudioEngine:
         except Exception as e:
             errors.append(f"Thumbnail failed: {e}")
 
-        # ── Assemble video ────────────────────────────────────────────────────
+        # ── Assemble video ──────────────────────────────────────────────────────────────────────────────────
         self.cb("Assembling final video…", 84)
         video_path = job_dir / "video.mp4"
         width = config.SHORT_WIDTH if is_portrait else config.VIDEO_WIDTH
@@ -325,7 +293,7 @@ class ProductionStudioEngine:
         except Exception as e:
             errors.append(f"Video assembly failed: {e}")
 
-        # ── Save manifest ─────────────────────────────────────────────────────
+        # ── Save manifest ─────────────────────────────────────────────────────────────────────────────────
         self.cb("Saving manifest…", 94)
         manifest = {
             "niche": niche,
@@ -359,7 +327,7 @@ class ProductionStudioEngine:
         return result
 
 
-# ── Blank fallback constructors ──────────────────────────────────────────────
+# ── Blank fallback constructors ─────────────────────────────────────────────────────────────────────────────
 
 def _blank_blueprint(niche: str) -> dict:
     return {

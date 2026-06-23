@@ -12,7 +12,7 @@ from typing import Optional
 import config
 
 
-# ── Higgsville model catalog ──────────────────────────────────────────────────
+# ── Higgsville model catalog ───────────────────────────────────────────────────────────────────────────────
 # Keys match the Higgsville API model IDs
 HIGGSVILLE_MODELS = {
     # Kling
@@ -44,7 +44,7 @@ DEFAULT_HIGGSVILLE_MODEL = "kling3_0"
 HIGGSVILLE_API_BASE = "https://api.higgsfield.ai/v1"
 
 
-# ── Higgsville REST API client ────────────────────────────────────────────────
+# ── Higgsville REST API client ────────────────────────────────────────────────────────────────────────────
 
 def _higgsville_headers() -> dict:
     key = config.HIGGSFIELD_MCP_TOKEN
@@ -229,7 +229,7 @@ def _try_sdk_clip(
         return None
 
 
-# ── Google Flow / Veo ─────────────────────────────────────────────────────────
+# ── Google Flow / Veo ────────────────────────────────────────────────────────────────────────────────
 
 def generate_veo_clips(
     prompts: list[str],
@@ -312,7 +312,7 @@ def _download_file(url: str, out_path: Path) -> None:
             f.write(chunk)
 
 
-# ── Prompt Builder ────────────────────────────────────────────────────────────
+# ── Prompt Builder ──────────────────────────────────────────────────────────────────────────────────
 
 def build_video_prompts(
     topic: str,
@@ -349,7 +349,7 @@ def build_video_prompts(
     return prompts[:8]
 
 
-# ── Unified interface ─────────────────────────────────────────────────────────
+# ── Unified interface ─────────────────────────────────────────────────────────────────────────────────
 
 def generate_ai_clips(
     topic: str,
@@ -363,7 +363,7 @@ def generate_ai_clips(
 ) -> list[Path]:
     """
     Generate AI video clips using the specified provider.
-    provider: "higgsville" | "google_flow" | "chinese_opensource" | "both" | "none"
+    provider: "higgsville" | "google_flow" | "both" | "none"
 
     Higgsfield path tries the MCP endpoint first (https://mcp.higgsfield.ai/mcp),
     then falls back to the higgsfield-client SDK, then the REST API.
@@ -398,41 +398,7 @@ def generate_ai_clips(
         else:
             print("[ai_video] GOOGLE_API_KEY not set — skipping Google Flow/Veo")
 
-    if provider in ("chinese_opensource", "both"):
-        cn_clips = generate_chinese_opensource_clips(
-            prompts=prompts,
-            output_dir=output_dir / "chinese",
-            model_id=model_key,
-            aspect_ratio=aspect,
-        )
-        clips.extend(cn_clips)
-
     return clips
-
-
-def generate_chinese_opensource_clips(
-    prompts: list[str],
-    output_dir: Path,
-    model_id: str = "wan2_7_opensource",
-    aspect_ratio: str = "16:9",
-    duration: int = 5,
-) -> list[Path]:
-    """Generate clips via Chinese open-source models on serverless GPU."""
-    if not config.RUNPOD_API_KEY:
-        print("[ai_video] RUNPOD_API_KEY not set — skipping Chinese opensource")
-        return []
-    try:
-        from generators.chinese_video_client import generate_chinese_clips
-        return generate_chinese_clips(
-            prompts=prompts,
-            output_dir=output_dir,
-            model_id=model_id,
-            aspect_ratio=aspect_ratio,
-            duration=duration,
-        )
-    except Exception as e:
-        print(f"[ai_video] Chinese opensource generation failed: {e}")
-        return []
 
 
 def _generate_higgsville_with_mcp_fallback(
