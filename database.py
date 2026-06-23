@@ -34,6 +34,7 @@ def init_db():
             credits_used            INTEGER DEFAULT 0,
             period_start            TEXT DEFAULT (date('now', 'start of month')),
             is_admin                INTEGER DEFAULT 0,
+            videos_used_this_month  INTEGER DEFAULT 0,
             notify_email            INTEGER DEFAULT 1,
             webhook_url             TEXT,
             created_at              TEXT DEFAULT (datetime('now'))
@@ -240,114 +241,44 @@ def init_db():
             fetched_at      TEXT DEFAULT (datetime('now'))
         );
 
-        -- Feature 9: Engagement Center
-        CREATE TABLE IF NOT EXISTS engagement_actions (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            platform        TEXT NOT NULL,
-            action_type     TEXT NOT NULL,
-            target_url      TEXT,
-            target_username TEXT,
-            target_content_id TEXT,
-            comment_text    TEXT,
-            status          TEXT DEFAULT 'pending',
-            scheduled_at    TEXT,
-            executed_at     TEXT,
-            error_msg       TEXT,
-            campaign_id     TEXT,
-            created_at      TEXT DEFAULT (datetime('now'))
-        );
-
         CREATE TABLE IF NOT EXISTS engagement_campaigns (
-            id              TEXT PRIMARY KEY,
-            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            name            TEXT NOT NULL,
-            strategy        TEXT DEFAULT 'growth',
-            platforms       TEXT DEFAULT '[]',
-            target_niche    TEXT,
-            daily_limit     INTEGER DEFAULT 50,
-            actions_today   INTEGER DEFAULT 0,
-            total_actions   INTEGER DEFAULT 0,
-            is_active       INTEGER DEFAULT 1,
-            config_json     TEXT DEFAULT '{}',
-            created_at      TEXT DEFAULT (datetime('now')),
-            updated_at      TEXT DEFAULT (datetime('now'))
+            id          TEXT PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name        TEXT NOT NULL,
+            platforms   TEXT DEFAULT '[]',
+            status      TEXT DEFAULT 'active',
+            is_active   INTEGER DEFAULT 1,
+            config_json TEXT DEFAULT '{}',
+            created_at  TEXT DEFAULT (datetime('now'))
         );
 
         CREATE TABLE IF NOT EXISTS engagement_targets (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id TEXT REFERENCES engagement_campaigns(id) ON DELETE CASCADE,
+            platform    TEXT NOT NULL,
+            username    TEXT NOT NULL,
+            profile_url TEXT,
+            engaged_at  TEXT,
+            added_at    TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS engagement_actions (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
             campaign_id     TEXT REFERENCES engagement_campaigns(id) ON DELETE CASCADE,
-            platform        TEXT NOT NULL,
-            username        TEXT NOT NULL,
-            profile_url     TEXT,
-            content_url     TEXT,
-            followers       INTEGER DEFAULT 0,
-            relevance_score REAL DEFAULT 0.5,
-            engaged         INTEGER DEFAULT 0,
-            engaged_at      TEXT,
-            notes           TEXT,
-            added_at        TEXT DEFAULT (datetime('now'))
-        );
-
-        -- Feature 10: Growth Analytics (time-series)
-        CREATE TABLE IF NOT EXISTS growth_snapshots (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            account_id      INTEGER REFERENCES social_accounts(id) ON DELETE CASCADE,
-            platform        TEXT NOT NULL,
-            followers       INTEGER DEFAULT 0,
-            following       INTEGER DEFAULT 0,
-            posts           INTEGER DEFAULT 0,
-            engagement_rate REAL DEFAULT 0.0,
-            views_total     INTEGER DEFAULT 0,
-            likes_total     INTEGER DEFAULT 0,
-            snapshot_at     TEXT DEFAULT (datetime('now'))
-        );
-
-        -- Feature 11: RSS Feed Subscriptions
-        CREATE TABLE IF NOT EXISTS rss_feeds (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            url             TEXT NOT NULL,
-            name            TEXT,
-            category        TEXT DEFAULT 'general',
-            is_active       INTEGER DEFAULT 1,
-            last_fetched    TEXT,
-            created_at      TEXT DEFAULT (datetime('now'))
-        );
-
-        -- Feature 12: Auto-Reply Templates
-        CREATE TABLE IF NOT EXISTS auto_reply_rules (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
             platform        TEXT NOT NULL,
-            trigger_type    TEXT DEFAULT 'keyword',
-            trigger_value   TEXT,
-            reply_template  TEXT NOT NULL,
-            is_active       INTEGER DEFAULT 1,
-            uses_spintax    INTEGER DEFAULT 0,
-            max_replies_day INTEGER DEFAULT 20,
-            replies_today   INTEGER DEFAULT 0,
-            created_at      TEXT DEFAULT (datetime('now'))
+            action_type     TEXT NOT NULL,
+            target_username TEXT,
+            target_content_id TEXT,
+            target_url      TEXT,
+            comment_text    TEXT,
+            scheduled_at    TEXT,
+            status          TEXT DEFAULT 'pending',
+            result_json     TEXT DEFAULT '{}',
+            created_at      TEXT DEFAULT (datetime('now')),
+            executed_at     TEXT
         );
 
-        -- Feature 13: DM Templates
-        CREATE TABLE IF NOT EXISTS dm_templates (
-            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
-            name            TEXT NOT NULL,
-            platform        TEXT DEFAULT 'all',
-            message_template TEXT NOT NULL,
-            uses_spintax    INTEGER DEFAULT 1,
-            trigger_on      TEXT DEFAULT 'new_follower',
-            delay_minutes   INTEGER DEFAULT 30,
-            is_active       INTEGER DEFAULT 1,
-            sent_count      INTEGER DEFAULT 0,
-            created_at      TEXT DEFAULT (datetime('now'))
-        );
-
-        -- Feature 14: Follow tracking (for auto-unfollow)
         CREATE TABLE IF NOT EXISTS follow_tracking (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -357,6 +288,53 @@ def init_db():
             followed_back   INTEGER DEFAULT 0,
             unfollowed_at   TEXT,
             status          TEXT DEFAULT 'following'
+        );
+
+        CREATE TABLE IF NOT EXISTS dm_templates (
+            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id           INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name              TEXT NOT NULL,
+            message_template  TEXT NOT NULL,
+            platform          TEXT,
+            trigger_on        TEXT,
+            uses_spintax      INTEGER DEFAULT 0,
+            created_at        TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS auto_reply_rules (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            platform        TEXT NOT NULL,
+            trigger_type    TEXT NOT NULL,
+            trigger_value   TEXT NOT NULL,
+            reply_template  TEXT NOT NULL,
+            uses_spintax    INTEGER DEFAULT 0,
+            is_active       INTEGER DEFAULT 1,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS rss_feeds (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            url         TEXT NOT NULL,
+            name        TEXT,
+            category    TEXT,
+            last_fetched TEXT,
+            created_at  TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS growth_snapshots (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            account_id      INTEGER,
+            platform        TEXT,
+            followers       INTEGER DEFAULT 0,
+            following       INTEGER DEFAULT 0,
+            posts           INTEGER DEFAULT 0,
+            engagement_rate REAL DEFAULT 0,
+            views_total     INTEGER DEFAULT 0,
+            likes_total     INTEGER DEFAULT 0,
+            recorded_at     TEXT DEFAULT (datetime('now'))
         );
         """)
 
@@ -372,17 +350,8 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN notify_email INTEGER DEFAULT 1")
         if "webhook_url" not in user_cols:
             conn.execute("ALTER TABLE users ADD COLUMN webhook_url TEXT")
-
-        # Migrate: subscription tracking columns
-        for col, defn in [
-            ("plan",                   "TEXT DEFAULT 'free'"),
-            ("plan_expires_at",        "TEXT"),
-            ("videos_used_this_month", "INTEGER DEFAULT 0"),
-            ("videos_reset_at",        "TEXT"),
-            ("monthly_limit",          "INTEGER DEFAULT 0"),
-        ]:
-            if col not in user_cols:
-                conn.execute(f"ALTER TABLE users ADD COLUMN {col} {defn}")
+        if "videos_used_this_month" not in user_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN videos_used_this_month INTEGER DEFAULT 0")
 
 
 def row_to_dict(row):
@@ -398,7 +367,7 @@ def row_to_dict(row):
     return d
 
 
-# ── Users ─────────────────────────────────────────────────────────────────────
+# ── Users ───────────────────────────────────────────────────────────────────────────
 
 def create_user(email: str, password_hash: str, name: str = "") -> int:
     with get_conn() as conn:
@@ -436,6 +405,38 @@ def increment_user_usage(user_id: int, videos: int = 0, credits: int = 0):
         )
 
 
+def increment_videos_used(user_id: int) -> int:
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET videos_used_this_month = videos_used_this_month + 1 WHERE id=?",
+            (user_id,),
+        )
+        row = conn.execute("SELECT videos_used_this_month FROM users WHERE id=?", (user_id,)).fetchone()
+    return row["videos_used_this_month"]
+
+
+def reset_monthly_usage(user_id: int):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET videos_used_this_month=0 WHERE id=?", (user_id,),
+        )
+
+
+TIER_LIMITS = {"free": 5, "starter": 30, "creator": 100, "agency": 9999}
+
+
+def check_usage_allowed(user_id: int) -> dict:
+    user = get_user_by_id(user_id)
+    if not user:
+        return {"allowed": False, "reason": "user not found"}
+    if user.get("is_admin"):
+        return {"allowed": True, "reason": "admin", "remaining": 9999}
+    tier = user.get("subscription_tier", "free")
+    limit = TIER_LIMITS.get(tier, 5)
+    used = user.get("videos_used_this_month", 0)
+    return {"allowed": used < limit, "remaining": max(0, limit - used), "tier": tier, "limit": limit}
+
+
 def reset_usage_if_new_period(user_id: int):
     """Reset usage counters when a new billing period has started."""
     user = get_user_by_id(user_id)
@@ -461,111 +462,13 @@ def get_user_by_stripe_subscription(stripe_subscription_id: str):
         ).fetchone())
 
 
-PLAN_LIMITS = {
-    "free":    {"videos": 3,   "platforms": 2, "features": ["basic"]},
-    "starter": {"videos": 15,  "platforms": 3, "features": ["basic", "analytics"]},
-    "creator": {"videos": 50,  "platforms": 8, "features": ["basic", "analytics", "hollywood", "batch", "competitors"]},
-    "pro":     {"videos": 50,  "platforms": 8, "features": ["basic", "analytics", "hollywood", "batch", "competitors"]},
-    "agency":  {"videos": 999, "platforms": 8, "features": ["basic", "analytics", "hollywood", "batch", "competitors", "team", "api"]},
-}
-
-
-def get_plan_limits(plan: str) -> dict:
-    """Return limits dict for a plan name."""
-    return PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
-
-
-def update_subscription(user_id: int, status: str, plan: str,
-                        stripe_subscription_id: str = None,
-                        stripe_customer_id: str = None,
-                        expires_at: str = None):
-    """Update a user's subscription details after a Stripe event."""
-    limits = get_plan_limits(plan)
-    updates = {
-        "subscription_status": status,
-        "subscription_tier": plan,
-        "plan": plan,
-        "monthly_limit": limits["videos"],
-    }
-    if stripe_subscription_id is not None:
-        updates["stripe_subscription_id"] = stripe_subscription_id
-    if stripe_customer_id is not None:
-        updates["stripe_customer_id"] = stripe_customer_id
-    if expires_at is not None:
-        updates["plan_expires_at"] = expires_at
-    update_user(user_id, **updates)
-
-
-def increment_videos_used(user_id: int) -> int:
-    """Increment videos_used_this_month and return the new count."""
-    with get_conn() as conn:
-        conn.execute(
-            "UPDATE users SET videos_used_this_month = videos_used_this_month + 1 WHERE id=?",
-            (user_id,),
-        )
-        row = conn.execute(
-            "SELECT videos_used_this_month FROM users WHERE id=?", (user_id,)
-        ).fetchone()
-    return row["videos_used_this_month"] if row else 0
-
-
-def reset_monthly_usage(user_id: int):
-    """Reset the monthly video counter and record the reset date."""
-    now_str = datetime.now().strftime("%Y-%m-01")
-    with get_conn() as conn:
-        conn.execute(
-            "UPDATE users SET videos_used_this_month=0, videos_reset_at=? WHERE id=?",
-            (now_str, user_id),
-        )
-
-
-def check_usage_allowed(user_id: int) -> dict:
-    """
-    Check whether a user is allowed to create a new video.
-    Returns {"allowed": bool, "used": int, "limit": int, "reason": str}.
-    Admin users are always allowed.
-    """
-    user = get_user_by_id(user_id)
-    if not user:
-        return {"allowed": False, "used": 0, "limit": 0, "reason": "User not found"}
-
-    # Admins are never limited
-    if user.get("is_admin"):
-        return {"allowed": True, "used": 0, "limit": 999, "reason": ""}
-
-    # Check whether we need to reset for a new month
-    now_month_start = datetime.now().strftime("%Y-%m-01")
-    reset_at = user.get("videos_reset_at") or ""
-    if reset_at < now_month_start:
-        reset_monthly_usage(user_id)
-        user = get_user_by_id(user_id)  # re-fetch after reset
-
-    used = user.get("videos_used_this_month") or 0
-    limit = user.get("monthly_limit") or 0
-
-    # If monthly_limit is 0, fall back to tier-based limit from config
-    if limit == 0:
-        plan = user.get("subscription_tier") or "free"
-        limit = get_plan_limits(plan)["videos"]
-
-    if used < limit:
-        return {"allowed": True, "used": used, "limit": limit, "reason": ""}
-
-    return {
-        "allowed": False,
-        "used": used,
-        "limit": limit,
-        "reason": f"You've used {used}/{limit} videos this month. Upgrade your plan to continue.",
-    }
-
-
 def list_users(limit=200):
     with get_conn() as conn:
         rows = conn.execute("SELECT * FROM users ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
     return [row_to_dict(r) for r in rows]
 
 
-# ── Social Accounts ──────────────────────────────────────────────────────────
+# ── Social Accounts ────────────────────────────────────────────────────────────
 
 def get_accounts(user_id: int = None):
     with get_conn() as conn:
@@ -610,7 +513,7 @@ def delete_account(account_id):
         conn.execute("DELETE FROM social_accounts WHERE id=?", (account_id,))
 
 
-# ── Contacts ─────────────────────────────────────────────────────────────────
+# ── Contacts ─────────────────────────────────────────────────────────────────────
 
 def get_contacts(platform=None, search=None, limit=100, offset=0, user_id=None):
     query = "SELECT * FROM contacts WHERE 1=1"
@@ -668,7 +571,7 @@ def delete_contacts(platform=None, user_id=None):
             conn.execute("DELETE FROM contacts")
 
 
-# ── Jobs ─────────────────────────────────────────────────────────────────────
+# ── Jobs ───────────────────────────────────────────────────────────────────────────
 
 def create_job(topic, format, platforms, audience, voice, style, privacy,
                skip_research=False, user_id=None):
@@ -705,7 +608,6 @@ def get_job(job_id, user_id=None):
 def get_jobs(limit=50, user_id=None, team_id=None):
     with get_conn() as conn:
         if team_id:
-            # Return jobs for all members of the team
             rows = conn.execute("""
                 SELECT j.* FROM jobs j
                 JOIN team_members tm ON tm.user_id = j.user_id
@@ -739,7 +641,7 @@ def get_stats(user_id=None):
     return {"total_jobs": total, "completed_jobs": done, "contacts": contacts, "accounts": accounts}
 
 
-# ── Settings ─────────────────────────────────────────────────────────────────
+# ── Settings ──────────────────────────────────────────────────────────────────────
 
 def get_setting(key, default=None):
     with get_conn() as conn:
@@ -752,7 +654,7 @@ def set_setting(key, value):
         conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?,?)", (key, str(value)))
 
 
-# ── Feature 1: Analytics ─────────────────────────────────────────────────────
+# ── Feature 1: Analytics ────────────────────────────────────────────────────────────
 
 def upsert_analytics(user_id: int, video_id: str, platform: str = "youtube", **kwargs):
     with get_conn() as conn:
@@ -804,7 +706,7 @@ def get_published_videos(user_id: int):
     return [row_to_dict(r) for r in rows]
 
 
-# ── Feature 2: Content Calendar / Scheduler ───────────────────────────────────
+# ── Feature 2: Content Calendar / Scheduler ─────────────────────────────────────────
 
 def create_scheduled_post(user_id: int, job_id: int, platform: str, scheduled_at: str) -> int:
     with get_conn() as conn:
@@ -863,7 +765,7 @@ def get_due_scheduled_posts():
     return [row_to_dict(r) for r in rows]
 
 
-# ── Feature 3: Batch Mode ────────────────────────────────────────────────────
+# ── Feature 3: Batch Mode ────────────────────────────────────────────────────────────
 
 def create_batch_job(user_id: int, topics: list) -> str:
     batch_id = str(uuid.uuid4())
@@ -899,7 +801,7 @@ def get_batch_jobs(user_id: int):
     return [row_to_dict(r) for r in rows]
 
 
-# ── Feature 4: Template Library ──────────────────────────────────────────────
+# ── Feature 4: Template Library ────────────────────────────────────────────────────────
 
 def create_template(user_id: int, name: str, description: str, config_json: dict) -> str:
     tmpl_id = str(uuid.uuid4())
@@ -938,7 +840,7 @@ def delete_template(tmpl_id: str, user_id: int):
         conn.execute("DELETE FROM content_templates WHERE id=? AND user_id=?", (tmpl_id, user_id))
 
 
-# ── Feature 5: Dub Jobs ──────────────────────────────────────────────────────
+# ── Feature 5: Dub Jobs ──────────────────────────────────────────────────────────────
 
 def create_dub_job(user_id: int, source_job_id: int, target_language: str) -> str:
     dub_id = str(uuid.uuid4())
@@ -974,7 +876,7 @@ def get_dub_jobs_for_source(user_id: int, source_job_id: int):
     return [row_to_dict(r) for r in rows]
 
 
-# ── Feature 6: Notifications ─────────────────────────────────────────────────
+# ── Feature 6: Notifications ─────────────────────────────────────────────────────────
 
 def create_in_app_notification(user_id: int, title: str, body: str, link: str = "") -> str:
     notif_id = str(uuid.uuid4())
@@ -1015,7 +917,7 @@ def log_notification(notif_id, user_id: int, event_type: str, channel: str, stat
         """, (notif_id, user_id, event_type, channel, status))
 
 
-# ── Feature 7: Team Workspaces ────────────────────────────────────────────────
+# ── Feature 7: Team Workspaces ──────────────────────────────────────────────────────────
 
 def create_team(owner_id: int, name: str) -> str:
     team_id = str(uuid.uuid4())
@@ -1064,7 +966,6 @@ def get_team_members(team_id: str):
 
 def add_team_member(team_id: str, invited_email: str, role: str = "editor") -> str:
     member_id = str(uuid.uuid4())
-    # Check if user exists
     with get_conn() as conn:
         user = conn.execute("SELECT id FROM users WHERE email=?", (invited_email.lower(),)).fetchone()
         user_id = user["id"] if user else None
@@ -1092,7 +993,7 @@ def remove_team_member(member_id: str, team_id: str):
         )
 
 
-# ── Feature 8: Competitor Tracker ────────────────────────────────────────────
+# ── Feature 8: Competitor Tracker ──────────────────────────────────────────────────────
 
 def add_competitor_channel(user_id: int, platform: str, channel_id: str,
                            channel_name: str, channel_url: str) -> str:
@@ -1168,20 +1069,27 @@ def get_all_competitor_channels_for_refresh():
     return [row_to_dict(r) for r in rows]
 
 
-# ── Feature 9: Engagement Center ─────────────────────────────────────────────
+# ── Engagement Campaigns ───────────────────────────────────────────────────────
 
-def create_engagement_campaign(user_id: int, name: str, strategy: str = "growth",
-                                platforms: list = None, target_niche: str = "",
-                                daily_limit: int = 50, config_json: dict = None) -> str:
-    camp_id = str(uuid.uuid4())
+def create_engagement_campaign(user_id: int, name: str, platforms, config_json=None) -> str:
+    campaign_id = str(uuid.uuid4())
+    if config_json is None:
+        config_json = {}
     with get_conn() as conn:
         conn.execute("""
-            INSERT INTO engagement_campaigns
-            (id, user_id, name, strategy, platforms, target_niche, daily_limit, config_json)
-            VALUES (?,?,?,?,?,?,?,?)
-        """, (camp_id, user_id, name, strategy, json.dumps(platforms or []),
-              target_niche, daily_limit, json.dumps(config_json or {})))
-    return camp_id
+            INSERT INTO engagement_campaigns (id, user_id, name, platforms, config_json)
+            VALUES (?,?,?,?,?)
+        """, (campaign_id, user_id, name, json.dumps(platforms), json.dumps(config_json)))
+    return campaign_id
+
+
+def get_engagement_campaign(campaign_id: str, user_id: int):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM engagement_campaigns WHERE id=? AND user_id=?",
+            (campaign_id, user_id)
+        ).fetchone()
+    return row_to_dict(row)
 
 
 def get_engagement_campaigns(user_id: int):
@@ -1193,59 +1101,106 @@ def get_engagement_campaigns(user_id: int):
     return [row_to_dict(r) for r in rows]
 
 
-def get_engagement_campaign(campaign_id: str, user_id: int):
-    with get_conn() as conn:
-        row = conn.execute(
-            "SELECT * FROM engagement_campaigns WHERE id=? AND user_id=?",
-            (campaign_id, user_id)
-        ).fetchone()
-    return row_to_dict(row) if row else None
-
-
-def update_engagement_campaign(campaign_id: str, **kwargs):
+def update_engagement_campaign(campaign_id: str, user_id: int = None, **kwargs):
     if not kwargs:
         return
-    kwargs["updated_at"] = datetime.utcnow().isoformat()
+    for k in ("platforms", "config_json"):
+        if k in kwargs and isinstance(kwargs[k], (list, dict)):
+            kwargs[k] = json.dumps(kwargs[k])
     cols = ", ".join(f"{k}=?" for k in kwargs)
     vals = list(kwargs.values()) + [campaign_id]
+    query = f"UPDATE engagement_campaigns SET {cols} WHERE id=?"
+    if user_id is not None:
+        query += " AND user_id=?"
+        vals.append(user_id)
     with get_conn() as conn:
-        conn.execute(f"UPDATE engagement_campaigns SET {cols} WHERE id=?", vals)
+        conn.execute(query, vals)
 
 
 def delete_engagement_campaign(campaign_id: str, user_id: int):
     with get_conn() as conn:
-        conn.execute("DELETE FROM engagement_campaigns WHERE id=? AND user_id=?",
-                     (campaign_id, user_id))
+        conn.execute(
+            "DELETE FROM engagement_campaigns WHERE id=? AND user_id=?",
+            (campaign_id, user_id)
+        )
 
 
-def create_engagement_action(user_id: int, platform: str, action_type: str,
-                              target_url: str = None, target_username: str = None,
-                              target_content_id: str = None, comment_text: str = None,
-                              campaign_id: str = None, scheduled_at: str = None) -> int:
+# ── Engagement Targets ─────────────────────────────────────────────────────────
+
+def add_engagement_targets(campaign_id: str, targets: list) -> int:
+    with get_conn() as conn:
+        for t in targets:
+            conn.execute("""
+                INSERT INTO engagement_targets (campaign_id, platform, username, profile_url)
+                VALUES (?,?,?,?)
+            """, (campaign_id, t.get("platform", ""), t.get("username", ""), t.get("profile_url", "")))
+    return len(targets)
+
+
+def add_engagement_target(user_id: int, campaign_id: str, platform: str, username: str, profile_url: str = "") -> int:
     with get_conn() as conn:
         cur = conn.execute("""
-            INSERT INTO engagement_actions
-            (user_id, platform, action_type, target_url, target_username,
-             target_content_id, comment_text, campaign_id, scheduled_at)
-            VALUES (?,?,?,?,?,?,?,?,?)
-        """, (user_id, platform, action_type, target_url, target_username,
-              target_content_id, comment_text, campaign_id, scheduled_at))
+            INSERT INTO engagement_targets (campaign_id, platform, username, profile_url)
+            VALUES (?,?,?,?)
+        """, (campaign_id, platform, username, profile_url))
         return cur.lastrowid
 
 
-def get_engagement_actions(user_id: int, campaign_id: str = None,
-                            status: str = None, limit: int = 50):
+def get_engagement_targets(user_id: int = None, campaign_id: str = None, engaged: bool = None):
+    query = "SELECT * FROM engagement_targets WHERE 1=1"
+    params = []
+    if campaign_id:
+        query += " AND campaign_id=?"
+        params.append(campaign_id)
+    if engaged is True:
+        query += " AND engaged_at IS NOT NULL"
+    elif engaged is False:
+        query += " AND engaged_at IS NULL"
+    query += " ORDER BY added_at DESC"
     with get_conn() as conn:
-        query = "SELECT * FROM engagement_actions WHERE user_id=?"
-        params = [user_id]
-        if campaign_id:
-            query += " AND campaign_id=?"
-            params.append(campaign_id)
-        if status:
-            query += " AND status=?"
-            params.append(status)
-        query += " ORDER BY created_at DESC LIMIT ?"
-        params.append(limit)
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def mark_target_engaged(target_id: int):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE engagement_targets SET engaged_at=datetime('now') WHERE id=?",
+            (target_id,)
+        )
+
+
+# ── Engagement Actions ─────────────────────────────────────────────────────────
+
+def create_engagement_action(user_id: int, platform: str, action_type: str,
+                             target_username: str = "", target_content_id: str = "",
+                             target_url: str = "", comment_text: str = "",
+                             campaign_id: str = None, scheduled_at: str = None) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO engagement_actions
+            (campaign_id, user_id, platform, action_type, target_username, target_content_id,
+             target_url, comment_text, scheduled_at)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        """, (campaign_id, user_id, platform, action_type, target_username,
+              target_content_id, target_url, comment_text or "", scheduled_at))
+        return cur.lastrowid
+
+
+def get_engagement_actions(user_id: int = None, campaign_id=None, status=None):
+    query = "SELECT * FROM engagement_actions WHERE 1=1"
+    params = []
+    if user_id:
+        query += " AND user_id=?"
+        params.append(user_id)
+    if campaign_id:
+        query += " AND campaign_id=?"
+        params.append(campaign_id)
+    if status:
+        query += " AND status=?"
+        params.append(status)
+    query += " ORDER BY created_at DESC"
+    with get_conn() as conn:
         rows = conn.execute(query, params).fetchall()
     return [row_to_dict(r) for r in rows]
 
@@ -1259,145 +1214,178 @@ def update_engagement_action(action_id: int, **kwargs):
         conn.execute(f"UPDATE engagement_actions SET {cols} WHERE id=?", vals)
 
 
-def get_engagement_stats(user_id: int, campaign_id: str = None) -> dict:
+def get_engagement_stats(user_id: int):
+    today = datetime.now().strftime("%Y-%m-%d")
     with get_conn() as conn:
-        base = "SELECT action_type, status, COUNT(*) as cnt FROM engagement_actions WHERE user_id=?"
-        params = [user_id]
-        if campaign_id:
-            base += " AND campaign_id=?"
-            params.append(campaign_id)
-        base += " GROUP BY action_type, status"
-        rows = conn.execute(base, params).fetchall()
+        total = conn.execute(
+            "SELECT COUNT(*) as n FROM engagement_actions WHERE user_id=?", (user_id,)
+        ).fetchone()["n"]
+        by_status = conn.execute(
+            "SELECT status, COUNT(*) as count FROM engagement_actions WHERE user_id=? GROUP BY status",
+            (user_id,)
+        ).fetchall()
+        by_action = conn.execute(
+            "SELECT action_type, COUNT(*) as count FROM engagement_actions WHERE user_id=? GROUP BY action_type",
+            (user_id,)
+        ).fetchall()
+        daily_count = conn.execute(
+            "SELECT COUNT(*) as n FROM engagement_actions WHERE user_id=? AND created_at >= ?",
+            (user_id, today)
+        ).fetchone()["n"]
+    return {
+        "total": total,
+        "by_status": {r["status"]: r["count"] for r in by_status},
+        "by_action": {r["action_type"]: r["count"] for r in by_action},
+        "daily_count": daily_count,
+    }
 
-    stats = {"total": 0, "by_action": {}, "by_status": {}}
-    for r in rows:
-        action = r["action_type"]
-        status = r["status"]
-        cnt = r["cnt"]
-        stats["total"] += cnt
-        stats["by_action"][action] = stats["by_action"].get(action, 0) + cnt
-        stats["by_status"][status] = stats["by_status"].get(status, 0) + cnt
-    return stats
+
+def get_daily_action_count(user_id: int, platform: str = None) -> int:
+    today = datetime.now().strftime("%Y-%m-%d")
+    with get_conn() as conn:
+        if platform:
+            row = conn.execute(
+                "SELECT COUNT(*) as n FROM engagement_actions WHERE user_id=? AND platform=? AND created_at >= ?",
+                (user_id, platform, today)
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT COUNT(*) as n FROM engagement_actions WHERE user_id=? AND created_at >= ?",
+                (user_id, today)
+            ).fetchone()
+    return row["n"]
 
 
-def add_engagement_target(user_id: int, campaign_id: str, platform: str,
-                           username: str, profile_url: str = None,
-                           content_url: str = None, followers: int = 0,
-                           relevance_score: float = 0.5, notes: str = None) -> int:
+# ── Follow Tracking ────────────────────────────────────────────────────────────
+
+def track_follow(user_id: int, platform: str, target_username: str) -> int:
     with get_conn() as conn:
         cur = conn.execute("""
-            INSERT INTO engagement_targets
-            (user_id, campaign_id, platform, username, profile_url, content_url,
-             followers, relevance_score, notes)
-            VALUES (?,?,?,?,?,?,?,?,?)
-        """, (user_id, campaign_id, platform, username, profile_url, content_url,
-              followers, relevance_score, notes))
+            INSERT INTO follow_tracking (user_id, platform, target_username)
+            VALUES (?,?,?)
+        """, (user_id, platform, target_username))
         return cur.lastrowid
 
 
-def get_engagement_targets(user_id: int, campaign_id: str = None,
-                            engaged: bool = None, limit: int = 100):
+def get_follows(user_id: int, platform=None, status=None):
+    query = "SELECT * FROM follow_tracking WHERE user_id=?"
+    params = [user_id]
+    if platform:
+        query += " AND platform=?"
+        params.append(platform)
+    if status:
+        query += " AND status=?"
+        params.append(status)
+    query += " ORDER BY followed_at DESC"
     with get_conn() as conn:
-        query = "SELECT * FROM engagement_targets WHERE user_id=?"
-        params = [user_id]
-        if campaign_id:
-            query += " AND campaign_id=?"
-            params.append(campaign_id)
-        if engaged is not None:
-            query += " AND engaged=?"
-            params.append(1 if engaged else 0)
-        query += " ORDER BY relevance_score DESC LIMIT ?"
-        params.append(limit)
         rows = conn.execute(query, params).fetchall()
     return [row_to_dict(r) for r in rows]
 
 
-def mark_target_engaged(target_id: int):
+def mark_follow_back(user_id: int, platform: str, target_username: str):
     with get_conn() as conn:
-        conn.execute("""
-            UPDATE engagement_targets
-            SET engaged=1, engaged_at=datetime('now')
-            WHERE id=?
-        """, (target_id,))
+        conn.execute(
+            "UPDATE follow_tracking SET followed_back=1 WHERE user_id=? AND platform=? AND target_username=?",
+            (user_id, platform, target_username)
+        )
 
 
-def get_daily_action_count(user_id: int, campaign_id: str = None) -> int:
+def mark_unfollowed(follow_id: int):
     with get_conn() as conn:
-        query = """
-            SELECT COUNT(*) as cnt FROM engagement_actions
-            WHERE user_id=? AND date(created_at)=date('now')
-        """
-        params = [user_id]
-        if campaign_id:
-            query += " AND campaign_id=?"
-            params.append(campaign_id)
-        row = conn.execute(query, params).fetchone()
-    return row["cnt"] if row else 0
+        conn.execute(
+            "UPDATE follow_tracking SET status='unfollowed', unfollowed_at=datetime('now') WHERE id=?",
+            (follow_id,)
+        )
 
 
-# ── Feature 10: Growth Analytics ──────────────────────────────────────────────
-
-def add_growth_snapshot(user_id: int, account_id: int, platform: str,
-                         followers: int = 0, following: int = 0, posts: int = 0,
-                         engagement_rate: float = 0.0, views_total: int = 0,
-                         likes_total: int = 0) -> int:
+def get_stale_follows(user_id: int, platform=None, days_threshold: int = 3):
+    query = """
+        SELECT * FROM follow_tracking
+        WHERE user_id=? AND status='following' AND followed_back=0
+        AND followed_at <= datetime('now', ?)
+    """
+    params = [user_id, f"-{days_threshold} days"]
+    if platform:
+        query += " AND platform=?"
+        params.append(platform)
+    query += " ORDER BY followed_at ASC"
     with get_conn() as conn:
-        cur = conn.execute("""
-            INSERT INTO growth_snapshots
-            (user_id, account_id, platform, followers, following, posts,
-             engagement_rate, views_total, likes_total)
-            VALUES (?,?,?,?,?,?,?,?,?)
-        """, (user_id, account_id, platform, followers, following, posts,
-              engagement_rate, views_total, likes_total))
-        return cur.lastrowid
-
-
-def get_growth_history(user_id: int, account_id: int = None,
-                        platform: str = None, days: int = 30) -> list:
-    with get_conn() as conn:
-        query = """SELECT * FROM growth_snapshots
-                   WHERE user_id=? AND snapshot_at >= datetime('now', ?)"""
-        params = [user_id, f"-{days} days"]
-        if account_id:
-            query += " AND account_id=?"
-            params.append(account_id)
-        if platform:
-            query += " AND platform=?"
-            params.append(platform)
-        query += " ORDER BY snapshot_at ASC"
         rows = conn.execute(query, params).fetchall()
     return [row_to_dict(r) for r in rows]
 
 
-def get_growth_summary(user_id: int, platform: str = None) -> dict:
-    with get_conn() as conn:
-        query = """SELECT platform,
-                          MAX(followers) as max_followers,
-                          MIN(followers) as min_followers,
-                          MAX(followers) - MIN(followers) as growth,
-                          COUNT(*) as snapshots
-                   FROM growth_snapshots
-                   WHERE user_id=? AND snapshot_at >= datetime('now', '-30 days')"""
-        params = [user_id]
-        if platform:
-            query += " AND platform=?"
-            params.append(platform)
-        query += " GROUP BY platform"
-        rows = conn.execute(query, params).fetchall()
-    return {r["platform"]: row_to_dict(r) for r in rows}
+# ── DM Templates ───────────────────────────────────────────────────────────────
 
-
-# ── Feature 11: RSS Feeds ────────────────────────────────────────────────────
-
-def add_rss_feed(user_id: int, url: str, name: str = "", category: str = "general") -> int:
+def create_dm_template(user_id: int, name: str, message_template: str,
+                       platform=None, trigger_on=None, uses_spintax=False) -> int:
     with get_conn() as conn:
         cur = conn.execute("""
-            INSERT INTO rss_feeds (user_id, url, name, category) VALUES (?,?,?,?)
-        """, (user_id, url, name or url, category))
+            INSERT INTO dm_templates (user_id, name, message_template, platform, trigger_on, uses_spintax)
+            VALUES (?,?,?,?,?,?)
+        """, (user_id, name, message_template, platform, trigger_on, int(uses_spintax)))
         return cur.lastrowid
 
 
-def get_rss_feeds(user_id: int) -> list:
+def get_dm_templates(user_id: int, platform=None):
+    query = "SELECT * FROM dm_templates WHERE user_id=?"
+    params = [user_id]
+    if platform:
+        query += " AND platform=?"
+        params.append(platform)
+    query += " ORDER BY created_at DESC"
+    with get_conn() as conn:
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def delete_dm_template(tmpl_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM dm_templates WHERE id=? AND user_id=?", (tmpl_id, user_id))
+
+
+# ── Auto-Reply Rules ──────────────────────────────────────────────────────────
+
+def create_auto_reply_rule(user_id: int, platform: str, trigger_type: str,
+                           trigger_value: str, reply_template: str,
+                           uses_spintax=False) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO auto_reply_rules
+            (user_id, platform, trigger_type, trigger_value, reply_template, uses_spintax)
+            VALUES (?,?,?,?,?,?)
+        """, (user_id, platform, trigger_type, trigger_value, reply_template, int(uses_spintax)))
+        return cur.lastrowid
+
+
+def get_auto_reply_rules(user_id: int, platform=None):
+    query = "SELECT * FROM auto_reply_rules WHERE user_id=?"
+    params = [user_id]
+    if platform:
+        query += " AND platform=?"
+        params.append(platform)
+    query += " ORDER BY created_at DESC"
+    with get_conn() as conn:
+        rows = conn.execute(query, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def delete_auto_reply_rule(rule_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM auto_reply_rules WHERE id=? AND user_id=?", (rule_id, user_id))
+
+
+# ── RSS Feeds ──────────────────────────────────────────────────────────────────
+
+def add_rss_feed(user_id: int, url: str, name=None, category=None) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO rss_feeds (user_id, url, name, category)
+            VALUES (?,?,?,?)
+        """, (user_id, url, name, category))
+        return cur.lastrowid
+
+
+def get_rss_feeds(user_id: int):
     with get_conn() as conn:
         rows = conn.execute(
             "SELECT * FROM rss_feeds WHERE user_id=? ORDER BY created_at DESC",
@@ -1411,148 +1399,52 @@ def delete_rss_feed(feed_id: int, user_id: int):
         conn.execute("DELETE FROM rss_feeds WHERE id=? AND user_id=?", (feed_id, user_id))
 
 
-def update_rss_feed(feed_id: int, **kwargs):
-    if not kwargs:
-        return
-    cols = ", ".join(f"{k}=?" for k in kwargs)
-    vals = list(kwargs.values()) + [feed_id]
-    with get_conn() as conn:
-        conn.execute(f"UPDATE rss_feeds SET {cols} WHERE id=?", vals)
+# ── Growth Snapshots ───────────────────────────────────────────────────────────
 
-
-# ── Feature 12: Auto-Reply Rules ─────────────────────────────────────────────
-
-def create_auto_reply_rule(user_id: int, platform: str, trigger_type: str,
-                            trigger_value: str, reply_template: str,
-                            uses_spintax: bool = False, max_replies_day: int = 20) -> int:
+def add_growth_snapshot(user_id: int, account_id, platform: str,
+                        followers=0, following=0, posts=0,
+                        engagement_rate=0, views_total=0, likes_total=0) -> int:
     with get_conn() as conn:
         cur = conn.execute("""
-            INSERT INTO auto_reply_rules
-            (user_id, platform, trigger_type, trigger_value, reply_template,
-             uses_spintax, max_replies_day)
-            VALUES (?,?,?,?,?,?,?)
-        """, (user_id, platform, trigger_type, trigger_value, reply_template,
-              1 if uses_spintax else 0, max_replies_day))
+            INSERT INTO growth_snapshots
+            (user_id, account_id, platform, followers, following, posts,
+             engagement_rate, views_total, likes_total)
+            VALUES (?,?,?,?,?,?,?,?,?)
+        """, (user_id, account_id, platform, followers, following, posts,
+              engagement_rate, views_total, likes_total))
         return cur.lastrowid
 
 
-def get_auto_reply_rules(user_id: int, platform: str = None) -> list:
+def get_growth_history(user_id: int, account_id=None, platform=None):
+    query = "SELECT * FROM growth_snapshots WHERE user_id=?"
+    params = [user_id]
+    if account_id is not None:
+        query += " AND account_id=?"
+        params.append(account_id)
+    if platform:
+        query += " AND platform=?"
+        params.append(platform)
+    query += " ORDER BY recorded_at DESC"
     with get_conn() as conn:
-        query = "SELECT * FROM auto_reply_rules WHERE user_id=?"
-        params = [user_id]
-        if platform:
-            query += " AND platform=?"
-            params.append(platform)
-        query += " ORDER BY created_at DESC"
         rows = conn.execute(query, params).fetchall()
     return [row_to_dict(r) for r in rows]
 
 
-def update_auto_reply_rule(rule_id: int, **kwargs):
-    if not kwargs:
-        return
-    cols = ", ".join(f"{k}=?" for k in kwargs)
-    vals = list(kwargs.values()) + [rule_id]
+def get_growth_summary(user_id: int):
     with get_conn() as conn:
-        conn.execute(f"UPDATE auto_reply_rules SET {cols} WHERE id=?", vals)
-
-
-def delete_auto_reply_rule(rule_id: int, user_id: int):
-    with get_conn() as conn:
-        conn.execute("DELETE FROM auto_reply_rules WHERE id=? AND user_id=?", (rule_id, user_id))
-
-
-# ── Feature 13: DM Templates ─────────────────────────────────────────────────
-
-def create_dm_template(user_id: int, name: str, message_template: str,
-                        platform: str = "all", trigger_on: str = "new_follower",
-                        delay_minutes: int = 30, uses_spintax: bool = True) -> int:
-    with get_conn() as conn:
-        cur = conn.execute("""
-            INSERT INTO dm_templates
-            (user_id, name, platform, message_template, uses_spintax,
-             trigger_on, delay_minutes)
-            VALUES (?,?,?,?,?,?,?)
-        """, (user_id, name, platform, message_template,
-              1 if uses_spintax else 0, trigger_on, delay_minutes))
-        return cur.lastrowid
-
-
-def get_dm_templates(user_id: int, platform: str = None) -> list:
-    with get_conn() as conn:
-        query = "SELECT * FROM dm_templates WHERE user_id=?"
-        params = [user_id]
-        if platform:
-            query += " AND (platform=? OR platform='all')"
-            params.append(platform)
-        query += " ORDER BY created_at DESC"
-        rows = conn.execute(query, params).fetchall()
-    return [row_to_dict(r) for r in rows]
-
-
-def update_dm_template(template_id: int, **kwargs):
-    if not kwargs:
-        return
-    cols = ", ".join(f"{k}=?" for k in kwargs)
-    vals = list(kwargs.values()) + [template_id]
-    with get_conn() as conn:
-        conn.execute(f"UPDATE dm_templates SET {cols} WHERE id=?", vals)
-
-
-def delete_dm_template(template_id: int, user_id: int):
-    with get_conn() as conn:
-        conn.execute("DELETE FROM dm_templates WHERE id=? AND user_id=?", (template_id, user_id))
-
-
-# ── Feature 14: Follow Tracking ──────────────────────────────────────────────
-
-def track_follow(user_id: int, platform: str, target_username: str) -> int:
-    with get_conn() as conn:
-        cur = conn.execute("""
-            INSERT INTO follow_tracking (user_id, platform, target_username)
-            VALUES (?,?,?)
-        """, (user_id, platform, target_username))
-        return cur.lastrowid
-
-
-def get_follows(user_id: int, platform: str = None, status: str = "following") -> list:
-    with get_conn() as conn:
-        query = "SELECT * FROM follow_tracking WHERE user_id=? AND status=?"
-        params = [user_id, status]
-        if platform:
-            query += " AND platform=?"
-            params.append(platform)
-        query += " ORDER BY followed_at DESC"
-        rows = conn.execute(query, params).fetchall()
-    return [row_to_dict(r) for r in rows]
-
-
-def get_stale_follows(user_id: int, platform: str = None, days_threshold: int = 3) -> list:
-    with get_conn() as conn:
-        query = """SELECT * FROM follow_tracking
-                   WHERE user_id=? AND status='following' AND followed_back=0
-                   AND followed_at <= datetime('now', ?)"""
-        params = [user_id, f"-{days_threshold} days"]
-        if platform:
-            query += " AND platform=?"
-            params.append(platform)
-        query += " ORDER BY followed_at ASC"
-        rows = conn.execute(query, params).fetchall()
-    return [row_to_dict(r) for r in rows]
-
-
-def mark_follow_back(user_id: int, platform: str, target_username: str):
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE follow_tracking SET followed_back=1
-            WHERE user_id=? AND platform=? AND target_username=? AND status='following'
-        """, (user_id, platform, target_username))
-
-
-def mark_unfollowed(follow_id: int):
-    with get_conn() as conn:
-        conn.execute("""
-            UPDATE follow_tracking
-            SET status='unfollowed', unfollowed_at=datetime('now')
-            WHERE id=?
-        """, (follow_id,))
+        rows = conn.execute("""
+            SELECT platform, followers, recorded_at, id
+            FROM growth_snapshots WHERE user_id=?
+            ORDER BY recorded_at DESC, id DESC
+        """, (user_id,)).fetchall()
+    snapshots = [row_to_dict(r) for r in rows]
+    summary = {}
+    for s in snapshots:
+        plat = s.get("platform", "unknown")
+        if plat not in summary:
+            summary[plat] = {"latest_followers": s["followers"], "earliest_followers": s["followers"]}
+        else:
+            summary[plat]["earliest_followers"] = s["followers"]
+    for plat in summary:
+        summary[plat]["growth"] = summary[plat]["latest_followers"] - summary[plat]["earliest_followers"]
+    return summary

@@ -5,7 +5,6 @@ Uses Wikipedia, DuckDuckGo Instant Answer, and web scraping — all free, no API
 import re
 import time
 import json
-import urllib.parse
 import requests
 from dataclasses import dataclass, field
 

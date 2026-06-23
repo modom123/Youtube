@@ -1,6 +1,5 @@
 """Upload Reels and videos to Instagram using the Meta Graph API."""
 import time
-from pathlib import Path
 from typing import Optional
 import requests
 import config

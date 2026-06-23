@@ -4,16 +4,13 @@ Turns any topic into a complete multi-platform content package.
 """
 import json
 from datetime import datetime
-from pathlib import Path
-from typing import Optional
 import config
 from generators import script_generator, audio_generator, video_generator, media_fetcher, thumbnail_generator
 from generators.researcher import research_topic, brief_to_context
 from generators import graphics_generator
 from generators import ai_video_generator
 from publishers import (
-    youtube_publisher, tiktok_publisher, instagram_publisher,
-    facebook_publisher, twitter_publisher, linkedin_publisher,
+    youtube_publisher, tiktok_publisher, facebook_publisher, twitter_publisher, linkedin_publisher,
     pinterest_publisher, threads_publisher,
 )
 from utils import file_manager, logger

@@ -1,6 +1,5 @@
 """File management utilities for the Social Optimize Machine."""
 import json
-import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Optional

@@ -4,9 +4,7 @@ Discovers optimal hashtags for reach and engagement across platforms.
 """
 from __future__ import annotations
 import re
-import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 import requests
 import config
@@ -66,7 +64,7 @@ def research_hashtags_youtube(
                 ).execute()
                 for v in video_resp.get("items", []):
                     tags = v["snippet"].get("tags", [])
-                    views = int(v["statistics"].get("viewCount", 0))
+                    int(v["statistics"].get("viewCount", 0))
                     for tag in tags[:15]:
                         tag_lower = tag.lower().strip()
                         if tag_lower:

@@ -48,26 +48,18 @@ class FullScript(BaseModel):
 
 # ── Agent 3: Asset Curator output ───────────────────────────────────────────
 
-AssetSource = Literal[
-    "higgsfield_cinematic", "higgsfield_ugc",
-    "free_pexels_api", "free_stock_internal",
-    "chinese_open_source_api",
-]
-
-VisualComplexity = Literal["low", "medium_custom", "high_agentic_physics"]
+AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pexels_api", "free_stock_internal"]
 
 class AssetSpec(BaseModel):
     section_id: int
     asset_type: Literal["video_clip", "image", "animation"]
     source: AssetSource
     prompt: str = Field(description="Generation prompt or Pexels search query")
-    model_key: Optional[str] = Field(None, description="Higgsfield model key if source=higgsfield_*, or chinese model key if source=chinese_open_source_api")
+    model_key: Optional[str] = Field(None, description="Higgsfield model key if source=higgsfield_*")
     duration_seconds: Optional[int] = None
     aspect_ratio: Literal["16:9", "9:16", "1:1"] = "16:9"
-    credit_cost: int = Field(ge=0, description="Estimated Higgsfield credits (0 for free sources and chinese models)")
-    dollar_cost: float = Field(default=0.0, description="Estimated USD cost (for chinese serverless models)")
+    credit_cost: int = Field(ge=0, description="Estimated Higgsfield credits (0 for free sources)")
     priority: int = Field(ge=1, le=3, description="1=must-have, 2=nice-to-have, 3=optional")
-    visual_complexity: VisualComplexity = Field(default="low", description="Complexity level driving tier routing")
 
 
 class AssetPlan(BaseModel):
@@ -85,10 +77,8 @@ BudgetState = Literal["healthy", "warning", "critical_save"]
 class OptimizedAssetPlan(BaseModel):
     assets: list[AssetSpec]
     total_credit_cost: int
-    total_dollar_cost: float = Field(default=0.0, description="Total USD cost for chinese serverless models")
     budget_state: BudgetState
     credits_remaining_after: int
-    dollars_remaining_after: float = Field(default=0.0, description="Remaining dollar budget after chinese model costs")
     swaps_made: list[str] = Field(description="Human-readable list of cost substitutions")
     quality_impact: str = Field(description="Assessment of quality after optimisations")
 
@@ -107,33 +97,29 @@ class SEOPackage(BaseModel):
     ab_title_variants: list[str] = Field(min_length=2, max_length=3)
 
 
-# ── Agent 6: Community Engineer output ─────────────────────────────────────
+# ── Pipeline result ──────────────────────────────────────────────────────────
 
-EngagementActionType = Literal[
-    "like", "comment", "follow", "subscribe",
-    "reply", "retweet", "share", "connect",
-]
+# ── Community Engineer output ──────────────────────────────────────────────
 
 class EngagementAction(BaseModel):
-    platform: str = Field(description="Target platform: youtube, tiktok, instagram, twitter, linkedin, threads")
-    action_type: EngagementActionType
-    target_description: str = Field(description="Who/what to target, e.g. 'top creator in AI niche with 10K-50K subs'")
-    target_username: Optional[str] = Field(None, description="Specific username if known")
-    content_hint: Optional[str] = Field(None, description="What content to engage with")
-    comment_text: Optional[str] = Field(None, description="Draft comment if action_type is comment/reply")
-    timing: str = Field(description="Suggested time of day, e.g. '09:00-10:00 UTC'")
-    priority: int = Field(ge=1, le=3, description="1=high, 2=medium, 3=low")
-    strategy_tier: Literal["reciprocity", "audience_mining", "trend_surfacing"]
-    rationale: str = Field(description="Why this action matters for growth")
+    platform: str
+    action_type: str
+    target_description: str = ""
+    target_username: str = ""
+    comment_text: str = ""
+    timing: str = ""
+    priority: int = Field(ge=1, le=5, default=3)
+    strategy_tier: str = ""
+    rationale: str = ""
 
 
 class EngagementPlan(BaseModel):
-    daily_actions: list[EngagementAction] = Field(min_length=1)
-    total_actions: int = Field(ge=1)
-    platform_breakdown: dict[str, int] = Field(description="Actions per platform")
-    estimated_reach: int = Field(ge=0, description="Estimated profile impressions from engagement")
-    key_focus: str = Field(description="Primary growth strategy for today")
-    notes: str = Field(description="Additional strategic notes")
+    daily_actions: list[EngagementAction] = Field(default_factory=list)
+    total_actions: int = 0
+    platform_breakdown: dict[str, int] = Field(default_factory=dict)
+    estimated_reach: int = 0
+    key_focus: str = ""
+    notes: str = ""
 
 
 # ── Pipeline result ──────────────────────────────────────────────────────────

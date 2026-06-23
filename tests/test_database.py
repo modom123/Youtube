@@ -1,5 +1,4 @@
 """Tests for the database layer."""
-import pytest
 from werkzeug.security import generate_password_hash
 
 

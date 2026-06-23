@@ -2,10 +2,9 @@
 import textwrap
 from pathlib import Path
 from typing import Optional
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+from PIL import Image, ImageDraw, ImageFont, ImageEnhance
 import requests
 from io import BytesIO
-import config
 
 
 GRADIENT_PRESETS = {

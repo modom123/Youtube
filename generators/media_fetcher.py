@@ -1,5 +1,4 @@
 """Fetch stock video clips and images from Pexels."""
-import os
 import random
 from pathlib import Path
 from typing import Optional

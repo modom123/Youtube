@@ -1,9 +1,5 @@
 """Tests for Hollywood agent blueprint tools."""
 import json
-import os
-import tempfile
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 
 import pytest
 

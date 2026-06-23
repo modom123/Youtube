@@ -1,12 +1,9 @@
 """Tests for JarveePro-matching features: spintax, proxy, fingerprint,
 RSS monitor, user scraper, account warmup, hashtag research, growth analytics,
 follow tracking, DM templates, auto-reply rules, and API endpoints."""
-import json
-import time
 from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 
 
 # ── Spintax Engine ───────────────────────────────────────────────────────────
@@ -91,7 +88,7 @@ class TestProxyManager:
     def test_rotate_proxy(self):
         from utils.proxy_manager import ProxyPool
         pool = ProxyPool([{"url": "http://p1:8080"}, {"url": "http://p2:8080"}])
-        p1 = pool.get_proxy("acc_1")
+        pool.get_proxy("acc_1")
         p2 = pool.rotate_proxy("acc_1")
         assert p2 is not None
 
@@ -134,7 +131,7 @@ class TestProxyManager:
 
     def test_global_pool(self):
         from utils.proxy_manager import init_pool, get_pool
-        pool = init_pool([{"url": "http://global:8080"}])
+        init_pool([{"url": "http://global:8080"}])
         assert get_pool().size == 1
 
     def test_playwright_proxy(self):

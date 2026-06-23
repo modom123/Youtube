@@ -1,8 +1,6 @@
 """Tests for the Engagement Center — campaigns, actions, targets, and API endpoints."""
 import json
-from unittest.mock import patch, MagicMock
 
-import pytest
 
 
 class TestEngagementCampaigns:

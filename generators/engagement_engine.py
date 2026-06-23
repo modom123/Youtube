@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import random
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 import database as db
@@ -297,7 +297,7 @@ def auto_unfollow_stale(user_id: int, platform: str = None, days_threshold: int 
     stale = db.get_stale_follows(user_id, platform=platform, days_threshold=days_threshold)
     results = []
     for follow in stale:
-        action = {
+        {
             "id": 0,
             "platform": follow["platform"],
             "action_type": "unfollow",
