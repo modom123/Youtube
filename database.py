@@ -418,11 +418,11 @@ def increment_videos_used(user_id: int) -> int:
 def reset_monthly_usage(user_id: int):
     with get_conn() as conn:
         conn.execute(
-            "UPDATE users SET videos_used_this_month=0 WHERE id=?", (user_id,),
+            "UPDATE users SET videos_used_this_month=0, credits_used=0 WHERE id=?", (user_id,),
         )
 
 
-TIER_LIMITS = {"free": 5, "starter": 30, "creator": 100, "agency": 9999}
+TIER_LIMITS = {"free": 2, "starter": 15, "creator": 50, "agency": 9999}
 
 
 def check_usage_allowed(user_id: int) -> dict:

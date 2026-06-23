@@ -20,12 +20,17 @@ def billing_page():
     db.reset_usage_if_new_period(current_user.id)
     tier = config.TIERS.get(current_user.subscription_tier, config.TIERS["free"])
     videos_limit = tier["videos_per_month"]
-    videos_used = current_user.videos_used
+    videos_used = current_user.videos_used_this_month or 0
+    credits_used = current_user.credits_used or 0
     pct = 0
     if videos_limit > 0:
         pct = min(100, round(videos_used / videos_limit * 100))
     elif videos_limit == -1:
         pct = 0  # unlimited
+    credits_pct = 0
+    credits_limit = tier["higgsfield_credits"]
+    if credits_limit > 0:
+        credits_pct = min(100, round(credits_used / credits_limit * 100))
     return render_template(
         "billing.html",
         tiers=config.TIERS,
@@ -34,8 +39,9 @@ def billing_page():
         videos_used=videos_used,
         videos_limit=videos_limit,
         usage_pct=pct,
-        credits_used=current_user.credits_used,
-        credits_limit=tier["higgsfield_credits"],
+        credits_used=credits_used,
+        credits_limit=credits_limit,
+        credits_pct=credits_pct,
         stripe_pub=config.STRIPE_PUBLISHABLE_KEY,
     )
 

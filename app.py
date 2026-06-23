@@ -203,8 +203,14 @@ def api_create():
         style=data.get("style", "fire"), privacy=data.get("privacy", "private"),
         skip_research=skip_research, user_id=current_user.id,
     )
-    db.increment_user_usage(current_user.id, videos=1)
+    ai_provider = data.get("ai_video_provider", "none")
+    # Deduct AI credits from user's monthly allowance when using Higgsfield
+    credit_cost = 10 if ai_provider in ("higgsville", "both") else 0
+    db.increment_user_usage(current_user.id, videos=1, credits=credit_cost)
     fmt = data.get("format", "short")
+    # Pass actual remaining credits so generators can make cost-routing decisions
+    user_tier = config.TIERS.get(current_user.subscription_tier, config.TIERS["free"])
+    credits_remaining = max(0, user_tier["higgsfield_credits"] - (current_user.credits_used or 0))
     params = {
         "topic": topic, "format": fmt,
         "platforms": platforms, "audience": data.get("audience", "general public"),
@@ -215,7 +221,7 @@ def api_create():
         "dry_run": data.get("dry_run", False),
         "cleanup": data.get("cleanup", False),
         "skip_research": skip_research,
-        "ai_video_provider": data.get("ai_video_provider", "none"),
+        "ai_video_provider": ai_provider,
         "higgsfield_model": data.get("higgsfield_model", "kling3_0"),
         "podcast_name": (data.get("podcast_name") or "").strip() or topic,
         "episode_number": int(data.get("episode_number") or 1),
@@ -749,10 +755,12 @@ def api_studio_run():
     if not niche:
         return jsonify({"error": "Niche is required"}), 400
     studio_job_id = str(uuid.uuid4())
+    _u_tier = config.TIERS.get(current_user.subscription_tier, config.TIERS["free"])
+    _credits_remaining = max(0, _u_tier["higgsfield_credits"] - (current_user.credits_used or 0))
     params = {
         "niche": niche,
-        "remaining_credits": int(data.get("remaining_credits") or 500),
-        "monthly_budget": int(data.get("monthly_budget") or 500),
+        "remaining_credits": _credits_remaining,
+        "monthly_budget": _credits_remaining,
         "target_duration": int(data.get("target_duration") or 480),
         "audience": (data.get("audience") or "").strip(),
         "is_portrait": bool(data.get("is_portrait", False)),
