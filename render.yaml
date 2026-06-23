@@ -70,6 +70,10 @@ services:
       - key: GOOGLE_API_KEY
         sync: false
 
+      # Render API (for Hollywood to manage deploys/env vars)
+      - key: RENDER_API_KEY
+        sync: false
+
       # Email notifications (optional — leave blank to disable)
       - key: SMTP_HOST
         sync: false

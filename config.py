@@ -79,6 +79,9 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 # Higgsfield AI — single token used by both the CLI and MCP HTTP client
 HIGGSFIELD_MCP_TOKEN = os.getenv("HIGGSFIELD_MCP_TOKEN", "")
 
+# Render — API key for Hollywood to manage deployments and env vars
+RENDER_API_KEY = os.getenv("RENDER_API_KEY", "")
+
 # YouTube
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID", "")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET", "")

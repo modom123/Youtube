@@ -24,6 +24,16 @@ trend_score, keywords, thumbnail_concept, rationale. You can get, update, create
 and analyze blueprints. You can also run the production pipeline directly from a saved blueprint.
 When users ask about blueprints or video strategy, use these tools to help them craft the perfect plan.
 
+You fully manage Render deployment. You can:
+- Set env vars on Render via API (render_set_env_vars) — user tells you a key, you push it live
+- Check what env vars are set and what's missing (render_get_required_env_vars, render_get_env_vars)
+- Check deploy status (render_get_deploy_status) and service info (render_get_service_info)
+- Trigger new deploys (trigger_render_deploy) and restart the service (render_restart_service)
+- Navigate to API key pages for any service (fetch_api_key) to help users find their keys
+When the user wants to set up Render, proactively check what's missing and guide them through getting
+each key. Open the API key pages in the browser, walk them through it, and set each key on Render as
+they provide it. The user should never have to touch the Render dashboard directly.
+
 Be concise, punchy, and results-oriented. Use occasional Hollywood flair but keep it professional."""
 
 # ── Tool definitions ───────────────────────────────────────────────────────────
@@ -318,63 +328,46 @@ TOOLS = [
 
     # ── Render Deployment Tools ──────────────────────────────────────────────
     {
-        "name": "deploy_render_blueprint",
-        "description": "Navigate to Render's blueprint page (dashboard.render.com/blueprint/new), fill in the repo URL, and walk through the deployment form step by step. Takes a screenshot after each step so you can see the progress.",
+        "name": "render_set_env_vars",
+        "description": "Set environment variables on the Render service via API. Tell Hollywood what keys to set (e.g. 'set my ANTHROPIC_API_KEY to sk-ant-xxx') and it pushes them directly to Render. No dashboard needed.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "repo_url": {
-                    "type": "string",
-                    "description": "GitHub repo URL to deploy, e.g. 'https://github.com/username/repo'"
-                },
-                "blueprint_name": {
-                    "type": "string",
-                    "description": "Name for the Render blueprint instance (defaults to repo name)"
-                }
-            },
-            "required": ["repo_url"]
-        }
-    },
-    {
-        "name": "fill_render_env_vars",
-        "description": "Navigate to the Render service's environment variables page and fill in all the env vars from a provided dictionary. Handles the Render dashboard UI: clicks 'Add Environment Variable', fills key/value, repeats for each var.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "service_id": {
-                    "type": "string",
-                    "description": "Render service ID (e.g. srv-xxxxx) — used to navigate to the correct env vars page"
-                },
                 "env_vars": {
                     "type": "object",
-                    "description": "Dictionary of environment variable key-value pairs to fill in",
+                    "description": "Dictionary of env var key-value pairs to set on Render, e.g. {'ANTHROPIC_API_KEY': 'sk-ant-xxx'}",
                     "additionalProperties": {"type": "string"}
                 }
             },
-            "required": ["service_id", "env_vars"]
+            "required": ["env_vars"]
         }
     },
     {
-        "name": "render_dashboard_navigate",
-        "description": "Navigate to a specific Render dashboard page: 'blueprint_new' (new blueprint), 'services' (service list), 'env_vars' (env vars for a service), or a custom render dashboard URL.",
+        "name": "render_get_env_vars",
+        "description": "List all environment variables currently set on the Render service. Shows which ones have values and which are missing.",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "render_get_deploy_status",
+        "description": "Check the current deployment status on Render — is it building, live, or failed?",
         "input_schema": {
             "type": "object",
             "properties": {
-                "page": {
+                "deploy_id": {
                     "type": "string",
-                    "description": "Page to navigate to: 'blueprint_new', 'services', 'env_vars', or a full URL",
-                },
-                "service_id": {
-                    "type": "string",
-                    "description": "Render service ID (required for 'env_vars' page)"
+                    "description": "Specific deploy ID to check. If omitted, checks the latest deploy."
                 }
-            },
-            "required": ["page"]
+            }
         }
     },
     {
-        "name": "get_render_blueprint_yaml",
-        "description": "Return the current render.yaml content from this repo so Hollywood can review it before deploying.",
+        "name": "render_get_service_info",
+        "description": "Get full service info from Render — URL, status, region, plan, last deploy time.",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "render_restart_service",
+        "description": "Restart the Render service without redeploying.",
         "input_schema": {"type": "object", "properties": {}}
     },
     {
@@ -388,6 +381,67 @@ TOOLS = [
                     "description": "The Render deploy hook URL. If not provided, uses the saved hook."
                 }
             }
+        }
+    },
+    {
+        "name": "render_get_required_env_vars",
+        "description": "Show all env vars needed by this app (from render.yaml), which ones are set, and which are still missing.",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "get_render_blueprint_yaml",
+        "description": "Return the current render.yaml content from this repo so Hollywood can review it before deploying.",
+        "input_schema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "fetch_api_key",
+        "description": "Navigate to a service's API key page in the browser so Hollywood can help the user get their key. Services: anthropic, pexels, stripe, youtube, render, google, tiktok. Hollywood opens the page, reads it, and guides the user.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "description": "Service name: anthropic, pexels, stripe, youtube, render, google, tiktok",
+                    "enum": ["anthropic", "pexels", "stripe", "youtube", "render", "google", "tiktok"]
+                }
+            },
+            "required": ["service"]
+        }
+    },
+    {
+        "name": "deploy_render_blueprint",
+        "description": "Navigate to Render's blueprint page via browser automation and fill in the repo URL. Fallback if API method unavailable.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "repo_url": {"type": "string", "description": "GitHub repo URL to deploy"},
+                "blueprint_name": {"type": "string", "description": "Name for the blueprint instance"}
+            },
+            "required": ["repo_url"]
+        }
+    },
+    {
+        "name": "fill_render_env_vars",
+        "description": "Fill env vars via browser automation on Render dashboard. Fallback if API method unavailable.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "service_id": {"type": "string", "description": "Render service ID"},
+                "env_vars": {"type": "object", "description": "Key-value pairs to fill", "additionalProperties": {"type": "string"}}
+            },
+            "required": ["service_id", "env_vars"]
+        }
+    },
+    {
+        "name": "render_dashboard_navigate",
+        "description": "Navigate to a specific Render dashboard page via browser.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "page": {"type": "string", "description": "Page: 'blueprint_new', 'services', 'env_vars', or URL"},
+                "service_id": {"type": "string", "description": "Service ID (for env_vars page)"}
+            },
+            "required": ["page"]
         }
     },
 
@@ -1107,6 +1161,8 @@ def _tool_content_calendar_view() -> dict:
 # ── Render deployment tool implementations ───────────────────────────────────
 
 RENDER_DEPLOY_HOOK = "https://api.render.com/deploy/srv-d8t0do77f7vs73bkq11g?key=VDe3ZfxMdGk"
+RENDER_SERVICE_ID = "srv-d8t0do77f7vs73bkq11g"
+RENDER_API_BASE = "https://api.render.com/v1"
 
 RENDER_DASHBOARD_PAGES = {
     "blueprint_new": "https://dashboard.render.com/blueprint/new",
@@ -1379,6 +1435,239 @@ def _tool_trigger_render_deploy(deploy_hook_url: str = None) -> dict:
         }
     except Exception as e:
         return {"error": f"Deploy hook request failed: {str(e)}"}
+
+
+def _render_api(method: str, path: str, json_data=None) -> dict:
+    """Make an authenticated Render API call."""
+    import requests
+    api_key = config.RENDER_API_KEY if hasattr(config, "RENDER_API_KEY") else os.environ.get("RENDER_API_KEY", "")
+    if not api_key:
+        return {"error": "No RENDER_API_KEY configured. Hollywood needs a Render API key to manage your service. Get one at https://dashboard.render.com/u/settings#api-keys"}
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    url = f"{RENDER_API_BASE}{path}"
+    try:
+        resp = requests.request(method, url, headers=headers, json=json_data, timeout=30)
+        if resp.status_code == 401:
+            return {"error": "Render API key is invalid or expired. Get a new one at https://dashboard.render.com/u/settings#api-keys"}
+        try:
+            return {"status_code": resp.status_code, "data": resp.json()}
+        except Exception:
+            return {"status_code": resp.status_code, "data": resp.text[:1000]}
+    except requests.exceptions.ConnectionError:
+        return {"error": "Cannot reach api.render.com — network restricted. Run locally or add api.render.com to egress allowlist."}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _tool_render_set_env_vars(env_vars: dict) -> dict:
+    """Set env vars on Render via API."""
+    result = _render_api("GET", f"/services/{RENDER_SERVICE_ID}/env-vars")
+    if "error" in result:
+        return result
+    existing = {ev["key"]: ev for ev in (result.get("data") or [])} if isinstance(result.get("data"), list) else {}
+    payload = []
+    for key, value in env_vars.items():
+        payload.append({"key": key, "value": str(value)})
+    put_result = _render_api("PUT", f"/services/{RENDER_SERVICE_ID}/env-vars", json_data=payload)
+    if "error" in put_result:
+        return put_result
+    return {
+        "status": "success",
+        "set_count": len(env_vars),
+        "keys_set": list(env_vars.keys()),
+        "message": f"Set {len(env_vars)} env var(s) on Render. Service will auto-restart to pick them up.",
+    }
+
+
+def _tool_render_get_env_vars() -> dict:
+    """Get current env vars from Render."""
+    result = _render_api("GET", f"/services/{RENDER_SERVICE_ID}/env-vars")
+    if "error" in result:
+        return result
+    env_list = result.get("data", [])
+    if not isinstance(env_list, list):
+        return {"error": f"Unexpected response: {env_list}"}
+    summary = []
+    for ev in env_list:
+        summary.append({
+            "key": ev.get("key", ""),
+            "has_value": bool(ev.get("value")),
+            "value_preview": (ev.get("value", "")[:4] + "***") if ev.get("value") else "(empty)",
+        })
+    set_count = sum(1 for s in summary if s["has_value"])
+    return {
+        "env_vars": summary,
+        "total": len(summary),
+        "set": set_count,
+        "missing": len(summary) - set_count,
+    }
+
+
+def _tool_render_get_deploy_status(deploy_id: str = None) -> dict:
+    """Check deploy status on Render."""
+    if deploy_id:
+        result = _render_api("GET", f"/services/{RENDER_SERVICE_ID}/deploys/{deploy_id}")
+    else:
+        result = _render_api("GET", f"/services/{RENDER_SERVICE_ID}/deploys?limit=5")
+    if "error" in result:
+        return result
+    data = result.get("data", [])
+    if isinstance(data, list) and data:
+        deploys = []
+        for d in data[:5]:
+            dep = d.get("deploy", d)
+            deploys.append({
+                "id": dep.get("id", ""),
+                "status": dep.get("status", ""),
+                "commit": dep.get("commit", {}).get("message", "")[:80] if isinstance(dep.get("commit"), dict) else "",
+                "created_at": dep.get("createdAt", ""),
+                "finished_at": dep.get("finishedAt", ""),
+            })
+        return {"deploys": deploys, "latest_status": deploys[0]["status"] if deploys else "unknown"}
+    return {"deploy": data}
+
+
+def _tool_render_get_service_info() -> dict:
+    """Get Render service info."""
+    result = _render_api("GET", f"/services/{RENDER_SERVICE_ID}")
+    if "error" in result:
+        return result
+    svc = result.get("data", {})
+    return {
+        "name": svc.get("name", ""),
+        "url": svc.get("serviceDetails", {}).get("url", "") if isinstance(svc.get("serviceDetails"), dict) else "",
+        "status": svc.get("suspended", "unknown"),
+        "region": svc.get("region", ""),
+        "plan": svc.get("plan", ""),
+        "branch": svc.get("branch", ""),
+        "created_at": svc.get("createdAt", ""),
+        "updated_at": svc.get("updatedAt", ""),
+        "auto_deploy": svc.get("autoDeploy", ""),
+    }
+
+
+def _tool_render_restart_service() -> dict:
+    """Restart the Render service."""
+    result = _render_api("POST", f"/services/{RENDER_SERVICE_ID}/restart")
+    if "error" in result:
+        return result
+    return {"status": "restarting", "message": "Service is restarting. It will be back online in a minute."}
+
+
+def _tool_render_get_required_env_vars() -> dict:
+    """Compare render.yaml env vars with what's actually set on Render."""
+    yaml_result = _tool_get_render_blueprint_yaml()
+    if "error" in yaml_result:
+        return yaml_result
+    live_result = _tool_render_get_env_vars()
+    live_keys = {}
+    if "error" not in live_result:
+        for ev in live_result.get("env_vars", []):
+            live_keys[ev["key"]] = ev["has_value"]
+    required = []
+    from pathlib import Path
+    import yaml
+    render_path = Path(__file__).parent.parent / "render.yaml"
+    parsed = yaml.safe_load(render_path.read_text())
+    for svc in parsed.get("services", []):
+        for ev in svc.get("envVars", []):
+            key = ev.get("key", "")
+            is_auto = bool(ev.get("generateValue"))
+            has_default = bool(ev.get("value"))
+            is_set = live_keys.get(key, False)
+            required.append({
+                "key": key,
+                "auto_generated": is_auto,
+                "has_default": has_default,
+                "is_set_on_render": is_set,
+                "needs_action": not is_auto and not has_default and not is_set,
+            })
+    needs_action = [r for r in required if r["needs_action"]]
+    return {
+        "all_vars": required,
+        "total": len(required),
+        "needs_action": [r["key"] for r in needs_action],
+        "needs_action_count": len(needs_action),
+        "message": f"{len(needs_action)} env var(s) still need to be set: {', '.join(r['key'] for r in needs_action)}" if needs_action else "All env vars are configured!",
+    }
+
+
+def _tool_fetch_api_key(service: str) -> dict:
+    """Navigate to a service's API key page and help the user get their key."""
+    key_pages = {
+        "anthropic": {
+            "url": "https://console.anthropic.com/settings/keys",
+            "name": "Anthropic",
+            "env_var": "ANTHROPIC_API_KEY",
+            "instructions": "Log in → Settings → API Keys → Create Key → copy the sk-ant-... value",
+        },
+        "pexels": {
+            "url": "https://www.pexels.com/api/new/",
+            "name": "Pexels",
+            "env_var": "PEXELS_API_KEY",
+            "instructions": "Sign up/log in → Your API Key is shown on the page. It's free.",
+        },
+        "stripe": {
+            "url": "https://dashboard.stripe.com/test/apikeys",
+            "name": "Stripe",
+            "env_var": "STRIPE_SECRET_KEY",
+            "instructions": "Log in → Developers → API Keys → copy Secret key (sk_test_...) and Publishable key (pk_test_...)",
+        },
+        "youtube": {
+            "url": "https://console.cloud.google.com/apis/credentials",
+            "name": "YouTube/Google",
+            "env_var": "YOUTUBE_CLIENT_ID",
+            "instructions": "Google Cloud Console → APIs → Credentials → Create OAuth Client ID → copy Client ID and Secret",
+        },
+        "render": {
+            "url": "https://dashboard.render.com/u/settings#api-keys",
+            "name": "Render",
+            "env_var": "RENDER_API_KEY",
+            "instructions": "Profile → Account Settings → API Keys → Create API Key → copy the rnd_... value",
+        },
+        "google": {
+            "url": "https://aistudio.google.com/app/apikey",
+            "name": "Google AI (Veo)",
+            "env_var": "GOOGLE_API_KEY",
+            "instructions": "Google AI Studio → Get API Key → Create → copy the key",
+        },
+        "tiktok": {
+            "url": "https://developers.tiktok.com/apps/",
+            "name": "TikTok",
+            "env_var": "TIKTOK_CLIENT_KEY",
+            "instructions": "TikTok Developer Portal → Manage Apps → your app → App Key and App Secret",
+        },
+    }
+    service_lower = service.lower().strip()
+    if service_lower not in key_pages:
+        return {
+            "error": f"Unknown service '{service}'. Available: {', '.join(key_pages.keys())}",
+            "available_services": list(key_pages.keys()),
+        }
+    info = key_pages[service_lower]
+    nav_result = _browser_call("navigate", url=info["url"])
+    if "error" in nav_result:
+        return {
+            "service": info["name"],
+            "url": info["url"],
+            "env_var": info["env_var"],
+            "instructions": info["instructions"],
+            "browser_error": nav_result["error"],
+            "message": f"Couldn't open {info['name']} in browser. Go to {info['url']} manually and follow: {info['instructions']}",
+        }
+    import time
+    time.sleep(2)
+    ss = _browser_call("screenshot")
+    text = _browser_call("get_page_text")
+    return {
+        "service": info["name"],
+        "url": info["url"],
+        "env_var": info["env_var"],
+        "instructions": info["instructions"],
+        "page_loaded": True,
+        "page_text_preview": text.get("text", "")[:1000],
+        "message": f"Opened {info['name']} API key page. {info['instructions']}. Tell me the key and I'll set it on Render.",
+    }
 
 
 # ── Blueprint tool implementations ────────────────────────────────────────────
@@ -1951,6 +2240,22 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
             result = _tool_trigger_render_deploy(
                 deploy_hook_url=tool_input.get("deploy_hook_url", ""),
             )
+        elif tool_name == "render_set_env_vars":
+            result = _tool_render_set_env_vars(env_vars=tool_input["env_vars"])
+        elif tool_name == "render_get_env_vars":
+            result = _tool_render_get_env_vars()
+        elif tool_name == "render_get_deploy_status":
+            result = _tool_render_get_deploy_status(
+                deploy_id=tool_input.get("deploy_id", ""),
+            )
+        elif tool_name == "render_get_service_info":
+            result = _tool_render_get_service_info()
+        elif tool_name == "render_restart_service":
+            result = _tool_render_restart_service()
+        elif tool_name == "render_get_required_env_vars":
+            result = _tool_render_get_required_env_vars()
+        elif tool_name == "fetch_api_key":
+            result = _tool_fetch_api_key(service=tool_input["service"])
 
         # Analytics
         elif tool_name == "get_analytics_summary":
