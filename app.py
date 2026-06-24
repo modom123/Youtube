@@ -154,6 +154,11 @@ def privacy():
     return render_template("privacy.html")
 
 
+@app.route("/tiktoktZP2Ao6MnBjhPb6PTnJsMZ2dzTLrSfPy.txt")
+def tiktok_verify():
+    return "tiktok-developers-site-verification=tZP2Ao6MnBjhPb6PTnJsMZ2dzTLrSfPy", 200, {"Content-Type": "text/plain"}
+
+
 @app.route("/dashboard")
 @login_required
 def dashboard():
