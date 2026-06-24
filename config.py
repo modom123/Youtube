@@ -34,12 +34,13 @@ TIERS = {
     },
     "starter": {
         "label": "Starter",
-        "description": "Perfect for creators getting serious. 15 videos a month across 4 platforms with AI video credits included.",
+        "description": "14-day free trial — no credit card required. Then $29/mo for 15 videos, 4 platforms, and 150 AI video credits.",
         "price_monthly": 29,
+        "trial_days": 14,
         "videos_per_month": 15,
         "higgsfield_credits": 150,
         "stripe_price_id": STRIPE_PRICE_STARTER,
-        "features": ["15 videos/month", "4 platforms", "150 AI video credits", "5-agent pipeline"],
+        "features": ["14-day free trial", "15 videos/month", "4 platforms", "150 AI video credits", "5-agent pipeline"],
     },
     "creator": {
         "label": "Creator",

@@ -70,6 +70,11 @@ def checkout(tier_name):
         customer_id = customer.id
         db.update_user(current_user.id, stripe_customer_id=customer_id)
 
+    trial_days = tier.get("trial_days")
+    subscription_data = {"metadata": {"user_id": str(current_user.id), "tier": tier_name}}
+    if trial_days:
+        subscription_data["trial_period_days"] = trial_days
+
     session = stripe.checkout.Session.create(
         customer=customer_id,
         payment_method_types=["card"],
@@ -79,7 +84,7 @@ def checkout(tier_name):
         cancel_url=config.APP_BASE_URL + url_for("billing.billing_page"),
         client_reference_id=str(current_user.id),
         metadata={"user_id": str(current_user.id), "tier": tier_name},
-        subscription_data={"metadata": {"user_id": str(current_user.id), "tier": tier_name}},
+        subscription_data=subscription_data,
     )
     return redirect(session.url, code=303)
 

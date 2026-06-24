@@ -1168,7 +1168,9 @@
     <div class="pricing-grid reveal">
       {% for tier_key, tier in tiers.items() %}
       <div class="pricing-card {% if tier_key == 'creator' %}featured{% endif %}">
-        {% if tier_key == 'creator' %}<div class="pricing-popular">Most Popular</div>{% endif %}
+        {% if tier_key == 'creator' %}<div class="pricing-popular">Most Popular</div>
+        {% elif tier_key == 'starter' %}<div class="pricing-popular" style="background:#30d158;">14-Day Free Trial</div>
+        {% endif %}
         <div class="pricing-tier">{{ tier.label }}</div>
         <div class="pricing-price">
           {% if tier.price_monthly == 0 %}Free{% else %}${{ tier.price_monthly }}{% endif %}
@@ -1185,6 +1187,8 @@
         </ul>
         {% if tier_key == 'free' %}
           <a href="{{ url_for('auth.register') }}" class="btn btn-secondary btn-lg pricing-btn">Start Free</a>
+        {% elif tier_key == 'starter' %}
+          <a href="{{ url_for('auth.register') }}" class="btn btn-secondary btn-lg pricing-btn">Start Free Trial</a>
         {% else %}
           <a href="{{ url_for('auth.register') }}" class="btn {% if tier_key == 'creator' %}btn-primary{% else %}btn-secondary{% endif %} btn-lg pricing-btn">Get Started</a>
         {% endif %}
