@@ -149,6 +149,11 @@ def landing():
     return render_template("landing.html", tiers=config.TIERS)
 
 
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html")
+
+
 @app.route("/dashboard")
 @login_required
 def dashboard():
