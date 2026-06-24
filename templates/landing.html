@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Social Optimize — AI Video Production Studio</title>
-  <meta name="description" content="Turn any idea into a published video in minutes. 6 AI agents, 17+ video models, 8 platforms. The complete content creation pipeline.">
+  <meta name="description" content="Turn any idea into a published video in minutes. 6 AI agents, 17+ video models, 4 major platforms. The complete content creation pipeline.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -637,7 +637,7 @@
   <div class="hero-note">No credit card required &middot; 2 free videos included &middot; Cancel anytime</div>
   <div class="hero-metrics">
     <div class="hero-metric"><div class="val text-gradient">6</div><div class="lbl">AI Agents</div></div>
-    <div class="hero-metric"><div class="val text-gradient">8</div><div class="lbl">Platforms</div></div>
+    <div class="hero-metric"><div class="val text-gradient">4</div><div class="lbl">Platforms</div></div>
     <div class="hero-metric"><div class="val text-gradient">5min</div><div class="lbl">Per Video</div></div>
     <div class="hero-metric"><div class="val text-gradient">$0</div><div class="lbl">To Start</div></div>
   </div>
@@ -1174,12 +1174,7 @@
           {% if tier.price_monthly == 0 %}Free{% else %}${{ tier.price_monthly }}{% endif %}
           {% if tier.price_monthly > 0 %}<span>/mo</span>{% endif %}
         </div>
-        <div class="pricing-desc">
-          {% if tier_key == 'free' %}Perfect to explore the platform
-          {% elif tier_key == 'starter' %}For solo creators getting started
-          {% elif tier_key == 'creator' %}For full-time content creators
-          {% else %}For agencies &amp; power users{% endif %}
-        </div>
+        <div class="pricing-desc">{{ tier.description }}</div>
         <ul class="pricing-features">
           {% for f in tier.features %}
           <li>
@@ -1213,7 +1208,7 @@
       </div>
       <div class="faq-item">
         <button class="faq-q" onclick="toggleFaq(this)">What platforms can I publish to?<span class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
-        <div class="faq-a"><p>All 8 platforms: YouTube (long-form + Shorts), TikTok, Instagram (Reels + Stories), Facebook, X (Twitter), LinkedIn, Pinterest, and Threads. Each video is automatically formatted and optimized for its destination platform.</p></div>
+        <div class="faq-a"><p>The 4 major platforms: YouTube (long-form + Shorts), TikTok, Instagram (Reels + Stories), and Facebook. Each video is automatically formatted and optimized for its destination platform.</p></div>
       </div>
       <div class="faq-item">
         <button class="faq-q" onclick="toggleFaq(this)">How does the 3-tier cost routing work?<span class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>

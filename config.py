@@ -25,35 +25,39 @@ STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 TIERS = {
     "free": {
         "label": "Free Trial",
+        "description": "Try Social Optimize free — no credit card needed. Create 2 AI-powered videos and publish to your top 4 platforms.",
         "price_monthly": 0,
         "videos_per_month": 2,
         "higgsfield_credits": 0,
         "stripe_price_id": None,
-        "features": ["2 videos/month", "All 8 platforms", "Pexels stock media", "Basic scripts"],
+        "features": ["2 videos/month", "4 platforms", "Pexels stock media", "Basic scripts"],
     },
     "starter": {
         "label": "Starter",
+        "description": "Perfect for creators getting serious. 15 videos a month across 4 platforms with AI video credits included.",
         "price_monthly": 29,
         "videos_per_month": 15,
         "higgsfield_credits": 150,
         "stripe_price_id": STRIPE_PRICE_STARTER,
-        "features": ["15 videos/month", "All 8 platforms", "150 AI video credits", "5-agent pipeline"],
+        "features": ["15 videos/month", "4 platforms", "150 AI video credits", "5-agent pipeline"],
     },
     "creator": {
         "label": "Creator",
+        "description": "Built for full-time creators and brands. 50 videos, 500 AI credits, and all 4 major platforms.",
         "price_monthly": 79,
         "videos_per_month": 50,
         "higgsfield_credits": 500,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
-        "features": ["50 videos/month", "500 AI video credits", "All platforms", "Studio 56"],
+        "features": ["50 videos/month", "500 AI video credits", "All 4 platforms", "Studio 56"],
     },
     "agency": {
         "label": "Agency",
+        "description": "Unlimited content for teams and agencies. Max AI credits, priority processing, and white-glove support.",
         "price_monthly": 199,
         "videos_per_month": -1,
         "higgsfield_credits": 2000,
         "stripe_price_id": STRIPE_PRICE_AGENCY,
-        "features": ["Unlimited videos", "2000 AI video credits", "Priority processing", "All features"],
+        "features": ["Unlimited videos", "2000 AI video credits", "Priority processing", "All 4 platforms"],
     },
 }
 
