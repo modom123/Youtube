@@ -149,6 +149,13 @@ def landing():
     return render_template("landing.html", tiers=config.TIERS)
 
 
+@app.route("/pricing")
+def pricing():
+    if current_user.is_authenticated:
+        return redirect(url_for("billing.billing_page"))
+    return render_template("pricing.html", tiers=config.TIERS)
+
+
 @app.route("/privacy")
 def privacy():
     return render_template("privacy.html")
