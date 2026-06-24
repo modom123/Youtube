@@ -82,10 +82,19 @@
           </td>
           <td class="text-xs text-dim">{{ job.created_at[:16].replace('T',' ') }}</td>
           <td>
-            <div class="flex gap-8">
+            <div class="flex gap-8" style="flex-wrap:wrap;">
               <a href="/jobs/{{ job.id }}" class="btn btn-ghost btn-sm">View</a>
               {% if job.status == 'done' and job.video_path %}
               <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-sm">⬇</a>
+              {% endif %}
+              {% if job.status == 'error' %}
+              <button onclick="retryJob({{ job.id }}, this)" class="btn btn-primary btn-sm">↺ Retry</button>
+              {% endif %}
+              {% if job.status == 'running' %}
+              <button onclick="cancelJob({{ job.id }}, this)" class="btn btn-ghost btn-sm" style="color:var(--yellow);">⏹ Cancel</button>
+              {% endif %}
+              {% if job.status in ('error', 'done') %}
+              <button onclick="deleteJob({{ job.id }}, this)" class="btn btn-ghost btn-sm" style="color:var(--red);">🗑</button>
               {% endif %}
             </div>
           </td>
@@ -106,4 +115,29 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function retryJob(id, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  const r = await fetch(`/api/jobs/${id}/retry`, {method:'POST'});
+  const d = await r.json();
+  if (d.error) { alert(d.error); btn.disabled = false; btn.textContent = '↺ Retry'; return; }
+  window.location.href = `/jobs/${id}`;
+}
+async function cancelJob(id, btn) {
+  if (!confirm('Cancel this job?')) return;
+  btn.disabled = true;
+  await fetch(`/api/jobs/${id}/cancel`, {method:'POST'});
+  location.reload();
+}
+async function deleteJob(id, btn) {
+  if (!confirm('Delete this job? This cannot be undone.')) return;
+  btn.disabled = true;
+  await fetch(`/api/jobs/${id}/delete`, {method:'POST'});
+  btn.closest('tr').remove();
+}
+</script>
 {% endblock %}

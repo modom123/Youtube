@@ -509,6 +509,14 @@ def get_job(job_id, user_id=None):
     return row_to_dict(row)
 
 
+def delete_job(job_id, user_id=None):
+    with get_conn() as conn:
+        if user_id:
+            conn.execute("DELETE FROM jobs WHERE id=? AND user_id=?", (job_id, user_id))
+        else:
+            conn.execute("DELETE FROM jobs WHERE id=?", (job_id,))
+
+
 def get_jobs(limit=50, user_id=None, team_id=None):
     with get_conn() as conn:
         if team_id:

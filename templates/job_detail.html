@@ -6,8 +6,18 @@
 {% block topbar_sub %}{{ (job.title or job.topic)[:60] }}{% endblock %}
 {% block topbar_actions %}
 <a href="/jobs" class="btn btn-ghost">← Back to Jobs</a>
+{% if job.status == 'error' %}
+<button onclick="retryJob({{ job.id }}, this)" class="btn btn-primary">↺ Retry Job</button>
+<button onclick="deleteJob({{ job.id }}, this)" class="btn btn-ghost" style="color:var(--red);">🗑 Delete</button>
+{% endif %}
+{% if job.status == 'running' %}
+<button onclick="cancelJob({{ job.id }}, this)" class="btn btn-ghost" style="color:var(--yellow);">⏹ Cancel</button>
+{% endif %}
 {% if job.status == 'done' and job.video_path %}
 <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green">⬇ Download MP4</a>
+{% endif %}
+{% if job.status == 'done' %}
+<button onclick="deleteJob({{ job.id }}, this)" class="btn btn-ghost" style="color:var(--red);">🗑 Delete</button>
 {% endif %}
 {% endblock %}
 
@@ -221,4 +231,26 @@
 })();
 </script>
 {% endif %}
+<script>
+async function retryJob(id, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  const r = await fetch(`/api/jobs/${id}/retry`, {method:'POST'});
+  const d = await r.json();
+  if (d.error) { alert(d.error); btn.disabled = false; btn.textContent = '↺ Retry Job'; return; }
+  location.reload();
+}
+async function cancelJob(id, btn) {
+  if (!confirm('Cancel this job?')) return;
+  btn.disabled = true;
+  await fetch(`/api/jobs/${id}/cancel`, {method:'POST'});
+  location.reload();
+}
+async function deleteJob(id, btn) {
+  if (!confirm('Delete this job? This cannot be undone.')) return;
+  btn.disabled = true;
+  await fetch(`/api/jobs/${id}/delete`, {method:'POST'});
+  window.location.href = '/jobs';
+}
+</script>
 {% endblock %}

@@ -541,6 +541,67 @@ def download_video(job_id):
     return send_file(str(path), as_attachment=True, download_name=f"som_{job_id}.mp4")
 
 
+@app.route("/api/jobs/<int:job_id>/retry", methods=["POST"])
+@login_required
+def retry_job(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    if job["status"] == "running":
+        return jsonify({"error": "Job is still running"}), 400
+    # Reset status fields on the existing record
+    db.update_job(job_id, status="running", progress=0, current_step="Retrying...",
+                  error_msg=None, video_path=None, audio_path=None,
+                  thumbnail_path=None, title=None, completed_at=None)
+    platforms = job.get("platforms") or []
+    if isinstance(platforms, str):
+        import json as _json
+        try:
+            platforms = _json.loads(platforms)
+        except Exception:
+            platforms = []
+    params = {
+        "topic": job["topic"],
+        "format": job["format"],
+        "platforms": platforms,
+        "audience": job.get("audience", "general public"),
+        "voice": job.get("voice") or config.DEFAULT_VOICE,
+        "thumbnail_style": job.get("style", "fire"),
+        "privacy": job.get("privacy", "private"),
+        "skip_research": bool(job.get("skip_research")),
+        "ai_video_provider": "none",
+        "higgsfield_model": "kling3_0",
+        "podcast_name": job["topic"],
+        "episode_number": 1,
+        "guest_name": "",
+        "target_duration": None,
+        "dry_run": False,
+        "cleanup": False,
+    }
+    threading.Thread(target=_run_job_thread, args=(job_id, params, current_user.id), daemon=True).start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/api/jobs/<int:job_id>/cancel", methods=["POST"])
+@login_required
+def cancel_job(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    db.update_job(job_id, status="error", error_msg="Cancelled by user", current_step="Cancelled")
+    return jsonify({"ok": True})
+
+
+@app.route("/api/jobs/<int:job_id>/delete", methods=["POST"])
+@login_required
+def delete_job_route(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    db.delete_job(job_id, user_id=current_user.id)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/jobs/<int:job_id>/thumbnail")
 @login_required
 def get_thumbnail(job_id):
