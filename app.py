@@ -857,35 +857,28 @@ def _send_email_campaign(campaign, contacts, user_id):
 
 
 def _send_sms_campaign(campaign, contacts, user_id):
-    # Uses Twilio if TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_FROM_NUMBER are set
-    account_sid = getattr(config, "TWILIO_ACCOUNT_SID", "") or os.getenv("TWILIO_ACCOUNT_SID", "")
-    auth_token  = getattr(config, "TWILIO_AUTH_TOKEN", "")  or os.getenv("TWILIO_AUTH_TOKEN", "")
-    from_number = getattr(config, "TWILIO_FROM_NUMBER", "") or os.getenv("TWILIO_FROM_NUMBER", "")
+    from utils.twilio_client import send_sms_bulk, _is_configured
 
-    if not account_sid or not auth_token or not from_number:
-        # Log as sent in dev mode (no Twilio configured)
+    if not _is_configured():
         for c in contacts:
             db.log_send(campaign["id"], c["id"], user_id, "sent")
         return len(contacts), 0
 
+    status_cb = config.APP_BASE_URL + "/twilio/status"
     try:
-        from twilio.rest import Client as TwilioClient
-        twilio = TwilioClient(account_sid, auth_token)
-    except ImportError:
+        sent, failed, errors = send_sms_bulk(
+            contacts=contacts,
+            body_template=campaign["body"],
+            status_callback=status_cb,
+        )
+        for i, c in enumerate(contacts):
+            status = "failed" if i >= sent else "sent"
+            err = errors[i - sent] if status == "failed" and (i - sent) < len(errors) else None
+            db.log_send(campaign["id"], c["id"], user_id, status, err)
+    except Exception as e:
         for c in contacts:
-            db.log_send(campaign["id"], c["id"], user_id, "failed", "twilio not installed")
+            db.log_send(campaign["id"], c["id"], user_id, "failed", str(e))
         return 0, len(contacts)
-
-    sent, failed = 0, 0
-    for contact in contacts:
-        try:
-            body = campaign["body"].replace("{{name}}", contact["name"] or "")
-            twilio.messages.create(body=body, from_=from_number, to=contact["phone"])
-            db.log_send(campaign["id"], contact["id"], user_id, "sent")
-            sent += 1
-        except Exception as e:
-            db.log_send(campaign["id"], contact["id"], user_id, "failed", str(e))
-            failed += 1
     return sent, failed
 
 
@@ -897,6 +890,42 @@ def campaign_sends(cid):
         return jsonify({"error": "Not found"}), 404
     sends = db.get_campaign_sends(cid)
     return jsonify(sends)
+
+
+# ── Twilio Webhooks ───────────────────────────────────────────────────────────
+
+@app.route("/twilio/status", methods=["POST"])
+def twilio_status_callback():
+    """Twilio calls this URL to report delivery status updates for outbound SMS."""
+    from utils.twilio_client import validate_signature
+    sig = request.headers.get("X-Twilio-Signature", "")
+    if config.TWILIO_AUTH_TOKEN and not validate_signature(request.url, request.form, sig):
+        return jsonify({"error": "Invalid signature"}), 403
+
+    sid    = request.form.get("MessageSid")
+    status = request.form.get("MessageStatus")  # queued, sent, delivered, failed, undelivered
+    if sid and status:
+        db.update_send_status_by_sid(sid, status)
+    return ("", 204)
+
+
+@app.route("/twilio/inbound", methods=["POST"])
+def twilio_inbound_sms():
+    """Twilio calls this URL when someone replies to your number."""
+    from utils.twilio_client import validate_signature, parse_inbound_sms
+    sig = request.headers.get("X-Twilio-Signature", "")
+    if config.TWILIO_AUTH_TOKEN and not validate_signature(request.url, request.form, sig):
+        return jsonify({"error": "Invalid signature"}), 403
+
+    msg = parse_inbound_sms(request.form)
+    db.log_inbound_sms(
+        from_=msg["from_"],
+        to=msg["to"],
+        body=msg["body"],
+        message_sid=msg["message_sid"],
+    )
+    # Return empty TwiML — no auto-reply
+    return ('<Response></Response>', 200, {"Content-Type": "text/xml"})
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────

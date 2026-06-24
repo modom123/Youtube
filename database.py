@@ -91,7 +91,17 @@ def init_db():
             status          TEXT DEFAULT 'pending',
             sent_at         TEXT,
             error_msg       TEXT,
+            message_sid     TEXT,
             UNIQUE(campaign_id, contact_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS inbound_sms (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_sid     TEXT UNIQUE,
+            from_number     TEXT NOT NULL,
+            to_number       TEXT,
+            body            TEXT,
+            received_at     TEXT DEFAULT (datetime('now'))
         );
 
         CREATE TABLE IF NOT EXISTS jobs (
@@ -996,12 +1006,13 @@ def delete_campaign(campaign_id, user_id):
         conn.execute("DELETE FROM outreach_campaigns WHERE id=? AND user_id=?", (campaign_id, user_id))
 
 
-def log_send(campaign_id, contact_id, user_id, status, error_msg=None):
+def log_send(campaign_id, contact_id, user_id, status, error_msg=None, message_sid=None):
     with get_conn() as conn:
         conn.execute(
-            """INSERT OR REPLACE INTO outreach_sends (campaign_id, contact_id, user_id, status, sent_at, error_msg)
-               VALUES (?,?,?,?,datetime('now'),?)""",
-            (campaign_id, contact_id, user_id, status, error_msg)
+            """INSERT OR REPLACE INTO outreach_sends
+               (campaign_id, contact_id, user_id, status, sent_at, error_msg, message_sid)
+               VALUES (?,?,?,?,datetime('now'),?,?)""",
+            (campaign_id, contact_id, user_id, status, error_msg, message_sid)
         )
 
 
@@ -1020,3 +1031,22 @@ def get_campaign_sends(campaign_id):
                JOIN contacts c ON c.id=os.contact_id
                WHERE os.campaign_id=?""", (campaign_id,)
         ).fetchall()]
+
+
+def update_send_status_by_sid(message_sid: str, status: str):
+    """Update outreach_sends delivery status when Twilio posts a status callback."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE outreach_sends SET status=? WHERE message_sid=?",
+            (status, message_sid)
+        )
+
+
+def log_inbound_sms(from_: str, to: str, body: str, message_sid: str):
+    """Store an inbound SMS reply received via the Twilio webhook."""
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO inbound_sms (message_sid, from_number, to_number, body, received_at)
+               VALUES (?,?,?,?,datetime('now'))""",
+            (message_sid, from_, to, body)
+        )
