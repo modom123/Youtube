@@ -33,7 +33,7 @@ TIERS = {
         "stripe_price_id": None,
         "features": [
             "2 AI videos/month",
-            "Publish to 4 platforms",
+            "Publish to 8 platforms",
             "Pexels stock media library",
             "Basic AI scripts",
             "Quick Post from photo/video",
@@ -50,7 +50,7 @@ TIERS = {
         "features": [
             "14-day free trial",
             "15 AI videos/month",
-            "Publish to 4 platforms",
+            "Publish to 8 platforms",
             "150 AI video credits (Higgsfield)",
             "5-agent AI pipeline",
             "Quick Post from photo/video",
@@ -70,7 +70,7 @@ TIERS = {
         "features": [
             "14-day free trial",
             "50 AI videos/month",
-            "Publish to all 4 platforms",
+            "Publish to all 8 platforms",
             "500 AI video credits (Higgsfield)",
             "Studio 56 — full production suite",
             "Commercial Studio — photo → ad",
@@ -92,7 +92,7 @@ TIERS = {
         "features": [
             "14-day free trial",
             "125 AI videos/month",
-            "Publish to all 4 platforms",
+            "Publish to all 8 platforms",
             "2000 AI video credits (Higgsfield)",
             "Everything in Creator",
             "Quick Post from photo/video",
