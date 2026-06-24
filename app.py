@@ -349,6 +349,10 @@ def accounts_page():
         tiktok_configured=bool(config.TIKTOK_CLIENT_KEY),
         meta_configured=bool(config.FACEBOOK_APP_ID),
         linkedin_configured=bool(config.LINKEDIN_CLIENT_ID),
+        twitter_configured=bool(config.TWITTER_CLIENT_ID),
+        threads_configured=bool(config.THREADS_APP_ID),
+        twitch_configured=bool(config.TWITCH_CLIENT_ID),
+        snapchat_configured=bool(config.SNAP_CLIENT_ID),
     )
 
 
@@ -634,8 +638,252 @@ def oauth_linkedin_callback():
 @app.route("/oauth/instagram/start")
 @login_required
 def oauth_instagram_start():
-    # Instagram uses the Facebook OAuth flow
     return redirect(url_for("oauth_facebook_start"))
+
+
+# ── X (Twitter) OAuth 2.0 ─────────────────────────────────────────────────────
+
+@app.route("/oauth/twitter/start")
+@login_required
+def oauth_twitter_start():
+    import secrets, hashlib, base64
+    if not config.TWITTER_CLIENT_ID:
+        return redirect(url_for("accounts_page"))
+    verifier = secrets.token_urlsafe(32)
+    session["twitter_verifier"] = verifier
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode()).digest()
+    ).rstrip(b"=").decode()
+    params = {
+        "response_type": "code",
+        "client_id": config.TWITTER_CLIENT_ID,
+        "redirect_uri": config.TWITTER_REDIRECT_URI,
+        "scope": "tweet.read tweet.write users.read offline.access media.write",
+        "state": secrets.token_hex(16),
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+    }
+    from urllib.parse import urlencode
+    return redirect("https://twitter.com/i/oauth2/authorize?" + urlencode(params))
+
+
+@app.route("/oauth/twitter/callback")
+@login_required
+def oauth_twitter_callback():
+    import base64
+    code = request.args.get("code")
+    verifier = session.pop("twitter_verifier", None)
+    if not code or not verifier:
+        return redirect(url_for("accounts_page"))
+    credentials = base64.b64encode(
+        f"{config.TWITTER_CLIENT_ID}:{config.TWITTER_CLIENT_SECRET}".encode()
+    ).decode()
+    resp = requests.post(
+        "https://api.twitter.com/2/oauth2/token",
+        headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/x-www-form-urlencoded"},
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": config.TWITTER_REDIRECT_URI,
+            "code_verifier": verifier,
+        },
+    )
+    if resp.status_code != 200:
+        return redirect(url_for("accounts_page"))
+    tokens = resp.json()
+    access_token = tokens.get("access_token")
+    # Fetch user profile
+    me = requests.get(
+        "https://api.twitter.com/2/users/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+        params={"user.fields": "name,username,public_metrics"},
+    ).json().get("data", {})
+    db.upsert_account(
+        user_id=current_user.id, platform="twitter",
+        platform_user_id=me.get("id", ""),
+        username=me.get("username", ""),
+        display_name=me.get("name", ""),
+        access_token=access_token,
+        refresh_token=tokens.get("refresh_token", ""),
+        followers=me.get("public_metrics", {}).get("followers_count", 0),
+    )
+    return redirect(url_for("accounts_page"))
+
+
+# ── Threads OAuth ─────────────────────────────────────────────────────────────
+
+@app.route("/oauth/threads/start")
+@login_required
+def oauth_threads_start():
+    import secrets
+    if not config.THREADS_APP_ID:
+        return redirect(url_for("accounts_page"))
+    state = secrets.token_hex(16)
+    session["threads_state"] = state
+    from urllib.parse import urlencode
+    params = {
+        "client_id": config.THREADS_APP_ID,
+        "redirect_uri": config.THREADS_REDIRECT_URI,
+        "scope": "threads_basic,threads_content_publish,threads_manage_insights",
+        "response_type": "code",
+        "state": state,
+    }
+    return redirect("https://threads.net/oauth/authorize?" + urlencode(params))
+
+
+@app.route("/oauth/threads/callback")
+@login_required
+def oauth_threads_callback():
+    code = request.args.get("code")
+    if not code:
+        return redirect(url_for("accounts_page"))
+    # Exchange code for short-lived token
+    resp = requests.post("https://graph.threads.net/oauth/access_token", data={
+        "client_id": config.THREADS_APP_ID,
+        "client_secret": config.THREADS_APP_SECRET,
+        "grant_type": "authorization_code",
+        "redirect_uri": config.THREADS_REDIRECT_URI,
+        "code": code,
+    })
+    if resp.status_code != 200:
+        return redirect(url_for("accounts_page"))
+    short = resp.json()
+    # Exchange for long-lived token (60 days)
+    long_resp = requests.get("https://graph.threads.net/access_token", params={
+        "grant_type": "th_exchange_token",
+        "client_secret": config.THREADS_APP_SECRET,
+        "access_token": short.get("access_token"),
+    })
+    access_token = long_resp.json().get("access_token", short.get("access_token"))
+    user_id_threads = short.get("user_id", "")
+    # Fetch profile
+    me = requests.get(
+        f"https://graph.threads.net/v1.0/{user_id_threads}",
+        params={"fields": "id,username,name,threads_profile_picture_url,threads_biography",
+                "access_token": access_token},
+    ).json()
+    db.upsert_account(
+        user_id=current_user.id, platform="threads",
+        platform_user_id=str(me.get("id", user_id_threads)),
+        username=me.get("username", ""),
+        display_name=me.get("name", ""),
+        access_token=access_token,
+    )
+    return redirect(url_for("accounts_page"))
+
+
+# ── Twitch OAuth ──────────────────────────────────────────────────────────────
+
+@app.route("/oauth/twitch/start")
+@login_required
+def oauth_twitch_start():
+    import secrets
+    if not config.TWITCH_CLIENT_ID:
+        return redirect(url_for("accounts_page"))
+    state = secrets.token_hex(16)
+    session["twitch_state"] = state
+    from urllib.parse import urlencode
+    params = {
+        "client_id": config.TWITCH_CLIENT_ID,
+        "redirect_uri": config.TWITCH_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "channel:manage:broadcast clips:edit user:read:email channel:manage:videos",
+        "state": state,
+    }
+    return redirect("https://id.twitch.tv/oauth2/authorize?" + urlencode(params))
+
+
+@app.route("/oauth/twitch/callback")
+@login_required
+def oauth_twitch_callback():
+    code = request.args.get("code")
+    if not code:
+        return redirect(url_for("accounts_page"))
+    resp = requests.post("https://id.twitch.tv/oauth2/token", data={
+        "client_id": config.TWITCH_CLIENT_ID,
+        "client_secret": config.TWITCH_CLIENT_SECRET,
+        "code": code,
+        "grant_type": "authorization_code",
+        "redirect_uri": config.TWITCH_REDIRECT_URI,
+    })
+    if resp.status_code != 200:
+        return redirect(url_for("accounts_page"))
+    tokens = resp.json()
+    access_token = tokens.get("access_token")
+    # Fetch user info
+    me_resp = requests.get(
+        "https://api.twitch.tv/helix/users",
+        headers={"Authorization": f"Bearer {access_token}", "Client-Id": config.TWITCH_CLIENT_ID},
+    )
+    me = me_resp.json().get("data", [{}])[0]
+    db.upsert_account(
+        user_id=current_user.id, platform="twitch",
+        platform_user_id=me.get("id", ""),
+        username=me.get("login", ""),
+        display_name=me.get("display_name", ""),
+        access_token=access_token,
+        refresh_token=tokens.get("refresh_token", ""),
+        avatar_url=me.get("profile_image_url", ""),
+    )
+    return redirect(url_for("accounts_page"))
+
+
+# ── Snapchat OAuth ────────────────────────────────────────────────────────────
+
+@app.route("/oauth/snapchat/start")
+@login_required
+def oauth_snapchat_start():
+    import secrets
+    if not config.SNAP_CLIENT_ID:
+        return redirect(url_for("accounts_page"))
+    state = secrets.token_hex(16)
+    session["snap_state"] = state
+    from urllib.parse import urlencode
+    params = {
+        "client_id": config.SNAP_CLIENT_ID,
+        "redirect_uri": config.SNAP_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "snapchat-marketing-api",
+        "state": state,
+    }
+    return redirect("https://accounts.snapchat.com/accounts/oauth2/auth?" + urlencode(params))
+
+
+@app.route("/oauth/snapchat/callback")
+@login_required
+def oauth_snapchat_callback():
+    code = request.args.get("code")
+    if not code:
+        return redirect(url_for("accounts_page"))
+    resp = requests.post(
+        "https://accounts.snapchat.com/accounts/oauth2/token",
+        auth=(config.SNAP_CLIENT_ID, config.SNAP_CLIENT_SECRET),
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": config.SNAP_REDIRECT_URI,
+        },
+    )
+    if resp.status_code != 200:
+        return redirect(url_for("accounts_page"))
+    tokens = resp.json()
+    access_token = tokens.get("access_token")
+    # Fetch user info from Snapchat Marketing API
+    me_resp = requests.get(
+        "https://adsapi.snapchat.com/v1/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    me = me_resp.json().get("me", {})
+    display_name = me.get("display_name") or me.get("email", "Snapchat User")
+    db.upsert_account(
+        user_id=current_user.id, platform="snapchat",
+        platform_user_id=me.get("id", ""),
+        username=display_name.lower().replace(" ", ""),
+        display_name=display_name,
+        access_token=access_token,
+        refresh_token=tokens.get("refresh_token", ""),
+    )
+    return redirect(url_for("accounts_page"))
 
 
 # ── Contacts ─────────────────────────────────────────────────────────────────

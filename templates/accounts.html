@@ -116,11 +116,59 @@
   <div class="platform-tile {% if 'twitter' in connected %}connected{% endif %}">
     <div class="pt-icon">𝕏</div>
     <div class="pt-name">X (Twitter)</div>
-    <div class="pt-desc">Post tweets and videos to your followers</div>
+    <div class="pt-desc">Post tweets and video clips to your X followers</div>
     {% if 'twitter' in connected %}
       <span class="pt-status ok">✓ Connected</span>
+    {% elif twitter_configured %}
+      <a href="/oauth/twitter/start" class="btn btn-primary btn-sm">Connect</a>
     {% else %}
-      <span class="pt-status off">Coming Soon</span>
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('twitter')">Setup Guide</button>
+    {% endif %}
+  </div>
+
+  <!-- Threads -->
+  <div class="platform-tile {% if 'threads' in connected %}connected{% endif %}">
+    <div class="pt-icon">🧵</div>
+    <div class="pt-name">Threads</div>
+    <div class="pt-desc">Publish posts and short videos to Meta Threads</div>
+    {% if 'threads' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+    {% elif threads_configured %}
+      <a href="/oauth/threads/start" class="btn btn-primary btn-sm">Connect</a>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('threads')">Setup Guide</button>
+    {% endif %}
+  </div>
+
+  <!-- Snapchat -->
+  <div class="platform-tile {% if 'snapchat' in connected %}connected{% endif %}">
+    <div class="pt-icon">👻</div>
+    <div class="pt-name">Snapchat</div>
+    <div class="pt-desc">Publish Spotlight and Stories to Snapchat</div>
+    {% if 'snapchat' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+    {% elif snapchat_configured %}
+      <a href="/oauth/snapchat/start" class="btn btn-primary btn-sm">Connect</a>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('snapchat')">Setup Guide</button>
+    {% endif %}
+  </div>
+
+  <!-- Twitch -->
+  <div class="platform-tile {% if 'twitch' in connected %}connected{% endif %}">
+    <div class="pt-icon">🟣</div>
+    <div class="pt-name">Twitch</div>
+    <div class="pt-desc">Upload VODs and clips to your Twitch channel</div>
+    {% if 'twitch' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+    {% elif twitch_configured %}
+      <a href="/oauth/twitch/start" class="btn btn-primary btn-sm">Connect</a>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('twitch')">Setup Guide</button>
     {% endif %}
   </div>
 
@@ -134,14 +182,6 @@
     {% else %}
       <span class="pt-status off">Coming Soon</span>
     {% endif %}
-  </div>
-
-  <!-- Threads -->
-  <div class="platform-tile">
-    <div class="pt-icon">🧵</div>
-    <div class="pt-name">Threads</div>
-    <div class="pt-desc">Share to Meta's Threads platform</div>
-    <span class="pt-status off">Coming Soon</span>
   </div>
 
 </div>
@@ -159,7 +199,7 @@
       {% if acc.avatar_url %}
         <img src="{{ acc.avatar_url }}" alt="{{ acc.username }}">
       {% else %}
-        {{ {'youtube':'▶️','tiktok':'🎵','instagram':'📸','facebook':'👍','linkedin':'💼','twitter':'𝕏','pinterest':'📌'}.get(acc.platform,'🔗') }}
+        {{ {'youtube':'▶️','tiktok':'🎵','instagram':'📸','facebook':'👍','linkedin':'💼','twitter':'𝕏','threads':'🧵','snapchat':'👻','twitch':'🟣','pinterest':'📌'}.get(acc.platform,'🔗') }}
       {% endif %}
     </div>
     <div class="account-name">{{ acc.display_name or acc.username }}</div>
@@ -291,6 +331,47 @@ const SETUP_GUIDES = {
   <li>Request products: <strong style="color:var(--text)">Sign In with LinkedIn</strong> + <strong style="color:var(--text)">Share on LinkedIn</strong></li>
   <li>Set redirect URI: <code style="color:var(--accent)">${location.origin}/oauth/linkedin/callback</code></li>
   <li>Copy Client ID & Secret → Add to Render: <code style="color:var(--accent)">LINKEDIN_CLIENT_ID</code> and <code style="color:var(--accent)">LINKEDIN_CLIENT_SECRET</code></li>
+</ol>`
+  },
+  twitter: {
+    title: '𝕏 X (Twitter) Setup',
+    body: `<p class="text-sm text-dim mb-16">Create an X app with OAuth 2.0 to let clients connect their X accounts.</p>
+<ol style="padding-left:20px;line-height:2;font-size:13px;color:var(--muted);">
+  <li>Go to <strong style="color:var(--text)">developer.twitter.com/en/portal</strong> → Create Project + App</li>
+  <li>Under <strong style="color:var(--text)">User authentication settings</strong> → enable OAuth 2.0</li>
+  <li>App type: <strong style="color:var(--text)">Web App</strong></li>
+  <li>Set callback URI: <code style="color:var(--accent)">${location.origin}/oauth/twitter/callback</code></li>
+  <li>Copy Client ID & Secret → Add to Render: <code style="color:var(--accent)">TWITTER_CLIENT_ID</code> and <code style="color:var(--accent)">TWITTER_CLIENT_SECRET</code></li>
+</ol>`
+  },
+  threads: {
+    title: '🧵 Threads Setup',
+    body: `<p class="text-sm text-dim mb-16">Add Threads publishing to your Meta app.</p>
+<ol style="padding-left:20px;line-height:2;font-size:13px;color:var(--muted);">
+  <li>Go to <strong style="color:var(--text)">developers.facebook.com</strong> → Your App</li>
+  <li>Click <strong style="color:var(--text)">Add Product</strong> → select <strong style="color:var(--text)">Threads API</strong></li>
+  <li>Set redirect URI: <code style="color:var(--accent)">${location.origin}/oauth/threads/callback</code></li>
+  <li>Copy App ID & Secret → Add to Render: <code style="color:var(--accent)">THREADS_APP_ID</code> and <code style="color:var(--accent)">THREADS_APP_SECRET</code></li>
+</ol>`
+  },
+  snapchat: {
+    title: '👻 Snapchat Setup',
+    body: `<p class="text-sm text-dim mb-16">Create a Snap Kit app to publish Spotlight and Stories.</p>
+<ol style="padding-left:20px;line-height:2;font-size:13px;color:var(--muted);">
+  <li>Go to <strong style="color:var(--text)">kit.snapchat.com</strong> → Create App</li>
+  <li>Enable <strong style="color:var(--text)">Login Kit</strong> + <strong style="color:var(--text)">Creative Kit</strong></li>
+  <li>Set redirect URI: <code style="color:var(--accent)">${location.origin}/oauth/snapchat/callback</code></li>
+  <li>Copy Client ID & Secret → Add to Render: <code style="color:var(--accent)">SNAP_CLIENT_ID</code> and <code style="color:var(--accent)">SNAP_CLIENT_SECRET</code></li>
+</ol>`
+  },
+  twitch: {
+    title: '🟣 Twitch Setup',
+    body: `<p class="text-sm text-dim mb-16">Register a Twitch app to upload VODs and manage clips.</p>
+<ol style="padding-left:20px;line-height:2;font-size:13px;color:var(--muted);">
+  <li>Go to <strong style="color:var(--text)">dev.twitch.tv/console</strong> → Register Your Application</li>
+  <li>Set OAuth Redirect URL: <code style="color:var(--accent)">${location.origin}/oauth/twitch/callback</code></li>
+  <li>Category: <strong style="color:var(--text)">Content Management</strong></li>
+  <li>Copy Client ID & Secret → Add to Render: <code style="color:var(--accent)">TWITCH_CLIENT_ID</code> and <code style="color:var(--accent)">TWITCH_CLIENT_SECRET</code></li>
 </ol>`
   },
 };

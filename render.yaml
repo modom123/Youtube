@@ -73,6 +73,38 @@ services:
       - key: LINKEDIN_CLIENT_SECRET
         sync: false
 
+      # ── X (Twitter) OAuth 2.0 ────────────────────────────────
+      - key: TWITTER_CLIENT_ID
+        sync: false
+      - key: TWITTER_CLIENT_SECRET
+        sync: false
+      - key: TWITTER_REDIRECT_URI
+        value: https://socialoptimize.online/oauth/twitter/callback
+
+      # ── Threads ───────────────────────────────────────────────
+      - key: THREADS_APP_ID
+        sync: false
+      - key: THREADS_APP_SECRET
+        sync: false
+      - key: THREADS_REDIRECT_URI
+        value: https://socialoptimize.online/oauth/threads/callback
+
+      # ── Twitch ────────────────────────────────────────────────
+      - key: TWITCH_CLIENT_ID
+        sync: false
+      - key: TWITCH_CLIENT_SECRET
+        sync: false
+      - key: TWITCH_REDIRECT_URI
+        value: https://socialoptimize.online/oauth/twitch/callback
+
+      # ── Snapchat ──────────────────────────────────────────────
+      - key: SNAP_CLIENT_ID
+        sync: false
+      - key: SNAP_CLIENT_SECRET
+        sync: false
+      - key: SNAP_REDIRECT_URI
+        value: https://socialoptimize.online/oauth/snapchat/callback
+
       # ── Google (Veo / TTS / Translate) ───────────────────────
       - key: GOOGLE_API_KEY
         sync: false

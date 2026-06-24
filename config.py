@@ -121,11 +121,25 @@ FACEBOOK_APP_SECRET  = os.getenv("FACEBOOK_APP_SECRET", "")
 FACEBOOK_PAGE_ID     = os.getenv("FACEBOOK_PAGE_ID", "")
 FACEBOOK_ACCESS_TOKEN = os.getenv("FACEBOOK_ACCESS_TOKEN", "")
 
-# Twitter/X
-TWITTER_API_KEY = os.getenv("TWITTER_API_KEY", "")
-TWITTER_API_SECRET = os.getenv("TWITTER_API_SECRET", "")
-TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN", "")
-TWITTER_ACCESS_TOKEN_SECRET = os.getenv("TWITTER_ACCESS_TOKEN_SECRET", "")
+# Twitter/X  (OAuth 2.0 — create app at developer.twitter.com)
+TWITTER_CLIENT_ID     = os.getenv("TWITTER_CLIENT_ID", "")
+TWITTER_CLIENT_SECRET = os.getenv("TWITTER_CLIENT_SECRET", "")
+TWITTER_REDIRECT_URI  = os.getenv("TWITTER_REDIRECT_URI", "https://socialoptimize.online/oauth/twitter/callback")
+
+# Threads  (add Threads product to your Facebook App at developers.facebook.com)
+THREADS_APP_ID     = os.getenv("THREADS_APP_ID", "")
+THREADS_APP_SECRET = os.getenv("THREADS_APP_SECRET", "")
+THREADS_REDIRECT_URI = os.getenv("THREADS_REDIRECT_URI", "https://socialoptimize.online/oauth/threads/callback")
+
+# Twitch  (create app at dev.twitch.tv/console)
+TWITCH_CLIENT_ID     = os.getenv("TWITCH_CLIENT_ID", "")
+TWITCH_CLIENT_SECRET = os.getenv("TWITCH_CLIENT_SECRET", "")
+TWITCH_REDIRECT_URI  = os.getenv("TWITCH_REDIRECT_URI", "https://socialoptimize.online/oauth/twitch/callback")
+
+# Snapchat  (create app at kit.snapchat.com)
+SNAP_CLIENT_ID     = os.getenv("SNAP_CLIENT_ID", "")
+SNAP_CLIENT_SECRET = os.getenv("SNAP_CLIENT_SECRET", "")
+SNAP_REDIRECT_URI  = os.getenv("SNAP_REDIRECT_URI", "https://socialoptimize.online/oauth/snapchat/callback")
 
 # LinkedIn
 LINKEDIN_CLIENT_ID     = os.getenv("LINKEDIN_CLIENT_ID", "")
