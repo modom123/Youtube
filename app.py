@@ -156,6 +156,213 @@ def pricing():
     return render_template("pricing.html", tiers=config.TIERS)
 
 
+# ── Quick Post ────────────────────────────────────────────────────────────────
+
+QUICKPOST_UPLOADS = Path(config.DATA_DIR) / "quickpost_uploads"
+QUICKPOST_UPLOADS.mkdir(parents=True, exist_ok=True)
+QUICKPOST_ALLOWED = {"jpg", "jpeg", "png", "webp", "gif", "mp4", "mov", "avi", "webm"}
+
+_quickpost_jobs: dict = {}
+_quickpost_lock = threading.Lock()
+
+
+def _allowed_quickpost(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in QUICKPOST_ALLOWED
+
+
+@app.route("/quickpost")
+@login_required
+def quickpost_page():
+    accounts = db.get_accounts(user_id=current_user.id)
+    connected = {a["platform"] for a in accounts if a["is_active"]}
+    return render_template("quickpost.html", connected_platforms=connected)
+
+
+@app.route("/api/quickpost/generate", methods=["POST"])
+@login_required
+def api_quickpost_generate():
+    file = request.files.get("media")
+    tone        = request.form.get("tone") or "engaging"
+    extra_ctx   = (request.form.get("context") or "").strip()
+    platforms   = request.form.getlist("platforms") or ["instagram", "tiktok", "facebook", "twitter"]
+
+    if not file or not _allowed_quickpost(file.filename):
+        return jsonify({"error": "Please upload a photo or video (jpg, png, mp4, mov)"}), 400
+
+    job_id = str(uuid.uuid4())
+    ext = secure_filename(file.filename).rsplit(".", 1)[-1].lower()
+    media_path = QUICKPOST_UPLOADS / f"{job_id}.{ext}"
+    file.save(str(media_path))
+
+    params = {"tone": tone, "extra_ctx": extra_ctx, "platforms": platforms,
+              "media_path": str(media_path), "ext": ext}
+
+    t = threading.Thread(target=_run_quickpost_thread,
+                         args=(job_id, params, current_user.id), daemon=True)
+    t.start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/api/quickpost/<job_id>/status")
+@login_required
+def quickpost_status(job_id):
+    with _quickpost_lock:
+        result = _quickpost_jobs.get(job_id)
+    if not result:
+        return jsonify({"status": "pending"})
+    return jsonify(result)
+
+
+@app.route("/api/quickpost/<job_id>/publish", methods=["POST"])
+@login_required
+def quickpost_publish(job_id):
+    data = request.json or {}
+    platform  = data.get("platform", "")
+    caption   = data.get("caption", "")
+    schedule  = data.get("schedule_at")  # ISO string or None = post now
+
+    with _quickpost_lock:
+        result = _quickpost_jobs.get(job_id)
+    if not result or result.get("status") != "done":
+        return jsonify({"error": "Post not ready"}), 400
+
+    media_path = result.get("media_path")
+    if schedule:
+        post_id = db.schedule_post(
+            user_id=current_user.id,
+            platform=platform,
+            caption=caption,
+            media_path=media_path,
+            scheduled_at=schedule,
+        )
+        return jsonify({"ok": True, "scheduled": True, "post_id": post_id})
+
+    return jsonify({"ok": True, "queued": True,
+                    "message": f"Post queued for {platform}. Connect your account to publish."})
+
+
+def _run_quickpost_thread(job_id: str, params: dict, user_id: int):
+    import anthropic as _ant
+    import base64
+
+    def done(data):
+        with _quickpost_lock:
+            _quickpost_jobs[job_id] = data
+
+    try:
+        done({"status": "running", "step": "Analyzing your media..."})
+
+        media_path = Path(params["media_path"])
+        ext        = params["ext"]
+        tone       = params.get("tone", "engaging")
+        extra_ctx  = params.get("extra_ctx", "")
+        platforms  = params.get("platforms", ["instagram", "tiktok", "facebook", "twitter"])
+        is_video   = ext in {"mp4", "mov", "avi", "webm"}
+
+        client = _ant.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+
+        # ── Analyze image with Claude Vision ─────────────────────────────────
+        if not is_video:
+            img_bytes = media_path.read_bytes()
+            b64  = base64.standard_b64encode(img_bytes).decode()
+            mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
+                    "png": "image/png", "webp": "image/webp",
+                    "gif": "image/gif"}.get(ext, "image/jpeg")
+            analysis = client.messages.create(
+                model="claude-opus-4-8",
+                max_tokens=300,
+                messages=[{"role": "user", "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
+                    {"type": "text", "text": "Describe this image concisely: subject, mood, colors, setting, and what makes it interesting or shareable on social media."}
+                ]}]
+            )
+            media_desc = analysis.content[0].text
+        else:
+            media_desc = f"A {ext} video clip" + (f" — {extra_ctx}" if extra_ctx else "")
+
+        done({"status": "running", "step": "Writing captions for each platform..."})
+
+        # ── Generate platform-specific captions ───────────────────────────────
+        platform_rules = {
+            "instagram": "Instagram: 150-220 chars, storytelling tone, 20-30 hashtags at end, emojis encouraged",
+            "tiktok":    "TikTok: 100-150 chars, punchy hook first, 3-5 trending hashtags, very energetic",
+            "facebook":  "Facebook: 200-400 chars, conversational, question at end drives comments, 3-5 hashtags",
+            "twitter":   "X/Twitter: max 240 chars, witty or bold, 1-3 hashtags, no fluff",
+            "linkedin":  "LinkedIn: 300-500 chars, professional insight angle, 3-5 industry hashtags",
+            "threads":   "Threads: casual and conversational, 200 chars max, 2-3 hashtags",
+            "youtube":   "YouTube community post: engaging question, 200-300 chars",
+            "snapchat":  "Snapchat: very short, fun, 50-80 chars, 1-2 emojis",
+        }
+
+        rules_block = "\n".join(
+            f"- {platform_rules[p]}" for p in platforms if p in platform_rules
+        )
+
+        prompt = f"""You are a top social media strategist.
+
+Media: {media_desc}
+{f'Additional context: {extra_ctx}' if extra_ctx else ''}
+Tone: {tone}
+
+Write an optimized post caption for EACH of these platforms:
+{rules_block}
+
+Also generate:
+- SUGGESTED_TAGS: 30 general hashtags that fit this content (comma-separated, no #)
+- ALT_TEXT: a brief accessibility description of the image
+- BEST_TIME: best day and time to post for maximum engagement
+
+Format your response as JSON exactly like this:
+{{
+  "captions": {{
+    "instagram": "...",
+    "tiktok": "...",
+    "facebook": "...",
+    "twitter": "...",
+    "linkedin": "...",
+    "threads": "...",
+    "youtube": "...",
+    "snapchat": "..."
+  }},
+  "suggested_tags": ["tag1", "tag2", ...],
+  "alt_text": "...",
+  "best_time": "...",
+  "media_description": "..."
+}}
+
+Only include platforms in captions that were requested: {platforms}"""
+
+        resp = client.messages.create(
+            model="claude-opus-4-8",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        raw = resp.content[0].text.strip()
+        # Extract JSON block
+        if "```json" in raw:
+            raw = raw.split("```json")[1].split("```")[0].strip()
+        elif "```" in raw:
+            raw = raw.split("```")[1].split("```")[0].strip()
+
+        import json as _json
+        post_data = _json.loads(raw)
+
+        done({
+            "status": "done",
+            "captions": post_data.get("captions", {}),
+            "suggested_tags": post_data.get("suggested_tags", []),
+            "alt_text": post_data.get("alt_text", ""),
+            "best_time": post_data.get("best_time", ""),
+            "media_description": post_data.get("media_description", media_desc),
+            "media_path": str(media_path),
+            "is_video": is_video,
+        })
+
+    except Exception as e:
+        done({"status": "error", "error": str(e)})
+
+
 @app.route("/privacy")
 def privacy():
     return render_template("privacy.html")

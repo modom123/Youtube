@@ -216,79 +216,92 @@
 
   <!-- Pricing Grid -->
   <div class="pricing-grid">
+
     <!-- FREE -->
     <div class="pricing-card">
-      <div class="pricing-tier">Tier 01</div>
+      <div class="pricing-tier">Free Forever</div>
       <h3 class="pricing-name">Free</h3>
-      <div class="pricing-price">$<span style="font-size: 36px;">0</span><span>/mo</span></div>
-      <p class="pricing-desc">No credit card needed. 2 AI videos per month, forever free.</p>
+      <div class="pricing-price">$<span style="font-size:36px">0</span><span>/mo</span></div>
+      <p class="pricing-desc">No credit card. No commitment. Start creating today.</p>
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free — No Card</button>
       <ul class="pricing-features">
-        <li>2 videos/month</li>
-        <li>4 platforms</li>
-        <li>Stock media library</li>
-        <li>Basic AI scripts</li>
-        <li>Community support</li>
+        <li>🎬 2 AI videos/month</li>
+        <li>📲 Publish to 4 platforms</li>
+        <li>📸 Quick Post from photo/video</li>
+        <li>🖼 Pexels stock media</li>
+        <li>✍️ Basic AI scripts</li>
       </ul>
     </div>
 
     <!-- STARTER -->
     <div class="pricing-card">
-      <div class="pricing-popular" style="background:#30d158; color:#000;">14-Day Free Trial</div>
-      <div class="pricing-tier">Tier 02</div>
+      <div class="pricing-popular" style="background:#30d158;color:#000;">14-Day Free Trial</div>
+      <div class="pricing-tier">Starter — $29/mo</div>
       <h3 class="pricing-name">Starter</h3>
       <div class="pricing-price"><span id="starter-price">$29</span><span>/mo</span></div>
-      <p class="pricing-desc">Try free for 14 days. Card required — won't be charged until trial ends. Cancel anytime.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=starter'">Start Free Trial</button>
+      <p class="pricing-desc">Card required — you won't be charged for 14 days. Cancel anytime.</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=starter'">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
         <li>✅ 14-day free trial</li>
-        <li>15 videos/month</li>
-        <li>4 platforms</li>
-        <li>150 AI video credits</li>
-        <li>5-agent pipeline</li>
-        <li>Email support</li>
+        <li>🎬 15 AI videos/month</li>
+        <li>📲 Publish to 4 platforms</li>
+        <li>📸 Quick Post from photo/video</li>
+        <li>🤖 150 Higgsfield AI video credits</li>
+        <li>🧠 5-agent AI content pipeline</li>
+        <li>📅 Content calendar & scheduling</li>
+        <li>#️⃣ Hashtag research tool</li>
+        <li>📧 Email support</li>
       </ul>
     </div>
 
     <!-- CREATOR (FEATURED) -->
     <div class="pricing-card featured">
-      <div class="pricing-popular">Most Popular</div>
-      <div class="pricing-tier">Tier 03</div>
+      <div class="pricing-popular">⭐ Most Popular</div>
+      <div class="pricing-tier">Creator — $79/mo</div>
       <h3 class="pricing-name">Creator</h3>
       <div class="pricing-price"><span id="pro-price">$79</span><span>/mo</span></div>
-      <p class="pricing-desc">Try free for 14 days. Card required — won't be charged until trial ends. Cancel anytime.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=creator'">Start Free Trial</button>
+      <p class="pricing-desc">Card required — you won't be charged for 14 days. Cancel anytime.</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=creator'">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
         <li>✅ 14-day free trial</li>
-        <li>50 videos/month</li>
-        <li>500 AI video credits</li>
-        <li>All 4 platforms</li>
-        <li>Studio 56</li>
-        <li>Commercial Studio</li>
-        <li>Hollywood AI agent</li>
-        <li>Priority support</li>
+        <li>🎬 50 AI videos/month</li>
+        <li>📲 Publish to all 4 platforms</li>
+        <li>📸 Quick Post from photo/video</li>
+        <li>🤖 500 Higgsfield AI video credits</li>
+        <li>🎙 Studio 56 — full production suite</li>
+        <li>📺 Commercial Studio — photo → ad</li>
+        <li>🎬 Hollywood AI agent</li>
+        <li>📦 Batch create 30 videos at once</li>
+        <li>🔍 Competitor & trend analysis</li>
+        <li>📊 Advanced analytics</li>
+        <li>⚡ Priority support</li>
       </ul>
     </div>
 
     <!-- AGENCY -->
     <div class="pricing-card">
       <div class="pricing-popular" style="background:#a855f7;">14-Day Free Trial</div>
-      <div class="pricing-tier">Tier 04</div>
+      <div class="pricing-tier">Agency — $199/mo</div>
       <h3 class="pricing-name">Agency</h3>
       <div class="pricing-price"><span id="agency-price">$199</span><span>/mo</span></div>
-      <p class="pricing-desc">Try free for 14 days. Card required — won't be charged until trial ends. Cancel anytime.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=agency'">Start Free Trial</button>
+      <p class="pricing-desc">Card required — you won't be charged for 14 days. Cancel anytime.</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=agency'">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
         <li>✅ 14-day free trial</li>
-        <li>Unlimited videos/month</li>
-        <li>2000 AI video credits</li>
-        <li>All 4 platforms</li>
-        <li>Team management</li>
-        <li>White-label exports</li>
-        <li>API access</li>
-        <li>24/7 priority support</li>
+        <li>🎬 125 AI videos/month</li>
+        <li>📲 Publish to all 4 platforms</li>
+        <li>📸 Quick Post from photo/video</li>
+        <li>🤖 2,000 Higgsfield AI video credits</li>
+        <li>🎙 Everything in Creator</li>
+        <li>👥 Team management (5 seats)</li>
+        <li>🏷 White-label exports</li>
+        <li>📣 SMS/WhatsApp outreach</li>
+        <li>🔌 API access</li>
+        <li>🧑‍💼 Dedicated account manager</li>
+        <li>🕐 24/7 priority support</li>
       </ul>
     </div>
+
   </div>
 </section>
 
