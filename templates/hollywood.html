@@ -1,768 +1,601 @@
 {% extends "base.html" %}
 {% set active_page = "hollywood" %}
 
-{% block title %}Hollywood — Studio 56 AI Agent{% endblock %}
+{% block title %}Hollywood — Cinematic AI Director{% endblock %}
 
 {% block topbar_title %}🎬 Hollywood{% endblock %}
-{% block topbar_sub %}Studio 56 AI Agent · Browser Automation · Content Strategy · Deployment Config{% endblock %}
+{% block topbar_sub %}Cinematic AI Director · Short Films · Shot Lists · Scene Direction{% endblock %}
 
 {% block topbar_actions %}
-<a href="/studio" class="btn btn-secondary">Studio 56</a>
+<a href="/studio" class="btn btn-ghost" style="font-size:12px;">🎙 Studio 56</a>
+<a href="/commercial" class="btn btn-ghost" style="font-size:12px;">📺 Commercials</a>
 {% endblock %}
 
 {% block content %}
 <style>
-  /* ── Hollywood Chat Layout ── */
+  /* ── Hollywood — deep cinema black / gold ── */
+  :root { --hw-gold: #f59e0b; --hw-gold-dim: #92400e; --hw-bg: #070709; --hw-card: #0c0c11; --hw-border: #f59e0b22; }
+
   .hw-outer {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 300px;
     gap: 16px;
-    height: calc(100vh - 120px);
-    min-height: 500px;
+    height: calc(100vh - 128px);
+    min-height: 520px;
+  }
+  @media (max-width: 1100px) { .hw-outer { grid-template-columns: 1fr; } }
+  @media (max-width: 1100px) { .hw-right-panel { display: none !important; } }
+
+  /* Film strip top border */
+  .hw-film-strip {
+    height: 18px;
+    background: repeating-linear-gradient(
+      90deg,
+      #000 0px, #000 10px,
+      #f59e0b 10px, #f59e0b 14px,
+      #000 14px, #000 24px
+    );
+    border-radius: 14px 14px 0 0;
+    opacity: .6;
+    flex-shrink: 0;
   }
 
-  .hw-wrap {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    background: #0a0a0f;
-    border: 1px solid #1e1e2e;
+  /* ── Chat panel ── */
+  .hw-chat-panel {
+    display: flex; flex-direction: column;
+    background: var(--hw-bg);
+    border: 1px solid var(--hw-border);
     border-radius: 14px;
     overflow: hidden;
-    min-width: 0;
   }
 
-  /* ── Browser Preview Panel ── */
-  .hw-browser-panel {
-    width: 320px;
-    flex-shrink: 0;
-    background: #0a0a0f;
-    border: 1px solid #1e1e2e;
-    border-radius: 14px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  @media (max-width: 1100px) {
-    .hw-browser-panel { display: none; }
-  }
-  .hw-browser-header {
-    padding: 12px 14px;
-    background: #0d0d1a;
-    border-bottom: 1px solid #f59e0b33;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: #f59e0b;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .hw-browser-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .hw-browser-screenshot {
-    width: 100%;
-    border-radius: 8px;
-    border: 1px solid #f59e0b44;
-    display: block;
-  }
-  .hw-browser-label {
-    font-size: 11px;
-    color: #6b7280;
-    text-align: center;
-  }
-  .hw-browser-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: #374151;
-    font-size: 13px;
-    text-align: center;
-    padding: 20px;
-    gap: 8px;
-  }
-
-  /* ── Status Bar ── */
-  .hw-status-bar {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 7px 16px;
-    background: #0d0d1a;
-    border-bottom: 1px solid #f59e0b22;
-    font-size: 11px;
-    color: #6b7280;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-  .hw-status-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .hw-status-dot-green { color: #10b981; }
-  .hw-status-dot-amber { color: #f59e0b; }
-  .hw-status-dot-gray  { color: #4b5563; }
-
-  /* ── Header ── */
   .hw-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
+    display: flex; align-items: center; gap: 14px;
     padding: 14px 20px;
-    background: linear-gradient(135deg, #0d0d1a 0%, #12121f 100%);
-    border-bottom: 1px solid #f59e0b33;
+    background: linear-gradient(135deg, #0c0c11 0%, #100c00 100%);
+    border-bottom: 1px solid var(--hw-border);
     flex-shrink: 0;
   }
-  .hw-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    flex-shrink: 0;
-    box-shadow: 0 0 16px #f59e0b44;
+  .hw-director-chair {
+    width: 48px; height: 48px; border-radius: 10px;
+    background: linear-gradient(135deg, #f59e0b, #b45309);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+    box-shadow: 0 0 20px #f59e0b44;
   }
   .hw-header-text h2 {
-    font-size: 17px;
-    font-weight: 800;
+    font-size: 18px; font-weight: 900;
+    color: #f59e0b; margin: 0 0 2px; letter-spacing: -.01em;
+  }
+  .hw-header-text p { font-size: 11px; color: #6b7280; margin: 0; }
+
+  /* Style selector in header */
+  .hw-style-bar {
+    display: flex; gap: 6px; margin-left: auto; flex-shrink: 0;
+  }
+  .hw-style-chip {
+    padding: 4px 10px; border-radius: 20px;
+    border: 1px solid var(--hw-border);
+    font-size: 10px; font-weight: 700;
+    cursor: pointer; color: #6b7280;
+    transition: .15s; white-space: nowrap;
+  }
+  .hw-style-chip:hover { border-color: #f59e0b88; color: #f59e0b; }
+  .hw-style-chip.active {
+    border-color: #f59e0b; background: rgba(245,158,11,.1);
     color: #f59e0b;
-    margin: 0;
-    line-height: 1.2;
-  }
-  .hw-header-text p {
-    font-size: 11px;
-    color: #6b7280;
-    margin: 2px 0 0;
-  }
-  .hw-online-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #10b981;
-    box-shadow: 0 0 6px #10b981;
-    margin-left: auto;
-    flex-shrink: 0;
   }
 
-  /* ── Messages area ── */
+  /* Status bar */
+  .hw-status-bar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 6px 16px;
+    background: #0a0a0f;
+    border-bottom: 1px solid #f59e0b11;
+    font-size: 10px; color: #4b5563; flex-shrink: 0; flex-wrap: wrap;
+  }
+  .hw-status-item { display: flex; align-items: center; gap: 5px; }
+  .dot-green  { color: #10b981; }
+  .dot-amber  { color: #f59e0b; }
+  .dot-gray   { color: #374151; }
+
+  /* Messages */
   .hw-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    flex: 1; overflow-y: auto;
+    padding: 20px; display: flex;
+    flex-direction: column; gap: 16px;
     scroll-behavior: smooth;
   }
-  .hw-messages::-webkit-scrollbar { width: 6px; }
-  .hw-messages::-webkit-scrollbar-track { background: transparent; }
-  .hw-messages::-webkit-scrollbar-thumb { background: #2a2a3e; border-radius: 3px; }
+  .hw-messages::-webkit-scrollbar { width: 5px; }
+  .hw-messages::-webkit-scrollbar-thumb { background: #1e1e2e; border-radius: 3px; }
 
-  /* ── Message bubbles ── */
-  .hw-msg {
-    display: flex;
-    gap: 10px;
-    max-width: 88%;
-    animation: hwFadeIn .25s ease;
-  }
-  @keyframes hwFadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .hw-msg.user {
-    align-self: flex-end;
-    flex-direction: row-reverse;
-  }
-  .hw-msg.assistant {
-    align-self: flex-start;
-  }
+  .hw-msg { display: flex; gap: 10px; max-width: 90%; animation: hwIn .2s ease; }
+  @keyframes hwIn { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
+  .hw-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .hw-msg.assistant { align-self: flex-start; }
 
-  .hw-bubble-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 15px;
-    flex-shrink: 0;
-    margin-top: 2px;
+  .hw-av {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0; margin-top: 2px;
   }
-  .hw-msg.assistant .hw-bubble-avatar {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    box-shadow: 0 0 8px #f59e0b44;
-  }
-  .hw-msg.user .hw-bubble-avatar {
-    background: #1e3a5f;
-  }
+  .hw-msg.assistant .hw-av { background: linear-gradient(135deg,#f59e0b,#b45309); box-shadow:0 0 8px #f59e0b44; }
+  .hw-msg.user .hw-av { background: #1e293b; }
 
-  /* ── Tool call pills ── */
-  .hw-tool-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 6px;
-  }
-  .hw-tool-pill {
-    padding: 2px 8px;
-    background: #1a1205;
-    border: 1px solid #f59e0b44;
-    border-radius: 20px;
-    font-size: 10px;
-    color: #f59e0b99;
-    font-weight: 600;
-  }
+  .hw-msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .hw-msg.user .hw-msg-body { align-items: flex-end; }
 
   .hw-bubble {
-    padding: 12px 16px;
-    border-radius: 12px;
-    font-size: 14px;
-    line-height: 1.6;
-    max-width: 100%;
+    padding: 11px 15px; border-radius: 12px;
+    font-size: 14px; line-height: 1.6; max-width: 100%;
   }
-  .hw-msg-content { flex: 1; min-width: 0; }
-  .hw-msg.user .hw-msg-content { display: flex; flex-direction: column; align-items: flex-end; }
-  .hw-msg.assistant .hw-msg-content { display: flex; flex-direction: column; }
-
   .hw-msg.user .hw-bubble {
-    background: #1e3a5f;
-    color: #e2e8f0;
-    border-radius: 12px 4px 12px 12px;
+    background: #1e293b; color: #e2e8f0;
+    border-radius: 12px 3px 12px 12px;
   }
   .hw-msg.assistant .hw-bubble {
-    background: #12121f;
-    border: 1px solid #f59e0b33;
-    color: #e2e8f0;
-    border-radius: 4px 12px 12px 12px;
+    background: #0c0c11; border: 1px solid var(--hw-border);
+    color: #e2e8f0; border-radius: 3px 12px 12px 12px;
   }
   .hw-bubble p { margin: 0 0 8px; }
-  .hw-bubble p:last-child { margin-bottom: 0; }
-  .hw-bubble ul, .hw-bubble ol { margin: 6px 0 6px 20px; padding: 0; }
-  .hw-bubble li { margin-bottom: 4px; }
+  .hw-bubble p:last-child { margin: 0; }
+  .hw-bubble ul, .hw-bubble ol { margin: 6px 0 6px 18px; }
+  .hw-bubble li { margin-bottom: 3px; }
+  .hw-bubble strong { color: #f59e0b; }
+  .hw-bubble h1,.hw-bubble h2,.hw-bubble h3 { color: #f59e0b; font-size: 14px; margin: 8px 0 4px; }
   .hw-bubble code {
-    background: #1e1e2e;
-    padding: 1px 6px;
-    border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    color: #f59e0b;
+    background: #1a1200; padding: 1px 5px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #f59e0b;
   }
   .hw-bubble pre {
-    background: #1e1e2e;
-    border: 1px solid #2a2a3e;
-    border-radius: 8px;
-    padding: 10px 12px;
-    overflow-x: auto;
-    margin: 8px 0;
+    background: #1a1200; border: 1px solid #f59e0b22;
+    border-radius: 6px; padding: 8px 12px; overflow-x: auto; margin: 6px 0;
   }
-  .hw-bubble pre code { background: none; padding: 0; color: #e2e8f0; }
-  .hw-bubble strong { color: #f59e0b; }
-  .hw-bubble h1, .hw-bubble h2, .hw-bubble h3 { color: #f59e0b; margin: 10px 0 6px; font-size: 14px; }
+  .hw-bubble pre code { background: none; color: #fde68a; }
 
-  /* ── Inline screenshot in bubble ── */
-  .hw-screenshot-img {
-    max-width: 100%;
-    border-radius: 8px;
-    border: 1px solid #f59e0b44;
-    margin-top: 8px;
-    display: block;
+  /* Tool pills */
+  .hw-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .hw-tool-pill {
+    padding: 2px 8px; border-radius: 20px;
+    background: #1a1200; border: 1px solid #f59e0b33;
+    font-size: 10px; color: #92400e; font-weight: 600;
   }
 
-  /* ── Typing indicator ── */
-  .hw-typing {
-    display: none;
-    align-self: flex-start;
-    align-items: center;
-    gap: 10px;
-  }
-  .hw-typing.visible { display: flex; }
-  .hw-typing-bubble {
-    background: #12121f;
-    border: 1px solid #f59e0b33;
-    border-radius: 4px 12px 12px 12px;
-    padding: 12px 16px;
-    display: flex;
-    gap: 5px;
-    align-items: center;
+  /* Typing */
+  .hw-typing { display: none; align-self: flex-start; align-items: center; gap: 10px; }
+  .hw-typing.on { display: flex; }
+  .hw-typing-bub {
+    background: #0c0c11; border: 1px solid var(--hw-border);
+    border-radius: 3px 12px 12px 12px;
+    padding: 11px 16px; display: flex; gap: 5px; align-items: center;
   }
   .hw-dot {
-    width: 7px;
-    height: 7px;
-    background: #f59e0b;
-    border-radius: 50%;
-    animation: hwBounce .9s infinite;
+    width: 7px; height: 7px; background: #f59e0b; border-radius: 50%;
+    animation: hwBounce .8s infinite;
   }
-  .hw-dot:nth-child(2) { animation-delay: .2s; }
-  .hw-dot:nth-child(3) { animation-delay: .4s; }
-  @keyframes hwBounce {
-    0%, 80%, 100% { transform: translateY(0); opacity: .5; }
-    40%           { transform: translateY(-5px); opacity: 1; }
-  }
-  .hw-thinking-text {
-    font-size: 12px;
-    color: #6b7280;
-    margin-left: 4px;
-  }
+  .hw-dot:nth-child(2){animation-delay:.18s;}
+  .hw-dot:nth-child(3){animation-delay:.36s;}
+  @keyframes hwBounce { 0%,80%,100%{transform:translateY(0);opacity:.4;} 40%{transform:translateY(-5px);opacity:1;} }
 
-  /* ── Quick action chips ── */
+  /* Quick action chips */
   .hw-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 8px 16px 0;
-    flex-shrink: 0;
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 8px 16px 0; flex-shrink: 0;
   }
   .hw-chip {
-    padding: 5px 11px;
-    background: #12121f;
-    border: 1px solid #f59e0b44;
-    border-radius: 20px;
-    font-size: 11px;
-    color: #f59e0b;
-    cursor: pointer;
-    transition: background .15s, border-color .15s;
-    user-select: none;
-    white-space: nowrap;
+    padding: 5px 11px; background: #0c0c11;
+    border: 1px solid var(--hw-border); border-radius: 20px;
+    font-size: 11px; color: #f59e0b; cursor: pointer;
+    transition: .15s; white-space: nowrap;
   }
-  .hw-chip:hover { background: #1e1e2e; border-color: #f59e0b; }
+  .hw-chip:hover { background: #1a1200; border-color: #f59e0b; }
 
-  /* ── Input bar ── */
+  /* Input */
   .hw-input-area {
-    padding: 10px 16px 14px;
-    border-top: 1px solid #1e1e2e;
-    background: #0a0a0f;
-    flex-shrink: 0;
+    padding: 10px 16px 14px; border-top: 1px solid #f59e0b11;
+    background: var(--hw-bg); flex-shrink: 0;
   }
-  .hw-input-row {
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
+  .hw-input-row { display: flex; gap: 10px; align-items: flex-end; }
+  .hw-input {
+    flex: 1; background: #0c0c11; border: 1px solid #1e1e2e;
+    border-radius: 10px; color: #e2e8f0; font-size: 14px;
+    font-family: inherit; padding: 10px 14px; resize: none;
+    outline: none; line-height: 1.5;
+    min-height: 42px; max-height: 140px;
+    transition: border-color .15s; overflow-y: auto;
   }
-  .hw-textarea {
-    flex: 1;
-    background: #12121f;
-    border: 1px solid #2a2a3e;
-    border-radius: 10px;
-    color: #e2e8f0;
-    font-size: 14px;
-    font-family: inherit;
-    padding: 10px 14px;
-    resize: none;
-    outline: none;
-    line-height: 1.5;
-    min-height: 42px;
-    max-height: 140px;
-    transition: border-color .15s;
-    overflow-y: auto;
-  }
-  .hw-textarea:focus { border-color: #f59e0b66; }
-  .hw-textarea::placeholder { color: #4b5563; }
-  .hw-send-btn {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    border: none;
-    border-radius: 10px;
-    color: #0a0a0f;
-    font-size: 13px;
-    font-weight: 800;
-    padding: 10px 18px;
-    cursor: pointer;
-    flex-shrink: 0;
+  .hw-input:focus { border-color: #f59e0b66; }
+  .hw-input::placeholder { color: #374151; }
+  .hw-send {
+    background: linear-gradient(135deg, #f59e0b, #b45309);
+    border: none; border-radius: 10px;
+    color: #0a0800; font-size: 13px; font-weight: 800;
+    padding: 10px 18px; cursor: pointer; flex-shrink: 0;
     transition: opacity .15s, transform .1s;
-    letter-spacing: .03em;
-    height: 42px;
-    white-space: nowrap;
+    height: 42px; white-space: nowrap;
   }
-  .hw-send-btn:hover { opacity: .9; transform: translateY(-1px); }
-  .hw-send-btn:active { transform: translateY(0); }
-  .hw-send-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .hw-send:hover { opacity: .9; transform: translateY(-1px); }
+  .hw-send:disabled { opacity: .35; cursor: not-allowed; transform: none; }
 
-  /* ── Welcome message ── */
+  /* Welcome */
   .hw-welcome {
-    text-align: center;
-    padding: 30px 20px;
-    color: #4b5563;
+    text-align: center; padding: 32px 20px; color: #374151;
   }
-  .hw-welcome .hw-star { font-size: 40px; margin-bottom: 10px; }
-  .hw-welcome h3 { color: #f59e0b; font-size: 16px; margin: 0 0 6px; }
-  .hw-welcome p { font-size: 13px; line-height: 1.6; max-width: 400px; margin: 0 auto; }
+  .hw-welcome .hw-clapboard { font-size: 48px; margin-bottom: 12px; }
+  .hw-welcome h3 { color: #f59e0b; font-size: 18px; font-weight: 800; margin: 0 0 6px; }
+  .hw-welcome p { font-size: 13px; line-height: 1.6; max-width: 380px; margin: 0 auto; }
+
+  /* ── Right panel: Storyboard ── */
+  .hw-right-panel {
+    display: flex; flex-direction: column; gap: 14px;
+  }
+
+  .hw-panel-card {
+    background: var(--hw-card); border: 1px solid var(--hw-border);
+    border-radius: 12px; overflow: hidden; flex-shrink: 0;
+  }
+  .hw-panel-header {
+    padding: 10px 14px; background: #100c00;
+    border-bottom: 1px solid var(--hw-border);
+    font-size: 11px; font-weight: 800; color: #f59e0b;
+    display: flex; align-items: center; gap: 6px;
+    text-transform: uppercase; letter-spacing: .08em;
+  }
+
+  /* Storyboard grid */
+  .hw-storyboard {
+    padding: 10px; display: grid;
+    grid-template-columns: 1fr 1fr; gap: 8px;
+    max-height: 320px; overflow-y: auto;
+  }
+  .hw-shot {
+    background: #1a1200; border: 1px solid #f59e0b22;
+    border-radius: 8px; padding: 8px;
+    font-size: 10px; cursor: pointer; transition: .15s;
+  }
+  .hw-shot:hover { border-color: #f59e0b66; }
+  .hw-shot-num { color: #f59e0b; font-weight: 800; font-size: 11px; margin-bottom: 3px; }
+  .hw-shot-type { color: #92400e; font-size: 9px; text-transform: uppercase; margin-bottom: 4px; }
+  .hw-shot-desc { color: #fde68a; line-height: 1.4; }
+  .hw-storyboard-empty {
+    grid-column: 1/-1; text-align: center; padding: 24px 10px;
+    color: #2a1800; font-size: 12px;
+  }
+  .hw-storyboard-empty .ico { font-size: 28px; margin-bottom: 6px; }
+
+  /* Visual style panel */
+  .hw-vis-styles {
+    padding: 10px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .hw-vis-style {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px;
+    border: 1px solid #f59e0b22; background: #1a1200;
+    cursor: pointer; transition: .15s;
+  }
+  .hw-vis-style:hover, .hw-vis-style.active { border-color: #f59e0b; background: rgba(245,158,11,.08); }
+  .hw-vis-style .vs-icon { font-size: 16px; flex-shrink: 0; }
+  .hw-vis-style .vs-name { font-size: 11px; font-weight: 700; color: #fde68a; }
+  .hw-vis-style .vs-desc { font-size: 10px; color: #78350f; }
+
+  /* Scene log */
+  .hw-scene-log {
+    padding: 10px; max-height: 160px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .hw-scene-entry {
+    font-size: 10px; color: #6b7280; display: flex; gap: 6px;
+  }
+  .hw-scene-entry .hw-se-time { color: #f59e0b66; flex-shrink: 0; font-family: 'JetBrains Mono',monospace; }
+  .hw-scene-log-empty { font-size: 11px; color: #2a1800; text-align: center; padding: 16px; }
 </style>
 
-<!-- marked.js for Markdown rendering -->
 <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
 
 <div class="hw-outer">
 
   <!-- ── Main Chat Panel ── -->
-  <div class="hw-wrap">
+  <div class="hw-chat-panel">
+    <div class="hw-film-strip"></div>
 
     <!-- Header -->
     <div class="hw-header">
-      <div class="hw-avatar">🎬</div>
+      <div class="hw-director-chair">🎬</div>
       <div class="hw-header-text">
         <h2>Hollywood</h2>
-        <p>Studio 56 AI Agent · Browser Automation · Powered by Claude</p>
+        <p>Cinematic AI Director · Short Films · Shot Lists · Scene Direction</p>
       </div>
-      <div class="hw-online-dot" title="Online"></div>
+      <div class="hw-style-bar" id="hwStyleBar">
+        <div class="hw-style-chip active" onclick="hwSetStyle(this,'cinematic')" data-style="cinematic">Cinematic</div>
+        <div class="hw-style-chip" onclick="hwSetStyle(this,'documentary')" data-style="documentary">Documentary</div>
+        <div class="hw-style-chip" onclick="hwSetStyle(this,'noir')" data-style="noir">Noir</div>
+        <div class="hw-style-chip" onclick="hwSetStyle(this,'thriller')" data-style="thriller">Thriller</div>
+      </div>
     </div>
 
     <!-- Status Bar -->
     <div class="hw-status-bar">
       <div class="hw-status-item">
-        <span class="hw-status-dot-green">●</span>
-        <span>Claude Connected</span>
+        <span class="dot-green">●</span><span>Director Online</span>
       </div>
       <div class="hw-status-item">
-        <span class="hw-status-dot-amber" id="hwBrowserStatus">●</span>
-        <span>Browser Ready</span>
+        <span class="dot-amber">●</span><span>Claude AI</span>
       </div>
-      <div class="hw-status-item">
-        <span class="hw-status-dot-green">●</span>
-        <span>Studio 56 Active</span>
+      <div class="hw-status-item" id="hwShotCount" style="display:none;">
+        <span class="dot-green">●</span><span id="hwShotCountText">0 shots</span>
       </div>
-      <div class="hw-status-item" id="hwToolsUsedBar" style="margin-left:auto;display:none;">
-        <span style="color:#f59e0b88;font-size:10px;" id="hwToolsUsedText"></span>
+      <div class="hw-status-item" style="margin-left:auto;">
+        <span style="color:#2a1800;" id="hwStyleLabel">Style: Cinematic</span>
       </div>
     </div>
 
     <!-- Messages -->
     <div class="hw-messages" id="hwMessages">
       <div class="hw-welcome" id="hwWelcome">
-        <div class="hw-star">⭐</div>
-        <h3>Action! I'm Hollywood.</h3>
-        <p>Your AI production agent for Studio 56. I can create content, manage jobs, browse the web, take screenshots, check your Render config, and keep the whole machine running. What are we making today?</p>
+        <div class="hw-clapboard">🎬</div>
+        <h3>Lights. Camera. Action.</h3>
+        <p>I'm Hollywood — your AI director. Tell me your story concept and I'll write shot lists, choose visual styles, direct scenes, and turn your idea into a cinematic short film. What are we filming?</p>
       </div>
     </div>
 
-    <!-- Quick action chips -->
+    <!-- Quick chips -->
     <div class="hw-chips">
-      <span class="hw-chip" onclick="hwChip('📊 Check Render config')">📊 Check Render config</span>
-      <span class="hw-chip" onclick="hwChip('🎬 Create a short video')">🎬 Create a short video</span>
-      <span class="hw-chip" onclick="hwChip('📋 Show recent jobs')">📋 Show recent jobs</span>
-      <span class="hw-chip" onclick="hwChip('🔑 Generate SECRET_KEY')">🔑 Generate SECRET_KEY</span>
-      <span class="hw-chip" onclick="hwChip('🌐 Open YouTube Studio')">🌐 Open YouTube Studio</span>
-      <span class="hw-chip" onclick="hwChip('📈 Show trending topics')">📈 Show trending topics</span>
-      <span class="hw-chip" onclick="hwChip('🔍 Analyze a competitor')">🔍 Analyze a competitor</span>
-      <span class="hw-chip" onclick="hwChip('📅 Content calendar')">📅 Content calendar</span>
-      <span class="hw-chip" onclick="hwChip('💊 System health check')">💊 System health check</span>
-      <span class="hw-chip" onclick="hwChip('📁 List output files')">📁 List output files</span>
-      <span class="hw-chip" onclick="hwChip('📐 List all blueprints')">📐 List blueprints</span>
-      <span class="hw-chip" onclick="hwChip('📐 Create a new blueprint for a video about AI trends')">📐 New blueprint</span>
-      <span class="hw-chip" onclick="hwChip('📐 Analyze my latest blueprint')">📐 Analyze blueprint</span>
-      <span class="hw-chip" onclick="hwChip('🚀 Set up Render — check what env vars are missing and help me get all the API keys')">🚀 Setup Render</span>
-      <span class="hw-chip" onclick="hwChip('🚀 Trigger a Render deployment now')">🚀 Deploy now</span>
-      <span class="hw-chip" onclick="hwChip('🚀 Check my Render deploy status')">🚀 Deploy status</span>
-      <span class="hw-chip" onclick="hwChip('🚀 Show me the render.yaml config')">🚀 Render config</span>
+      <span class="hw-chip" onclick="hwChip('Pitch me a cinematic 60-second short film concept')">🎭 Pitch a concept</span>
+      <span class="hw-chip" onclick="hwChip('Write a detailed shot list for a product reveal video')">🎥 Write shot list</span>
+      <span class="hw-chip" onclick="hwChip('Choose the best visual style for a luxury real estate video')">🎨 Choose visual style</span>
+      <span class="hw-chip" onclick="hwChip('Write an opening scene for a documentary about AI')">📝 Write opening scene</span>
+      <span class="hw-chip" onclick="hwChip('What music would work for a tense thriller opening?')">🎵 Score mood</span>
+      <span class="hw-chip" onclick="hwChip('Direct a 3-scene emotional story arc about perseverance')">🎞 Scene arc</span>
+      <span class="hw-chip" onclick="hwChip('Create a full storyboard for a 30-second brand commercial')">📋 Full storyboard</span>
+      <span class="hw-chip" onclick="hwChip('What camera angles make the biggest emotional impact?')">📐 Camera angles</span>
     </div>
 
-    <!-- Input bar -->
+    <!-- Input -->
     <div class="hw-input-area">
       <div class="hw-input-row">
         <textarea
-          class="hw-textarea"
+          class="hw-input"
           id="hwInput"
-          placeholder="Talk to Hollywood..."
+          placeholder="Describe your scene, pitch a concept, or ask for a shot list…"
           rows="1"
           onkeydown="hwKeyDown(event)"
           oninput="hwAutoResize(this)"
         ></textarea>
-        <button class="hw-send-btn" id="hwSendBtn" onclick="hwSend()">Action! 🎬</button>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ── Browser Live Preview Panel ── -->
-  <div class="hw-browser-panel" id="hwBrowserPanel">
-    <div class="hw-browser-header">
-      🖥 Browser View — Live
-    </div>
-    <div class="hw-browser-content" id="hwBrowserContent">
-      <div class="hw-browser-empty" id="hwBrowserEmpty">
-        <span style="font-size:28px">🌐</span>
-        <span>No browser activity yet.</span>
-        <span style="font-size:11px">Ask Hollywood to browse a website and the live view will appear here.</span>
+        <button class="hw-send" id="hwSendBtn" onclick="hwSend()">Action! 🎬</button>
       </div>
     </div>
   </div>
 
+  <!-- ── Right Panel: Storyboard + Visual Style ── -->
+  <div class="hw-right-panel">
+
+    <!-- Storyboard -->
+    <div class="hw-panel-card" style="flex:1;display:flex;flex-direction:column;min-height:0;">
+      <div class="hw-panel-header">🎞 Storyboard</div>
+      <div class="hw-storyboard" id="hwStoryboard">
+        <div class="hw-storyboard-empty">
+          <div class="ico">🎬</div>
+          Ask Hollywood to write a shot list — shots appear here as cards.
+        </div>
+      </div>
+    </div>
+
+    <!-- Visual Styles -->
+    <div class="hw-panel-card" style="flex-shrink:0;">
+      <div class="hw-panel-header">🎨 Visual Style</div>
+      <div class="hw-vis-styles" id="hwVisList">
+        <div class="hw-vis-style active" onclick="hwPickStyle(this,'Cinematic')" data-vs="Cinematic">
+          <div class="vs-icon">🌅</div>
+          <div><div class="vs-name">Cinematic</div><div class="vs-desc">Golden hour · wide angles · epic</div></div>
+        </div>
+        <div class="hw-vis-style" onclick="hwPickStyle(this,'Documentary')" data-vs="Documentary">
+          <div class="vs-icon">📷</div>
+          <div><div class="vs-name">Documentary</div><div class="vs-desc">Handheld · natural · authentic</div></div>
+        </div>
+        <div class="hw-vis-style" onclick="hwPickStyle(this,'Noir')" data-vs="Noir">
+          <div class="vs-icon">🌑</div>
+          <div><div class="vs-name">Noir</div><div class="vs-desc">High contrast · shadow · mystery</div></div>
+        </div>
+        <div class="hw-vis-style" onclick="hwPickStyle(this,'Thriller')" data-vs="Thriller">
+          <div class="vs-icon">⚡</div>
+          <div><div class="vs-name">Thriller</div><div class="vs-desc">Fast cuts · tension · close-ups</div></div>
+        </div>
+        <div class="hw-vis-style" onclick="hwPickStyle(this,'Sci-Fi')" data-vs="Sci-Fi">
+          <div class="vs-icon">🔵</div>
+          <div><div class="vs-name">Sci-Fi</div><div class="vs-desc">Blue tones · neon · futuristic</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scene Log -->
+    <div class="hw-panel-card" style="flex-shrink:0;">
+      <div class="hw-panel-header">📋 Scene Log</div>
+      <div class="hw-scene-log" id="hwSceneLog">
+        <div class="hw-scene-log-empty">Scene activity will appear here.</div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <script>
-// ── State ──────────────────────────────────────────────────────────────────────
 var hwHistory = [];
 var hwBusy = false;
-var hwLatestScreenshot = null;
-
-// ── Markdown renderer ──────────────────────────────────────────────────────────
-function hwRenderMd(text) {
-  if (typeof marked === 'undefined') return escHtml(text).replace(/\n/g, '<br>');
-  try {
-    marked.setOptions({ breaks: true, gfm: true });
-    return marked.parse(text);
-  } catch(e) {
-    return escHtml(text).replace(/\n/g, '<br>');
-  }
-}
+var hwShots = [];
+var hwCurrentStyle = 'Cinematic';
+var hwSceneLogData = [];
 
 function escHtml(s) {
-  return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-// ── DOM helpers ────────────────────────────────────────────────────────────────
-function hwScrollBottom() {
-  var el = document.getElementById('hwMessages');
-  if (el) el.scrollTop = el.scrollHeight;
+function hwRenderMd(text) {
+  if (typeof marked === 'undefined') return escHtml(text).replace(/\n/g,'<br>');
+  try { marked.setOptions({breaks:true,gfm:true}); return marked.parse(text); } catch(e) { return escHtml(text).replace(/\n/g,'<br>'); }
 }
+function hwScroll() { var m = document.getElementById('hwMessages'); if(m) m.scrollTop = m.scrollHeight; }
+function hwHideWelcome() { var w = document.getElementById('hwWelcome'); if(w) w.style.display='none'; }
 
-function hwHideWelcome() {
-  var el = document.getElementById('hwWelcome');
-  if (el) el.style.display = 'none';
-}
-
-// Tool name to emoji mapping
-var TOOL_EMOJIS = {
-  'browser_navigate': '🌐',
-  'browser_screenshot': '📸',
-  'browser_click': '🖱',
-  'browser_type': '⌨️',
-  'browser_get_text': '📄',
-  'browser_scroll': '↕️',
-  'browser_fill_form': '📝',
-  'browser_press_key': '⌨️',
-  'search_trends': '📈',
-  'analyze_competitor': '🔍',
-  'web_search': '🔎',
-  'get_platform_stats': '📊',
-  'create_content': '🎬',
-  'get_job_status': '📋',
-  'list_recent_jobs': '📋',
-  'check_render_config': '⚙️',
-  'set_render_env_vars': '⚙️',
-  'generate_secret_key': '🔑',
-  'get_all_required_env_vars': '🔑',
-  'schedule_content': '📅',
-  'list_scheduled': '📅',
-  'cancel_scheduled': '❌',
-  'bulk_create': '📦',
-  'list_output_files': '📁',
-  'get_job_files': '📁',
-  'download_info': '⬇️',
-  'system_health': '💊',
-  'platform_connections': '🔗',
-  'restart_scheduler': '🔄',
-  'get_analytics_summary': '📊',
-  'get_trending_niches': '🔥',
-  'content_calendar_view': '📅',
-};
-
-function hwMakeToolPills(toolCalls) {
-  if (!toolCalls || !toolCalls.length) return '';
-  var pills = toolCalls.map(function(t) {
-    var emoji = TOOL_EMOJIS[t] || '🔧';
-    return '<span class="hw-tool-pill">' + emoji + ' ' + escHtml(t) + '</span>';
+function hwSetStyle(el, style) {
+  document.querySelectorAll('.hw-style-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  hwCurrentStyle = style;
+  document.getElementById('hwStyleLabel').textContent = 'Style: ' + style;
+  // Also update the visual style panel
+  document.querySelectorAll('.hw-vis-style').forEach(v => {
+    v.classList.toggle('active', v.dataset.vs && v.dataset.vs.toLowerCase() === style.toLowerCase());
   });
-  return '<div class="hw-tool-pills">' + pills.join('') + '</div>';
+}
+function hwPickStyle(el, style) {
+  document.querySelectorAll('.hw-vis-style').forEach(v => v.classList.remove('active'));
+  el.classList.add('active');
+  hwCurrentStyle = style;
+  document.getElementById('hwStyleLabel').textContent = 'Style: ' + style;
+  // Sync the header chips
+  document.querySelectorAll('.hw-style-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.style === style.toLowerCase());
+  });
 }
 
-function hwAddMessage(role, content, screenshots, toolCalls) {
-  hwHideWelcome();
-  var container = document.getElementById('hwMessages');
+// ── Extract shots from reply text ──────────────────────────────────────────────
+function hwExtractShots(text) {
+  const shots = [];
+  // Match "Shot N:" or "Scene N:" patterns
+  const shotRe = /(?:shot|scene|cut)\s*(\d+)[:\.]?\s*([^\n]+)/gi;
+  let m;
+  while ((m = shotRe.exec(text)) !== null && shots.length < 12) {
+    shots.push({ num: m[1], desc: m[2].trim().slice(0,80) });
+  }
+  return shots;
+}
 
-  var msg = document.createElement('div');
+function hwRenderStoryboard(shots) {
+  const el = document.getElementById('hwStoryboard');
+  if (!shots.length) return;
+  const TYPES = ['WIDE','CLOSE-UP','MEDIUM','CUTAWAY','TRACKING','OVER-SHOULDER','POV','AERIAL'];
+  el.innerHTML = shots.map(s => `
+    <div class="hw-shot">
+      <div class="hw-shot-num">SHOT ${s.num}</div>
+      <div class="hw-shot-type">${TYPES[(parseInt(s.num)-1) % TYPES.length]}</div>
+      <div class="hw-shot-desc">${escHtml(s.desc)}</div>
+    </div>
+  `).join('');
+  // Update shot count badge
+  hwShots = shots;
+  document.getElementById('hwShotCount').style.display = 'flex';
+  document.getElementById('hwShotCountText').textContent = shots.length + ' shot' + (shots.length !== 1 ? 's' : '');
+}
+
+// ── Scene log ──────────────────────────────────────────────────────────────────
+function hwAddSceneLog(msg) {
+  const log = document.getElementById('hwSceneLog');
+  const empty = log.querySelector('.hw-scene-log-empty');
+  if (empty) empty.remove();
+  const d = document.createElement('div');
+  d.className = 'hw-scene-entry';
+  d.innerHTML = `<span class="hw-se-time">${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span><span>${escHtml(msg)}</span>`;
+  log.insertBefore(d, log.firstChild);
+  // Keep last 20
+  while (log.children.length > 20) log.removeChild(log.lastChild);
+}
+
+// ── Message rendering ──────────────────────────────────────────────────────────
+function hwAddMessage(role, content, toolCalls) {
+  hwHideWelcome();
+  const container = document.getElementById('hwMessages');
+  const msg = document.createElement('div');
   msg.className = 'hw-msg ' + role;
 
-  var avatarDiv = document.createElement('div');
-  avatarDiv.className = 'hw-bubble-avatar';
-  avatarDiv.textContent = role === 'assistant' ? '🎬' : '👤';
+  const av = document.createElement('div');
+  av.className = 'hw-av';
+  av.textContent = role === 'assistant' ? '🎬' : '👤';
 
-  var contentDiv = document.createElement('div');
-  contentDiv.className = 'hw-msg-content';
+  const body = document.createElement('div');
+  body.className = 'hw-msg-body';
 
-  // Tool pills (only for assistant)
   if (role === 'assistant' && toolCalls && toolCalls.length) {
-    contentDiv.innerHTML += hwMakeToolPills(toolCalls);
+    const pills = document.createElement('div');
+    pills.className = 'hw-tools';
+    pills.innerHTML = toolCalls.map(t => `<span class="hw-tool-pill">🔧 ${escHtml(t)}</span>`).join('');
+    body.appendChild(pills);
   }
 
-  var bubble = document.createElement('div');
+  const bubble = document.createElement('div');
   bubble.className = 'hw-bubble';
-
   if (role === 'assistant') {
     bubble.innerHTML = hwRenderMd(content);
-    // Add inline screenshots
-    if (screenshots && screenshots.length) {
-      screenshots.forEach(function(b64) {
-        var img = document.createElement('img');
-        img.src = 'data:image/png;base64,' + b64;
-        img.className = 'hw-screenshot-img';
-        img.alt = 'Browser screenshot';
-        bubble.appendChild(img);
-        // Also update the side panel
-        hwUpdateBrowserPanel(b64);
-      });
-    }
+    // Check for shot list in reply
+    const shots = hwExtractShots(content);
+    if (shots.length > 0) hwRenderStoryboard(shots);
   } else {
     bubble.textContent = content;
   }
-
-  contentDiv.appendChild(bubble);
-  msg.appendChild(avatarDiv);
-  msg.appendChild(contentDiv);
+  body.appendChild(bubble);
+  msg.appendChild(av);
+  msg.appendChild(body);
   container.appendChild(msg);
-  hwScrollBottom();
-  return msg;
-}
-
-function hwUpdateBrowserPanel(b64) {
-  hwLatestScreenshot = b64;
-  var content = document.getElementById('hwBrowserContent');
-  var empty = document.getElementById('hwBrowserEmpty');
-  if (empty) empty.style.display = 'none';
-
-  // Remove old screenshot
-  var old = content.querySelector('.hw-browser-screenshot');
-  if (old) old.remove();
-  var oldLabel = content.querySelector('.hw-browser-label');
-  if (oldLabel) oldLabel.remove();
-
-  var img = document.createElement('img');
-  img.src = 'data:image/png;base64,' + b64;
-  img.className = 'hw-browser-screenshot';
-  img.alt = 'Live browser view';
-
-  var label = document.createElement('div');
-  label.className = 'hw-browser-label';
-  label.textContent = 'Updated ' + new Date().toLocaleTimeString();
-
-  content.appendChild(img);
-  content.appendChild(label);
-
-  // Update status
-  var statusDot = document.getElementById('hwBrowserStatus');
-  if (statusDot) statusDot.style.color = '#10b981';
+  hwScroll();
 }
 
 function hwShowTyping() {
   hwHideWelcome();
-  var container = document.getElementById('hwMessages');
-
-  var typing = document.createElement('div');
-  typing.className = 'hw-typing hw-msg assistant visible';
-  typing.id = 'hwTyping';
-
-  var avatarDiv = document.createElement('div');
-  avatarDiv.className = 'hw-bubble-avatar';
-  avatarDiv.textContent = '🎬';
-
-  var bubble = document.createElement('div');
-  bubble.className = 'hw-typing-bubble';
-  bubble.innerHTML = '<div class="hw-dot"></div><div class="hw-dot"></div><div class="hw-dot"></div><span class="hw-thinking-text">Hollywood is thinking...</span>';
-
-  typing.appendChild(avatarDiv);
-  typing.appendChild(bubble);
-  container.appendChild(typing);
-  hwScrollBottom();
+  const c = document.getElementById('hwMessages');
+  const t = document.createElement('div');
+  t.className = 'hw-typing hw-msg assistant on';
+  t.id = 'hwTyping';
+  const av = document.createElement('div'); av.className = 'hw-av'; av.textContent = '🎬';
+  const bub = document.createElement('div'); bub.className = 'hw-typing-bub';
+  bub.innerHTML = '<div class="hw-dot"></div><div class="hw-dot"></div><div class="hw-dot"></div><span style="font-size:11px;color:#6b7280;margin-left:4px;">Directing…</span>';
+  t.appendChild(av); t.appendChild(bub);
+  c.appendChild(t);
+  hwScroll();
 }
+function hwHideTyping() { var t = document.getElementById('hwTyping'); if(t) t.remove(); }
 
-function hwHideTyping() {
-  var el = document.getElementById('hwTyping');
-  if (el) el.remove();
-}
-
-function hwUpdateToolsBar(toolCalls) {
-  var bar = document.getElementById('hwToolsUsedBar');
-  var txt = document.getElementById('hwToolsUsedText');
-  if (!bar || !txt) return;
-  if (toolCalls && toolCalls.length) {
-    bar.style.display = 'flex';
-    txt.textContent = 'Last used: ' + toolCalls.map(function(t) {
-      return (TOOL_EMOJIS[t] || '🔧') + ' ' + t;
-    }).join(' · ');
-  }
-}
-
-// ── Send logic ─────────────────────────────────────────────────────────────────
+// ── Send ───────────────────────────────────────────────────────────────────────
 async function hwSend() {
   if (hwBusy) return;
-  var input = document.getElementById('hwInput');
-  var message = (input.value || '').trim();
+  const input = document.getElementById('hwInput');
+  const message = (input.value || '').trim();
   if (!message) return;
-
   hwBusy = true;
   document.getElementById('hwSendBtn').disabled = true;
   input.value = '';
   hwAutoResize(input);
-
-  hwAddMessage('user', message, null, null);
+  hwAddMessage('user', message);
   hwHistory.push({ role: 'user', content: message });
+  hwAddSceneLog('Director: ' + message.slice(0, 60));
   hwShowTyping();
 
   try {
-    var resp = await fetch('/api/hollywood/chat', {
+    const resp = await fetch('/api/hollywood/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: message, history: hwHistory.slice(0, -1) })
+      body: JSON.stringify({
+        message: message + '\n\n[Visual style preference: ' + hwCurrentStyle + ']',
+        history: hwHistory.slice(0, -1)
+      })
     });
-    var data = await resp.json();
+    const data = await resp.json();
     hwHideTyping();
-
-    if (data.error && !data.reply) {
-      hwAddMessage('assistant', '⚠️ Error: ' + data.error, null, null);
-      hwHistory.push({ role: 'assistant', content: 'Error: ' + data.error });
-    } else {
-      var reply = data.reply || data.error || '(no response)';
-      var screenshots = data.screenshots || [];
-      var toolCalls = data.tool_calls || [];
-      hwAddMessage('assistant', reply, screenshots, toolCalls);
-      hwHistory.push({ role: 'assistant', content: reply });
-      if (toolCalls.length) hwUpdateToolsBar(toolCalls);
-    }
+    const reply = data.reply || data.error || '(no response)';
+    const toolCalls = data.tool_calls || [];
+    hwAddMessage('assistant', reply, toolCalls);
+    hwHistory.push({ role: 'assistant', content: reply });
+    hwAddSceneLog('Hollywood replied (' + reply.length + ' chars)');
   } catch(e) {
     hwHideTyping();
-    hwAddMessage('assistant', '⚠️ Network error. Please try again.', null, null);
+    hwAddMessage('assistant', '⚠️ Network error. Try again.');
+    hwAddSceneLog('⚠️ Network error');
   }
-
   hwBusy = false;
   document.getElementById('hwSendBtn').disabled = false;
   input.focus();
 }
 
-function hwKeyDown(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    hwSend();
-  }
-}
+function hwKeyDown(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); hwSend(); } }
+function hwAutoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; }
+function hwChip(text) { document.getElementById('hwInput').value = text; hwAutoResize(document.getElementById('hwInput')); hwSend(); }
 
-function hwAutoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 140) + 'px';
-}
-
-function hwChip(text) {
-  var input = document.getElementById('hwInput');
-  input.value = text;
-  hwAutoResize(input);
-  hwSend();
-}
-
-// Focus input on load
-document.addEventListener('DOMContentLoaded', function() {
-  var input = document.getElementById('hwInput');
-  if (input) input.focus();
-});
+document.addEventListener('DOMContentLoaded', () => { const i = document.getElementById('hwInput'); if(i) i.focus(); });
 </script>
-
 {% endblock %}
