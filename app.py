@@ -2098,6 +2098,274 @@ def api_competitor_inspire(comp_id):
     })
 
 
+# ── Commercial Studio ─────────────────────────────────────────────────────────
+
+COMMERCIAL_UPLOADS = Path(config.DATA_DIR) / "commercial_uploads"
+COMMERCIAL_UPLOADS.mkdir(parents=True, exist_ok=True)
+COMMERCIAL_ALLOWED = {"jpg", "jpeg", "png", "webp", "gif", "mp4", "mov", "avi", "webm"}
+
+_commercial_jobs: dict = {}
+_commercial_lock = threading.Lock()
+
+
+def _allowed_commercial(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in COMMERCIAL_ALLOWED
+
+
+@app.route("/commercial")
+@login_required
+def commercial_page():
+    accounts = db.get_accounts(user_id=current_user.id)
+    connected = {a["platform"] for a in accounts if a["is_active"]}
+    return render_template("commercial.html", connected_platforms=connected,
+                           higgsfield_models=config.HIGGSVILLE_MODELS)
+
+
+@app.route("/api/commercial/run", methods=["POST"])
+@login_required
+def api_commercial_run():
+    allowed, err = check_usage_gate(current_user.id)
+    if not allowed:
+        return jsonify({"error": err, "upgrade": True}), 403
+
+    file = request.files.get("media")
+    brand     = (request.form.get("brand") or "").strip()
+    tagline   = (request.form.get("tagline") or "").strip()
+    audience  = (request.form.get("audience") or "general consumers").strip()
+    style     = request.form.get("style") or "energetic"
+    duration  = int(request.form.get("duration") or 15)
+    platforms = request.form.getlist("platforms")
+    voice     = request.form.get("voice") or config.DEFAULT_VOICE
+
+    if not file or not _allowed_commercial(file.filename):
+        return jsonify({"error": "Please upload a photo or video (jpg, png, mp4, mov)"}), 400
+
+    job_id = str(uuid.uuid4())
+    ext = secure_filename(file.filename).rsplit(".", 1)[-1].lower()
+    media_path = COMMERCIAL_UPLOADS / f"{job_id}.{ext}"
+    file.save(str(media_path))
+
+    params = {
+        "brand": brand, "tagline": tagline, "audience": audience,
+        "style": style, "duration": duration, "platforms": platforms,
+        "voice": voice, "media_path": str(media_path), "ext": ext,
+    }
+
+    t = threading.Thread(target=_run_commercial_thread,
+                         args=(job_id, params, current_user.id), daemon=True)
+    t.start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/api/commercial/<job_id>/stream")
+@login_required
+def commercial_stream(job_id):
+    def generate():
+        last = 0
+        for _ in range(600):
+            time.sleep(0.5)
+            with _commercial_lock:
+                events = _commercial_jobs.get(job_id, [])
+            while last < len(events):
+                yield events[last]
+                last += 1
+            with _commercial_lock:
+                events = _commercial_jobs.get(job_id, [])
+            if last > 0:
+                last_event = events[last - 1] if events else ""
+                if '"status":"done"' in last_event or '"status":"error"' in last_event:
+                    break
+    return Response(stream_with_context(generate()), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route("/api/commercial/<job_id>/status")
+@login_required
+def commercial_status(job_id):
+    with _commercial_lock:
+        events = _commercial_jobs.get(job_id, [])
+    if not events:
+        return jsonify({"status": "pending"})
+    import json as _json
+    for ev in reversed(events):
+        if ev.startswith("data: "):
+            try:
+                return jsonify(_json.loads(ev[6:]))
+            except Exception:
+                pass
+    return jsonify({"status": "running"})
+
+
+def _push_commercial(job_id: str, data: dict):
+    payload = f"data: {json.dumps(data)}\n\n"
+    with _commercial_lock:
+        if job_id not in _commercial_jobs:
+            _commercial_jobs[job_id] = []
+        _commercial_jobs[job_id].append(payload)
+
+
+def _run_commercial_thread(job_id: str, params: dict, user_id: int):
+    import anthropic as _ant
+    import base64
+
+    def step(msg, pct):
+        _push_commercial(job_id, {"status": "running", "step": msg, "progress": pct})
+
+    try:
+        step("Analyzing your media with AI...", 10)
+
+        media_path = Path(params["media_path"])
+        ext = params["ext"]
+        is_video = ext in {"mp4", "mov", "avi", "webm"}
+        brand    = params.get("brand") or "our product"
+        tagline  = params.get("tagline") or ""
+        audience = params.get("audience") or "general consumers"
+        style    = params.get("style") or "energetic"
+        duration = params.get("duration") or 15
+
+        # ── Step 1: Analyze media with Claude Vision ──────────────────────────
+        client = _ant.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+
+        if is_video:
+            media_description = f"a {ext} video clip"
+            image_content = []
+        else:
+            img_bytes = media_path.read_bytes()
+            b64 = base64.standard_b64encode(img_bytes).decode()
+            mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
+                    "png": "image/png", "webp": "image/webp",
+                    "gif": "image/gif"}.get(ext, "image/jpeg")
+            image_content = [
+                {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
+                {"type": "text", "text": "Describe this image in detail: what product or subject is shown, colors, mood, setting, and what makes it visually compelling for advertising."}
+            ]
+            analysis = client.messages.create(
+                model="claude-opus-4-8",
+                max_tokens=400,
+                messages=[{"role": "user", "content": image_content}]
+            )
+            media_description = analysis.content[0].text
+
+        step("Writing commercial script...", 30)
+
+        # ── Step 2: Write commercial script ──────────────────────────────────
+        script_prompt = f"""You are a world-class commercial director and copywriter.
+
+Media description: {media_description}
+Brand: {brand}
+Tagline: {tagline or '(none)'}
+Target audience: {audience}
+Ad style: {style}
+Duration: {duration} seconds
+
+Write a {duration}-second commercial script with:
+1. HOOK (0-3s): An attention-grabbing opening line or visual
+2. PROBLEM/DESIRE (3-8s): What the viewer wants or their pain point
+3. SOLUTION (8-{duration-3}s): How this product/brand solves it, key benefit
+4. CTA ({duration-3}-{duration}s): Strong call to action
+
+Then write an AI VIDEO PROMPT (2-3 sentences) describing the exact visual to generate — cinematic, specific camera movements, lighting, colors. Make it feel like a real commercial.
+
+Format:
+SCRIPT:
+[Hook]: ...
+[Problem]: ...
+[Solution]: ...
+[CTA]: ...
+
+VOICEOVER: [The actual words spoken, {duration} seconds worth]
+
+VIDEO_PROMPT: [Detailed cinematic prompt for AI video generation]"""
+
+        script_resp = client.messages.create(
+            model="claude-opus-4-8",
+            max_tokens=800,
+            messages=[{"role": "user", "content": script_prompt}]
+        )
+        script_text = script_resp.content[0].text
+
+        # Parse video prompt
+        video_prompt = ""
+        if "VIDEO_PROMPT:" in script_text:
+            video_prompt = script_text.split("VIDEO_PROMPT:")[-1].strip()
+        else:
+            video_prompt = f"Cinematic product commercial for {brand}. {style} style. Professional lighting, close-up product shots, dynamic camera movement. 4K quality."
+
+        voiceover_text = ""
+        if "VOICEOVER:" in script_text:
+            raw = script_text.split("VOICEOVER:")[-1]
+            voiceover_text = raw.split("VIDEO_PROMPT:")[0].strip()
+
+        step("Generating AI commercial video...", 50)
+
+        # ── Step 3: Generate video with Higgsfield ───────────────────────────
+        from generators.ai_video_generator import generate_higgsville_clips, HIGGSVILLE_MODELS
+        out_dir = COMMERCIAL_UPLOADS / job_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        # Use marketing_studio_video for product ads, grok for image-to-video
+        model_id = "grok_video_v15" if not is_video else "marketing_studio_video"
+
+        clips = generate_higgsville_clips(
+            prompts=[video_prompt],
+            output_dir=out_dir,
+            model_id=model_id,
+            aspect_ratio="9:16",
+            duration=min(duration, 10),
+        )
+
+        step("Adding voiceover...", 75)
+
+        # ── Step 4: Generate voiceover ────────────────────────────────────────
+        final_video = str(clips[0]) if clips else None
+        audio_path = None
+
+        if voiceover_text and config.GOOGLE_API_KEY:
+            try:
+                from generators.audio_generator import generate_audio
+                audio_out = out_dir / "voiceover.mp3"
+                generate_audio(voiceover_text, str(audio_out), voice=params.get("voice"))
+                audio_path = str(audio_out)
+            except Exception as e:
+                print(f"[commercial] Voiceover error: {e}")
+
+        step("Commercial ready!", 100)
+
+        db.increment_credits_used(user_id, 1)
+
+        _push_commercial(job_id, {
+            "status": "done",
+            "progress": 100,
+            "script": script_text,
+            "voiceover": voiceover_text,
+            "video_url": f"/api/commercial/{job_id}/download" if final_video else None,
+            "video_path": final_video,
+            "audio_path": audio_path,
+            "media_description": media_description,
+        })
+
+    except Exception as e:
+        _push_commercial(job_id, {"status": "error", "error": str(e), "progress": 0})
+
+
+@app.route("/api/commercial/<job_id>/download")
+@login_required
+def commercial_download(job_id):
+    with _commercial_lock:
+        events = _commercial_jobs.get(job_id, [])
+    import json as _json
+    for ev in reversed(events):
+        if ev.startswith("data: "):
+            try:
+                data = _json.loads(ev[6:])
+                if data.get("video_path") and Path(data["video_path"]).exists():
+                    return send_file(data["video_path"], as_attachment=True,
+                                     download_name="commercial.mp4")
+            except Exception:
+                pass
+    return jsonify({"error": "Video not ready"}), 404
+
+
 # ── Health check (required by Render) ────────────────────────────────────────
 
 @app.route("/health")

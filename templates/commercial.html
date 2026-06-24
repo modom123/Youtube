@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+{% set active_page = "commercial" %}
+
+{% block title %}Commercial Studio — Social Optimize{% endblock %}
+{% block topbar_title %}Commercial Studio{% endblock %}
+{% block topbar_sub %}Upload a photo or video → AI writes the script → Higgsfield generates your commercial{% endblock %}
+
+{% block content %}
+<style>
+  .com-grid { display: grid; grid-template-columns: 420px 1fr; gap: 24px; align-items: start; }
+  @media(max-width:900px){ .com-grid { grid-template-columns:1fr; } }
+
+  .com-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; }
+  .com-card h2 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 18px; }
+
+  .form-row { margin-bottom:14px; }
+  .form-row label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.05em; }
+  .form-row input, .form-row select, .form-row textarea {
+    width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    color:var(--text); padding:9px 12px; font-size:14px; font-family:inherit; box-sizing:border-box;
+  }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline:none; border-color:var(--accent); }
+
+  .upload-zone {
+    border:2px dashed var(--border); border-radius:12px; padding:40px 20px;
+    text-align:center; cursor:pointer; transition:border-color .2s, background .2s;
+    background:var(--bg); margin-bottom:16px; position:relative; overflow:hidden;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color:var(--accent); background:rgba(255,59,48,.05); }
+  .upload-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .upload-zone .uz-icon { font-size:40px; margin-bottom:10px; }
+  .upload-zone .uz-title { font-size:15px; font-weight:600; margin-bottom:4px; }
+  .upload-zone .uz-sub { font-size:12px; color:var(--muted); }
+
+  .preview-wrap { position:relative; border-radius:10px; overflow:hidden; margin-bottom:16px; max-height:280px; display:none; }
+  .preview-wrap img, .preview-wrap video { width:100%; height:100%; object-fit:cover; display:block; max-height:280px; }
+  .preview-clear { position:absolute; top:8px; right:8px; background:rgba(0,0,0,.7); border:none; color:#fff; width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
+
+  .platform-chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .platform-chip { display:flex; align-items:center; gap:6px; border:1px solid var(--border); border-radius:20px; padding:5px 12px; cursor:pointer; font-size:12px; font-weight:500; background:var(--bg); transition:all .15s; user-select:none; }
+  .platform-chip.active { border-color:var(--accent); background:rgba(255,59,48,.1); color:var(--accent); }
+
+  .btn-generate { width:100%; padding:14px; background:var(--accent); color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; letter-spacing:.02em; transition:opacity .15s; margin-top:8px; }
+  .btn-generate:hover { opacity:.88; }
+  .btn-generate:disabled { opacity:.4; cursor:not-allowed; }
+
+  /* Results */
+  .result-panel { display:none; }
+  .result-panel.visible { display:block; }
+
+  .progress-bar-wrap { background:var(--bg); border-radius:8px; overflow:hidden; height:6px; margin:12px 0; }
+  .progress-bar { height:100%; background:var(--accent); border-radius:8px; width:0%; transition:width .4s; }
+
+  .step-log { font-size:13px; color:var(--muted); min-height:20px; margin-bottom:12px; }
+
+  .com-video-wrap { border-radius:12px; overflow:hidden; background:#000; margin-bottom:16px; }
+  .com-video-wrap video { width:100%; max-height:480px; display:block; }
+
+  .script-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:16px; font-size:13px; line-height:1.7; white-space:pre-wrap; color:var(--text); max-height:320px; overflow-y:auto; }
+
+  .result-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:16px; }
+  .btn-action { padding:10px 20px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text); transition:all .15s; text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  .btn-action:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-action.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn-action.primary:hover { opacity:.88; color:#fff; }
+
+  .empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
+  .empty-state .es-icon { font-size:52px; margin-bottom:16px; }
+  .empty-state h3 { font-size:18px; font-weight:600; color:var(--text); margin-bottom:8px; }
+  .empty-state p { font-size:14px; line-height:1.6; max-width:320px; margin:0 auto; }
+
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:20px; }
+  .tab-btn { padding:8px 16px; font-size:13px; font-weight:600; border:none; background:none; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .15s; }
+  .tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  .description-box { background:rgba(255,59,48,.06); border:1px solid rgba(255,59,48,.2); border-radius:10px; padding:14px 16px; font-size:13px; line-height:1.6; margin-bottom:16px; }
+  .description-box strong { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--accent); margin-bottom:6px; }
+</style>
+
+<div class="com-grid">
+
+  <!-- LEFT: Upload + Settings -->
+  <div>
+    <div class="com-card">
+      <h2>📺 Commercial Studio</h2>
+
+      <!-- Upload Zone -->
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="mediaFile" accept="image/*,video/*" onchange="previewMedia(this)">
+        <div class="uz-icon">📸</div>
+        <div class="uz-title">Drop your photo or video here</div>
+        <div class="uz-sub">JPG, PNG, WEBP, MP4, MOV — product shots, lifestyle, anything</div>
+      </div>
+
+      <div class="preview-wrap" id="previewWrap">
+        <img id="previewImg" src="" alt="" style="display:none">
+        <video id="previewVid" src="" muted autoplay loop style="display:none"></video>
+        <button class="preview-clear" onclick="clearMedia()">✕</button>
+      </div>
+
+      <div class="form-row">
+        <label>Brand / Product Name</label>
+        <input type="text" id="brand" placeholder="e.g. Nike, iPhone 16, your company name">
+      </div>
+      <div class="form-row">
+        <label>Tagline (optional)</label>
+        <input type="text" id="tagline" placeholder="e.g. Just Do It · Think Different">
+      </div>
+      <div class="form-row">
+        <label>Target Audience</label>
+        <input type="text" id="audience" placeholder="e.g. fitness enthusiasts 18-35, small business owners">
+      </div>
+
+      <div class="form-row">
+        <label>Commercial Style</label>
+        <select id="style">
+          <option value="energetic">Energetic & Bold</option>
+          <option value="cinematic">Cinematic & Premium</option>
+          <option value="emotional">Emotional & Storytelling</option>
+          <option value="funny">Humorous & Viral</option>
+          <option value="minimalist">Clean & Minimalist</option>
+          <option value="urgency">Urgency & Direct Response</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Duration</label>
+        <select id="duration">
+          <option value="15">15 seconds (Reels/Shorts)</option>
+          <option value="30" selected>30 seconds (Standard)</option>
+          <option value="60">60 seconds (Long form)</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Publish To</label>
+        <div class="platform-chips" id="platformChips">
+          {% set platforms = [
+            ('tiktok','🎵','TikTok'),('instagram','📸','Instagram'),
+            ('youtube','▶️','YouTube'),('facebook','👍','Facebook'),
+            ('twitter','𝕏','X (Twitter)'),('threads','🧵','Threads')
+          ] %}
+          {% for pid, icon, label in platforms %}
+          <div class="platform-chip {% if pid in connected_platforms %}{% endif %}" data-platform="{{ pid }}" onclick="togglePlatform(this)">
+            {{ icon }} {{ label }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button class="btn-generate" id="generateBtn" onclick="runCommercial()">
+        🎬 Generate Commercial
+      </button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Results -->
+  <div>
+    <div id="emptyState" class="com-card empty-state">
+      <div class="es-icon">🎬</div>
+      <h3>Your commercial appears here</h3>
+      <p>Upload a product photo or video clip, fill in your brand details, and let AI do the rest.</p>
+      <br>
+      <p style="font-size:12px; color:var(--muted)">Works best with clear product shots, lifestyle images, or short demo clips.</p>
+    </div>
+
+    <div class="com-card result-panel" id="resultPanel">
+
+      <!-- Progress -->
+      <div id="progressSection">
+        <h2>⚡ Generating your commercial...</h2>
+        <div class="step-log" id="stepLog">Starting up...</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+      </div>
+
+      <!-- Done -->
+      <div id="doneSection" style="display:none">
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('video', this)">📺 Commercial</button>
+          <button class="tab-btn" onclick="switchTab('script', this)">📝 Script</button>
+          <button class="tab-btn" onclick="switchTab('voiceover', this)">🎙 Voiceover</button>
+          <button class="tab-btn" onclick="switchTab('vision', this)">🔍 AI Analysis</button>
+        </div>
+
+        <div class="tab-content active" id="tab-video">
+          <div class="com-video-wrap" id="videoWrap" style="display:none">
+            <video id="resultVideo" controls loop>
+              Your browser doesn't support HTML5 video.
+            </video>
+          </div>
+          <div id="noVideoMsg" style="display:none; color:var(--muted); font-size:13px; padding:20px; text-align:center;">
+            Video generation is in progress — refresh status in a moment.
+          </div>
+          <div class="result-actions" id="resultActions">
+            <a id="downloadBtn" href="#" class="btn-action primary" download="commercial.mp4">⬇ Download MP4</a>
+            <button class="btn-action" onclick="publishCommercial()">🚀 Publish Now</button>
+            <button class="btn-action" onclick="regenerate()">🔄 Regenerate</button>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-script">
+          <h2 style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:12px;">Generated Script</h2>
+          <div class="script-box" id="scriptBox"></div>
+          <div class="result-actions" style="margin-top:12px;">
+            <button class="btn-action" onclick="copyScript()">📋 Copy Script</button>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-voiceover">
+          <h2 style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:12px;">Voiceover Text</h2>
+          <div class="script-box" id="voiceoverBox"></div>
+          <div id="audioPlayer" style="margin-top:14px; display:none;">
+            <audio id="audioEl" controls style="width:100%; border-radius:8px;"></audio>
+          </div>
+        </div>
+
+        <div class="tab-content" id="tab-vision">
+          <h2 style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:12px;">AI Vision Analysis</h2>
+          <div class="description-box">
+            <strong>What AI saw in your media</strong>
+            <span id="visionBox">—</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentJobId = null;
+let streamController = null;
+let selectedFile = null;
+
+// ── Media preview ─────────────────────────────────────────────────────────────
+
+function previewMedia(input) {
+  const file = input.files[0];
+  if (!file) return;
+  selectedFile = file;
+  const url = URL.createObjectURL(file);
+  const wrap = document.getElementById('previewWrap');
+  const img  = document.getElementById('previewImg');
+  const vid  = document.getElementById('previewVid');
+  const zone = document.getElementById('uploadZone');
+
+  if (file.type.startsWith('video/')) {
+    img.style.display = 'none';
+    vid.src = url;
+    vid.style.display = 'block';
+  } else {
+    vid.style.display = 'none';
+    img.src = url;
+    img.style.display = 'block';
+  }
+  wrap.style.display = 'block';
+  zone.style.display = 'none';
+}
+
+function clearMedia() {
+  selectedFile = null;
+  document.getElementById('mediaFile').value = '';
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('uploadZone').style.display = 'block';
+  document.getElementById('previewImg').src = '';
+  document.getElementById('previewVid').src = '';
+}
+
+// Drag-and-drop
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) { const dt = new DataTransfer(); dt.items.add(f); document.getElementById('mediaFile').files = dt.files; previewMedia(document.getElementById('mediaFile')); }
+});
+
+// ── Platform chips ────────────────────────────────────────────────────────────
+
+function togglePlatform(el) { el.classList.toggle('active'); }
+
+function getSelectedPlatforms() {
+  return [...document.querySelectorAll('.platform-chip.active')].map(el => el.dataset.platform);
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Run commercial ────────────────────────────────────────────────────────────
+
+async function runCommercial() {
+  const fileInput = document.getElementById('mediaFile');
+  if (!fileInput.files[0] && !selectedFile) {
+    alert('Please upload a photo or video first.');
+    return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating...';
+
+  // Show result panel, hide empty state
+  document.getElementById('emptyState').style.display = 'none';
+  const panel = document.getElementById('resultPanel');
+  panel.classList.add('visible');
+  document.getElementById('progressSection').style.display = 'block';
+  document.getElementById('doneSection').style.display = 'none';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('stepLog').textContent = 'Uploading media...';
+
+  const fd = new FormData();
+  fd.append('media', fileInput.files[0] || selectedFile);
+  fd.append('brand',    document.getElementById('brand').value);
+  fd.append('tagline',  document.getElementById('tagline').value);
+  fd.append('audience', document.getElementById('audience').value);
+  fd.append('style',    document.getElementById('style').value);
+  fd.append('duration', document.getElementById('duration').value);
+  getSelectedPlatforms().forEach(p => fd.append('platforms', p));
+
+  try {
+    const resp = await fetch('/api/commercial/run', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (data.error) { showError(data.error); return; }
+    currentJobId = data.job_id;
+    listenToStream(currentJobId);
+  } catch(e) {
+    showError('Failed to start: ' + e.message);
+  }
+}
+
+function listenToStream(jobId) {
+  if (streamController) streamController.abort();
+  streamController = new AbortController();
+
+  const es = new EventSource(`/api/commercial/${jobId}/stream`);
+  es.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      handleEvent(d, jobId, es);
+    } catch(err) {}
+  };
+  es.onerror = () => {
+    es.close();
+    // Poll once as fallback
+    setTimeout(() => pollStatus(jobId), 2000);
+  };
+}
+
+async function pollStatus(jobId) {
+  const resp = await fetch(`/api/commercial/${jobId}/status`);
+  const d = await resp.json();
+  handleEvent(d, jobId, null);
+}
+
+function handleEvent(d, jobId, es) {
+  if (d.progress !== undefined) {
+    document.getElementById('progressBar').style.width = d.progress + '%';
+  }
+  if (d.step) {
+    document.getElementById('stepLog').textContent = d.step;
+  }
+
+  if (d.status === 'done') {
+    if (es) es.close();
+    showResults(d);
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = false;
+    btn.textContent = '🎬 Generate Commercial';
+  } else if (d.status === 'error') {
+    if (es) es.close();
+    showError(d.error || 'Generation failed');
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = false;
+    btn.textContent = '🎬 Generate Commercial';
+  }
+}
+
+function showResults(d) {
+  document.getElementById('progressSection').style.display = 'none';
+  document.getElementById('doneSection').style.display = 'block';
+
+  // Video
+  if (d.video_url) {
+    const vid = document.getElementById('resultVideo');
+    vid.src = d.video_url;
+    document.getElementById('videoWrap').style.display = 'block';
+    document.getElementById('noVideoMsg').style.display = 'none';
+    document.getElementById('downloadBtn').href = d.video_url;
+  } else {
+    document.getElementById('videoWrap').style.display = 'none';
+    document.getElementById('noVideoMsg').style.display = 'block';
+  }
+
+  // Script
+  document.getElementById('scriptBox').textContent = d.script || '';
+
+  // Voiceover
+  document.getElementById('voiceoverBox').textContent = d.voiceover || '';
+  if (d.audio_path) {
+    document.getElementById('audioEl').src = `/api/commercial/${currentJobId}/audio`;
+    document.getElementById('audioPlayer').style.display = 'block';
+  }
+
+  // Vision analysis
+  document.getElementById('visionBox').textContent = d.media_description || 'Not available';
+}
+
+function showError(msg) {
+  document.getElementById('stepLog').textContent = '❌ ' + msg;
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('progressBar').style.background = '#ff3b30';
+}
+
+function copyScript() {
+  const text = document.getElementById('scriptBox').textContent;
+  navigator.clipboard.writeText(text).then(() => alert('Script copied!'));
+}
+
+function regenerate() {
+  document.getElementById('doneSection').style.display = 'none';
+  document.getElementById('progressSection').style.display = 'block';
+  runCommercial();
+}
+
+async function publishCommercial() {
+  const platforms = getSelectedPlatforms();
+  if (!platforms.length) { alert('Select at least one platform to publish to.'); return; }
+  alert('Publishing to: ' + platforms.join(', ') + '\n\nThis will schedule the commercial for immediate posting.');
+}
+</script>
+{% endblock %}
