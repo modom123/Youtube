@@ -311,10 +311,16 @@ def prompt_value(key: str, instruction: str) -> str:
     return value
 
 
-def open_tab(page: Page, url: str, tab_name: str):
+def open_tab(page: Page, url: str, tab_name: str) -> bool:
+    """Navigate to url. Returns False if browser was closed."""
     print(f"\n[→] Opening {tab_name}: {url}")
-    page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-    time.sleep(2)
+    try:
+        page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+        time.sleep(1)
+        return True
+    except Exception as e:
+        print(f"  [!] Browser error: {e}")
+        return False
 
 
 def save_progress(collected: dict, path: Path):
@@ -399,23 +405,51 @@ def main():
         print(f"\n  Resuming — {len(already_done)} values already collected.")
 
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=False, slow_mo=200)
-        context = browser.new_context(viewport={"width": 1400, "height": 900})
-        page = context.new_page()
+
+        def new_browser():
+            b = pw.chromium.launch(headless=False, slow_mo=100)
+            ctx = b.new_context(viewport={"width": 1400, "height": 900})
+            pg = ctx.new_page()
+            return b, pg
+
+        browser, page = new_browser()
 
         for portal in PORTALS:
             tab_name = portal["tab"]
-            needs_visit = any(v["key"] not in collected or not collected[v["key"]]
-                              for v in portal["vars"])
+            needs_visit = any(
+                not collected.get(v["key"]) for v in portal["vars"]
+            )
             if not needs_visit:
                 print(f"\n[✓] {tab_name} — already collected, skipping.")
                 continue
 
-            open_tab(page, portal["url"], tab_name)
+            # Reopen browser if it was closed
+            try:
+                page.evaluate("1")  # ping — raises if browser dead
+            except Exception:
+                print("\n[!] Browser was closed — reopening...")
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+                browser, page = new_browser()
+
+            ok = open_tab(page, portal["url"], tab_name)
+            if not ok:
+                # Browser died mid-navigation — reopen and retry once
+                try:
+                    browser.close()
+                except Exception:
+                    pass
+                browser, page = new_browser()
+                ok = open_tab(page, portal["url"], tab_name)
+                if not ok:
+                    print(f"  [!] Could not open {tab_name}, skipping.")
+                    continue
 
             for var in portal["vars"]:
                 key = var["key"]
-                if key in collected and collected[key]:
+                if collected.get(key):
                     print(f"  [✓] {key} already collected, skipping.")
                     continue
 
@@ -424,9 +458,12 @@ def main():
                     collected[key] = value
                     save_progress(collected, progress_file)
                 else:
-                    print(f"  [!] Skipped {key} — can fill in later.")
+                    print(f"  [!] Skipped {key} — re-run to fill later.")
 
-        browser.close()
+        try:
+            browser.close()
+        except Exception:
+            pass
 
     # Summary
     filled = {k: v for k, v in collected.items() if v}
