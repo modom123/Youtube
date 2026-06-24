@@ -7,41 +7,53 @@ import database as db
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+PAID_PLANS = {"starter", "creator", "agency"}
+
+
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
+        plan = request.args.get("plan", "").strip()
+        if plan in PAID_PLANS:
+            return redirect(url_for("billing.checkout", tier_name=plan))
         return redirect(url_for("dashboard"))
+
+    plan = request.args.get("plan", "").strip()
 
     if request.method == "POST":
         name  = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip().lower()
         pw    = request.form.get("password", "")
         pw2   = request.form.get("password2", "")
+        plan  = request.form.get("plan", plan).strip()
 
         if not email or not pw:
             flash("Email and password are required.", "error")
-            return render_template("auth/register.html")
+            return render_template("auth/register.html", plan=plan)
 
         if pw != pw2:
             flash("Passwords do not match.", "error")
-            return render_template("auth/register.html")
+            return render_template("auth/register.html", plan=plan)
 
         if len(pw) < 8:
             flash("Password must be at least 8 characters.", "error")
-            return render_template("auth/register.html")
+            return render_template("auth/register.html", plan=plan)
 
         if db.get_user_by_email(email):
             flash("An account with that email already exists.", "error")
-            return render_template("auth/register.html")
+            return render_template("auth/register.html", plan=plan)
 
         pw_hash = generate_password_hash(pw)
         user_id = db.create_user(email=email, password_hash=pw_hash, name=name or email.split("@")[0])
         user_data = db.get_user_by_id(user_id)
         user = _UserObj(user_data)
         login_user(user, remember=True)
+
+        if plan in PAID_PLANS:
+            return redirect(url_for("billing.checkout", tier_name=plan))
         return redirect(url_for("dashboard"))
 
-    return render_template("auth/register.html")
+    return render_template("auth/register.html", plan=plan)
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])

@@ -24,17 +24,18 @@ STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 # ── Subscription tiers ───────────────────────────────────────────────────────
 TIERS = {
     "free": {
-        "label": "Free Trial",
-        "description": "Try Social Optimize free — no credit card needed. Create 2 AI-powered videos and publish to your top 4 platforms.",
+        "label": "Free",
+        "description": "Get started for free — no credit card, no commitment. 2 AI videos per month.",
         "price_monthly": 0,
+        "trial_days": 0,
         "videos_per_month": 2,
         "higgsfield_credits": 0,
         "stripe_price_id": None,
-        "features": ["2 videos/month", "4 platforms", "Pexels stock media", "Basic scripts"],
+        "features": ["2 videos/month", "4 platforms", "Pexels stock media", "Basic AI scripts"],
     },
     "starter": {
         "label": "Starter",
-        "description": "14-day free trial — no credit card required. Then $29/mo for 15 videos, 4 platforms, and 150 AI video credits.",
+        "description": "Try free for 14 days — card required, cancel anytime. Then just $29/mo.",
         "price_monthly": 29,
         "trial_days": 14,
         "videos_per_month": 15,
@@ -44,21 +45,23 @@ TIERS = {
     },
     "creator": {
         "label": "Creator",
-        "description": "Built for full-time creators and brands. 50 videos, 500 AI credits, and all 4 major platforms.",
+        "description": "Try free for 14 days — card required, cancel anytime. Then $79/mo for serious creators.",
         "price_monthly": 79,
+        "trial_days": 14,
         "videos_per_month": 50,
         "higgsfield_credits": 500,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
-        "features": ["50 videos/month", "500 AI video credits", "All 4 platforms", "Studio 56"],
+        "features": ["14-day free trial", "50 videos/month", "500 AI video credits", "All 4 platforms", "Studio 56", "Commercial Studio"],
     },
     "agency": {
         "label": "Agency",
-        "description": "Unlimited content for teams and agencies. Max AI credits, priority processing, and white-glove support.",
+        "description": "Try free for 14 days — card required, cancel anytime. Then $199/mo for unlimited scale.",
         "price_monthly": 199,
+        "trial_days": 14,
         "videos_per_month": -1,
         "higgsfield_credits": 2000,
         "stripe_price_id": STRIPE_PRICE_AGENCY,
-        "features": ["Unlimited videos", "2000 AI video credits", "Priority processing", "All 4 platforms"],
+        "features": ["14-day free trial", "Unlimited videos", "2000 AI video credits", "Priority processing", "All 4 platforms", "Team management", "White-label"],
     },
 }
 

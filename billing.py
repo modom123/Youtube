@@ -70,14 +70,18 @@ def checkout(tier_name):
         customer_id = customer.id
         db.update_user(current_user.id, stripe_customer_id=customer_id)
 
-    trial_days = tier.get("trial_days")
+    trial_days = tier.get("trial_days", 0)
     subscription_data = {"metadata": {"user_id": str(current_user.id), "tier": tier_name}}
     if trial_days:
         subscription_data["trial_period_days"] = trial_days
+        subscription_data["trial_settings"] = {
+            "end_behavior": {"missing_payment_method": "cancel"}
+        }
 
     session = stripe.checkout.Session.create(
         customer=customer_id,
         payment_method_types=["card"],
+        payment_method_collection="always",
         mode="subscription",
         line_items=[{"price": price_id, "quantity": 1}],
         success_url=config.APP_BASE_URL + url_for("billing.checkout_success") + "?session_id={CHECKOUT_SESSION_ID}",
@@ -85,6 +89,7 @@ def checkout(tier_name):
         client_reference_id=str(current_user.id),
         metadata={"user_id": str(current_user.id), "tier": tier_name},
         subscription_data=subscription_data,
+        allow_promotion_codes=True,
     )
     return redirect(session.url, code=303)
 
@@ -268,16 +273,28 @@ def check_usage_gate(user_id: int) -> tuple[bool, str]:
     if not user:
         return False, "User not found."
 
-    tier = config.TIERS.get(user["subscription_tier"], config.TIERS["free"])
-    limit = tier["videos_per_month"]
+    sub_status = user.get("subscription_status") or "active"
+    tier_name  = user.get("subscription_tier") or "free"
+
+    # Users on a trial get free-tier limits (card is captured, full access unlocks after trial)
+    if sub_status == "trialing":
+        effective_tier = config.TIERS["free"]
+    else:
+        effective_tier = config.TIERS.get(tier_name, config.TIERS["free"])
+
+    limit = effective_tier["videos_per_month"]
 
     if limit == -1:  # unlimited
         return True, ""
 
-    if user["videos_used"] >= limit:
-        tier_label = tier["label"]
+    if (user["videos_used"] or 0) >= limit:
+        if sub_status == "trialing":
+            return False, (
+                "You've reached the trial limit. Your full plan unlocks automatically when your 14-day trial ends — "
+                "or visit Billing to activate now."
+            )
         return False, (
-            f"You've used all {limit} videos in your {tier_label} plan this month. "
-            f"Upgrade to get more."
+            f"You've used all {limit} videos in your {effective_tier['label']} plan this month. "
+            "Upgrade to get more."
         )
     return True, ""

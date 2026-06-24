@@ -221,68 +221,71 @@
       <div class="pricing-tier">Tier 01</div>
       <h3 class="pricing-name">Free</h3>
       <div class="pricing-price">$<span style="font-size: 36px;">0</span><span>/mo</span></div>
-      <p class="pricing-desc">Try free — no credit card needed. Create 2 AI videos across your top 4 platforms.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free</button>
+      <p class="pricing-desc">No credit card needed. 2 AI videos per month, forever free.</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free — No Card</button>
       <ul class="pricing-features">
         <li>2 videos/month</li>
         <li>4 platforms</li>
         <li>Stock media library</li>
+        <li>Basic AI scripts</li>
         <li>Community support</li>
       </ul>
     </div>
 
     <!-- STARTER -->
     <div class="pricing-card">
-      <div class="pricing-popular" style="background:#30d158;">14-Day Free Trial</div>
+      <div class="pricing-popular" style="background:#30d158; color:#000;">14-Day Free Trial</div>
       <div class="pricing-tier">Tier 02</div>
       <h3 class="pricing-name">Starter</h3>
       <div class="pricing-price"><span id="starter-price">$29</span><span>/mo</span></div>
-      <p class="pricing-desc">Try free for 14 days — no credit card required. Then $29/mo.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free Trial</button>
+      <p class="pricing-desc">Try free for 14 days. Card required — won't be charged until trial ends. Cancel anytime.</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=starter'">Start Free Trial</button>
       <ul class="pricing-features">
-        <li><strong>14-day free trial</strong></li>
+        <li>✅ 14-day free trial</li>
         <li>15 videos/month</li>
         <li>4 platforms</li>
-        <li>150 AI credits</li>
-        <li>Research suite</li>
+        <li>150 AI video credits</li>
+        <li>5-agent pipeline</li>
         <li>Email support</li>
       </ul>
     </div>
 
-    <!-- PRO (FEATURED) -->
+    <!-- CREATOR (FEATURED) -->
     <div class="pricing-card featured">
       <div class="pricing-popular">Most Popular</div>
       <div class="pricing-tier">Tier 03</div>
-      <h3 class="pricing-name">Pro</h3>
+      <h3 class="pricing-name">Creator</h3>
       <div class="pricing-price"><span id="pro-price">$79</span><span>/mo</span></div>
-      <p class="pricing-desc">For serious creators</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start 14-day Trial</button>
+      <p class="pricing-desc">Try free for 14 days. Card required — won't be charged until trial ends. Cancel anytime.</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=creator'">Start Free Trial</button>
       <ul class="pricing-features">
+        <li>✅ 14-day free trial</li>
         <li>50 videos/month</li>
-        <li>4 platforms</li>
+        <li>500 AI video credits</li>
+        <li>All 4 platforms</li>
+        <li>Studio 56</li>
+        <li>Commercial Studio</li>
         <li>Hollywood AI agent</li>
-        <li>Advanced analytics</li>
-        <li>Competitor tracking</li>
-        <li>Batch creation</li>
         <li>Priority support</li>
-        <li>Unlimited retention</li>
       </ul>
     </div>
 
     <!-- AGENCY -->
     <div class="pricing-card">
+      <div class="pricing-popular" style="background:#a855f7;">14-Day Free Trial</div>
       <div class="pricing-tier">Tier 04</div>
       <h3 class="pricing-name">Agency</h3>
       <div class="pricing-price"><span id="agency-price">$199</span><span>/mo</span></div>
-      <p class="pricing-desc">For teams & agencies</p>
-      <button class="pricing-cta" onclick="window.location.href='/contact'">Contact Sales</button>
+      <p class="pricing-desc">Try free for 14 days. Card required — won't be charged until trial ends. Cancel anytime.</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=agency'">Start Free Trial</button>
       <ul class="pricing-features">
+        <li>✅ 14-day free trial</li>
         <li>Unlimited videos/month</li>
-        <li>4 platforms</li>
-        <li>5 team seats</li>
+        <li>2000 AI video credits</li>
+        <li>All 4 platforms</li>
+        <li>Team management</li>
         <li>White-label exports</li>
         <li>API access</li>
-        <li>Dedicated manager</li>
         <li>24/7 priority support</li>
       </ul>
     </div>
@@ -404,7 +407,7 @@
         <div class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
       </button>
       <div class="faq-a">
-        <p>After 14 days, your trial expires and you'll need to add a payment method to continue. No charges are made until you do. You can cancel anytime before that.</p>
+        <p>After 14 days, your subscription automatically activates and your card is charged at your plan's monthly rate. You can cancel anytime before the trial ends and you won't be charged a thing.</p>
       </div>
     </div>
     <div class="faq-item">
@@ -440,7 +443,7 @@
 <!-- FINAL CTA -->
 <section class="final-cta">
   <h2>Ready to create?</h2>
-  <p>Start free — no credit card required. 3 videos included. Cancel anytime.</p>
+  <p>Free plan needs no card. Paid plans start with a 14-day free trial — card required, cancel anytime before trial ends.</p>
   <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free →</a>
 </section>
 
