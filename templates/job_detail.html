@@ -307,10 +307,16 @@
 <script>
 async function retryJob(id, btn) {
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
-  const r = await fetch(`/api/jobs/${id}/retry`, {method:'POST'});
-  const d = await r.json();
-  if (d.error) { alert(d.error); if (btn) { btn.disabled = false; btn.textContent = '↺ Retry'; } return; }
-  location.reload();
+  try {
+    const r = await fetch(`/api/jobs/${id}/retry`, {method:'POST'});
+    if (r.status === 401) { alert('Session expired — please sign in again.'); window.location.href = '/login'; return; }
+    const d = await r.json();
+    if (d.error) { alert(d.error); if (btn) { btn.disabled = false; btn.textContent = '↺ Retry'; } return; }
+    location.reload();
+  } catch (e) {
+    alert('Retry failed: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '↺ Retry'; }
+  }
 }
 async function forceReset(id) {
   if (!confirm('Force-reset this job? It will be marked as failed so you can retry it.')) return;

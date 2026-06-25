@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Error — Social Optimize{% endblock %}
+{% block topbar_title %}Error{% endblock %}
+{% block topbar_sub %}Something went wrong{% endblock %}
+{% block topbar_actions %}<a href="/dashboard" class="btn btn-ghost">← Dashboard</a>{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;margin:40px auto;text-align:center;padding:40px;">
+  <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+  <h2 style="margin-bottom:12px;">Something went wrong</h2>
+  <p class="text-dim" style="margin-bottom:24px;">{{ error or "An unexpected error occurred." }}</p>
+  <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+</div>
+{% endblock %}

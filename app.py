@@ -35,6 +35,12 @@ login_manager.login_view = "auth.login"
 login_manager.login_message = "Please sign in to continue."
 login_manager.login_message_category = "info"
 
+@login_manager.unauthorized_handler
+def _unauthorized():
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Session expired — please sign in again"}), 401
+    return redirect(url_for("auth.login"))
+
 @login_manager.user_loader
 def load_user(user_id):
     data = db.get_user_by_id(int(user_id))
@@ -43,6 +49,12 @@ def load_user(user_id):
 app.register_blueprint(auth_bp)
 app.register_blueprint(billing_bp)
 app.register_blueprint(admin_bp)
+
+@app.errorhandler(500)
+def _handle_500(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": f"Internal server error: {e}"}), 500
+    return render_template("error.html", error=str(e)), 500
 
 ALLOWED_EXTENSIONS = {"csv", "vcf", "vcard", "txt"}
 
@@ -640,7 +652,7 @@ def retry_job(job_id):
         "target_duration": None,
         "dry_run": False,
         "cleanup": False,
-        "subscription_tier": db.get_user_by_id(current_user.id).get("subscription_tier", "starter"),
+        "subscription_tier": (db.get_user_by_id(current_user.id) or {}).get("subscription_tier", "starter"),
     }
     threading.Thread(target=_run_job_thread, args=(job_id, params, current_user.id), daemon=True).start()
     return jsonify({"job_id": job_id})
