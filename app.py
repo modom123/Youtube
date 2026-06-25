@@ -51,14 +51,34 @@ def allowed_file(filename):
 
 _job_events: dict = {}
 _job_lock = threading.Lock()
+_JOB_TTL = 3600          # seconds before completed job events are evicted
+_JOB_MAX_EVENTS = 50     # max SSE frames stored per job
+
+
+def _evict_old_job_events(store: dict, lock: threading.Lock, ttl: int = _JOB_TTL):
+    """Remove completed-job event lists older than ttl seconds."""
+    import time as _time
+    now = _time.time()
+    with lock:
+        stale = [k for k, v in store.items()
+                 if isinstance(v, dict) and now - v.get("_ts", now) > ttl]
+        for k in stale:
+            del store[k]
 
 
 def push_event(job_id: int, data: dict):
+    import time as _time
     payload = f"data: {json.dumps(data)}\n\n"
     with _job_lock:
         if job_id not in _job_events:
             _job_events[job_id] = []
         _job_events[job_id].append(payload)
+        # Keep only the last N events per job to bound memory usage
+        if len(_job_events[job_id]) > _JOB_MAX_EVENTS:
+            _job_events[job_id] = _job_events[job_id][-_JOB_MAX_EVENTS:]
+        # Mark completion time so eviction can clean it up later
+        if data.get("status") in ("done", "error", "cancelled"):
+            _job_events[f"_ts_{job_id}"] = _time.time()
 
 
 def _run_job_thread(job_id: int, params: dict, user_id: int = None):
@@ -1679,11 +1699,16 @@ _studio_lock = threading.Lock()
 
 
 def _push_studio_event(job_id: str, data: dict):
+    import time as _time
     payload = f"data: {json.dumps(data)}\n\n"
     with _studio_lock:
         if job_id not in _studio_events:
             _studio_events[job_id] = []
         _studio_events[job_id].append(payload)
+        if len(_studio_events[job_id]) > _JOB_MAX_EVENTS:
+            _studio_events[job_id] = _studio_events[job_id][-_JOB_MAX_EVENTS:]
+        if data.get("status") in ("done", "error"):
+            _studio_events[f"_ts_{job_id}"] = _time.time()
 
 
 def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
@@ -2630,11 +2655,16 @@ def commercial_status(job_id):
 
 
 def _push_commercial(job_id: str, data: dict):
+    import time as _time
     payload = f"data: {json.dumps(data)}\n\n"
     with _commercial_lock:
         if job_id not in _commercial_jobs:
             _commercial_jobs[job_id] = []
         _commercial_jobs[job_id].append(payload)
+        if len(_commercial_jobs[job_id]) > _JOB_MAX_EVENTS:
+            _commercial_jobs[job_id] = _commercial_jobs[job_id][-_JOB_MAX_EVENTS:]
+        if data.get("status") in ("done", "error"):
+            _commercial_jobs[f"_ts_{job_id}"] = _time.time()
 
 
 def _run_commercial_thread(job_id: str, params: dict, user_id: int):
@@ -3115,6 +3145,21 @@ def _competitor_refresh_thread():
             pass
 
 
+def _memory_eviction_thread():
+    """Hourly sweep: remove stale in-memory job event lists to prevent RAM growth."""
+    while True:
+        time.sleep(3600)
+        try:
+            for store, lock in (
+                (_job_events, _job_lock),
+                (_studio_events, _studio_lock),
+                (_commercial_jobs, _commercial_lock),
+            ):
+                _evict_old_job_events(store, lock)
+        except Exception:
+            pass
+
+
 def start_background_threads():
     global _bg_threads_started
     with _bg_threads_lock:
@@ -3125,6 +3170,8 @@ def start_background_threads():
     t1.start()
     t2 = threading.Thread(target=_competitor_refresh_thread, daemon=True, name="competitor_refresh")
     t2.start()
+    t3 = threading.Thread(target=_memory_eviction_thread, daemon=True, name="mem_evict")
+    t3.start()
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────

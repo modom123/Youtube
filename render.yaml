@@ -2,7 +2,7 @@ services:
   - type: web
     name: social-optimize
     runtime: docker
-    plan: starter          # $7/mo — needed for persistent disk support
+    plan: standard         # $25/mo — 2GB RAM needed for video generation workloads
     region: oregon
     branch: main
     dockerfilePath: ./Dockerfile
