@@ -279,15 +279,19 @@ def generate_script_parallel(
     for t in threads:
         t.start()
 
-    # Collect results; return first non-None
+    # Collect results; return first non-None (120s timeout per slot)
+    SLOT_TIMEOUT = 130
     errors = 0
     for _ in models:
-        model_name, script = result_queue.get()
+        try:
+            model_name, script = result_queue.get(timeout=SLOT_TIMEOUT)
+        except queue.Empty:
+            break
         if script is not None:
             return script
         errors += 1
 
-    raise RuntimeError(f"All {len(models)} parallel script models failed")
+    raise RuntimeError(f"All {len(models)} parallel script models failed or timed out")
 
 
 def _generate_script_claude(

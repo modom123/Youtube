@@ -473,6 +473,7 @@ def api_create():
         "ad_style": data.get("ad_style") or "cinematic",
         "ad_platforms": data.get("ad_platforms") or [],
         "ai_model": data.get("ai_model", "auto"),
+        "subscription_tier": db.get_user_by_id(current_user.id).get("subscription_tier", "starter"),
     }
     t = threading.Thread(target=_run_job_thread, args=(job_id, params, current_user.id), daemon=True)
     t.start()

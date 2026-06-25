@@ -3,6 +3,7 @@ Social Optimize - Core Orchestrator
 Turns any topic into a complete multi-platform content package.
 """
 import json
+import concurrent.futures
 from datetime import datetime
 import config
 from generators import script_generator, audio_generator, video_generator, media_fetcher, thumbnail_generator
@@ -102,6 +103,7 @@ def run(
     ad_platforms: list = None,
     target_duration: int = None,
     ai_model: str = "claude",
+    subscription_tier: str = "starter",
     progress_cb=None,
 ) -> dict:
     """
@@ -217,18 +219,56 @@ def run(
                 logger.warn(f"Research failed ({e}) — continuing without it")
 
     # ── 3. Generate script ───────────────────────────────────────────────────
-    model_label = "Gemini Flash" if ai_model == "gemini" else "Claude AI"
+    _MODEL_LABELS = {
+        "claude": "Claude AI", "deepseek": "DeepSeek-V3",
+        "qwen": "Qwen (Alibaba)", "groq": "Groq/Llama",
+        "gemini": "Gemini Flash", "parallel": "Parallel Race", "auto": "AI",
+    }
+    model_label = _MODEL_LABELS.get(ai_model, "AI")
     _push_progress(18, f"Generating script with {model_label}...")
+    SCRIPT_TIMEOUT = 150  # hard ceiling so a hung API call never freezes the job
+    _script_kwargs = dict(
+        topic=topic,
+        content_type=profile["content_type"],
+        target_duration=profile["duration"],
+        audience=audience,
+        custom_instructions=custom_instructions,
+        research_context=research_context,
+        subscription_tier=subscription_tier,
+    )
+
+    def _run_script_with_timeout(model: str) -> object:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
+            _fut = _pool.submit(script_generator.generate_script, ai_model=model, **_script_kwargs)
+            return _fut.result(timeout=SCRIPT_TIMEOUT)
+
     with logger.spinner(f"Generating script with {model_label}..."):
-        script = script_generator.generate_script(
-            topic=topic,
-            content_type=profile["content_type"],
-            target_duration=profile["duration"],
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-            ai_model=ai_model,
-        )
+        script = None
+        last_err = None
+        # Primary attempt
+        try:
+            script = _run_script_with_timeout(ai_model)
+        except concurrent.futures.TimeoutError:
+            last_err = RuntimeError(f"Script engine '{ai_model}' timed out after {SCRIPT_TIMEOUT}s")
+            logger.warn(str(last_err))
+        except Exception as e:
+            last_err = e
+            logger.warn(f"Script engine '{ai_model}' failed ({e})")
+
+        # Automatic fallback to Claude if primary failed
+        if script is None and ai_model != "claude":
+            _push_progress(18, "Script engine failed — retrying with Claude...")
+            logger.warn(f"Falling back to Claude for script generation")
+            try:
+                script = _run_script_with_timeout("claude")
+            except Exception as e:
+                last_err = e
+
+        if script is None:
+            raise RuntimeError(
+                f"Script generation failed: {last_err}. "
+                "Check your API keys (ANTHROPIC_API_KEY) on Render, then retry."
+            )
 
     script_path = job / "script.json"
     with open(script_path, "w") as f:
