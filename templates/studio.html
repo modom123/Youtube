@@ -13,16 +13,16 @@
 
 {% block content %}
 <style>
-  /* ── Studio 56 identity — warm amber / dark studio ── */
-  :root { --s56: #f59e0b; --s56-dim: #92400e; --s56-bg: rgba(245,158,11,.07); }
+  /* ── Studio 56 identity — cool blue studio ── */
+  :root { --s56: #3b82f6; --s56-dim: #1e40af; --s56-bg: rgba(59,130,246,.07); }
 
   .s56-grid { display: grid; grid-template-columns: 400px 1fr; gap: 22px; align-items: start; }
   @media (max-width: 960px) { .s56-grid { grid-template-columns: 1fr; } }
 
   /* On-air header */
   .s56-onair {
-    background: linear-gradient(135deg, #0d0a00 0%, #1a1200 100%);
-    border: 1px solid #f59e0b44;
+    background: linear-gradient(135deg, #050a18 0%, #0a1628 100%);
+    border: 1px solid #3b82f644;
     border-radius: 14px;
     padding: 20px 24px;
     display: flex;
@@ -36,29 +36,29 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse at 20% 50%, rgba(245,158,11,.12) 0%, transparent 60%);
+    background: radial-gradient(ellipse at 20% 50%, rgba(59,130,246,.12) 0%, transparent 60%);
     pointer-events: none;
   }
   .s56-mic {
     width: 56px; height: 56px; border-radius: 50%;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     display: flex; align-items: center; justify-content: center;
     font-size: 26px; flex-shrink: 0;
-    box-shadow: 0 0 24px #f59e0b55;
+    box-shadow: 0 0 24px #3b82f655;
   }
-  .s56-onair-text h2 { font-size: 20px; font-weight: 900; color: #f59e0b; margin: 0 0 3px; }
-  .s56-onair-text p  { font-size: 12px; color: #92400e; margin: 0; }
+  .s56-onair-text h2 { font-size: 20px; font-weight: 900; color: #3b82f6; margin: 0 0 3px; }
+  .s56-onair-text p  { font-size: 12px; color: #1e40af; margin: 0; }
   .s56-live-badge {
     margin-left: auto;
     display: flex; align-items: center; gap: 7px;
-    background: #1a0a00; border: 1px solid #f59e0b66;
+    background: #0a1428; border: 1px solid #3b82f666;
     border-radius: 20px; padding: 5px 14px;
-    font-size: 11px; font-weight: 800; color: #f59e0b;
+    font-size: 11px; font-weight: 800; color: #3b82f6;
     flex-shrink: 0;
   }
   .s56-live-dot {
     width: 8px; height: 8px; border-radius: 50%;
-    background: #f59e0b; box-shadow: 0 0 6px #f59e0b;
+    background: #3b82f6; box-shadow: 0 0 6px #3b82f6;
     animation: s56pulse 1.4s infinite;
   }
   @keyframes s56pulse { 0%,100%{opacity:1;} 50%{opacity:.3;} }
@@ -69,7 +69,7 @@
     height: 32px; margin-top: 8px;
   }
   .s56-bar {
-    width: 4px; background: #f59e0b; border-radius: 2px;
+    width: 4px; background: #3b82f6; border-radius: 2px;
     animation: s56wave 1s infinite ease-in-out;
     opacity: .7;
   }
@@ -93,77 +93,77 @@
 
   /* Form card */
   .s56-card {
-    background: #0d0a00;
-    border: 1px solid #f59e0b33;
+    background: #050a18;
+    border: 1px solid #3b82f633;
     border-radius: 12px;
     padding: 22px;
     margin-bottom: 16px;
   }
   .s56-card h3 {
     font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .1em; color: #92400e; margin: 0 0 16px;
+    letter-spacing: .1em; color: #1e40af; margin: 0 0 16px;
     display: flex; align-items: center; gap: 6px;
   }
   .form-row { margin-bottom: 14px; }
   .form-row label {
     display: block; font-size: 11px; font-weight: 600;
-    color: #92400e; margin-bottom: 5px;
+    color: #1e40af; margin-bottom: 5px;
     text-transform: uppercase; letter-spacing: .06em;
   }
   .form-row input, .form-row select, .form-row textarea {
-    width: 100%; background: #1a1200; border: 1px solid #f59e0b33;
-    border-radius: 8px; color: #fde68a; padding: 10px 12px;
+    width: 100%; background: #0a1628; border: 1px solid #3b82f633;
+    border-radius: 8px; color: #93c5fd; padding: 10px 12px;
     font-size: 14px; font-family: inherit; box-sizing: border-box;
   }
   .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
-    outline: none; border-color: #f59e0b; background: #1e1500;
+    outline: none; border-color: #3b82f6; background: #0c1a2e;
   }
-  .form-row input::placeholder, .form-row textarea::placeholder { color: #78350f; }
+  .form-row input::placeholder, .form-row textarea::placeholder { color: #1e3a5f; }
   .form-row textarea { resize: vertical; min-height: 64px; }
-  .form-row select option { background: #1a1200; }
+  .form-row select option { background: #0a1628; }
   .fg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   /* Duration tiles */
   .dur-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
   .dur-tile {
     text-align: center; cursor: pointer;
-    border-radius: 8px; border: 1px solid #f59e0b33;
-    background: #1a1200; padding: 10px 4px;
+    border-radius: 8px; border: 1px solid #3b82f633;
+    background: #0a1628; padding: 10px 4px;
     transition: border-color .15s, background .15s;
   }
-  .dur-tile:hover { border-color: #f59e0b88; }
-  .dur-tile.active { border-color: #f59e0b; background: var(--s56-bg); }
-  .dur-tile .dur-val { font-size: 15px; font-weight: 800; color: #fde68a; }
-  .dur-tile .dur-lbl { font-size: 10px; color: #78350f; margin-top: 2px; }
+  .dur-tile:hover { border-color: #3b82f688; }
+  .dur-tile.active { border-color: #3b82f6; background: var(--s56-bg); }
+  .dur-tile .dur-val { font-size: 15px; font-weight: 800; color: #93c5fd; }
+  .dur-tile .dur-lbl { font-size: 10px; color: #1e3a5f; margin-top: 2px; }
 
   /* Format tabs */
   .fmt-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
   .fmt-tab {
     flex: 1; text-align: center; padding: 10px 8px;
-    border-radius: 8px; border: 1px solid #f59e0b33;
-    background: #1a1200; cursor: pointer;
+    border-radius: 8px; border: 1px solid #3b82f633;
+    background: #0a1628; cursor: pointer;
     transition: border-color .15s, background .15s;
-    font-size: 12px; font-weight: 600; color: #92400e;
+    font-size: 12px; font-weight: 600; color: #1e40af;
   }
-  .fmt-tab:hover { border-color: #f59e0b66; color: #fde68a; }
-  .fmt-tab.active { border-color: #f59e0b; background: var(--s56-bg); color: #f59e0b; }
+  .fmt-tab:hover { border-color: #3b82f666; color: #93c5fd; }
+  .fmt-tab.active { border-color: #3b82f6; background: var(--s56-bg); color: #3b82f6; }
   .fmt-tab .fmt-icon { font-size: 18px; display: block; margin-bottom: 3px; }
 
   /* Platform checkboxes */
   .plat-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   .plat-check {
     display: flex; align-items: center; gap: 5px;
-    font-size: 12px; cursor: pointer; color: #92400e;
+    font-size: 12px; cursor: pointer; color: #1e40af;
     padding: 5px 10px; border-radius: 6px;
     border: 1px solid transparent; transition: .15s;
   }
-  .plat-check:has(input:checked) { border-color: #f59e0b66; background: var(--s56-bg); color: #fde68a; }
+  .plat-check:has(input:checked) { border-color: #3b82f666; background: var(--s56-bg); color: #93c5fd; }
 
   /* Run button */
   .s56-run {
     width: 100%; padding: 14px; font-size: 15px; font-weight: 800;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    border: none; border-radius: 10px; color: #0a0800;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border: none; border-radius: 10px; color: #e0eaff;
     cursor: pointer; transition: opacity .15s, transform .1s;
     letter-spacing: .02em;
   }
@@ -172,9 +172,9 @@
 
   /* Progress */
   .s56-progress { margin-bottom: 12px; display: none; }
-  .s56-pbar-track { height: 5px; background: #1a1200; border-radius: 3px; overflow: hidden; }
-  .s56-pbar-fill { height: 100%; background: linear-gradient(90deg,#f59e0b,#d97706); border-radius: 3px; transition: width .4s; width: 0%; }
-  .s56-step-label { font-size: 11px; color: #92400e; margin-top: 5px; }
+  .s56-pbar-track { height: 5px; background: #0a1628; border-radius: 3px; overflow: hidden; }
+  .s56-pbar-fill { height: 100%; background: linear-gradient(90deg,#3b82f6,#2563eb); border-radius: 3px; transition: width .4s; width: 0%; }
+  .s56-step-label { font-size: 11px; color: #1e40af; margin-top: 5px; }
 
   /* Right panel */
   .s56-right { display: flex; flex-direction: column; gap: 16px; }
@@ -183,48 +183,48 @@
   .s56-pipeline { display: flex; flex-direction: column; gap: 8px; }
   .s56-agent {
     display: flex; align-items: center; gap: 12px;
-    background: #1a1200; border: 1px solid #f59e0b22;
+    background: #0a1628; border: 1px solid #3b82f622;
     border-radius: 10px; padding: 12px 14px;
     transition: border-color .2s, background .2s;
   }
-  .s56-agent.active { border-color: #f59e0b; background: #1e1500; }
+  .s56-agent.active { border-color: #3b82f6; background: #0c1a2e; }
   .s56-agent.done   { border-color: #10b981; background: rgba(16,185,129,.06); }
   .s56-agent.err    { border-color: #ef4444; background: rgba(239,68,68,.06); }
   .s56-agent-ico {
     width: 36px; height: 36px; border-radius: 8px;
-    background: #2a1a00; display: flex; align-items: center;
+    background: #0a1a3a; display: flex; align-items: center;
     justify-content: center; font-size: 18px; flex-shrink: 0;
   }
-  .s56-agent.active .s56-agent-ico { background: #f59e0b; }
+  .s56-agent.active .s56-agent-ico { background: #3b82f6; }
   .s56-agent.done   .s56-agent-ico { background: #10b981; }
-  .s56-agent-name { font-size: 13px; font-weight: 700; color: #fde68a; }
-  .s56-agent-desc { font-size: 11px; color: #78350f; margin-top: 2px; }
-  .s56-agent-stat { margin-left: auto; font-size: 11px; color: #78350f; white-space: nowrap; }
-  .s56-agent.active .s56-agent-stat { color: #f59e0b; }
+  .s56-agent-name { font-size: 13px; font-weight: 700; color: #93c5fd; }
+  .s56-agent-desc { font-size: 11px; color: #1e3a5f; margin-top: 2px; }
+  .s56-agent-stat { margin-left: auto; font-size: 11px; color: #1e3a5f; white-space: nowrap; }
+  .s56-agent.active .s56-agent-stat { color: #3b82f6; }
   .s56-agent.done   .s56-agent-stat { color: #10b981; }
-  .s56-arrow { text-align: center; color: #3a2200; font-size: 16px; line-height: 1; }
+  .s56-arrow { text-align: center; color: #1a2a4a; font-size: 16px; line-height: 1; }
 
   /* Chapter preview */
   .chapter-list { display: flex; flex-direction: column; gap: 8px; }
   .chapter-item {
     display: flex; align-items: flex-start; gap: 12px;
-    background: #1a1200; border: 1px solid #f59e0b22;
+    background: #0a1628; border: 1px solid #3b82f622;
     border-radius: 8px; padding: 10px 14px;
   }
   .chapter-num {
     width: 28px; height: 28px; border-radius: 50%;
-    background: #f59e0b22; border: 1px solid #f59e0b44;
+    background: #3b82f622; border: 1px solid #3b82f644;
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 800; color: #f59e0b; flex-shrink: 0;
+    font-size: 11px; font-weight: 800; color: #3b82f6; flex-shrink: 0;
   }
-  .chapter-title { font-size: 13px; font-weight: 600; color: #fde68a; }
-  .chapter-dur   { font-size: 11px; color: #78350f; margin-top: 2px; }
+  .chapter-title { font-size: 13px; font-weight: 600; color: #93c5fd; }
+  .chapter-dur   { font-size: 11px; color: #1e3a5f; margin-top: 2px; }
 
   /* Log box */
   .s56-log {
-    background: #0d0900; border: 1px solid #f59e0b22; border-radius: 8px;
+    background: #050a16; border: 1px solid #3b82f622; border-radius: 8px;
     padding: 10px 12px; font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: #78350f; max-height: 120px; overflow-y: auto;
+    font-size: 11px; color: #1e3a5f; max-height: 120px; overflow-y: auto;
   }
   .s56-log-line { margin: 2px 0; }
   .s56-log-line.ok  { color: #10b981; }
@@ -236,22 +236,22 @@
   .s56-result-section { margin-bottom: 18px; }
   .s56-result-section label {
     display: block; font-size: 10px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .1em; color: #78350f; margin-bottom: 6px;
+    text-transform: uppercase; letter-spacing: .1em; color: #1e3a5f; margin-bottom: 6px;
   }
   .s56-result-section .val {
-    font-size: 14px; color: #fde68a; line-height: 1.5;
-    background: #1a1200; border-radius: 6px; padding: 10px 12px;
-    border: 1px solid #f59e0b22;
+    font-size: 14px; color: #93c5fd; line-height: 1.5;
+    background: #0a1628; border-radius: 6px; padding: 10px 12px;
+    border: 1px solid #3b82f622;
   }
 
   /* Metrics row */
   .s56-metrics { display: grid; grid-template-columns: repeat(auto-fill,minmax(110px,1fr)); gap: 10px; }
   .s56-metric {
-    background: #1a1200; border: 1px solid #f59e0b22; border-radius: 8px;
+    background: #0a1628; border: 1px solid #3b82f622; border-radius: 8px;
     padding: 12px; text-align: center;
   }
-  .s56-metric .mv { font-size: 22px; font-weight: 900; color: #f59e0b; }
-  .s56-metric .ml { font-size: 10px; color: #78350f; margin-top: 2px; text-transform: uppercase; letter-spacing: .06em; }
+  .s56-metric .mv { font-size: 22px; font-weight: 900; color: #3b82f6; }
+  .s56-metric .ml { font-size: 10px; color: #1e3a5f; margin-top: 2px; text-transform: uppercase; letter-spacing: .06em; }
 </style>
 
 <!-- On Air Header -->
@@ -288,7 +288,7 @@
 
       <!-- Duration -->
       <div style="margin-bottom:14px;">
-        <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#92400e;margin-bottom:8px;">Episode Length</label>
+        <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#1e40af;margin-bottom:8px;">Episode Length</label>
         <div class="dur-grid" id="durGrid">
           <div class="dur-tile" onclick="s56DurPick(this,900)"   data-dur="900"><div class="dur-val">15m</div><div class="dur-lbl">Briefing</div></div>
           <div class="dur-tile active" onclick="s56DurPick(this,1800)" data-dur="1800"><div class="dur-val">30m</div><div class="dur-lbl">Standard</div></div>
@@ -399,11 +399,11 @@
         <label class="plat-check"><input type="checkbox" class="s-platform" value="threads"> 🧵 Threads</label>
       </div>
       <div style="display:flex;gap:12px;margin-bottom:16px;">
-        <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;color:#92400e;">
-          <input type="checkbox" id="s-research" checked style="accent-color:#f59e0b;" /> Enable Research
+        <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;color:#1e40af;">
+          <input type="checkbox" id="s-research" checked style="accent-color:#3b82f6;" /> Enable Research
         </label>
-        <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;color:#92400e;">
-          <input type="checkbox" id="s-dryrun" style="accent-color:#f59e0b;" /> Dry Run
+        <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;color:#1e40af;">
+          <input type="checkbox" id="s-dryrun" style="accent-color:#3b82f6;" /> Dry Run
         </label>
       </div>
 
@@ -487,7 +487,7 @@
     <div class="s56-card" id="s56ChapterCard">
       <h3>📑 Episode Chapters</h3>
       <div id="s56ChapterList">
-        <div style="text-align:center;padding:28px;color:#3a2200;font-size:13px;">
+        <div style="text-align:center;padding:28px;color:#1a2a4a;font-size:13px;">
           <div style="font-size:28px;margin-bottom:8px;">📻</div>
           Chapter breakdown will appear here once the Narrative Writer completes.<br>
           <span style="font-size:11px;color:#2a1500;">Each chapter is timed and ready for YouTube timestamps.</span>
@@ -518,7 +518,7 @@
         </div>
         <div class="s56-result-section">
           <label>A/B Title Variants</label>
-          <ul id="r-ablist" style="margin:0;padding:0 0 0 16px;color:#fde68a;font-size:13px;list-style:disc;"></ul>
+          <ul id="r-ablist" style="margin:0;padding:0 0 0 16px;color:#93c5fd;font-size:13px;list-style:disc;"></ul>
         </div>
       </div>
     </div>
@@ -624,7 +624,7 @@ function s56ShowChapters(chapters) {
       <div>
         <div class="chapter-title">${ch.title || ch}</div>
         ${ch.duration ? `<div class="chapter-dur">⏱ ${ch.duration}</div>` : ''}
-        ${ch.description ? `<div class="chapter-dur" style="color:#92400e;margin-top:2px;">${ch.description}</div>` : ''}
+        ${ch.description ? `<div class="chapter-dur" style="color:#1e40af;margin-top:2px;">${ch.description}</div>` : ''}
       </div>
     </div>
   `).join('');

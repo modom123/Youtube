@@ -14,7 +14,7 @@
 {% block content %}
 <style>
   /* ── Hollywood — deep cinema black / gold ── */
-  :root { --hw-gold: #f59e0b; --hw-gold-dim: #92400e; --hw-bg: #070709; --hw-card: #0c0c11; --hw-border: #f59e0b22; }
+  :root { --hw-gold: #10b981; --hw-gold-dim: #065f46; --hw-bg: #070709; --hw-card: #000c0c; --hw-border: #10b98122; }
 
   .hw-outer {
     display: grid;
@@ -32,7 +32,7 @@
     background: repeating-linear-gradient(
       90deg,
       #000 0px, #000 10px,
-      #f59e0b 10px, #f59e0b 14px,
+      #10b981 10px, #10b981 14px,
       #000 14px, #000 24px
     );
     border-radius: 14px 14px 0 0;
@@ -52,20 +52,20 @@
   .hw-header {
     display: flex; align-items: center; gap: 14px;
     padding: 14px 20px;
-    background: linear-gradient(135deg, #0c0c11 0%, #100c00 100%);
+    background: linear-gradient(135deg, #000c0c 0%, #001008 100%);
     border-bottom: 1px solid var(--hw-border);
     flex-shrink: 0;
   }
   .hw-director-chair {
     width: 48px; height: 48px; border-radius: 10px;
-    background: linear-gradient(135deg, #f59e0b, #b45309);
+    background: linear-gradient(135deg, #10b981, #047857);
     display: flex; align-items: center; justify-content: center;
     font-size: 22px; flex-shrink: 0;
-    box-shadow: 0 0 20px #f59e0b44;
+    box-shadow: 0 0 20px #10b98144;
   }
   .hw-header-text h2 {
     font-size: 18px; font-weight: 900;
-    color: #f59e0b; margin: 0 0 2px; letter-spacing: -.01em;
+    color: #10b981; margin: 0 0 2px; letter-spacing: -.01em;
   }
   .hw-header-text p { font-size: 11px; color: #6b7280; margin: 0; }
 
@@ -80,10 +80,10 @@
     cursor: pointer; color: #6b7280;
     transition: .15s; white-space: nowrap;
   }
-  .hw-style-chip:hover { border-color: #f59e0b88; color: #f59e0b; }
+  .hw-style-chip:hover { border-color: #10b98188; color: #10b981; }
   .hw-style-chip.active {
-    border-color: #f59e0b; background: rgba(245,158,11,.1);
-    color: #f59e0b;
+    border-color: #10b981; background: rgba(16,185,129,.1);
+    color: #10b981;
   }
 
   /* Status bar */
@@ -91,12 +91,12 @@
     display: flex; align-items: center; gap: 16px;
     padding: 6px 16px;
     background: #0a0a0f;
-    border-bottom: 1px solid #f59e0b11;
+    border-bottom: 1px solid #10b98111;
     font-size: 10px; color: #4b5563; flex-shrink: 0; flex-wrap: wrap;
   }
   .hw-status-item { display: flex; align-items: center; gap: 5px; }
   .dot-green  { color: #10b981; }
-  .dot-amber  { color: #f59e0b; }
+  .dot-amber  { color: #10b981; }
   .dot-gray   { color: #374151; }
 
   /* Messages */
@@ -119,7 +119,7 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 15px; flex-shrink: 0; margin-top: 2px;
   }
-  .hw-msg.assistant .hw-av { background: linear-gradient(135deg,#f59e0b,#b45309); box-shadow:0 0 8px #f59e0b44; }
+  .hw-msg.assistant .hw-av { background: linear-gradient(135deg,#10b981,#047857); box-shadow:0 0 8px #10b98144; }
   .hw-msg.user .hw-av { background: #1e293b; }
 
   .hw-msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -134,43 +134,43 @@
     border-radius: 12px 3px 12px 12px;
   }
   .hw-msg.assistant .hw-bubble {
-    background: #0c0c11; border: 1px solid var(--hw-border);
+    background: #000c0c; border: 1px solid var(--hw-border);
     color: #e2e8f0; border-radius: 3px 12px 12px 12px;
   }
   .hw-bubble p { margin: 0 0 8px; }
   .hw-bubble p:last-child { margin: 0; }
   .hw-bubble ul, .hw-bubble ol { margin: 6px 0 6px 18px; }
   .hw-bubble li { margin-bottom: 3px; }
-  .hw-bubble strong { color: #f59e0b; }
-  .hw-bubble h1,.hw-bubble h2,.hw-bubble h3 { color: #f59e0b; font-size: 14px; margin: 8px 0 4px; }
+  .hw-bubble strong { color: #10b981; }
+  .hw-bubble h1,.hw-bubble h2,.hw-bubble h3 { color: #10b981; font-size: 14px; margin: 8px 0 4px; }
   .hw-bubble code {
-    background: #1a1200; padding: 1px 5px; border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #f59e0b;
+    background: #001a10; padding: 1px 5px; border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #10b981;
   }
   .hw-bubble pre {
-    background: #1a1200; border: 1px solid #f59e0b22;
+    background: #001a10; border: 1px solid #10b98122;
     border-radius: 6px; padding: 8px 12px; overflow-x: auto; margin: 6px 0;
   }
-  .hw-bubble pre code { background: none; color: #fde68a; }
+  .hw-bubble pre code { background: none; color: #6ee7b7; }
 
   /* Tool pills */
   .hw-tools { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
   .hw-tool-pill {
     padding: 2px 8px; border-radius: 20px;
-    background: #1a1200; border: 1px solid #f59e0b33;
-    font-size: 10px; color: #92400e; font-weight: 600;
+    background: #001a10; border: 1px solid #10b98133;
+    font-size: 10px; color: #065f46; font-weight: 600;
   }
 
   /* Typing */
   .hw-typing { display: none; align-self: flex-start; align-items: center; gap: 10px; }
   .hw-typing.on { display: flex; }
   .hw-typing-bub {
-    background: #0c0c11; border: 1px solid var(--hw-border);
+    background: #000c0c; border: 1px solid var(--hw-border);
     border-radius: 3px 12px 12px 12px;
     padding: 11px 16px; display: flex; gap: 5px; align-items: center;
   }
   .hw-dot {
-    width: 7px; height: 7px; background: #f59e0b; border-radius: 50%;
+    width: 7px; height: 7px; background: #10b981; border-radius: 50%;
     animation: hwBounce .8s infinite;
   }
   .hw-dot:nth-child(2){animation-delay:.18s;}
@@ -183,33 +183,33 @@
     padding: 8px 16px 0; flex-shrink: 0;
   }
   .hw-chip {
-    padding: 5px 11px; background: #0c0c11;
+    padding: 5px 11px; background: #000c0c;
     border: 1px solid var(--hw-border); border-radius: 20px;
-    font-size: 11px; color: #f59e0b; cursor: pointer;
+    font-size: 11px; color: #10b981; cursor: pointer;
     transition: .15s; white-space: nowrap;
   }
-  .hw-chip:hover { background: #1a1200; border-color: #f59e0b; }
+  .hw-chip:hover { background: #001a10; border-color: #10b981; }
 
   /* Input */
   .hw-input-area {
-    padding: 10px 16px 14px; border-top: 1px solid #f59e0b11;
+    padding: 10px 16px 14px; border-top: 1px solid #10b98111;
     background: var(--hw-bg); flex-shrink: 0;
   }
   .hw-input-row { display: flex; gap: 10px; align-items: flex-end; }
   .hw-input {
-    flex: 1; background: #0c0c11; border: 1px solid #1e1e2e;
+    flex: 1; background: #000c0c; border: 1px solid #1e1e2e;
     border-radius: 10px; color: #e2e8f0; font-size: 14px;
     font-family: inherit; padding: 10px 14px; resize: none;
     outline: none; line-height: 1.5;
     min-height: 42px; max-height: 140px;
     transition: border-color .15s; overflow-y: auto;
   }
-  .hw-input:focus { border-color: #f59e0b66; }
+  .hw-input:focus { border-color: #10b98166; }
   .hw-input::placeholder { color: #374151; }
   .hw-send {
-    background: linear-gradient(135deg, #f59e0b, #b45309);
+    background: linear-gradient(135deg, #10b981, #047857);
     border: none; border-radius: 10px;
-    color: #0a0800; font-size: 13px; font-weight: 800;
+    color: #e0fff0; font-size: 13px; font-weight: 800;
     padding: 10px 18px; cursor: pointer; flex-shrink: 0;
     transition: opacity .15s, transform .1s;
     height: 42px; white-space: nowrap;
@@ -222,7 +222,7 @@
     text-align: center; padding: 32px 20px; color: #374151;
   }
   .hw-welcome .hw-clapboard { font-size: 48px; margin-bottom: 12px; }
-  .hw-welcome h3 { color: #f59e0b; font-size: 18px; font-weight: 800; margin: 0 0 6px; }
+  .hw-welcome h3 { color: #10b981; font-size: 18px; font-weight: 800; margin: 0 0 6px; }
   .hw-welcome p { font-size: 13px; line-height: 1.6; max-width: 380px; margin: 0 auto; }
 
   /* ── Right panel: Storyboard ── */
@@ -235,9 +235,9 @@
     border-radius: 12px; overflow: hidden; flex-shrink: 0;
   }
   .hw-panel-header {
-    padding: 10px 14px; background: #100c00;
+    padding: 10px 14px; background: #001008;
     border-bottom: 1px solid var(--hw-border);
-    font-size: 11px; font-weight: 800; color: #f59e0b;
+    font-size: 11px; font-weight: 800; color: #10b981;
     display: flex; align-items: center; gap: 6px;
     text-transform: uppercase; letter-spacing: .08em;
   }
@@ -249,14 +249,14 @@
     max-height: 320px; overflow-y: auto;
   }
   .hw-shot {
-    background: #1a1200; border: 1px solid #f59e0b22;
+    background: #001a10; border: 1px solid #10b98122;
     border-radius: 8px; padding: 8px;
     font-size: 10px; cursor: pointer; transition: .15s;
   }
-  .hw-shot:hover { border-color: #f59e0b66; }
-  .hw-shot-num { color: #f59e0b; font-weight: 800; font-size: 11px; margin-bottom: 3px; }
-  .hw-shot-type { color: #92400e; font-size: 9px; text-transform: uppercase; margin-bottom: 4px; }
-  .hw-shot-desc { color: #fde68a; line-height: 1.4; }
+  .hw-shot:hover { border-color: #10b98166; }
+  .hw-shot-num { color: #10b981; font-weight: 800; font-size: 11px; margin-bottom: 3px; }
+  .hw-shot-type { color: #065f46; font-size: 9px; text-transform: uppercase; margin-bottom: 4px; }
+  .hw-shot-desc { color: #6ee7b7; line-height: 1.4; }
   .hw-storyboard-empty {
     grid-column: 1/-1; text-align: center; padding: 24px 10px;
     color: #2a1800; font-size: 12px;
@@ -270,13 +270,13 @@
   .hw-vis-style {
     display: flex; align-items: center; gap: 8px;
     padding: 7px 10px; border-radius: 8px;
-    border: 1px solid #f59e0b22; background: #1a1200;
+    border: 1px solid #10b98122; background: #001a10;
     cursor: pointer; transition: .15s;
   }
-  .hw-vis-style:hover, .hw-vis-style.active { border-color: #f59e0b; background: rgba(245,158,11,.08); }
+  .hw-vis-style:hover, .hw-vis-style.active { border-color: #10b981; background: rgba(16,185,129,.08); }
   .hw-vis-style .vs-icon { font-size: 16px; flex-shrink: 0; }
-  .hw-vis-style .vs-name { font-size: 11px; font-weight: 700; color: #fde68a; }
-  .hw-vis-style .vs-desc { font-size: 10px; color: #78350f; }
+  .hw-vis-style .vs-name { font-size: 11px; font-weight: 700; color: #6ee7b7; }
+  .hw-vis-style .vs-desc { font-size: 10px; color: #064e3b; }
 
   /* Scene log */
   .hw-scene-log {
@@ -286,7 +286,7 @@
   .hw-scene-entry {
     font-size: 10px; color: #6b7280; display: flex; gap: 6px;
   }
-  .hw-scene-entry .hw-se-time { color: #f59e0b66; flex-shrink: 0; font-family: 'JetBrains Mono',monospace; }
+  .hw-scene-entry .hw-se-time { color: #10b98166; flex-shrink: 0; font-family: 'JetBrains Mono',monospace; }
   .hw-scene-log-empty { font-size: 11px; color: #2a1800; text-align: center; padding: 16px; }
 </style>
 
