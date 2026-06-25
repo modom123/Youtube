@@ -21,14 +21,21 @@ import config
 def _fit_clip(clip, target_w: int, target_h: int):
     """Scale and crop a clip to fill target dimensions."""
     iw, ih = clip.size
+    if iw <= 0 or ih <= 0:
+        return clip.resized((target_w, target_h))
     scale = max(target_w / iw, target_h / ih)
     clip = clip.resized(scale)
+    rw, rh = clip.size
+    crop_w = min(target_w, rw)
+    crop_h = min(target_h, rh)
     clip = clip.cropped(
-        x_center=clip.size[0] // 2,
-        y_center=clip.size[1] // 2,
-        width=target_w,
-        height=target_h,
+        x_center=rw // 2,
+        y_center=rh // 2,
+        width=crop_w,
+        height=crop_h,
     )
+    if crop_w != target_w or crop_h != target_h:
+        clip = clip.resized((target_w, target_h))
     return clip
 
 
@@ -103,6 +110,41 @@ def _make_text_image(
     return np.array(img.convert("RGB"))
 
 
+def _make_fallback_visuals(width: int, height: int, total_duration: float, narration_text: str = "") -> list:
+    """Create gradient background slides with text when no stock media is available."""
+    gradients = [
+        ((15, 15, 40), (40, 20, 60)),
+        ((10, 25, 45), (20, 50, 70)),
+        ((30, 15, 35), (50, 25, 55)),
+        ((5, 20, 35), (15, 45, 60)),
+        ((25, 10, 30), (45, 20, 50)),
+    ]
+    clips = []
+    elapsed = 0.0
+    seg_idx = 0
+    while elapsed < total_duration:
+        seg_dur = min(random.uniform(5, 10), total_duration - elapsed)
+        if seg_dur < 0.5:
+            break
+        c1, c2 = gradients[seg_idx % len(gradients)]
+        grad = np.zeros((height, width, 3), dtype=np.uint8)
+        for y in range(height):
+            t = y / max(height - 1, 1)
+            grad[y, :] = [
+                int(c1[0] + (c2[0] - c1[0]) * t),
+                int(c1[1] + (c2[1] - c1[1]) * t),
+                int(c1[2] + (c2[2] - c1[2]) * t),
+            ]
+        clip = ImageClip(grad).with_duration(seg_dur)
+        clip = clip.with_effects([FadeIn(0.4), FadeOut(0.4)])
+        clips.append(clip)
+        elapsed += seg_dur
+        seg_idx += 1
+    if not clips:
+        clips = [ColorClip(size=(width, height), color=(15, 15, 40)).with_duration(total_duration)]
+    return clips
+
+
 def create_video(
     audio_path: Path,
     output_path: Path,
@@ -126,12 +168,15 @@ def create_video(
     audio = AudioFileClip(str(audio_path))
     total_duration = audio.duration
 
-    video_clips = [Path(p) for p in (video_clips or []) if p]
-    image_clips = [Path(p) for p in (image_clips or []) if p]
+    video_clips = [Path(p) for p in (video_clips or []) if p and Path(p).exists()]
+    image_clips = [Path(p) for p in (image_clips or []) if p and Path(p).exists()]
     all_visuals = list(video_clips) + list(image_clips)
 
+    print(f"[video] Visuals available: {len(video_clips)} videos, {len(image_clips)} images, total_duration={total_duration:.1f}s")
+
     if not all_visuals:
-        visual_sequence = [ColorClip(size=(width, height), color=(20, 20, 40)).with_duration(total_duration)]
+        print("[video] WARNING: No visual assets found — using image-based backgrounds")
+        visual_sequence = _make_fallback_visuals(width, height, total_duration, narration_text)
     else:
         random.shuffle(all_visuals)
         visual_sequence = []
@@ -156,7 +201,8 @@ def create_video(
                 print(f"[video] Skipping {source.name}: {e}")
 
     if not visual_sequence:
-        visual_sequence = [ColorClip(size=(width, height), color=(20, 20, 40)).with_duration(total_duration)]
+        print("[video] WARNING: All clips failed to load — using fallback visuals")
+        visual_sequence = _make_fallback_visuals(width, height, total_duration, narration_text)
 
     bg_video = concatenate_videoclips(visual_sequence, method="compose")
     if bg_video.duration < total_duration:

@@ -234,14 +234,19 @@ TWILIO_ACCOUNT_SID  = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN   = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER  = os.getenv("TWILIO_FROM_NUMBER", "")
 
-# Google Cloud TTS Neural2 voices
-GOOGLE_TTS_VOICE = os.getenv("GOOGLE_TTS_VOICE", "en-US-Neural2-C")
+# Google Cloud TTS voices (Studio > Journey > Neural2 quality order)
+GOOGLE_TTS_VOICE = os.getenv("GOOGLE_TTS_VOICE", "en-US-Studio-O")
 GOOGLE_TTS_VOICES = [
-    {"id": "en-US-Neural2-A", "name": "US Male A", "locale": "en-US"},
-    {"id": "en-US-Neural2-C", "name": "US Female C", "locale": "en-US"},
-    {"id": "en-US-Neural2-D", "name": "US Male D", "locale": "en-US"},
-    {"id": "en-US-Neural2-F", "name": "US Female F", "locale": "en-US"},
-    {"id": "en-US-Neural2-G", "name": "US Female G", "locale": "en-US"},
+    {"id": "en-US-Studio-O", "name": "US Male Studio O (Best)", "locale": "en-US"},
+    {"id": "en-US-Studio-Q", "name": "US Male Studio Q (Best)", "locale": "en-US"},
+    {"id": "en-US-Journey-D", "name": "US Male Journey D", "locale": "en-US"},
+    {"id": "en-US-Journey-F", "name": "US Female Journey F", "locale": "en-US"},
+    {"id": "en-US-Journey-O", "name": "US Male Journey O", "locale": "en-US"},
+    {"id": "en-US-Neural2-A", "name": "US Male Neural2 A", "locale": "en-US"},
+    {"id": "en-US-Neural2-C", "name": "US Female Neural2 C", "locale": "en-US"},
+    {"id": "en-US-Neural2-D", "name": "US Male Neural2 D", "locale": "en-US"},
+    {"id": "en-US-Neural2-F", "name": "US Female Neural2 F", "locale": "en-US"},
+    {"id": "en-US-Neural2-G", "name": "US Female Neural2 G", "locale": "en-US"},
     {"id": "en-US-Neural2-H", "name": "US Female H", "locale": "en-US"},
     {"id": "en-US-Neural2-I", "name": "US Male I", "locale": "en-US"},
     {"id": "en-US-Neural2-J", "name": "US Male J", "locale": "en-US"},

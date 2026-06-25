@@ -113,23 +113,37 @@ def fetch_media_for_topic(
     video_paths = []
     image_paths = []
 
-    if config.PEXELS_API_KEY:
-        try:
-            videos = search_videos(query, count=video_count, orientation=orientation)
-            for v in videos:
+    if not config.PEXELS_API_KEY:
+        print("[media] PEXELS_API_KEY not set — no stock media will be fetched")
+        return video_paths, image_paths
+
+    print(f"[media] Searching Pexels for: '{query}' (orientation={orientation})")
+
+    try:
+        videos = search_videos(query, count=video_count, orientation=orientation)
+        print(f"[media] Found {len(videos)} videos from Pexels")
+        for v in videos:
+            try:
                 path = download_video(v, output_dir / "stock_videos")
                 if path:
                     video_paths.append(path)
-        except Exception as e:
-            print(f"[media] Video fetch failed: {e}")
+            except Exception as e:
+                print(f"[media] Video download failed for {v.get('id')}: {e}")
+    except Exception as e:
+        print(f"[media] Video search failed: {e}")
 
-        try:
-            photos = search_images(query, count=10, orientation=orientation)
-            for p in photos:
+    try:
+        photos = search_images(query, count=10, orientation=orientation)
+        print(f"[media] Found {len(photos)} images from Pexels")
+        for p in photos:
+            try:
                 path = download_image(p, output_dir / "stock_images")
                 if path:
                     image_paths.append(path)
-        except Exception as e:
-            print(f"[media] Image fetch failed: {e}")
+            except Exception as e:
+                print(f"[media] Image download failed for {p.get('id')}: {e}")
+    except Exception as e:
+        print(f"[media] Image search failed: {e}")
 
+    print(f"[media] Final count: {len(video_paths)} videos, {len(image_paths)} images downloaded")
     return video_paths, image_paths

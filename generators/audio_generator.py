@@ -14,12 +14,12 @@ import config
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# Map edge-tts voice names to Google Neural2 equivalents
-_EDGE_TO_NEURAL2 = {
-    "en-US-AriaNeural":    "en-US-Neural2-C",
-    "en-US-JennyNeural":   "en-US-Neural2-F",
-    "en-US-GuyNeural":     "en-US-Neural2-D",
-    "en-US-DavisNeural":   "en-US-Neural2-A",
+# Map edge-tts voice names to best Google TTS equivalents (Studio > Journey > Neural2)
+_EDGE_TO_GOOGLE = {
+    "en-US-AriaNeural":    "en-US-Studio-O",
+    "en-US-JennyNeural":   "en-US-Journey-F",
+    "en-US-GuyNeural":     "en-US-Studio-Q",
+    "en-US-DavisNeural":   "en-US-Journey-D",
     "en-GB-SoniaNeural":   "en-GB-Neural2-A",
     "en-AU-NatashaNeural": "en-AU-Neural2-A",
 }
@@ -71,25 +71,46 @@ def _split_into_chunks(text: str, max_bytes: int = _GOOGLE_TTS_CHUNK_SIZE) -> li
 
 
 def _resolve_google_voice(voice: str) -> str:
-    """Resolve an edge-tts voice name or Google Neural2 voice name to a Neural2 voice id."""
-    if "Neural2" in voice:
+    """Resolve an edge-tts voice name to the best Google TTS voice (Studio/Journey/Neural2)."""
+    if "Studio" in voice or "Journey" in voice or "Neural2" in voice:
         return voice
-    if voice in _EDGE_TO_NEURAL2:
-        return _EDGE_TO_NEURAL2[voice]
-    return getattr(config, "GOOGLE_TTS_VOICE", "en-US-Neural2-C")
+    if voice in _EDGE_TO_GOOGLE:
+        return _EDGE_TO_GOOGLE[voice]
+    return getattr(config, "GOOGLE_TTS_VOICE", "en-US-Studio-O")
 
 
 def _google_tts_chunk(text: str, voice: str, api_key: str) -> bytes:
-    """Call Google Cloud TTS REST API for a single chunk, return MP3 bytes."""
+    """Call Google Cloud TTS REST API for a single chunk, return high-quality MP3 bytes."""
     import requests as req
     language_code = "-".join(voice.split("-")[:2])
+
+    ssml = f'<speak><prosody rate="medium" pitch="+0st">{text}</prosody></speak>'
+
     payload = {
-        "input": {"text": text},
+        "input": {"ssml": ssml},
         "voice": {"languageCode": language_code, "name": voice},
-        "audioConfig": {"audioEncoding": "MP3"},
+        "audioConfig": {
+            "audioEncoding": "MP3",
+            "sampleRateHertz": 24000,
+            "speakingRate": 1.0,
+            "pitch": 0.0,
+            "effectsProfileId": ["headphone-class-device"],
+        },
     }
-    url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+
+    # Studio/Journey voices use v1beta1 endpoint
+    api_version = "v1beta1" if ("Studio" in voice or "Journey" in voice) else "v1"
+    url = f"https://texttospeech.googleapis.com/{api_version}/text:synthesize?key={api_key}"
     resp = req.post(url, json=payload, timeout=30)
+
+    if resp.status_code != 200 and api_version == "v1beta1":
+        # Fallback to Neural2 if Studio/Journey voice not available
+        fallback_voice = language_code + "-Neural2-D"
+        print(f"[audio] {voice} unavailable, falling back to {fallback_voice}")
+        payload["voice"]["name"] = fallback_voice
+        url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+        resp = req.post(url, json=payload, timeout=30)
+
     resp.raise_for_status()
     audio_content = resp.json().get("audioContent", "")
     return base64.b64decode(audio_content)
