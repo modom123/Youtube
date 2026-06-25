@@ -198,47 +198,41 @@ TOOLS = [
 
 # ── Tool implementations ───────────────────────────────────────────────────────
 
-def _tool_create_content(topic: str, format: str = "short", platforms: list = None, audience: str = "general public") -> dict:
-    """Create a content job directly via database (same as /api/create)."""
+def _tool_create_content(topic: str, format: str = "short", platforms: list = None, audience: str = "general public", user_id: int = None) -> dict:
+    """Create a content job via the same pipeline as /api/create."""
     if platforms is None:
         platforms = []
     try:
         import threading
-        # Import the production engine to create a job
-        from generators.production_engine import run_production_pipeline
+        from app import _run_job_thread, push_event
+
         job_id = db.create_job(
-            title=f"Hollywood: {topic}",
-            niche=topic,
+            topic=topic,
             format=format,
-            platforms=json.dumps(platforms),
-            status="queued",
-            user_id=None
+            platforms=platforms,
+            audience=audience,
+            voice=config.DEFAULT_VOICE,
+            style="fire",
+            privacy="private",
+            skip_research=False,
+            user_id=user_id,
         )
-        # Kick off production in background
+
         params = {
-            "niche": topic,
-            "audience": audience,
+            "topic": topic,
             "format": format,
             "platforms": platforms,
-            "is_portrait": format == "short",
-            "target_duration": 55 if format == "short" else 480,
+            "audience": audience,
             "voice": config.DEFAULT_VOICE,
             "thumbnail_style": "fire",
             "privacy": "private",
-            "dry_run": False,
-            "research_enabled": True,
-            "competitor_titles": [],
-            "remaining_credits": 500,
-            "monthly_budget": 500,
+            "skip_research": False,
+            "ai_model": "auto",
         }
-        def _bg():
-            try:
-                run_production_pipeline(job_id=job_id, **params)
-            except Exception:
-                pass
-        t = threading.Thread(target=_bg, daemon=True)
+
+        t = threading.Thread(target=_run_job_thread, args=(job_id, params, user_id), daemon=True)
         t.start()
-        return {"job_id": job_id, "status": "queued", "topic": topic, "format": format, "platforms": platforms}
+        return {"job_id": job_id, "status": "running", "topic": topic, "format": format, "platforms": platforms}
     except Exception as e:
         return {"error": str(e), "topic": topic}
 
@@ -261,10 +255,10 @@ def _tool_get_job_status(job_id: int) -> dict:
         return {"error": str(e)}
 
 
-def _tool_list_recent_jobs(limit: int = 5) -> dict:
+def _tool_list_recent_jobs(limit: int = 5, user_id: int = None) -> dict:
     """List recent jobs."""
     try:
-        jobs = db.get_jobs(limit=limit)
+        jobs = db.get_jobs(limit=limit, user_id=user_id)
         result = []
         for j in (jobs or []):
             result.append({
@@ -478,7 +472,7 @@ def _tool_test_stripe_webhook(stripe_api_key: str, webhook_id: str, event_type: 
 
 # ── Tool dispatch ──────────────────────────────────────────────────────────────
 
-def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
+def _dispatch_tool(tool_name: str, tool_input: dict, user_id: int = None) -> str:
     """Execute a tool and return its result as a JSON string."""
     try:
         if tool_name == "create_content":
@@ -486,12 +480,13 @@ def _dispatch_tool(tool_name: str, tool_input: dict) -> str:
                 topic=tool_input["topic"],
                 format=tool_input.get("format", "short"),
                 platforms=tool_input.get("platforms", []),
-                audience=tool_input.get("audience", "general public")
+                audience=tool_input.get("audience", "general public"),
+                user_id=user_id,
             )
         elif tool_name == "get_job_status":
             result = _tool_get_job_status(job_id=int(tool_input["job_id"]))
         elif tool_name == "list_recent_jobs":
-            result = _tool_list_recent_jobs(limit=int(tool_input.get("limit", 5)))
+            result = _tool_list_recent_jobs(limit=int(tool_input.get("limit", 5)), user_id=user_id)
         elif tool_name == "check_render_config":
             result = _tool_check_render_config(
                 render_api_key=tool_input["render_api_key"],
@@ -579,7 +574,7 @@ def chat(message: str, history: list, user_id: int = None) -> str:
         # Execute all tool calls and collect results
         tool_results = []
         for tool_use in tool_uses:
-            tool_result_content = _dispatch_tool(tool_use.name, tool_use.input)
+            tool_result_content = _dispatch_tool(tool_use.name, tool_use.input, user_id=user_id)
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": tool_use.id,
