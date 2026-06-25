@@ -88,7 +88,12 @@ class ProductionStudioEngine:
         from generators import higgsfield_mcp
         from utils import file_manager, logger
 
-        voice = voice or config.DEFAULT_VOICE
+        # Auto-select Google Neural2 voice when API key is configured
+        if config.GOOGLE_API_KEY:
+            voice = voice or config.GOOGLE_TTS_VOICE
+        else:
+            voice = voice or config.DEFAULT_VOICE
+
         errors: list[str] = []
         blueprint: VideoBlueprint | None = None
         script: FullScript | None = None
@@ -187,6 +192,36 @@ class ProductionStudioEngine:
                 swaps_made=[],
                 quality_impact="Optimisation skipped due to error",
             )
+
+        # ── FORCE hook section (section_id=1) to have Higgsfield ─────────────
+        # Regardless of Cost Engineer decision, section 1 must be AI-generated
+        # when HIGGSFIELD_MCP_TOKEN is configured.
+        if config.HIGGSFIELD_MCP_TOKEN and not dry_run:
+            hook_has_higgsfield = any(
+                a.section_id == 1 and a.source.startswith("higgsfield_")
+                for a in asset_plan.assets
+            )
+            if not hook_has_higgsfield:
+                # Build a sensible prompt from the hook text or first section
+                hook_prompt = blueprint.hook or niche
+                if script.sections:
+                    hook_prompt = script.sections[0].visual_direction or hook_prompt
+                hook_asset = AssetSpec(
+                    section_id=1,
+                    asset_type="video_clip",
+                    source="higgsfield_cinematic",
+                    prompt=f"Cinematic opening shot: {hook_prompt[:200]}. Dramatic lighting, slow camera push-in, professional film quality.",
+                    model_key="cinematic_studio_3_0",
+                    duration_seconds=script.sections[0].duration_seconds if script.sections else 15,
+                    aspect_ratio="9:16" if is_portrait else "16:9",
+                    credit_cost=8,
+                    priority=1,
+                )
+                # Remove any existing section_id=1 asset and prepend the forced one
+                asset_plan.assets = [a for a in asset_plan.assets if a.section_id != 1]
+                asset_plan.assets.insert(0, hook_asset)
+                asset_plan.total_credit_cost += 8
+                errors.append("Note: Hook section forced to Higgsfield cinematic_studio_3_0")
 
         # ── Agent 4: Growth Engineer ──────────────────────────────────────────
         self.cb("Agent 4/5 — Growth Engineer crafting SEO package…", 52)
@@ -289,6 +324,22 @@ class ProductionStudioEngine:
         except Exception as e:
             errors.append(f"Thumbnail failed: {e}")
 
+        # ── AI Thumbnail via Higgsfield (upgrade over standard thumbnail) ─────
+        if config.HIGGSFIELD_MCP_TOKEN and not dry_run and script.thumbnail_prompt:
+            self.cb("Generating AI thumbnail…", 81)
+            try:
+                ai_thumb_path = job_dir / "thumbnail_ai.jpg"
+                result_path = higgsfield_mcp.generate_image_via_mcp(
+                    prompt=script.thumbnail_prompt,
+                    output_path=ai_thumb_path,
+                    model_id="nano_banana_pro",
+                    aspect_ratio="16:9",
+                )
+                if result_path and result_path.exists() and result_path.stat().st_size > 1_000:
+                    thumbnail_path = result_path
+            except Exception as e:
+                errors.append(f"AI thumbnail generation failed (using standard): {e}")
+
         # ── Assemble video ────────────────────────────────────────────────────
         self.cb("Assembling final video…", 84)
         video_path = job_dir / "video.mp4"
@@ -346,6 +397,10 @@ class ProductionStudioEngine:
             pipeline_cost_credits=asset_plan.total_credit_cost,
             status="success" if not errors else "partial",
             errors=errors,
+            video_path=str(video_path) if video_path.exists() else "",
+            audio_path=str(audio_path),
+            thumbnail_path=str(thumbnail_path),
+            manifest_path=str(job_dir / "manifest.json"),
         )
 
         self.cb("Production complete!", 100)

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set active_page = "create" %}
 
-{% block title %}Create Content — Social Optimize{% endblock %}
+{% block title %}Create Content — Social Optimize Machine{% endblock %}
 {% block topbar_title %}Create Content{% endblock %}
 {% block topbar_sub %}Generate and publish a complete video package{% endblock %}
 {% block topbar_actions %}{% endblock %}
@@ -54,11 +54,6 @@
           <div class="format-desc">Conversational audio+visual · 10 min</div>
           <span class="format-badge badge-green">16:9 Landscape</span>
         </div>
-        <div class="format-card" data-format="countdown" onclick="selectFormat(this,'countdown')" style="border-color:#a855f755;">
-          <div class="format-name" style="color:#a855f7;">🏆 Countdown / Top N</div>
-          <div class="format-desc">Ranked list video · 5–15 min</div>
-          <span class="format-badge" style="background:rgba(168,85,247,.15);color:#a855f7;">16:9 Landscape</span>
-        </div>
         <div class="format-card" data-format="commercial" onclick="selectFormat(this,'commercial')" style="border-color:#f59e0b55;">
           <div class="format-name" style="color:#f59e0b;">📺 Commercial</div>
           <div class="format-desc">Brand ad · 6 / 15 / 30 / 60 sec</div>
@@ -67,54 +62,15 @@
       </div>
     </div>
 
-    <!-- Publishing -->
-    <div class="card">
-      <div class="card-title mb-16"><span class="accent">📡</span> Publish To</div>
-      <div class="platform-grid">
-        <div class="platform-card youtube" data-platform="youtube" onclick="togglePlatform(this)">
-          <div class="platform-icon">▶️</div>
-          <div class="platform-name">YouTube</div>
-        </div>
-        <div class="platform-card tiktok" data-platform="tiktok" onclick="togglePlatform(this)">
-          <div class="platform-icon">🎵</div>
-          <div class="platform-name">TikTok</div>
-        </div>
-        <div class="platform-card instagram" data-platform="instagram" onclick="togglePlatform(this)">
-          <div class="platform-icon">📸</div>
-          <div class="platform-name">Instagram</div>
-        </div>
-        <div class="platform-card facebook" data-platform="facebook" onclick="togglePlatform(this)">
-          <div class="platform-icon">📘</div>
-          <div class="platform-name">Facebook</div>
-        </div>
-        <div class="platform-card twitter" data-platform="twitter" onclick="togglePlatform(this)">
-          <div class="platform-icon">🐦</div>
-          <div class="platform-name">Twitter / X</div>
-        </div>
-        <div class="platform-card twitch" data-platform="twitch" onclick="togglePlatform(this)">
-          <div class="platform-icon">🟣</div>
-          <div class="platform-name">Twitch</div>
-        </div>
-        <div class="platform-card pinterest" data-platform="pinterest" onclick="togglePlatform(this)">
-          <div class="platform-icon">📌</div>
-          <div class="platform-name">Pinterest</div>
-        </div>
-        <div class="platform-card threads" data-platform="threads" onclick="togglePlatform(this)">
-          <div class="platform-icon">🧵</div>
-          <div class="platform-name">Threads</div>
+    <!-- Publishing note -->
+    <div class="card" style="border-color:var(--border-bright);background:var(--bg-elevated);">
+      <div class="flex gap-12" style="align-items:center;">
+        <span style="font-size:22px;">📡</span>
+        <div>
+          <div class="text-bold text-sm">Choose platforms after review</div>
+          <div class="text-dim text-xs mt-2">Generate your video first — then open the job to preview it and select which platforms to publish to.</div>
         </div>
       </div>
-      <div class="form-group mt-16">
-        <label>Privacy</label>
-        <select id="privacy">
-          <option value="private">🔒 Private (safe for testing)</option>
-          <option value="unlisted">🔗 Unlisted</option>
-          <option value="public">🌍 Public</option>
-        </select>
-      </div>
-      <label class="flex-center gap-8 mt-8" style="cursor:pointer;">
-        <input type="checkbox" id="dry_run"> Generate only — skip uploading (dry run)
-      </label>
     </div>
 
   </div>
@@ -147,26 +103,20 @@
         </select>
         <div class="form-hint">{% if google_api_key %}Google Cloud Neural2 HD voices active{% else %}Using Microsoft Edge TTS — set GOOGLE_API_KEY for Neural2 HD{% endif %}</div>
       </div>
+      {% if google_api_key %}
       <div class="form-group">
         <label>Script Engine</label>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          {% for m in ai_models %}
-          <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg);border:1px solid {% if m.available %}var(--border){% else %}var(--border){% endif %};border-radius:8px;cursor:pointer;opacity:{% if m.available %}1{% else %}0.45{% endif %};">
-            <span style="display:flex;align-items:center;gap:10px;">
-              <input type="radio" name="ai_model" value="{{ m.id }}" {% if m.id == 'auto' %}checked{% endif %} {% if not m.available and m.id != 'auto' %}disabled{% endif %} />
-              <span>
-                <span style="font-size:13px;font-weight:600;">{{ m.name }}</span>
-                <span style="font-size:11px;color:var(--muted);display:block;margin-top:1px;">{{ m.desc }}</span>
-              </span>
-            </span>
-            <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:{% if m.badge == 'smart' %}#d4a01722{% elif m.badge == 'turbo' %}#f97316aa{% elif m.badge == 'quality' %}#3b82f622{% elif m.badge == 'fast' %}#22c55e22{% elif m.badge == 'ultra-fast' %}#06b6d422{% elif m.badge == 'multilingual' %}#a855f722{% else %}#64748b22{% endif %};color:{% if m.badge == 'smart' %}var(--gold){% elif m.badge == 'turbo' %}#fb923c{% elif m.badge == 'quality' %}#60a5fa{% elif m.badge == 'fast' %}#4ade80{% elif m.badge == 'ultra-fast' %}#22d3ee{% elif m.badge == 'multilingual' %}#c084fc{% else %}var(--muted){% endif %};">
-              {{ m.badge }}{% if not m.available %} · no key{% endif %}
-            </span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="ai_model" value="claude" checked /> Claude (premium)
           </label>
-          {% endfor %}
+          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
+            <input type="radio" name="ai_model" value="gemini" /> Gemini Flash (fast)
+          </label>
         </div>
-        <div class="form-hint">Auto lets the routing agent pick the best model for your content type and tier.</div>
+        <div class="form-hint">Gemini Flash is faster and cheaper — ideal for bulk generation</div>
       </div>
+      {% endif %}
       <div class="form-group">
         <label>Thumbnail Style</label>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="style-grid">
@@ -302,7 +252,7 @@
       </div>
 
       <div class="text-dim text-xs mt-4">
-        Uses Social Optimize AI for cinematic ad-quality footage. AI-written ad copy follows proven AIDA framework.
+        Uses Higgsfield Marketing Studio model for cinematic ad-quality footage. AI-written ad copy follows proven AIDA framework.
       </div>
     </div>
 
@@ -320,7 +270,7 @@
     <div class="card" style="border-color:var(--blue);">
       <div class="card-title mb-4">
         <span class="accent" style="color:var(--blue);">🤖</span> AI Video Generation
-        <span class="pill" style="background:var(--blue-dim);color:var(--blue);font-size:10px;margin-left:8px;">Social Optimize AI</span>
+        <span class="pill" style="background:var(--blue-dim);color:var(--blue);font-size:10px;margin-left:8px;">Higgsville</span>
       </div>
       <div class="text-dim text-sm mb-16">Replace stock footage with AI-generated cinematic clips — Kling 3.0, Veo 3.1, Cinema Studio, Seedance, Minimax and more.</div>
 
@@ -328,7 +278,7 @@
         <label>AI Video Provider</label>
         <select id="ai_video_provider" onchange="toggleAIOptions()">
           <option value="none">None — use stock footage only</option>
-          <option value="higgsville">Social Optimize AI — 17 models</option>
+          <option value="higgsville">Higgsville — 17 AI models</option>
           <option value="google_flow">Google Flow — Veo 3 direct</option>
           <option value="both">Both providers (maximum variety)</option>
         </select>
@@ -336,7 +286,7 @@
 
       <div id="higgsfield-options" style="display:none;">
         <div class="form-group">
-          <label>AI Model</label>
+          <label>Higgsville Model</label>
           <select id="higgsfield_model">
             <optgroup label="── Kling (Kuaishou) ──">
               <option value="kling3_0">Kling 3.0 — Multi-shot, 4K, audio ⭐</option>
@@ -348,7 +298,7 @@
               <option value="veo3">Google Veo 3 — Cinematic, broad creative</option>
               <option value="veo3_1_lite">Veo 3.1 Lite — Fast &amp; budget</option>
             </optgroup>
-            <optgroup label="── Cinema Studio ──">
+            <optgroup label="── Higgsfield Cinema ──">
               <option value="cinematic_studio_3_0">Cinema Studio 3.0 — Best quality ⭐</option>
               <option value="cinematic_studio_video_v2">Cinema Studio 2 — Genre control</option>
               <option value="cinematic_studio_video">Cinema Studio — Dramatic</option>
@@ -371,7 +321,7 @@
       <div class="card mt-8" style="background:var(--bg-primary);padding:12px;border:1px dashed var(--border-bright);">
         <div class="text-xs text-dim" style="line-height:1.7;">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-            <span>🎬 <strong>Social Optimize AI</strong> (17 models)</span>
+            <span>🎬 <strong>Higgsville</strong> (17 models)</span>
             <span id="hf-status" class="text-dim">—</span>
           </div>
           <div style="display:flex;justify-content:space-between;">
@@ -412,10 +362,7 @@
       <div class="card-title mb-12" id="prog-title">Generating Content...</div>
       <div class="flex-between mb-8">
         <span class="text-dim text-sm" id="prog-step">Starting...</span>
-        <span style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:14px;font-weight:700;color:var(--gold);" id="prog-pct">0%</span>
-          <span class="pill pill-running" id="prog-status">Running</span>
-        </span>
+        <span class="pill pill-running" id="prog-status">Running</span>
       </div>
       <div class="progress-track">
         <div class="progress-bar" id="prog-bar" style="width:0%"></div>
@@ -437,7 +384,6 @@
 <script>
 let _format = 'short';
 let _style = 'fire';
-let _platforms = new Set();
 let _researchDebounce = null;
 
 function selectFormat(el, fmt) {
@@ -465,12 +411,6 @@ function selectStyle(el, s) {
   document.querySelectorAll('#style-grid .format-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   _style = s;
-}
-
-function togglePlatform(el) {
-  const p = el.dataset.platform;
-  if (_platforms.has(p)) { _platforms.delete(p); el.classList.remove('selected'); }
-  else { _platforms.add(p); el.classList.add('selected'); }
 }
 
 // ── Live research preview ─────────────────────────────────────────────────────
@@ -539,15 +479,15 @@ async function startCreate() {
   const payload = {
     topic,
     format: _format,
-    platforms: Array.from(_platforms),
+    platforms: [],
     audience: document.getElementById('audience').value,
     voice: document.getElementById('voice').value,
     style: _style,
-    privacy: document.getElementById('privacy').value,
+    privacy: 'private',
     instructions: document.getElementById('instructions').value || null,
-    dry_run: document.getElementById('dry_run').checked,
+    dry_run: false,
     skip_research: document.getElementById('skip_research').checked,
-    ai_model: _aiModelEl ? _aiModelEl.value : 'auto',
+    ai_model: _aiModelEl ? _aiModelEl.value : 'claude',
     ai_video_provider: document.getElementById('ai_video_provider').value,
     higgsfield_model: document.getElementById('higgsfield_model').value,
     podcast_name: document.getElementById('podcast_name').value || topic,
@@ -555,9 +495,7 @@ async function startCreate() {
     guest_name: document.getElementById('guest_name').value || '',
     target_duration: _format === 'commercial'
       ? parseInt(document.getElementById('ad_duration').value) || 30
-      : _format === 'countdown'
-        ? 720
-        : parseInt(document.getElementById('podcast_duration').value) || 1800,
+      : parseInt(document.getElementById('podcast_duration').value) || 1800,
     // Commercial-specific fields
     ad_format: _format === 'commercial' ? document.getElementById('ad_format').value : null,
     ad_brand: document.getElementById('ad_brand').value || '',
@@ -579,12 +517,12 @@ async function startBlitz() {
     await launchJob({
       topic,
       format: fmt,
-      platforms: Array.from(_platforms),
+      platforms: [],
       audience: document.getElementById('audience').value,
       voice: document.getElementById('voice').value,
       style: _style,
-      privacy: document.getElementById('privacy').value,
-      dry_run: document.getElementById('dry_run').checked,
+      privacy: 'private',
+      dry_run: false,
     });
   }
 }
@@ -604,27 +542,12 @@ async function launchJob(payload) {
   const { job_id } = await resp.json();
 
   return new Promise((resolve) => {
-    let es = new EventSource(`/api/job/${job_id}/stream`);
-    let resolved = false;
+    const es = new EventSource(`/api/job/${job_id}/stream`);
     const log = document.getElementById('prog-log');
 
-    function reconnect() {
-      if (resolved) return;
-      es.close();
-      setTimeout(() => {
-        es = new EventSource(`/api/job/${job_id}/stream`);
-        es.onmessage = onMessage;
-        es.onerror = onError;
-      }, 2000);
-    }
-    function onError() { reconnect(); }
-
-    function onMessage(e) {
+    es.onmessage = (e) => {
       const d = JSON.parse(e.data);
-      if (d.progress !== undefined) {
-        document.getElementById('prog-bar').style.width = d.progress + '%';
-        document.getElementById('prog-pct').textContent = d.progress + '%';
-      }
+      if (d.progress !== undefined) document.getElementById('prog-bar').style.width = d.progress + '%';
       if (d.step) document.getElementById('prog-step').textContent = d.step;
       if (d.log) {
         const span = document.createElement('span');
@@ -635,7 +558,6 @@ async function launchJob(payload) {
         log.scrollTop = log.scrollHeight;
       }
       if (d.status === 'done') {
-        resolved = true;
         es.close();
         document.getElementById('prog-status').className = 'pill pill-done';
         document.getElementById('prog-status').textContent = 'Done!';
@@ -650,7 +572,6 @@ async function launchJob(payload) {
         resolve();
       }
       if (d.status === 'error') {
-        resolved = true;
         es.close();
         document.getElementById('prog-status').className = 'pill pill-error';
         document.getElementById('prog-status').textContent = 'Error';
@@ -658,16 +579,13 @@ async function launchJob(payload) {
         document.getElementById('launch-btn').disabled = false;
         resolve();
       }
-    }
-    es.onmessage = onMessage;
-    es.onerror = onError;
+    };
   });
 }
 
 function resetProgress() {
   document.getElementById('prog-bar').style.width = '0%';
   document.getElementById('prog-bar').className = 'progress-bar';
-  document.getElementById('prog-pct').textContent = '0%';
   document.getElementById('prog-step').textContent = 'Starting...';
   document.getElementById('prog-status').className = 'pill pill-running';
   document.getElementById('prog-status').textContent = 'Running';

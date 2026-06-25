@@ -610,7 +610,65 @@ def job_detail(job_id):
     if not job:
         return redirect("/jobs")
     dubs = db.get_dub_jobs_for_source(user_id=current_user.id, source_job_id=job_id)
-    return render_template("job_detail.html", job=job, dubs=dubs, dub_languages=DUB_LANGUAGES)
+    accounts = db.get_accounts(user_id=current_user.id)
+    connected = {a["platform"] for a in accounts if a["is_active"]}
+    return render_template("job_detail.html", job=job, dubs=dubs, dub_languages=DUB_LANGUAGES,
+                           connected_platforms=connected)
+
+
+@app.route("/api/jobs/<int:job_id>/publish", methods=["POST"])
+@login_required
+def api_publish_job(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+    if job["status"] != "done":
+        return jsonify({"error": "Job must be complete before publishing"}), 400
+    if not job.get("video_path"):
+        return jsonify({"error": "No video file found for this job"}), 400
+
+    data = request.json or {}
+    platforms = data.get("platforms", [])
+    privacy = data.get("privacy", "private")
+    if not platforms:
+        return jsonify({"error": "Select at least one platform"}), 400
+
+    title = job.get("title") or job.get("topic", "")
+    description = job.get("description", "")
+    hashtags, keywords, cdn_url = [], [], ""
+    is_short = job.get("format") in ("short", "reel")
+
+    if job.get("manifest_path"):
+        try:
+            with open(job["manifest_path"]) as f:
+                manifest_data = json.load(f)
+            hashtags = manifest_data.get("hashtags", [])
+            keywords = manifest_data.get("keywords", [])
+            cdn_url = manifest_data.get("files", {}).get("cdn_url", "")
+            if not description:
+                description = manifest_data.get("description", "")
+        except Exception:
+            pass
+
+    import social_optimize
+    results = social_optimize.publish_to_platforms(
+        video_path=job["video_path"],
+        title=title, description=description,
+        hashtags=hashtags, keywords=keywords,
+        platforms=platforms, privacy=privacy,
+        is_short=is_short, cdn_url=cdn_url,
+    )
+
+    existing = job.get("publish_results") or {}
+    if isinstance(existing, str):
+        try:
+            existing = json.loads(existing)
+        except Exception:
+            existing = {}
+    existing.update(results)
+    db.update_job(job_id, publish_results=existing)
+
+    return jsonify({"publish_results": results})
 
 
 @app.route("/api/jobs/<int:job_id>/research")
@@ -2012,17 +2070,31 @@ def _push_studio_event(job_id: str, data: dict):
 def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
     from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
     from generators.production_engine import ProductionStudioEngine
-    if user_id:
-        _tok = _get_user_higgsfield_token(user_id)
-        _avg._session_token.value = _tok
-        _hmcp._session_token.value = _tok
+    niche = params["niche"]
+
+    # Create a DB job record so the output appears in the Jobs list
+    db_job_id = db.create_job(
+        topic=niche, format="long", platforms=[],
+        audience=params.get("audience", "general public"),
+        voice=params.get("voice") or config.DEFAULT_VOICE,
+        style=params.get("thumbnail_style", "fire"),
+        privacy=params.get("privacy", "private"),
+        user_id=user_id,
+    )
+    db.update_job(db_job_id, status="running", progress=5, current_step="Starting Production Studio…")
+
+
     def _cb(msg: str, pct: int):
+        db.update_job(db_job_id, progress=pct, current_step=msg)
         with _studio_lock:
             if studio_job_id in _studio_jobs:
                 _studio_jobs[studio_job_id].update({"progress": pct, "step": msg, "status": "running"})
         _push_studio_event(studio_job_id, {"progress": pct, "step": msg, "status": "running"})
+
     with _studio_lock:
-        _studio_jobs[studio_job_id] = {"status": "running", "progress": 0, "step": "Initialising…"}
+        _studio_jobs[studio_job_id] = {
+            "status": "running", "progress": 0, "step": "Initialising…", "db_job_id": db_job_id,
+        }
     try:
         user_tier = params.get("subscription_tier", "free")
         engine = ProductionStudioEngine(
@@ -2030,7 +2102,7 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
             subscription_tier=user_tier,
         )
         result = engine.run_daily_pipeline(
-            niche=params["niche"], remaining_credits=params.get("remaining_credits", 500),
+            niche=niche, remaining_credits=params.get("remaining_credits", 500),
             target_duration=params.get("target_duration", 480),
             audience=params.get("audience", ""), is_portrait=params.get("is_portrait", False),
             voice=params.get("voice") or config.DEFAULT_VOICE,
@@ -2038,32 +2110,51 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
             privacy=params.get("privacy", "private"), dry_run=params.get("dry_run", False),
             research_enabled=params.get("research_enabled", True),
             competitor_titles=params.get("competitor_titles") or [],
-            platforms=params.get("platforms") or [],
+            platforms=[],
         )
         result_dict = result.model_dump()
+        job_title = result.seo.title_final if result.seo else niche
+
+        # Save completed output to the DB job
+        db.update_job(
+            db_job_id, status="done", progress=100, current_step="Complete!",
+            title=job_title,
+            video_path=result.video_path or None,
+            audio_path=result.audio_path or None,
+            thumbnail_path=result.thumbnail_path or None,
+            manifest_path=result.manifest_path or None,
+            completed_at=datetime.now().isoformat(),
+        )
+
         with _studio_lock:
             _studio_jobs[studio_job_id].update({
                 "status": "done", "progress": 100,
                 "step": "Production complete!", "result": result_dict,
+                "db_job_id": db_job_id,
             })
         _push_studio_event(studio_job_id, {
             "progress": 100, "step": "Production complete!",
-            "status": "done", "result": result_dict,
+            "status": "done", "result": result_dict, "db_job_id": db_job_id,
         })
         if user_id:
             try:
                 from notifications import send_notification
                 send_notification(user_id, "job_complete", {
-                    "job_id": studio_job_id, "title": result_dict.get("title", "Studio Production"),
+                    "job_id": db_job_id, "title": job_title,
                 })
             except Exception:
                 pass
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
+        db.update_job(db_job_id, status="error", error_msg=str(e), current_step="Failed")
         with _studio_lock:
-            _studio_jobs[studio_job_id].update({"status": "error", "step": f"Error: {e}", "traceback": tb})
-        _push_studio_event(studio_job_id, {"status": "error", "step": f"Error: {e}", "traceback": tb})
+            _studio_jobs[studio_job_id].update({
+                "status": "error", "step": f"Error: {e}", "traceback": tb, "db_job_id": db_job_id,
+            })
+        _push_studio_event(studio_job_id, {
+            "status": "error", "step": f"Error: {e}", "traceback": tb, "db_job_id": db_job_id,
+        })
 
 
 @app.route("/studio")
@@ -2147,28 +2238,183 @@ def studio_status(studio_job_id):
     return jsonify(job)
 
 
-# ── Hollywood AI Agent ────────────────────────────────────────────────────────
+# ── Hollywood Studio ──────────────────────────────────────────────────────────
+
+_hw_jobs: dict = {}
+_hw_events: dict = {}
+_hw_lock = threading.Lock()
+
+
+def _push_hw_event(job_id: str, data: dict):
+    payload = f"data: {json.dumps(data)}\n\n"
+    with _hw_lock:
+        if job_id not in _hw_events:
+            _hw_events[job_id] = []
+        _hw_events[job_id].append(payload)
+
+
+def _run_hw_thread(hw_job_id: str, params: dict, user_id: int = None):
+    from generators.hollywood_engine import HollywoodEngine
+    topic = params["topic"]
+
+    # Create a DB job record so the output appears in the Jobs list
+    db_job_id = db.create_job(
+        topic=topic, format="hollywood", platforms=[],
+        audience=params.get("audience", "general public"),
+        voice=params.get("voice") or config.GOOGLE_TTS_VOICE or config.DEFAULT_VOICE,
+        style=params.get("thumbnail_style", "dark"),
+        privacy=params.get("privacy", "private"),
+        user_id=user_id,
+    )
+    db.update_job(db_job_id, status="running", progress=5, current_step="Starting Hollywood Studio…")
+
+    def _cb(msg: str, pct: int):
+        db.update_job(db_job_id, progress=pct, current_step=msg)
+        with _hw_lock:
+            if hw_job_id in _hw_jobs:
+                _hw_jobs[hw_job_id].update({"progress": pct, "step": msg, "status": "running"})
+        _push_hw_event(hw_job_id, {"progress": pct, "step": msg, "status": "running"})
+
+    with _hw_lock:
+        _hw_jobs[hw_job_id] = {
+            "status": "running", "progress": 0, "step": "Initialising Hollywood pipeline…",
+            "db_job_id": db_job_id,
+        }
+
+    try:
+        engine = HollywoodEngine(progress_callback=_cb)
+        result = engine.run(
+            topic=topic,
+            target_duration=params.get("target_duration", 600),
+            audience=params.get("audience", ""),
+            voice=params.get("voice") or None,
+            is_portrait=params.get("is_portrait", False),
+            thumbnail_style=params.get("thumbnail_style", "dark"),
+            privacy=params.get("privacy", "private"),
+            research_enabled=params.get("research_enabled", True),
+            competitor_titles=params.get("competitor_titles") or [],
+        )
+        result_dict = result.model_dump()
+        job_title = result.seo.title_final if result.seo else topic
+
+        db.update_job(
+            db_job_id, status="done", progress=100, current_step="Complete!",
+            title=job_title,
+            video_path=result.video_path or None,
+            audio_path=result.audio_path or None,
+            thumbnail_path=result.thumbnail_path or None,
+            manifest_path=result.manifest_path or None,
+            completed_at=datetime.now().isoformat(),
+        )
+
+        with _hw_lock:
+            _hw_jobs[hw_job_id].update({
+                "status": "done", "progress": 100,
+                "step": "Hollywood production complete!", "result": result_dict,
+                "db_job_id": db_job_id,
+            })
+        _push_hw_event(hw_job_id, {
+            "progress": 100, "step": "Hollywood production complete!",
+            "status": "done", "result": result_dict, "db_job_id": db_job_id,
+        })
+        if user_id:
+            try:
+                from notifications import send_notification
+                send_notification(user_id, "job_complete", {
+                    "job_id": db_job_id, "title": job_title,
+                })
+            except Exception:
+                pass
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        db.update_job(db_job_id, status="error", error_msg=str(e), current_step="Failed")
+        with _hw_lock:
+            _hw_jobs[hw_job_id].update({
+                "status": "error", "step": f"Error: {e}", "traceback": tb, "db_job_id": db_job_id,
+            })
+        _push_hw_event(hw_job_id, {
+            "status": "error", "step": f"Error: {e}", "traceback": tb, "db_job_id": db_job_id,
+        })
+
 
 @app.route("/hollywood")
 @login_required
 def hollywood_page():
-    return render_template("hollywood.html")
+    accounts = db.get_accounts(user_id=current_user.id)
+    connected = {a["platform"] for a in accounts if a["is_active"]}
+    return render_template(
+        "hollywood.html",
+        connected_platforms=connected,
+        voices=config.AVAILABLE_VOICES,
+        google_tts_voices=config.GOOGLE_TTS_VOICES,
+        google_api_key=bool(config.GOOGLE_API_KEY),
+        higgsfield_token=bool(config.HIGGSFIELD_MCP_TOKEN),
+        config=config,
+    )
 
 
-@app.route("/api/hollywood/chat", methods=["POST"])
+@app.route("/api/hollywood/run", methods=["POST"])
 @login_required
-def hollywood_chat():
-    data = request.get_json(silent=True) or {}
-    message = (data.get("message") or "").strip()
-    history = data.get("history") or []
-    if not message:
-        return jsonify({"error": "No message"}), 400
-    try:
-        from generators.hollywood_agent import chat as hollywood_chat_fn
-        reply = hollywood_chat_fn(message=message, history=history, user_id=current_user.id)
-        return jsonify({"reply": reply})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+def api_hollywood_run():
+    allowed, err = check_usage_gate(current_user.id)
+    if not allowed:
+        return jsonify({"error": err, "upgrade": True}), 403
+    data = request.json or {}
+    topic = (data.get("topic") or "").strip()
+    if not topic:
+        return jsonify({"error": "Topic is required"}), 400
+    hw_job_id = str(uuid.uuid4())
+    params = {
+        "topic": topic,
+        "target_duration": int(data.get("target_duration") or 600),
+        "audience": (data.get("audience") or "").strip(),
+        "is_portrait": bool(data.get("is_portrait", False)),
+        "voice": data.get("voice") or None,
+        "thumbnail_style": data.get("thumbnail_style") or "dark",
+        "privacy": data.get("privacy") or "private",
+        "research_enabled": bool(data.get("research_enabled", True)),
+        "competitor_titles": data.get("competitor_titles") or [],
+    }
+    t = threading.Thread(target=_run_hw_thread, args=(hw_job_id, params, current_user.id), daemon=True)
+    t.start()
+    return jsonify({"hw_job_id": hw_job_id})
+
+
+@app.route("/api/hollywood/stream/<hw_job_id>")
+@login_required
+def hollywood_stream(hw_job_id):
+    def generate():
+        last_idx = 0
+        while True:
+            with _hw_lock:
+                events = _hw_events.get(hw_job_id, [])
+                new = events[last_idx:]
+                last_idx = len(events)
+                job = _hw_jobs.get(hw_job_id, {})
+            for event in new:
+                yield event
+            if job.get("status") in ("done", "error"):
+                if not new:
+                    yield f"data: {json.dumps({'status': job.get('status'), 'progress': job.get('progress', 0)})}\n\n"
+                time.sleep(0.3)
+                break
+            time.sleep(0.4)
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.route("/api/hollywood/status/<hw_job_id>")
+@login_required
+def hollywood_status(hw_job_id):
+    with _hw_lock:
+        job = _hw_jobs.get(hw_job_id)
+    if job is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(job)
 
 
 # ── Feature 1: Analytics Dashboard ───────────────────────────────────────────
