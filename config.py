@@ -137,6 +137,8 @@ PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
 
 # Google Flow / Veo 2
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # "Adam" — deep male narrator
 
 # Higgsfield AI — bearer token for REST + MCP API calls
 # The endpoint URL is already hardcoded; only the TOKEN needs to be set in Render.

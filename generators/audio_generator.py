@@ -145,6 +145,57 @@ def _stitch_mp3_chunks(mp3_chunks: list, output_path: Path) -> None:
             output_path.write_bytes(b"".join(mp3_chunks))
 
 
+def _elevenlabs_tts_chunk(text: str, voice_id: str, api_key: str) -> bytes:
+    """Call ElevenLabs TTS API for a single chunk, return MP3 bytes."""
+    import requests as req
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    headers = {
+        "xi-api-key": api_key,
+        "Content-Type": "application/json",
+        "Accept": "audio/mpeg",
+    }
+    payload = {
+        "text": text,
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {
+            "stability": 0.5,
+            "similarity_boost": 0.75,
+            "style": 0.3,
+            "use_speaker_boost": True,
+        },
+    }
+    resp = req.post(url, json=payload, headers=headers, timeout=30)
+    resp.raise_for_status()
+    return resp.content
+
+
+def _generate_elevenlabs_tts(text: str, output_path: Path) -> bool:
+    """Generate TTS using ElevenLabs API. Returns True on success."""
+    api_key = getattr(config, "ELEVENLABS_API_KEY", "")
+    if not api_key:
+        return False
+
+    voice_id = getattr(config, "ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")
+    try:
+        chunks = _split_into_chunks(text, max_bytes=4000)
+        mp3_chunks = []
+        for chunk in chunks:
+            if not chunk.strip():
+                continue
+            mp3_data = _elevenlabs_tts_chunk(chunk, voice_id, api_key)
+            mp3_chunks.append(mp3_data)
+
+        if not mp3_chunks:
+            return False
+
+        _stitch_mp3_chunks(mp3_chunks, output_path)
+        print(f"[audio] ElevenLabs TTS ({voice_id}) — {len(chunks)} chunk(s)")
+        return True
+    except Exception as e:
+        print(f"[audio] ElevenLabs TTS failed ({e}) — falling back")
+        return False
+
+
 def _generate_google_tts(text: str, output_path: Path, voice: str) -> bool:
     """
     Generate TTS using Google Cloud TTS Neural2 REST API.
@@ -262,22 +313,29 @@ def generate_audio(
     """Convert text to speech and save as MP3.
 
     Priority:
-    1. Google Cloud TTS Neural2 (if GOOGLE_API_KEY set)
-    2. edge-tts
-    3. espeak-ng / pyttsx3 fallback
+    1. ElevenLabs (if ELEVENLABS_API_KEY set — highest quality)
+    2. Google Cloud TTS Studio/Journey (if GOOGLE_API_KEY set)
+    3. edge-tts (Microsoft neural voices — free, good quality)
+    4. espeak-ng / pyttsx3 fallback
     """
     voice = voice or config.DEFAULT_VOICE
     clean_text = clean_narration(text)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. Try Google Cloud TTS Neural2
-    if getattr(config, "GOOGLE_API_KEY", ""):
-        if _generate_google_tts(clean_text, output_path, voice):
-            if output_path.exists():
+    # 1. Try ElevenLabs (highest quality voices)
+    if getattr(config, "ELEVENLABS_API_KEY", ""):
+        if _generate_elevenlabs_tts(clean_text, output_path):
+            if output_path.exists() and output_path.stat().st_size > 1000:
                 return output_path
 
-    # 2. Try edge-tts (run in a fresh thread with its own event loop to avoid conflicts)
+    # 2. Try Google Cloud TTS Studio/Journey
+    if getattr(config, "GOOGLE_API_KEY", ""):
+        if _generate_google_tts(clean_text, output_path, voice):
+            if output_path.exists() and output_path.stat().st_size > 1000:
+                return output_path
+
+    # 3. Try edge-tts (run in a fresh thread with its own event loop to avoid conflicts)
     edge_voices = [voice, "en-US-AriaNeural", "en-US-GuyNeural", "en-US-JennyNeural"]
     seen = set()
     edge_voices = [v for v in edge_voices if not (v in seen or seen.add(v))]

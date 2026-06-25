@@ -1923,6 +1923,8 @@ def api_settings_check():
     return jsonify({
         "anthropic":        bool(config.ANTHROPIC_API_KEY),
         "pexels":           bool(config.PEXELS_API_KEY),
+        "pixabay":          bool(getattr(config, "PIXABAY_API_KEY", "")),
+        "elevenlabs":       bool(getattr(config, "ELEVENLABS_API_KEY", "")),
         "google_flow":      bool(config.GOOGLE_API_KEY),
         "higgsville":       bool(tok) and not token_is_url,
         "higgsville_url_as_token": token_is_url,
