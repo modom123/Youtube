@@ -104,6 +104,24 @@ def init_db():
             received_at     TEXT DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS inbound_calls (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            call_sid        TEXT UNIQUE,
+            from_number     TEXT NOT NULL,
+            to_number       TEXT,
+            call_status     TEXT DEFAULT 'ringing',
+            duration        INTEGER DEFAULT 0,
+            recording_sid   TEXT,
+            recording_url   TEXT,
+            recording_duration INTEGER DEFAULT 0,
+            caller_city     TEXT,
+            caller_state    TEXT,
+            caller_country  TEXT,
+            transcription   TEXT,
+            received_at     TEXT DEFAULT (datetime('now')),
+            updated_at      TEXT DEFAULT (datetime('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS jobs (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -1048,6 +1066,38 @@ def update_send_status_by_sid(message_sid: str, status: str):
             "UPDATE outreach_sends SET status=? WHERE message_sid=?",
             (status, message_sid)
         )
+
+
+def log_inbound_call(call_sid: str, from_: str, to: str,
+                     status: str = "ringing",
+                     city: str = None, state: str = None, country: str = None):
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO inbound_calls
+               (call_sid, from_number, to_number, call_status, caller_city, caller_state, caller_country)
+               VALUES (?,?,?,?,?,?,?)""",
+            (call_sid, from_, to, status, city, state, country)
+        )
+
+
+def update_inbound_call(call_sid: str, **kwargs):
+    if not kwargs:
+        return
+    kwargs["updated_at"] = "datetime('now')"
+    # updated_at uses SQL function — handle it separately
+    kwargs.pop("updated_at")
+    cols = ", ".join(f"{k}=?" for k in kwargs) + ", updated_at=datetime('now')"
+    vals = list(kwargs.values()) + [call_sid]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE inbound_calls SET {cols} WHERE call_sid=?", vals)
+
+
+def get_inbound_calls(limit: int = 100):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM inbound_calls ORDER BY received_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
 
 
 def log_inbound_sms(from_: str, to: str, body: str, message_sid: str):

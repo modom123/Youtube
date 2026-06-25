@@ -1437,6 +1437,113 @@ def twilio_status_callback():
     return ("", 204)
 
 
+@app.route("/twilio/voice", methods=["POST"])
+def twilio_voice_inbound():
+    """Twilio calls this URL when someone calls your Twilio number.
+    Webhook URL to set in Twilio console:
+        https://socialoptimize.online/twilio/voice
+    """
+    from utils.twilio_client import validate_signature
+    sig = request.headers.get("X-Twilio-Signature", "")
+    if config.TWILIO_AUTH_TOKEN and not validate_signature(request.url, request.form, sig):
+        return ("Forbidden", 403)
+
+    call_sid = request.form.get("CallSid", "")
+    from_num = request.form.get("From", "")
+    to_num   = request.form.get("To", "")
+    status   = request.form.get("CallStatus", "ringing")
+    city     = request.form.get("FromCity")
+    state    = request.form.get("FromState")
+    country  = request.form.get("FromCountry")
+
+    db.log_inbound_call(call_sid, from_num, to_num, status, city, state, country)
+
+    greeting = (
+        "Hello! You've reached Social Optimize. "
+        "We're not available right now. "
+        "Please leave a message after the tone and we'll get back to you shortly. "
+        "Thank you!"
+    )
+    recording_cb = config.APP_BASE_URL + "/twilio/voice/recording"
+
+    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Say voice="Polly.Joanna">{greeting}</Say>
+  <Record
+    maxLength="120"
+    playBeep="true"
+    recordingStatusCallback="{recording_cb}"
+    recordingStatusCallbackMethod="POST"
+    transcribe="true"
+    transcribeCallback="{config.APP_BASE_URL}/twilio/voice/transcription"
+  />
+  <Say voice="Polly.Joanna">Thank you for calling. Goodbye!</Say>
+</Response>"""
+    return (twiml, 200, {"Content-Type": "text/xml"})
+
+
+@app.route("/twilio/voice/status", methods=["POST"])
+def twilio_voice_status():
+    """Twilio posts call status updates (completed, busy, no-answer, etc.)
+    Set as Status Callback URL in Twilio console.
+    """
+    from utils.twilio_client import validate_signature
+    sig = request.headers.get("X-Twilio-Signature", "")
+    if config.TWILIO_AUTH_TOKEN and not validate_signature(request.url, request.form, sig):
+        return ("Forbidden", 403)
+
+    call_sid = request.form.get("CallSid", "")
+    status   = request.form.get("CallStatus", "")
+    duration = request.form.get("CallDuration", 0)
+    if call_sid:
+        db.update_inbound_call(call_sid, call_status=status, duration=int(duration or 0))
+    return ("", 204)
+
+
+@app.route("/twilio/voice/recording", methods=["POST"])
+def twilio_voice_recording():
+    """Twilio posts recording details once a recording is ready."""
+    from utils.twilio_client import validate_signature
+    sig = request.headers.get("X-Twilio-Signature", "")
+    if config.TWILIO_AUTH_TOKEN and not validate_signature(request.url, request.form, sig):
+        return ("Forbidden", 403)
+
+    call_sid     = request.form.get("CallSid", "")
+    rec_sid      = request.form.get("RecordingSid", "")
+    rec_url      = request.form.get("RecordingUrl", "")
+    rec_duration = request.form.get("RecordingDuration", 0)
+    rec_status   = request.form.get("RecordingStatus", "")
+
+    if call_sid and rec_sid and rec_status == "completed":
+        db.update_inbound_call(
+            call_sid,
+            recording_sid=rec_sid,
+            recording_url=rec_url + ".mp3",
+            recording_duration=int(rec_duration or 0),
+        )
+    return ("", 204)
+
+
+@app.route("/twilio/voice/transcription", methods=["POST"])
+def twilio_voice_transcription():
+    """Twilio posts transcription when it finishes transcribing a recording."""
+    call_sid      = request.form.get("CallSid", "")
+    transcription = request.form.get("TranscriptionText", "")
+    trans_status  = request.form.get("TranscriptionStatus", "")
+
+    if call_sid and trans_status == "completed" and transcription:
+        db.update_inbound_call(call_sid, transcription=transcription)
+    return ("", 204)
+
+
+@app.route("/api/calls")
+@login_required
+def api_get_calls():
+    """Return recent inbound calls for the dashboard."""
+    calls = db.get_inbound_calls(limit=50)
+    return jsonify(calls)
+
+
 @app.route("/twilio/inbound", methods=["POST"])
 def twilio_inbound_sms():
     """Twilio calls this URL when someone replies to your number."""
