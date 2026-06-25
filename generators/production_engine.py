@@ -385,3 +385,43 @@ def _blank_seo(title: str) -> dict:
         "pinned_comment": "", "upload_timing": "Tuesday 14:00 UTC",
         "predicted_views_30d": 0, "ab_title_variants": [title],
     }
+
+
+def run_production_pipeline(
+    job_id: int = None,
+    niche: str = "",
+    remaining_credits: int = 500,
+    monthly_budget: int = 500,
+    target_duration: int = 480,
+    audience: str = "",
+    format: str = "long",
+    is_portrait: bool = False,
+    voice: str = None,
+    thumbnail_style: str = "fire",
+    privacy: str = "private",
+    dry_run: bool = False,
+    research_enabled: bool = True,
+    competitor_titles: list = None,
+    platforms: list = None,
+    subscription_tier: str = "free",
+    **kwargs,
+) -> ProductionResult:
+    """Convenience wrapper so callers can use a simple function instead of the class."""
+    engine = ProductionStudioEngine(
+        monthly_budget=monthly_budget,
+        subscription_tier=subscription_tier,
+    )
+    return engine.run_daily_pipeline(
+        niche=niche,
+        remaining_credits=remaining_credits,
+        target_duration=target_duration,
+        audience=audience,
+        is_portrait=is_portrait,
+        voice=voice,
+        thumbnail_style=thumbnail_style,
+        privacy=privacy,
+        dry_run=dry_run,
+        research_enabled=research_enabled,
+        competitor_titles=competitor_titles or [],
+        platforms=platforms or [],
+    )
