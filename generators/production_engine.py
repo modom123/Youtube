@@ -321,6 +321,10 @@ class ProductionStudioEngine:
             pipeline_cost_credits=asset_plan.total_credit_cost,
             status="success" if not errors else "partial",
             errors=errors,
+            video_path=str(video_path) if video_path.exists() else "",
+            audio_path=str(audio_path),
+            thumbnail_path=str(thumbnail_path),
+            manifest_path=str(job_dir / "manifest.json"),
         )
 
         self.cb("Production complete!", 100)

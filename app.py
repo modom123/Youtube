@@ -723,19 +723,36 @@ def _push_studio_event(job_id: str, data: dict):
 
 def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
     from generators.production_engine import ProductionStudioEngine
+    niche = params["niche"]
+
+    # Create a DB job record so the output appears in the Jobs list
+    db_job_id = db.create_job(
+        topic=niche, format="long", platforms=[],
+        audience=params.get("audience", "general public"),
+        voice=params.get("voice") or config.DEFAULT_VOICE,
+        style=params.get("thumbnail_style", "fire"),
+        privacy=params.get("privacy", "private"),
+        user_id=user_id,
+    )
+    db.update_job(db_job_id, status="running", progress=5, current_step="Starting Production Studio…")
+
     def _cb(msg: str, pct: int):
+        db.update_job(db_job_id, progress=pct, current_step=msg)
         with _studio_lock:
             if studio_job_id in _studio_jobs:
                 _studio_jobs[studio_job_id].update({"progress": pct, "step": msg, "status": "running"})
         _push_studio_event(studio_job_id, {"progress": pct, "step": msg, "status": "running"})
+
     with _studio_lock:
-        _studio_jobs[studio_job_id] = {"status": "running", "progress": 0, "step": "Initialising…"}
+        _studio_jobs[studio_job_id] = {
+            "status": "running", "progress": 0, "step": "Initialising…", "db_job_id": db_job_id,
+        }
     try:
         engine = ProductionStudioEngine(
             monthly_budget=params.get("monthly_budget", 500), progress_callback=_cb,
         )
         result = engine.run_daily_pipeline(
-            niche=params["niche"], remaining_credits=params.get("remaining_credits", 500),
+            niche=niche, remaining_credits=params.get("remaining_credits", 500),
             target_duration=params.get("target_duration", 480),
             audience=params.get("audience", ""), is_portrait=params.get("is_portrait", False),
             voice=params.get("voice") or config.DEFAULT_VOICE,
@@ -743,32 +760,51 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
             privacy=params.get("privacy", "private"), dry_run=params.get("dry_run", False),
             research_enabled=params.get("research_enabled", True),
             competitor_titles=params.get("competitor_titles") or [],
-            platforms=params.get("platforms") or [],
+            platforms=[],
         )
         result_dict = result.model_dump()
+        job_title = result.seo.title_final if result.seo else niche
+
+        # Save completed output to the DB job
+        db.update_job(
+            db_job_id, status="done", progress=100, current_step="Complete!",
+            title=job_title,
+            video_path=result.video_path or None,
+            audio_path=result.audio_path or None,
+            thumbnail_path=result.thumbnail_path or None,
+            manifest_path=result.manifest_path or None,
+            completed_at=datetime.now().isoformat(),
+        )
+
         with _studio_lock:
             _studio_jobs[studio_job_id].update({
                 "status": "done", "progress": 100,
                 "step": "Production complete!", "result": result_dict,
+                "db_job_id": db_job_id,
             })
         _push_studio_event(studio_job_id, {
             "progress": 100, "step": "Production complete!",
-            "status": "done", "result": result_dict,
+            "status": "done", "result": result_dict, "db_job_id": db_job_id,
         })
         if user_id:
             try:
                 from notifications import send_notification
                 send_notification(user_id, "job_complete", {
-                    "job_id": studio_job_id, "title": result_dict.get("title", "Studio Production"),
+                    "job_id": db_job_id, "title": job_title,
                 })
             except Exception:
                 pass
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
+        db.update_job(db_job_id, status="error", error_msg=str(e), current_step="Failed")
         with _studio_lock:
-            _studio_jobs[studio_job_id].update({"status": "error", "step": f"Error: {e}", "traceback": tb})
-        _push_studio_event(studio_job_id, {"status": "error", "step": f"Error: {e}", "traceback": tb})
+            _studio_jobs[studio_job_id].update({
+                "status": "error", "step": f"Error: {e}", "traceback": tb, "db_job_id": db_job_id,
+            })
+        _push_studio_event(studio_job_id, {
+            "status": "error", "step": f"Error: {e}", "traceback": tb, "db_job_id": db_job_id,
+        })
 
 
 @app.route("/studio")
