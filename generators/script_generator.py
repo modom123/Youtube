@@ -212,13 +212,18 @@ def _generate_script_claude(
         prompt += f"\n\nAdditional instructions: {custom_instructions}"
 
     model = config.TIER_CLAUDE_MODEL.get(subscription_tier, "claude-sonnet-4-6")
+    # Long-form formats need more tokens to avoid truncated JSON
+    _long_formats = {"countdown", "long", "podcast", "commercial_60"}
+    max_tok = 8192 if content_type in _long_formats else 4096
     message = client.messages.create(
         model=model,
-        max_tokens=4096,
+        max_tokens=max_tok,
         messages=[{"role": "user", "content": prompt}],
     )
 
     raw = message.content[0].text.strip()
+    if not raw:
+        raise RuntimeError(f"Claude returned empty response (stop_reason={message.stop_reason})")
     return _parse_script_json(raw, content_type, target_duration, topic)
 
 
