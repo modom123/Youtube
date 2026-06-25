@@ -780,6 +780,98 @@ def get_thumbnail(job_id):
     return send_file(str(path), mimetype="image/jpeg")
 
 
+@app.route("/api/jobs/<int:job_id>/thumbnail/download")
+@login_required
+def download_thumbnail(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job or not job.get("thumbnail_path"):
+        return "", 404
+    path = Path(job["thumbnail_path"])
+    if not path.exists():
+        return "", 404
+    title_slug = (job.get("title") or job.get("topic") or f"job{job_id}")[:40]
+    title_slug = "".join(c if c.isalnum() or c in "-_ " else "_" for c in title_slug).strip()
+    return send_file(str(path), mimetype="image/jpeg",
+                     as_attachment=True, download_name=f"thumbnail_{title_slug}.jpg")
+
+
+@app.route("/api/jobs/<int:job_id>/thumbnail/upload", methods=["POST"])
+@login_required
+def upload_thumbnail(job_id):
+    """Replace thumbnail with an uploaded image."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    f = request.files["file"]
+    if not f.filename or not f.filename.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
+        return jsonify({"error": "Must be a JPG, PNG, or WebP image"}), 400
+
+    # Derive thumbnail path from existing job dir or create one
+    if job.get("thumbnail_path"):
+        thumb_path = Path(job["thumbnail_path"])
+    else:
+        from utils import file_manager
+        job_dir = file_manager.job_dir(job.get("topic", "job"), "upload")
+        thumb_path = job_dir / "thumbnail.jpg"
+
+    thumb_path.parent.mkdir(parents=True, exist_ok=True)
+    from PIL import Image as PILImage
+    from io import BytesIO
+    img = PILImage.open(BytesIO(f.read())).convert("RGB")
+    img = img.resize((1280, 720), PILImage.LANCZOS)
+    img.save(str(thumb_path), "JPEG", quality=92)
+
+    db.update_job(job_id, thumbnail_path=str(thumb_path))
+    return jsonify({"status": "ok", "thumbnail_path": str(thumb_path)})
+
+
+@app.route("/api/jobs/<int:job_id>/thumbnail/regenerate", methods=["POST"])
+@login_required
+def regenerate_thumbnail(job_id):
+    """Regenerate thumbnail with new text and/or style."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+
+    data = request.json or {}
+    title_text = (data.get("title") or job.get("title") or job.get("topic") or "").strip()
+    style = data.get("style") or "fire"
+    subtitle = (data.get("subtitle") or "").strip() or None
+
+    if job.get("thumbnail_path"):
+        thumb_path = Path(job["thumbnail_path"])
+    else:
+        from utils import file_manager
+        job_dir = file_manager.job_dir(job.get("topic", "job"), "regen")
+        thumb_path = job_dir / "thumbnail.jpg"
+
+    thumb_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Try to use existing background image from job's stock folder
+    bg_path = None
+    if job.get("thumbnail_path"):
+        stock_dir = Path(job["thumbnail_path"]).parent / "stock_images"
+        if stock_dir.exists():
+            imgs = list(stock_dir.glob("*.jpg")) + list(stock_dir.glob("*.png"))
+            if imgs:
+                bg_path = imgs[0]
+
+    from generators import thumbnail_generator
+    thumbnail_generator.generate_thumbnail(
+        title=title_text,
+        output_path=thumb_path,
+        background_image_path=bg_path,
+        style=style,
+        subtitle=subtitle,
+        width=1280,
+        height=720,
+    )
+    db.update_job(job_id, thumbnail_path=str(thumb_path))
+    return jsonify({"status": "ok", "bust": int(time.time())})
+
+
 @app.route("/api/jobs/<int:job_id>/video")
 @login_required
 def stream_video(job_id):

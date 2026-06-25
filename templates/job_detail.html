@@ -170,10 +170,77 @@
 
     <!-- Thumbnail -->
     {% if job.status == 'done' and job.thumbnail_path %}
-    <div class="card" style="padding:16px;">
-      <div class="card-title mb-12"><span class="accent">🖼</span> Thumbnail</div>
-      <img src="/api/jobs/{{ job.id }}/thumbnail" alt="Thumbnail"
-           style="width:100%;border-radius:8px;border:1px solid var(--border);">
+    <div class="card" style="padding:16px;" id="thumbCard">
+      <div class="flex-between mb-12">
+        <div class="card-title"><span class="accent">🖼</span> Thumbnail</div>
+        <div style="display:flex;gap:8px;">
+          <a href="/api/jobs/{{ job.id }}/thumbnail/download" class="btn btn-ghost btn-sm">⬇ Download</a>
+          <button class="btn btn-ghost btn-sm" onclick="toggleThumbEdit()">✏ Edit</button>
+        </div>
+      </div>
+
+      <img src="/api/jobs/{{ job.id }}/thumbnail" alt="Thumbnail" id="thumb-img"
+           style="width:100%;border-radius:8px;border:1px solid var(--border);display:block;">
+
+      <!-- Edit panel (hidden by default) -->
+      <div id="thumb-edit" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+
+        <!-- Tab switcher -->
+        <div style="display:flex;gap:0;margin-bottom:16px;background:var(--bg-elevated);border-radius:8px;padding:3px;">
+          <button class="btn btn-sm" id="tab-regen" onclick="setThumbTab('regen')"
+                  style="flex:1;border-radius:6px;background:var(--accent);color:#000;">Regenerate</button>
+          <button class="btn btn-sm" id="tab-upload" onclick="setThumbTab('upload')"
+                  style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Upload Custom</button>
+        </div>
+
+        <!-- Regenerate tab -->
+        <div id="thumb-tab-regen">
+          <div class="form-group">
+            <label>Thumbnail Text</label>
+            <input type="text" id="thumb-title" value="{{ (job.title or job.topic or '')[:60] }}"
+                   placeholder="Text shown on thumbnail" maxlength="60">
+          </div>
+          <div class="form-group">
+            <label>Subtitle <span class="text-dim text-xs">(optional)</span></label>
+            <input type="text" id="thumb-subtitle" placeholder="e.g. Top 10 • 2024" maxlength="40">
+          </div>
+          <div class="form-group">
+            <label>Style</label>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+              {% for s, label in [('fire','🔥 Fire'),('ocean','🌊 Ocean'),('purple','💜 Purple'),('dark','⬛ Dark'),('green','💚 Green'),('sunset','🌅 Sunset')] %}
+              <label style="display:flex;align-items:center;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;"
+                     onclick="selectStyle('{{ s }}',this)">
+                <input type="radio" name="thumb-style" value="{{ s }}" {% if s == 'fire' %}checked{% endif %}
+                       style="display:none;">
+                {{ label }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" id="regen-btn" onclick="regenThumbnail()">
+            Regenerate Thumbnail
+          </button>
+        </div>
+
+        <!-- Upload tab -->
+        <div id="thumb-tab-upload" style="display:none;">
+          <div style="border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;"
+               onclick="document.getElementById('thumb-file').click()" id="drop-zone">
+            <div style="font-size:32px;margin-bottom:8px;">📁</div>
+            <div class="text-sm text-bold mb-4">Click to choose an image</div>
+            <div class="text-xs text-dim">JPG, PNG or WebP — will be resized to 1280×720</div>
+          </div>
+          <input type="file" id="thumb-file" accept="image/jpeg,image/png,image/webp"
+                 style="display:none;" onchange="previewUpload(this)">
+          <div id="upload-preview" style="display:none;margin-top:12px;">
+            <img id="upload-preview-img" style="width:100%;border-radius:8px;border:1px solid var(--border);">
+            <button class="btn btn-primary btn-block mt-12" onclick="uploadThumbnail()">
+              Use This Image
+            </button>
+          </div>
+        </div>
+
+      </div>
     </div>
     {% endif %}
 
@@ -405,6 +472,91 @@ async function createReformat() {
     toast('error', 'Network error', e.message);
     btn.disabled = false;
     btn.textContent = 'Generate New Version';
+  }
+}
+
+// ── Thumbnail editing ────────────────────────────────────────────────────────
+function toggleThumbEdit() {
+  const panel = document.getElementById('thumb-edit');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function setThumbTab(tab) {
+  document.getElementById('thumb-tab-regen').style.display = tab === 'regen' ? 'block' : 'none';
+  document.getElementById('thumb-tab-upload').style.display = tab === 'upload' ? 'block' : 'none';
+  document.getElementById('tab-regen').style.background = tab === 'regen' ? 'var(--accent)' : 'transparent';
+  document.getElementById('tab-regen').style.color = tab === 'regen' ? '#000' : 'var(--muted)';
+  document.getElementById('tab-upload').style.background = tab === 'upload' ? 'var(--accent)' : 'transparent';
+  document.getElementById('tab-upload').style.color = tab === 'upload' ? '#000' : 'var(--muted)';
+}
+
+function selectStyle(style, labelEl) {
+  document.querySelectorAll('[name="thumb-style"]').forEach(r => {
+    r.closest('label').style.borderColor = 'var(--border)';
+    r.closest('label').style.background = 'transparent';
+  });
+  labelEl.style.borderColor = 'var(--accent)';
+  labelEl.style.background = 'rgba(212,160,23,.1)';
+  labelEl.querySelector('input').checked = true;
+}
+
+async function regenThumbnail() {
+  const btn = document.getElementById('regen-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  const style = document.querySelector('[name="thumb-style"]:checked')?.value || 'fire';
+  try {
+    const resp = await fetch('/api/jobs/{{ job.id }}/thumbnail/regenerate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: document.getElementById('thumb-title').value,
+        subtitle: document.getElementById('thumb-subtitle').value || null,
+        style,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { toast('error', 'Failed', data.error); btn.disabled = false; btn.textContent = 'Regenerate Thumbnail'; return; }
+    document.getElementById('thumb-img').src = `/api/jobs/{{ job.id }}/thumbnail?v=${data.bust}`;
+    toast('success', 'Done!', 'Thumbnail updated.');
+    btn.disabled = false;
+    btn.textContent = 'Regenerate Thumbnail';
+  } catch (e) {
+    toast('error', 'Error', e.message);
+    btn.disabled = false;
+    btn.textContent = 'Regenerate Thumbnail';
+  }
+}
+
+function previewUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('upload-preview-img').src = e.target.result;
+    document.getElementById('upload-preview').style.display = 'block';
+    document.getElementById('drop-zone').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadThumbnail() {
+  const file = document.getElementById('thumb-file').files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const resp = await fetch('/api/jobs/{{ job.id }}/thumbnail/upload', { method: 'POST', body: form });
+    const data = await resp.json();
+    if (!resp.ok) { toast('error', 'Upload failed', data.error); return; }
+    document.getElementById('thumb-img').src = `/api/jobs/{{ job.id }}/thumbnail?v=${Date.now()}`;
+    document.getElementById('thumb-edit').style.display = 'none';
+    document.getElementById('drop-zone').style.display = 'block';
+    document.getElementById('upload-preview').style.display = 'none';
+    document.getElementById('thumb-file').value = '';
+    toast('success', 'Thumbnail updated!', 'Your custom image is now set.');
+  } catch (e) {
+    toast('error', 'Error', e.message);
   }
 }
 </script>
