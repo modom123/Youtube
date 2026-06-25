@@ -304,7 +304,9 @@ def _generate_script_claude(
     subscription_tier: str = "starter",
 ) -> "ContentScript":
     """Generate a complete content script using Claude AI."""
-    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=120.0)
+    # max_retries=0: disable SDK-level retries — default is 2, which triples hang time.
+    # timeout=85: slightly under the 90s outer deadline in social_optimize.
+    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=85.0, max_retries=0)
 
     prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
     if custom_instructions:
@@ -345,7 +347,7 @@ def _generate_script_deepseek(
         )
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com", timeout=120.0)
+        client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com", timeout=80.0, max_retries=0)
 
         prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
         if custom_instructions:
@@ -391,7 +393,8 @@ def _generate_script_qwen(
         client = OpenAI(
             api_key=api_key,
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-            timeout=120.0,
+            timeout=80.0,
+            max_retries=0,
         )
         prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
         if custom_instructions:
@@ -434,7 +437,7 @@ def _generate_script_groq(
         )
     try:
         from openai import OpenAI
-        client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1", timeout=60.0)
+        client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1", timeout=60.0, max_retries=0)
         prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
         if custom_instructions:
             prompt += f"\n\nAdditional instructions: {custom_instructions}"

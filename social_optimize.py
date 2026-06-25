@@ -226,7 +226,7 @@ def run(
     }
     model_label = _MODEL_LABELS.get(ai_model, "AI")
     _push_progress(18, f"Generating script with {model_label}...")
-    SCRIPT_TIMEOUT = 150  # hard ceiling so a hung API call never freezes the job
+    SCRIPT_TIMEOUT = 90  # seconds — fail fast; Anthropic SDK retries are disabled
     _script_kwargs = dict(
         topic=topic,
         content_type=profile["content_type"],
@@ -237,37 +237,47 @@ def run(
         subscription_tier=subscription_tier,
     )
 
-    def _run_script_with_timeout(model: str) -> object:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _pool:
-            _fut = _pool.submit(script_generator.generate_script, ai_model=model, **_script_kwargs)
+    def _run_script_with_timeout(model: str):
+        # NOTE: Do NOT use ThreadPoolExecutor as a context manager here —
+        # its __exit__ calls shutdown(wait=True) which blocks even after TimeoutError.
+        # Instead: submit, get with timeout, then shutdown(wait=False) to release.
+        _executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        _fut = _executor.submit(script_generator.generate_script, ai_model=model, **_script_kwargs)
+        try:
             return _fut.result(timeout=SCRIPT_TIMEOUT)
+        except concurrent.futures.TimeoutError:
+            raise RuntimeError(
+                f"Script engine '{model}' did not respond in {SCRIPT_TIMEOUT}s"
+            )
+        finally:
+            # shutdown(wait=False) lets the orphaned thread die on its own;
+            # the main thread moves on immediately.
+            _executor.shutdown(wait=False)
 
     with logger.spinner(f"Generating script with {model_label}..."):
         script = None
         last_err = None
-        # Primary attempt
         try:
             script = _run_script_with_timeout(ai_model)
-        except concurrent.futures.TimeoutError:
-            last_err = RuntimeError(f"Script engine '{ai_model}' timed out after {SCRIPT_TIMEOUT}s")
-            logger.warn(str(last_err))
+            logger.success(f"Script generated via {model_label}")
         except Exception as e:
             last_err = e
-            logger.warn(f"Script engine '{ai_model}' failed ({e})")
+            logger.warn(f"Script engine '{ai_model}' failed: {e}")
 
-        # Automatic fallback to Claude if primary failed
-        if script is None and ai_model != "claude":
-            _push_progress(18, "Script engine failed — retrying with Claude...")
-            logger.warn(f"Falling back to Claude for script generation")
+        # Automatic fallback to Claude if primary model failed
+        if script is None and ai_model not in ("claude", "parallel"):
+            _push_progress(18, "Retrying script with Claude AI...")
             try:
                 script = _run_script_with_timeout("claude")
+                logger.success("Script generated via Claude (fallback)")
             except Exception as e:
                 last_err = e
+                logger.warn(f"Claude fallback also failed: {e}")
 
         if script is None:
             raise RuntimeError(
-                f"Script generation failed: {last_err}. "
-                "Check your API keys (ANTHROPIC_API_KEY) on Render, then retry."
+                f"Script generation failed ({last_err}). "
+                "Verify ANTHROPIC_API_KEY is set on Render, then retry this job."
             )
 
     script_path = job / "script.json"
