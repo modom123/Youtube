@@ -1546,11 +1546,13 @@ def api_get_calls():
 
 @app.route("/twilio/inbound", methods=["POST"])
 def twilio_inbound_sms():
-    """Twilio calls this URL when someone replies to your number."""
+    """Twilio calls this URL when someone texts your Twilio number.
+    Webhook URL: https://socialoptimize.online/twilio/inbound
+    """
     from utils.twilio_client import validate_signature, parse_inbound_sms
     sig = request.headers.get("X-Twilio-Signature", "")
     if config.TWILIO_AUTH_TOKEN and not validate_signature(request.url, request.form, sig):
-        return jsonify({"error": "Invalid signature"}), 403
+        return ("Forbidden", 403)
 
     msg = parse_inbound_sms(request.form)
     db.log_inbound_sms(
@@ -1559,8 +1561,57 @@ def twilio_inbound_sms():
         body=msg["body"],
         message_sid=msg["message_sid"],
     )
-    # Return empty TwiML — no auto-reply
-    return ('<Response></Response>', 200, {"Content-Type": "text/xml"})
+
+    # Push an in-app notification to all admin users
+    try:
+        admins = db.get_admin_users()
+        for admin in admins:
+            send_notification(admin["id"], "inbound_sms", {
+                "from": msg["from_"],
+                "preview": msg["body"][:80],
+            })
+    except Exception:
+        pass
+
+    # Auto-reply
+    auto_reply = "Thanks for reaching out! We received your message and will get back to you shortly."
+    twiml = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>{auto_reply}</Message>
+</Response>"""
+    return (twiml, 200, {"Content-Type": "text/xml"})
+
+
+@app.route("/inbox")
+@login_required
+def inbox_page():
+    sms = db.get_inbound_sms(limit=100)
+    calls = db.get_inbound_calls(limit=50)
+    return render_template("inbox.html", sms=sms, calls=calls, active_page="inbox")
+
+
+@app.route("/api/messages")
+@login_required
+def api_get_messages():
+    sms = db.get_inbound_sms(limit=100)
+    calls = db.get_inbound_calls(limit=50)
+    return jsonify({"sms": sms, "calls": calls})
+
+
+@app.route("/api/messages/reply", methods=["POST"])
+@login_required
+def api_reply_sms():
+    data = request.json or {}
+    to = (data.get("to") or "").strip()
+    body = (data.get("body") or "").strip()
+    if not to or not body:
+        return jsonify({"error": "to and body are required"}), 400
+    try:
+        from utils.twilio_client import send_sms
+        result = send_sms(to=to, body=body)
+        return jsonify({"ok": True, "sid": result["sid"]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────

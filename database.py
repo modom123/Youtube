@@ -1100,6 +1100,20 @@ def get_inbound_calls(limit: int = 100):
     return [row_to_dict(r) for r in rows]
 
 
+def get_admin_users():
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM users WHERE is_admin=1").fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_inbound_sms(limit: int = 100):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM inbound_sms ORDER BY received_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
 def log_inbound_sms(from_: str, to: str, body: str, message_sid: str):
     """Store an inbound SMS reply received via the Twilio webhook."""
     with get_conn() as conn:
