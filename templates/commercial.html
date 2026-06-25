@@ -82,6 +82,48 @@
 
   .description-box { background:rgba(255,59,48,.06); border:1px solid rgba(255,59,48,.2); border-radius:10px; padding:14px 16px; font-size:13px; line-height:1.6; margin-bottom:16px; }
   .description-box strong { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--accent); margin-bottom:6px; }
+
+  /* Launch to TV modal */
+  .tv-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:2000; align-items:center; justify-content:center; }
+  .tv-modal-overlay.open { display:flex; }
+  .tv-modal-box { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:0; width:100%; max-width:540px; box-shadow:0 20px 60px rgba(0,0,0,.6); overflow:hidden; }
+  .tv-modal-header { background:linear-gradient(135deg,#1a0000 0%,#2d0505 100%); padding:22px 28px 18px; border-bottom:1px solid var(--border); }
+  .tv-modal-title { font-size:20px; font-weight:900; color:#fff; margin-bottom:4px; }
+  .tv-modal-sub { font-size:12px; color:rgba(255,255,255,.5); }
+  .tv-modal-body { padding:22px 28px; }
+  .tv-form-row { margin-bottom:14px; }
+  .tv-form-row label { display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:5px; }
+  .tv-form-row input, .tv-form-row select {
+    width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    color:var(--text); padding:9px 12px; font-size:13px; font-family:inherit; box-sizing:border-box;
+  }
+  .tv-form-row input:focus, .tv-form-row select:focus { outline:none; border-color:var(--accent); }
+
+  .tv-platform-row {
+    display:flex; align-items:center; gap:14px; padding:14px 16px;
+    background:var(--bg); border:1px solid var(--border); border-radius:10px; margin-bottom:10px;
+    cursor:pointer; transition:border-color .15s;
+  }
+  .tv-platform-row:hover { border-color:var(--accent); }
+  .tv-platform-row.selected { border-color:var(--accent); background:rgba(255,59,48,.05); }
+  .tv-platform-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+  .tv-platform-name { font-size:14px; font-weight:700; flex:1; }
+  .tv-platform-sub { font-size:11px; color:var(--muted); }
+  .tv-platform-status { font-size:11px; font-weight:600; padding:3px 9px; border-radius:20px; flex-shrink:0; }
+  .tv-platform-status.connected { background:rgba(34,197,94,.15); color:#22c55e; border:1px solid rgba(34,197,94,.3); }
+  .tv-platform-status.disconnected { background:rgba(255,59,48,.1); color:var(--accent); border:1px solid rgba(255,59,48,.3); }
+  .tv-check { width:20px; height:20px; border-radius:5px; border:2px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; }
+  .tv-platform-row.selected .tv-check { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .tv-launch-btn { width:100%; padding:14px; background:linear-gradient(135deg,#e53e3e,#ff6b35); color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:800; cursor:pointer; margin-top:6px; transition:opacity .15s; letter-spacing:.02em; }
+  .tv-launch-btn:hover { opacity:.88; }
+  .tv-launch-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+  .tv-progress-row { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:8px; margin-bottom:8px; font-size:13px; }
+  .tv-spinner { width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .tv-dist-link { font-size:12px; color:var(--accent); text-decoration:none; margin-left:auto; }
+  .tv-dist-link:hover { text-decoration:underline; }
 </style>
 
 <!-- Brand identity header -->
@@ -226,8 +268,14 @@
           </div>
           <div class="result-actions" id="resultActions">
             <a id="downloadBtn" href="#" class="btn-action primary" download="commercial.mp4">⬇ Download MP4</a>
-            <button class="btn-action" onclick="publishCommercial()">🚀 Publish Now</button>
+            <button class="btn-action" style="background:linear-gradient(135deg,#e53e3e,#ff6b35);color:#fff;border-color:transparent;" onclick="openLaunchModal()">📡 Launch to TV</button>
             <button class="btn-action" onclick="regenerate()">🔄 Regenerate</button>
+          </div>
+
+          <!-- TV Distribution results (shown after launch) -->
+          <div id="tvDistResults" style="display:none;margin-top:16px;">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px;">📡 Distribution Status</div>
+            <div id="tvDistList" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
         </div>
 
@@ -261,10 +309,80 @@
 
 </div>
 
+<!-- ── Launch to TV Modal ──────────────────────────────────────────────────── -->
+<div class="tv-modal-overlay" id="tvModal">
+  <div class="tv-modal-box">
+    <div class="tv-modal-header">
+      <div class="tv-modal-title">📡 Launch Commercial to TV</div>
+      <div class="tv-modal-sub">Upload to YouTube or go live on Twitch instantly</div>
+    </div>
+    <div class="tv-modal-body">
+
+      <!-- Title field -->
+      <div class="tv-form-row">
+        <label>Commercial Title</label>
+        <input type="text" id="tvTitle" placeholder="e.g. Summer Sale — Brand Name 2025">
+      </div>
+      <div class="tv-form-row">
+        <label>Description (optional)</label>
+        <input type="text" id="tvDescription" placeholder="Short description for YouTube / Twitch">
+      </div>
+      <div class="tv-form-row" id="tvPrivacyRow">
+        <label>YouTube Visibility</label>
+        <select id="tvPrivacy">
+          <option value="public">Public — visible to everyone</option>
+          <option value="unlisted">Unlisted — only people with the link</option>
+          <option value="private">Private — only you</option>
+        </select>
+      </div>
+
+      <!-- Platform targets -->
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 10px;">Select Platforms</div>
+
+      <div class="tv-platform-row" id="tvYouTubeRow" onclick="toggleTvPlatform('youtube')">
+        <div class="tv-platform-icon" style="background:rgba(255,0,0,.15);">▶️</div>
+        <div style="flex:1">
+          <div class="tv-platform-name">YouTube</div>
+          <div class="tv-platform-sub">Upload as a video · stays on your channel forever</div>
+        </div>
+        <span class="tv-platform-status {% if 'youtube' in connected_platforms %}connected{% else %}disconnected{% endif %}" id="tvYouTubeStatus">
+          {% if 'youtube' in connected_platforms %}✓ Connected{% else %}Connect{% endif %}
+        </span>
+        <div class="tv-check" id="tvYouTubeCheck"></div>
+      </div>
+
+      <div class="tv-platform-row" id="tvTwitchRow" onclick="toggleTvPlatform('twitch')">
+        <div class="tv-platform-icon" style="background:rgba(145,70,255,.15);">🟣</div>
+        <div style="flex:1">
+          <div class="tv-platform-name">Twitch</div>
+          <div class="tv-platform-sub">Go live now · streams the commercial to your channel</div>
+        </div>
+        <span class="tv-platform-status {% if 'twitch' in connected_platforms %}connected{% else %}disconnected{% endif %}" id="tvTwitchStatus">
+          {% if 'twitch' in connected_platforms %}✓ Connected{% else %}Connect{% endif %}
+        </span>
+        <div class="tv-check" id="tvTwitchCheck"></div>
+      </div>
+
+      <div id="tvError" style="font-size:12px;color:#ef4444;padding:8px 0;display:none;"></div>
+
+      <!-- Launch progress (shown during launch) -->
+      <div id="tvLaunchProgress" style="display:none;margin-top:12px;">
+        <div id="tvProgressList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:18px;">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeLaunchModal()">Cancel</button>
+        <button class="tv-launch-btn" style="flex:2" id="tvLaunchBtn" onclick="launchToTV()">📡 Launch Now</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 let currentJobId = null;
 let streamController = null;
 let selectedFile = null;
+const _tvSelected = new Set();
 
 // ── Media preview ─────────────────────────────────────────────────────────────
 
@@ -463,10 +581,187 @@ function regenerate() {
   runCommercial();
 }
 
-async function publishCommercial() {
-  const platforms = getSelectedPlatforms();
-  if (!platforms.length) { alert('Select at least one platform to publish to.'); return; }
-  alert('Publishing to: ' + platforms.join(', ') + '\n\nThis will schedule the commercial for immediate posting.');
+// ── Launch to TV ──────────────────────────────────────────────────────────────
+
+function openLaunchModal() {
+  if (!currentJobId) { alert('Generate a commercial first.'); return; }
+  document.getElementById('tvError').style.display = 'none';
+  document.getElementById('tvLaunchProgress').style.display = 'none';
+  document.getElementById('tvProgressList').innerHTML = '';
+  document.getElementById('tvLaunchBtn').disabled = false;
+  document.getElementById('tvLaunchBtn').textContent = '📡 Launch Now';
+  // Pre-fill title from brand field
+  const brand = document.getElementById('brand').value.trim();
+  if (brand && !document.getElementById('tvTitle').value) {
+    document.getElementById('tvTitle').value = brand + ' — Commercial';
+  }
+  document.getElementById('tvModal').classList.add('open');
 }
+
+function closeLaunchModal() {
+  document.getElementById('tvModal').classList.remove('open');
+}
+
+function toggleTvPlatform(platform) {
+  const statusEl = document.getElementById('tv' + platform.charAt(0).toUpperCase() + platform.slice(1) + 'Status');
+  // If not connected, redirect to connect
+  if (statusEl && statusEl.classList.contains('disconnected')) {
+    const urls = { youtube: '/oauth/youtube/start', twitch: '/oauth/twitch/start' };
+    if (confirm('Connect your ' + platform.charAt(0).toUpperCase() + platform.slice(1) + ' account first?\n\nYou will be redirected to authorize.')) {
+      window.location.href = urls[platform];
+    }
+    return;
+  }
+  const row = document.getElementById('tv' + platform.charAt(0).toUpperCase() + platform.slice(1) + 'Row');
+  const check = document.getElementById('tv' + platform.charAt(0).toUpperCase() + platform.slice(1) + 'Check');
+  if (_tvSelected.has(platform)) {
+    _tvSelected.delete(platform);
+    row.classList.remove('selected');
+    check.textContent = '';
+  } else {
+    _tvSelected.add(platform);
+    row.classList.add('selected');
+    check.textContent = '✓';
+  }
+}
+
+function addTvProgressRow(id, icon, name) {
+  const list = document.getElementById('tvProgressList');
+  const div = document.createElement('div');
+  div.className = 'tv-progress-row';
+  div.id = 'tvpr-' + id;
+  div.innerHTML = `<div class="tv-spinner" id="tvsp-${id}"></div><span style="font-weight:600;">${icon} ${name}</span><span id="tvmsg-${id}" style="color:var(--muted);font-size:12px;margin-left:4px;">Starting...</span><span id="tvlink-${id}"></span>`;
+  list.appendChild(div);
+}
+
+function setTvRowDone(id, url, label) {
+  const sp = document.getElementById('tvsp-' + id);
+  const msg = document.getElementById('tvmsg-' + id);
+  const lk = document.getElementById('tvlink-' + id);
+  if (sp) { sp.style.borderTopColor = '#22c55e'; sp.style.animation = 'none'; sp.textContent = '✓'; sp.style.color = '#22c55e'; sp.style.fontSize = '14px'; sp.style.border = 'none'; }
+  if (msg) { msg.textContent = 'Live!'; msg.style.color = '#22c55e'; }
+  if (lk && url) lk.innerHTML = `<a class="tv-dist-link" href="${url}" target="_blank">${label || 'Open'} →</a>`;
+}
+
+function setTvRowError(id, errMsg) {
+  const sp = document.getElementById('tvsp-' + id);
+  const msg = document.getElementById('tvmsg-' + id);
+  if (sp) { sp.style.borderTopColor = '#ef4444'; sp.style.animation = 'none'; sp.textContent = '✕'; sp.style.color = '#ef4444'; sp.style.fontSize = '14px'; sp.style.border = 'none'; }
+  if (msg) { msg.textContent = errMsg; msg.style.color = '#ef4444'; }
+}
+
+async function pollTwitchBroadcast(broadcastId, rowId, channelUrl) {
+  for (let i = 0; i < 120; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    try {
+      const r = await fetch(`/api/commercial/broadcast/twitch/${broadcastId}/status`);
+      const d = await r.json();
+      if (d.status === 'done') { setTvRowDone(rowId, channelUrl, 'Watch on Twitch'); return; }
+      if (d.status === 'error') { setTvRowError(rowId, d.error || 'Broadcast failed'); return; }
+      const msgEl = document.getElementById('tvmsg-' + rowId);
+      if (msgEl) msgEl.textContent = 'Streaming live…';
+    } catch(e) {}
+  }
+  setTvRowError(rowId, 'Timed out');
+}
+
+function showTvDistResult(platform, url, label) {
+  const container = document.getElementById('tvDistResults');
+  const list = document.getElementById('tvDistList');
+  container.style.display = 'block';
+  const icons = { youtube: '▶️', twitch: '🟣' };
+  const row = document.createElement('div');
+  row.className = 'tv-progress-row';
+  row.style.borderColor = '#22c55e44';
+  row.innerHTML = `<span style="font-size:18px;">${icons[platform]||'📡'}</span><span style="font-weight:600;flex:1;">${label}</span><a class="tv-dist-link" href="${url}" target="_blank">Watch →</a>`;
+  list.appendChild(row);
+}
+
+async function launchToTV() {
+  if (!_tvSelected.size) {
+    document.getElementById('tvError').textContent = 'Select at least one platform.';
+    document.getElementById('tvError').style.display = 'block';
+    return;
+  }
+  const title = document.getElementById('tvTitle').value.trim() || 'AI Commercial';
+  const description = document.getElementById('tvDescription').value.trim();
+  const privacy = document.getElementById('tvPrivacy').value;
+
+  const btn = document.getElementById('tvLaunchBtn');
+  btn.disabled = true;
+  btn.textContent = '📡 Launching…';
+  document.getElementById('tvError').style.display = 'none';
+  document.getElementById('tvLaunchProgress').style.display = 'block';
+  document.getElementById('tvProgressList').innerHTML = '';
+
+  const platforms = [..._tvSelected];
+  const errors = [];
+
+  for (const platform of platforms) {
+    if (platform === 'youtube') {
+      addTvProgressRow('youtube', '▶️', 'YouTube');
+      try {
+        const resp = await fetch(`/api/commercial/${currentJobId}/broadcast/youtube`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({title, description, privacy}),
+        });
+        const d = await resp.json();
+        if (d.success) {
+          setTvRowDone('youtube', d.url, 'Watch on YouTube');
+          showTvDistResult('youtube', d.url, 'YouTube — ' + title);
+        } else if (d.needs_auth) {
+          setTvRowError('youtube', 'Not connected');
+          if (confirm('Connect YouTube account?')) window.location.href = d.auth_url;
+        } else {
+          setTvRowError('youtube', d.error || 'Upload failed');
+          errors.push('YouTube: ' + (d.error || 'Upload failed'));
+        }
+      } catch(e) {
+        setTvRowError('youtube', e.message);
+        errors.push('YouTube: ' + e.message);
+      }
+    }
+
+    if (platform === 'twitch') {
+      addTvProgressRow('twitch', '🟣', 'Twitch');
+      const msgEl = document.getElementById('tvmsg-twitch');
+      if (msgEl) msgEl.textContent = 'Going live…';
+      try {
+        const resp = await fetch(`/api/commercial/${currentJobId}/broadcast/twitch`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({title}),
+        });
+        const d = await resp.json();
+        if (d.success) {
+          if (msgEl) msgEl.textContent = 'Streaming…';
+          pollTwitchBroadcast(d.broadcast_id, 'twitch', d.channel_url);
+          showTvDistResult('twitch', d.channel_url, 'Twitch — Live Now');
+        } else if (d.needs_auth) {
+          setTvRowError('twitch', 'Not connected');
+          if (confirm('Connect Twitch account?')) window.location.href = d.auth_url;
+        } else {
+          setTvRowError('twitch', d.error || 'Broadcast failed');
+          errors.push('Twitch: ' + (d.error || 'Broadcast failed'));
+        }
+      } catch(e) {
+        setTvRowError('twitch', e.message);
+        errors.push('Twitch: ' + e.message);
+      }
+    }
+  }
+
+  btn.disabled = false;
+  btn.textContent = errors.length ? '🔄 Retry' : '✓ Launched';
+  if (!errors.length) {
+    setTimeout(closeLaunchModal, 3000);
+  }
+}
+
+// Close modal on overlay click
+document.getElementById('tvModal').addEventListener('click', function(e) {
+  if (e.target === this) closeLaunchModal();
+});
 </script>
 {% endblock %}
