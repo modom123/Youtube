@@ -155,7 +155,7 @@ def _send_reset_email(email: str, token: str):
     text = f"Reset your password:\n{reset_url}\n\nExpires in 2 hours."
     try:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Reset your Social Money password"
+        msg["Subject"] = "Reset your Social Optimize password"
         msg["From"] = config.SMTP_FROM
         msg["To"] = email
         msg.attach(MIMEText(text, "plain"))

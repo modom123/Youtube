@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set active_page = "accounts" %}
 
-{% block title %}Social Accounts — Social Money{% endblock %}
+{% block title %}Social Accounts — Social Optimize{% endblock %}
 {% block topbar_title %}Social Accounts{% endblock %}
 {% block topbar_sub %}Connect your platforms — one click per account{% endblock %}
 {% block topbar_actions %}
@@ -168,10 +168,10 @@
     {% endif %}
   </div>
 
-  <!-- Higgsfield AI (Social Money AI Video Engine) -->
+  <!-- Higgsfield AI (Social Optimize AI Video Engine) -->
   <div class="platform-tile {% if higgsfield_connected %}connected{% endif %}" style="border-color:{% if higgsfield_connected %}var(--green){% else %}rgba(168,85,247,.4){% endif %};">
     <div class="pt-icon">🎬</div>
-    <div class="pt-name" style="color:#a855f7;">Social Money AI</div>
+    <div class="pt-name" style="color:#a855f7;">Social Optimize AI</div>
     <div class="pt-desc">AI video generation engine — connect your Higgsfield account to enable AI video creation</div>
     {% if higgsfield_connected %}
       <span class="pt-status ok">✓ Connected</span>

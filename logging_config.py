@@ -1,5 +1,5 @@
 """
-Structured logging configuration for Social Money.
+Structured logging configuration for Social Optimize.
 
 - JSON output for production (when FLASK_ENV=production or LOG_FORMAT=json)
 - Readable console output for development

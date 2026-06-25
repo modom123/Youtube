@@ -1,4 +1,4 @@
-"""SQLite database layer for the Social Money dashboard."""
+"""SQLite database layer for the Social Optimize dashboard."""
 import sqlite3
 import json
 import uuid

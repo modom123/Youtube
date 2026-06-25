@@ -1,5 +1,5 @@
 """
-Social Money - Core Orchestrator
+Social Optimize - Core Orchestrator
 Turns any topic into a complete multi-platform content package.
 """
 import json
@@ -156,7 +156,7 @@ def run(
     elif target_duration and format == "podcast":
         profile["duration"] = target_duration
 
-    logger.header("Social Money")
+    logger.header("Social Optimize")
     logger.info(f"Topic: [bold]{topic}[/bold]")
     logger.info(f"Format: {profile['label']}")
     logger.info(f"Platforms: {', '.join(platforms) if platforms else 'generate only (dry run)'}")

@@ -1,5 +1,5 @@
 """
-Higgsfield MCP HTTP client for the Social Money pipeline.
+Higgsfield MCP HTTP client for the Social Optimize pipeline.
 
 Connects to https://mcp.higgsfield.ai/mcp using the MCP Streamable HTTP
 transport to generate AI video and image clips without leaving the pipeline.

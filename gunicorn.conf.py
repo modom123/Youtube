@@ -1,5 +1,5 @@
 """
-gunicorn configuration for Social Money.
+gunicorn configuration for Social Optimize.
 
 Single worker process with 8 threads:
 - Keeps _job_events / _studio_events dicts in shared memory (no Redis needed)
