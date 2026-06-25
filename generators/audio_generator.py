@@ -179,6 +179,8 @@ def _generate_google_tts(text: str, output_path: Path, voice: str) -> bool:
 async def _generate_speech(text: str, output_path: Path, voice: str, rate: str, pitch: str) -> None:
     communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
     await communicate.save(str(output_path))
+    if not Path(output_path).exists() or Path(output_path).stat().st_size < 1000:
+        raise RuntimeError("edge-tts produced empty or invalid output")
 
 
 def _pyttsx3_fallback(text: str, output_path: Path) -> None:
@@ -207,14 +209,14 @@ def _pyttsx3_fallback(text: str, output_path: Path) -> None:
 
 
 def _espeak_fallback(text: str, output_path: Path) -> None:
-    """Linux TTS fallback using espeak-ng. Pipes text via stdin for long scripts."""
+    """Linux TTS fallback using espeak-ng with enhanced audio quality."""
     import shutil
     import imageio_ffmpeg
 
     wav_path = output_path.with_suffix(".wav")
     espeak = shutil.which("espeak-ng") or "espeak-ng"
     result = subprocess.run(
-        [espeak, "-v", "en-us+m3", "-s", "150", "-p", "45", "--stdin", "-w", str(wav_path)],
+        [espeak, "-v", "en-us", "-s", "160", "-p", "50", "-a", "180", "--stdin", "-w", str(wav_path)],
         input=text, text=True, capture_output=True, timeout=120,
     )
     if result.returncode != 0:
@@ -223,7 +225,10 @@ def _espeak_fallback(text: str, output_path: Path) -> None:
         raise RuntimeError(f"espeak-ng produced no output: {result.stderr[:200]}")
     ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
     result = subprocess.run(
-        [ffmpeg_bin, "-y", "-i", str(wav_path), "-q:a", "3", str(output_path)],
+        [ffmpeg_bin, "-y", "-i", str(wav_path),
+         "-ar", "44100", "-ac", "2",
+         "-b:a", "192k",
+         str(output_path)],
         capture_output=True, timeout=60,
     )
     wav_path.unlink(missing_ok=True)
@@ -273,15 +278,27 @@ def generate_audio(
                 return output_path
 
     # 2. Try edge-tts (run in a fresh thread with its own event loop to avoid conflicts)
-    try:
-        import concurrent.futures
-        def _edge_tts_in_thread():
-            asyncio.run(_generate_speech(clean_text, output_path, voice, rate, pitch))
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            pool.submit(_edge_tts_in_thread).result(timeout=60)
-        print(f"[audio] edge-tts generated audio ({voice})")
-    except Exception as e:
-        print(f"[audio] edge-tts failed ({e}) — using fallback TTS")
+    edge_voices = [voice, "en-US-AriaNeural", "en-US-GuyNeural", "en-US-JennyNeural"]
+    seen = set()
+    edge_voices = [v for v in edge_voices if not (v in seen or seen.add(v))]
+    edge_ok = False
+
+    for ev in edge_voices:
+        try:
+            import concurrent.futures
+            def _edge_tts_in_thread():
+                asyncio.run(_generate_speech(clean_text, output_path, ev, rate, pitch))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                pool.submit(_edge_tts_in_thread).result(timeout=90)
+            if output_path.exists() and output_path.stat().st_size > 1000:
+                print(f"[audio] edge-tts generated audio ({ev})")
+                edge_ok = True
+                break
+        except Exception as e:
+            print(f"[audio] edge-tts failed with voice {ev}: {e}")
+
+    if not edge_ok:
+        print("[audio] All edge-tts voices failed — using fallback TTS")
         _tts_fallback(clean_text, output_path)
 
     if not output_path.exists():
