@@ -86,10 +86,25 @@ def push_event(job_id: int, data: dict):
 def _run_job_thread(job_id: int, params: dict, user_id: int = None):
     import social_optimize
     from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
+    from generators.ai_router import route as _route_model
     if user_id:
         _tok = _get_user_higgsfield_token(user_id)
         _avg._session_token.value = _tok
         _hmcp._session_token.value = _tok
+
+    # Resolve "auto" model preference via the router
+    raw_model = params.get("ai_model", "auto")
+    user_row = db.get_user_by_id(user_id) if user_id else {}
+    tier = (user_row or {}).get("subscription_tier", "starter")
+    routed_model = _route_model(
+        content_type=params.get("format", "short"),
+        subscription_tier=tier,
+        user_preference=raw_model,
+    )
+    params["ai_model"] = routed_model
+    print(f"[router] Job #{job_id} format={params.get('format')} tier={tier} "
+          f"requested={raw_model} → using={routed_model}")
+
     def progress_cb(pct: int, msg: str):
         db.update_job(job_id, progress=pct, current_step=msg, status="running")
         push_event(job_id, {"progress": pct, "step": msg, "status": "running"})
@@ -408,6 +423,7 @@ def create_page():
         google_tts_voices=config.GOOGLE_TTS_VOICES,
         google_api_key=bool(config.GOOGLE_API_KEY),
         deepseek_api_key=bool(config.DEEPSEEK_API_KEY),
+        ai_models=__import__("generators.ai_router", fromlist=["get_model_info"]).get_model_info(),
     )
 
 
@@ -456,8 +472,7 @@ def api_create():
         "ad_cta": (data.get("ad_cta") or "").strip(),
         "ad_style": data.get("ad_style") or "cinematic",
         "ad_platforms": data.get("ad_platforms") or [],
-        # ai_model: "claude" (premium) or "gemini" (budget/batch)
-        "ai_model": data.get("ai_model", "claude"),
+        "ai_model": data.get("ai_model", "auto"),
     }
     t = threading.Thread(target=_run_job_thread, args=(job_id, params, current_user.id), daemon=True)
     t.start()
@@ -3359,6 +3374,10 @@ def start_background_threads():
 
 db.init_db()
 start_background_threads()
+
+# Start the job monitor agent (auto-resets stuck jobs every 5 min)
+from agents.job_monitor import start as _start_monitor
+_start_monitor()
 
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")

@@ -179,6 +179,24 @@ def generate_script(
             custom_instructions=custom_instructions,
             research_context=research_context,
         )
+    elif ai_model == "qwen" and getattr(config, "QWEN_API_KEY", ""):
+        script = _generate_script_qwen(
+            topic=topic,
+            content_type=content_type,
+            target_duration=target_duration,
+            audience=audience,
+            custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    elif ai_model == "groq" and getattr(config, "GROQ_API_KEY", ""):
+        script = _generate_script_groq(
+            topic=topic,
+            content_type=content_type,
+            target_duration=target_duration,
+            audience=audience,
+            custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
     elif ai_model == "gemini" and getattr(config, "GOOGLE_API_KEY", ""):
         script = generate_script_gemini(
             topic=topic,
@@ -274,6 +292,96 @@ def _generate_script_deepseek(
     except Exception as e:
         print(f"[script] DeepSeek generation failed ({e}) — falling back to Claude")
         return _generate_script_claude(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+
+
+def _generate_script_qwen(
+    topic: str,
+    content_type: str = "short",
+    target_duration: int = 60,
+    audience: str = "general public",
+    custom_instructions: Optional[str] = None,
+    research_context: str = "",
+) -> "ContentScript":
+    """Alibaba Qwen via DashScope OpenAI-compatible endpoint. Falls back to Claude."""
+    api_key = getattr(config, "QWEN_API_KEY", "")
+    if not api_key:
+        return _generate_script_claude(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    try:
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            timeout=120.0,
+        )
+        prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
+        if custom_instructions:
+            prompt += f"\n\nAdditional instructions: {custom_instructions}"
+
+        _long_formats = {"countdown", "long", "podcast", "commercial_60"}
+        model = "qwen-plus" if content_type in _long_formats else "qwen-turbo"
+        response = client.chat.completions.create(
+            model=model,
+            max_tokens=8192 if content_type in _long_formats else 4096,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.choices[0].message.content.strip()
+        print(f"[script] Qwen ({model}) generated script for: {topic}")
+        return _parse_script_json(raw, content_type, target_duration, topic)
+    except Exception as e:
+        print(f"[script] Qwen generation failed ({e}) — falling back to Claude")
+        return _generate_script_claude(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+
+
+def _generate_script_groq(
+    topic: str,
+    content_type: str = "short",
+    target_duration: int = 60,
+    audience: str = "general public",
+    custom_instructions: Optional[str] = None,
+    research_context: str = "",
+) -> "ContentScript":
+    """Groq ultra-fast inference (Llama 3.3 70B). Falls back to DeepSeek or Claude."""
+    api_key = getattr(config, "GROQ_API_KEY", "")
+    if not api_key:
+        return _generate_script_deepseek(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1", timeout=60.0)
+        prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
+        if custom_instructions:
+            prompt += f"\n\nAdditional instructions: {custom_instructions}"
+
+        _long_formats = {"countdown", "long", "podcast", "commercial_60"}
+        # Groq's largest context model
+        model = "llama-3.3-70b-versatile"
+        max_tok = 8000 if content_type in _long_formats else 4096
+        response = client.chat.completions.create(
+            model=model,
+            max_tokens=max_tok,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.choices[0].message.content.strip()
+        print(f"[script] Groq ({model}) generated script for: {topic}")
+        return _parse_script_json(raw, content_type, target_duration, topic)
+    except Exception as e:
+        print(f"[script] Groq generation failed ({e}) — falling back to DeepSeek/Claude")
+        return _generate_script_deepseek(
             topic=topic, content_type=content_type, target_duration=target_duration,
             audience=audience, custom_instructions=custom_instructions,
             research_context=research_context,

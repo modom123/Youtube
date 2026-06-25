@@ -149,22 +149,23 @@
       </div>
       <div class="form-group">
         <label>Script Engine</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
-          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;">
-            <input type="radio" name="ai_model" value="claude" checked /> Claude (quality)
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          {% for m in ai_models %}
+          <label style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg);border:1px solid {% if m.available %}var(--border){% else %}var(--border){% endif %};border-radius:8px;cursor:pointer;opacity:{% if m.available %}1{% else %}0.45{% endif %};">
+            <span style="display:flex;align-items:center;gap:10px;">
+              <input type="radio" name="ai_model" value="{{ m.id }}" {% if m.id == 'auto' %}checked{% endif %} {% if not m.available and m.id != 'auto' %}disabled{% endif %} />
+              <span>
+                <span style="font-size:13px;font-weight:600;">{{ m.name }}</span>
+                <span style="font-size:11px;color:var(--muted);display:block;margin-top:1px;">{{ m.desc }}</span>
+              </span>
+            </span>
+            <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:{% if m.badge == 'smart' %}#d4a01722{% elif m.badge == 'quality' %}#3b82f622{% elif m.badge == 'fast' %}#22c55e22{% elif m.badge == 'ultra-fast' %}#06b6d422{% elif m.badge == 'multilingual' %}#a855f722{% else %}#64748b22{% endif %};color:{% if m.badge == 'smart' %}var(--gold){% elif m.badge == 'quality' %}#60a5fa{% elif m.badge == 'fast' %}#4ade80{% elif m.badge == 'ultra-fast' %}#22d3ee{% elif m.badge == 'multilingual' %}#c084fc{% else %}var(--muted){% endif %};">
+              {{ m.badge }}{% if not m.available %} · no key{% endif %}
+            </span>
           </label>
-          {% if deepseek_api_key %}
-          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;">
-            <input type="radio" name="ai_model" value="deepseek" /> DeepSeek (fast)
-          </label>
-          {% endif %}
-          {% if google_api_key %}
-          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;">
-            <input type="radio" name="ai_model" value="gemini" /> Gemini (batch)
-          </label>
-          {% endif %}
+          {% endfor %}
         </div>
-        <div class="form-hint">DeepSeek is 3-5× faster for long-form scripts. Claude is highest quality.</div>
+        <div class="form-hint">Auto lets the routing agent pick the best model for your content type and tier.</div>
       </div>
       <div class="form-group">
         <label>Thumbnail Style</label>
@@ -546,7 +547,7 @@ async function startCreate() {
     instructions: document.getElementById('instructions').value || null,
     dry_run: document.getElementById('dry_run').checked,
     skip_research: document.getElementById('skip_research').checked,
-    ai_model: _aiModelEl ? _aiModelEl.value : 'claude',
+    ai_model: _aiModelEl ? _aiModelEl.value : 'auto',
     ai_video_provider: document.getElementById('ai_video_provider').value,
     higgsfield_model: document.getElementById('higgsfield_model').value,
     podcast_name: document.getElementById('podcast_name').value || topic,

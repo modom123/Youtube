@@ -575,6 +575,15 @@ def get_jobs(limit=50, user_id=None, team_id=None):
     return [row_to_dict(r) for r in rows]
 
 
+def get_all_running_jobs():
+    """Return all jobs currently in 'running' or 'pending' status (for monitor agent)."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM jobs WHERE status IN ('running','pending') ORDER BY created_at ASC"
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
 def get_stats(user_id=None):
     with get_conn() as conn:
         if user_id:
