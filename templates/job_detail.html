@@ -1,58 +1,41 @@
 {% extends "base.html" %}
 {% set active_page = "jobs" %}
 
-{% block title %}Job #{{ job.id }} — Social Optimize{% endblock %}
+{% block title %}Job #{{ job.id }} — Social Optimize Machine{% endblock %}
 {% block topbar_title %}Job #{{ job.id }}{% endblock %}
 {% block topbar_sub %}{{ (job.title or job.topic)[:60] }}{% endblock %}
 {% block topbar_actions %}
-<a href="/jobs" class="btn btn-ghost">← Back</a>
-{% if job.status == 'running' %}
-<button onclick="forceReset({{ job.id }})" class="btn btn-ghost" style="color:var(--yellow);" title="Unstick this job so it can be retried">⚠ Force Reset</button>
-<button onclick="cancelJob({{ job.id }}, this)" class="btn btn-ghost" style="color:var(--red);">⏹ Cancel</button>
-{% endif %}
-{% if job.status == 'error' %}
-<button onclick="retryJob({{ job.id }}, this)" class="btn btn-primary">↺ Retry</button>
-{% endif %}
-{% if job.status == 'done' %}
-<button onclick="showEditModal()" class="btn btn-ghost">✏ Edit & Regen</button>
-{% if job.video_path %}
+<a href="/jobs" class="btn btn-ghost">← Back to Jobs</a>
+{% if job.status == 'done' and job.video_path %}
 <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green">⬇ Download MP4</a>
 {% endif %}
-{% endif %}
-<button onclick="deleteJob({{ job.id }}, this)" class="btn btn-ghost" style="color:var(--red);">🗑</button>
 {% endblock %}
 
 {% block content %}
 
-<div class="grid-2" style="align-items:start;gap:20px;">
+<div class="grid-2" style="align-items:start;">
 
-  <!-- ── Left column ── -->
+  <!-- Left: Details -->
   <div style="display:flex;flex-direction:column;gap:20px;">
 
-    <!-- Status -->
+    <!-- Status Card -->
     <div class="card">
-      <div class="flex-between mb-12">
-        <div class="card-title">Status</div>
+      <div class="flex-between mb-16">
+        <div class="card-title">Job Status</div>
         <span class="pill pill-{{ 'done' if job.status=='done' else 'running' if job.status=='running' else 'error' if job.status=='error' else 'pending' }}">
           {{ job.status.upper() }}
         </span>
       </div>
       {% if job.status == 'running' %}
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <div class="text-sm text-dim" id="detail-step">{{ job.current_step or 'Processing...' }}</div>
-        <div style="font-size:16px;font-weight:800;color:var(--gold);" id="detail-pct">{{ job.progress or 0 }}%</div>
-      </div>
       <div class="progress-track mb-8">
         <div class="progress-bar" id="detail-bar" style="width:{{ job.progress or 0 }}%"></div>
       </div>
-      <div class="text-xs text-dim" style="color:var(--yellow);">
-        If stuck for &gt;5 min, use the Force Reset button above, then retry.
-      </div>
+      <div class="text-sm text-dim" id="detail-step">{{ job.current_step or 'Processing...' }}</div>
       {% endif %}
 
       <div class="divider"></div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
         <div>
           <div class="text-xs text-dim mb-4">Topic</div>
           <div class="text-sm text-bold">{{ job.topic }}</div>
@@ -82,209 +65,176 @@
       </div>
     </div>
 
-    <!-- Error details -->
-    {% if job.error_msg %}
-    <div class="card" style="border-color:var(--red);">
-      <div class="card-title text-red mb-8">Error Details</div>
-      <div class="job-log" style="max-height:240px;overflow-y:auto;white-space:pre-wrap;font-size:12px;">{{ job.error_msg }}</div>
-      <button onclick="retryJob({{ job.id }}, this)" class="btn btn-primary mt-12">↺ Retry Now</button>
-    </div>
-    {% endif %}
-
-    <!-- Build Log (Diagnostic) -->
-    {% if job.status in ('done', 'error') %}
+    <!-- Research Summary -->
+    {% if job.research and job.research != '{}' %}
+    {% set research = job.research if job.research is mapping else {} %}
     <div class="card">
-      <div class="flex-between mb-8">
-        <div class="card-title">Build Log</div>
-        <div style="display:flex;gap:8px;">
-          <button onclick="toggleBuildLog()" class="btn btn-ghost btn-sm" id="buildLogToggle">Show</button>
-          <button onclick="copyBuildLog()" class="btn btn-ghost btn-sm" id="buildLogCopy" style="display:none;">Copy</button>
+      <div class="card-title mb-12"><span class="accent">🔍</span> Research</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;" class="mb-12">
+        <div style="background:var(--bg-elevated);padding:12px;border-radius:8px;text-align:center;">
+          <div class="text-bold text-green" style="font-size:22px;">{{ research.get('facts_found', 0) }}</div>
+          <div class="text-xs text-dim">Key Facts</div>
         </div>
-      </div>
-      <div class="text-xs text-dim mb-8">Full diagnostic trace of every pipeline step — copy and share for debugging</div>
-      <div id="buildLogBox" style="display:none;max-height:500px;overflow-y:auto;background:var(--bg2);border-radius:8px;padding:14px;font-family:monospace;font-size:11px;line-height:1.6;white-space:pre-wrap;color:var(--text-secondary);"></div>
-    </div>
-    {% endif %}
-
-    <!-- Script -->
-    {% if job.script_path or job.title %}
-    <div class="card">
-      <div class="flex-between mb-12">
-        <div class="card-title"><span class="accent">📝</span> Script</div>
-        {% if job.script_path %}
-        <button onclick="toggleScript(this)" class="btn btn-ghost btn-sm">Show</button>
-        {% endif %}
-      </div>
-      {% if job.title %}
-      <div class="text-xs text-dim mb-4">TITLE</div>
-      <div class="text-bold mb-10">{{ job.title }}</div>
-      {% endif %}
-      {% if job.description %}
-      <div class="text-xs text-dim mb-4">DESCRIPTION</div>
-      <div class="text-sm text-dim mb-10" style="line-height:1.6;">{{ job.description[:300] }}{% if job.description|length > 300 %}…{% endif %}</div>
-      {% endif %}
-      <div id="scriptBox" style="display:none;max-height:400px;overflow-y:auto;background:var(--bg2);border-radius:8px;padding:14px;font-size:12px;line-height:1.8;white-space:pre-wrap;color:var(--text-secondary);margin-top:10px;"></div>
-    </div>
-    {% endif %}
-
-    <!-- Research -->
-    {% if job.research_summary and job.research_summary != '{}' %}
-    {% set research = job.research_summary if job.research_summary is mapping else {} %}
-    <div class="card">
-      <div class="card-title mb-10"><span class="accent">🔍</span> Research</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;" class="mb-10">
-        <div style="background:var(--bg2);padding:12px;border-radius:8px;text-align:center;">
-          <div class="text-bold text-green" style="font-size:20px;">{{ research.get('facts_found', 0) }}</div>
-          <div class="text-xs text-dim">Facts</div>
-        </div>
-        <div style="background:var(--bg2);padding:12px;border-radius:8px;text-align:center;">
-          <div class="text-bold text-yellow" style="font-size:20px;">{{ research.get('data_points_found', 0) }}</div>
+        <div style="background:var(--bg-elevated);padding:12px;border-radius:8px;text-align:center;">
+          <div class="text-bold text-yellow" style="font-size:22px;">{{ research.get('data_points_found', 0) }}</div>
           <div class="text-xs text-dim">Data Points</div>
         </div>
-        <div style="background:var(--bg2);padding:12px;border-radius:8px;text-align:center;">
-          <div class="text-bold" style="font-size:20px;color:#60a5fa;">{{ (research.get('sources') or [])|length }}</div>
+        <div style="background:var(--bg-elevated);padding:12px;border-radius:8px;text-align:center;">
+          <div class="text-bold text-blue" style="font-size:22px;">{{ (research.get('sources') or [])|length }}</div>
           <div class="text-xs text-dim">Sources</div>
         </div>
       </div>
-      <a href="/api/jobs/{{ job.id }}/research" target="_blank" class="btn btn-ghost btn-sm">View Raw Research</a>
+      {% if research.get('sources') %}
+      <div class="text-xs text-dim">{{ research.get('sources', [])|join(' • ') }}</div>
+      {% endif %}
+      <a href="/api/jobs/{{ job.id }}/research" target="_blank" class="btn btn-ghost btn-sm mt-8">View Raw Research</a>
     </div>
     {% endif %}
 
-    <!-- Publish results -->
-    {% if job.publish_results and job.publish_results != '{}' %}
+    <!-- Graphics Summary -->
+    {% if job.graphics and job.graphics != '{}' %}
+    {% set gfx = job.graphics if job.graphics is mapping else {} %}
     <div class="card">
-      <div class="card-title mb-12"><span class="accent">📡</span> Publish Results</div>
+      <div class="card-title mb-12"><span class="accent">🎨</span> Generated Graphics</div>
+      <div class="flex gap-12">
+        {% if gfx.get('has_title_card') %}
+        <span class="pill pill-done">✓ Title Card</span>
+        {% endif %}
+        {% if gfx.get('rank_cards', 0) > 0 %}
+        <span class="pill pill-running">{{ gfx.get('rank_cards') }} Rank Cards</span>
+        {% endif %}
+        {% if gfx.get('has_chart') %}
+        <span class="pill pill-pending">✓ Bar Chart</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Script Preview -->
+    {% if job.title or job.topic %}
+    <div class="card">
+      <div class="card-title mb-16"><span class="accent">📝</span> Generated Script</div>
+      {% if job.title %}
+      <div class="text-xs text-dim mb-4">TITLE</div>
+      <div class="text-bold mb-12">{{ job.title }}</div>
+      {% endif %}
+      {% if job.description %}
+      <div class="text-xs text-dim mb-4">DESCRIPTION</div>
+      <div class="text-sm text-dim mb-12" style="line-height:1.6;">{{ job.description[:300] }}{% if job.description|length > 300 %}…{% endif %}</div>
+      {% endif %}
+      {% if job.script_path %}
+      <a href="/api/jobs/{{ job.id }}/script" class="btn btn-ghost btn-sm">View Full Script</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Publish Results -->
+    {% if job.publish_results %}
+    <div class="card">
+      <div class="card-title mb-16"><span class="accent">📡</span> Publish Results</div>
       {% for platform, result in job.publish_results.items() %}
-      <div style="background:var(--bg2);border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div class="card mb-8" style="padding:14px;background:var(--bg-elevated);">
         <div class="flex-between">
           <span class="platform-tag {{ platform }}">{{ platform }}</span>
           {% if result.get('url') %}
           <a href="{{ result.url }}" target="_blank" class="btn btn-ghost btn-sm">Open ↗</a>
           {% elif result.get('status') == 'skipped' %}
-          <span class="text-xs" style="color:var(--yellow);">Manual upload needed</span>
+          <span class="text-yellow text-xs">Manual upload needed</span>
+          {% elif result.get('error') %}
+          <span class="text-red text-xs">Failed</span>
           {% endif %}
         </div>
-        {% if result.get('error') %}
-        <div class="text-xs mt-4" style="color:var(--red);">{{ result.error[:120] }}</div>
+        {% if result.get('url') %}
+        <div class="text-xs text-dim mt-4">{{ result.url }}</div>
         {% elif result.get('reason') %}
         <div class="text-xs text-dim mt-4">{{ result.reason }}</div>
+        {% elif result.get('error') %}
+        <div class="text-xs text-red mt-4">{{ result.error[:100] }}</div>
         {% endif %}
       </div>
       {% endfor %}
     </div>
     {% endif %}
 
-  </div>
-
-  <!-- ── Right column ── -->
-  <div style="display:flex;flex-direction:column;gap:20px;">
-
-    <!-- Video player -->
-    {% if job.status == 'done' and job.video_path %}
-    <div class="card" style="padding:16px;">
-      <div class="card-title mb-12"><span class="accent">🎬</span> Video Preview</div>
-      <video controls preload="metadata"
-             style="width:100%;border-radius:8px;background:#000;max-height:360px;"
-             src="/api/jobs/{{ job.id }}/video">
-        Your browser does not support inline video.
-      </video>
-      <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-block mt-10">⬇ Download MP4</a>
-    </div>
-    {% elif job.status == 'running' %}
-    <div class="card" style="padding:40px 20px;text-align:center;">
-      <div style="font-size:36px;margin-bottom:12px;">⏳</div>
-      <div class="text-bold mb-6">Generating your video…</div>
-      <div class="text-sm text-dim" id="right-step">{{ job.current_step or 'Please wait' }}</div>
-      <div class="progress-track mt-14" style="max-width:200px;margin:14px auto 0;">
-        <div class="progress-bar" id="right-bar" style="width:{{ job.progress or 0 }}%"></div>
-      </div>
-    </div>
-    {% elif job.status == 'error' %}
-    <div class="card" style="padding:40px 20px;text-align:center;border-color:var(--red);">
-      <div style="font-size:36px;margin-bottom:12px;">❌</div>
-      <div class="text-bold mb-6 text-red">Generation Failed</div>
-      <div class="text-sm text-dim mb-14">See the error details on the left.</div>
-      <button onclick="retryJob({{ job.id }}, this)" class="btn btn-primary">↺ Retry Job</button>
+    {% if job.error_msg %}
+    <div class="card" style="border-color:var(--red);">
+      <div class="card-title text-red mb-8">Error Details</div>
+      <div class="job-log" style="max-height:none;">{{ job.error_msg }}</div>
     </div>
     {% endif %}
 
+  </div>
+
+  <!-- Right: Media Preview -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
     <!-- Thumbnail -->
-    {% if job.thumbnail_path %}
+    {% if job.status == 'done' and job.thumbnail_path %}
     <div class="card" style="padding:16px;">
-      <div class="card-title mb-10"><span class="accent">🖼</span> Thumbnail</div>
+      <div class="card-title mb-12"><span class="accent">🖼</span> Thumbnail</div>
       <img src="/api/jobs/{{ job.id }}/thumbnail" alt="Thumbnail"
            style="width:100%;border-radius:8px;border:1px solid var(--border);">
     </div>
     {% endif %}
 
-    <!-- Platforms -->
-    <div class="card">
-      <div class="card-title mb-10"><span class="accent">📡</span> Target Platforms</div>
-      {% if job.platforms %}
-        {% for p in job.platforms %}
-        <span class="platform-tag {{ p }}" style="margin:4px;">{{ p }}</span>
-        {% endfor %}
-      {% else %}
-        <span class="text-dim text-sm">None (dry run)</span>
-      {% endif %}
-    </div>
-
-    <!-- Dubbing -->
+    <!-- Video Info -->
     {% if job.status == 'done' and job.video_path %}
     <div class="card">
-      <div class="card-title mb-10"><span class="accent">🌍</span> Dub into Another Language</div>
-      <select id="dubLang" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;margin-bottom:10px;">
-        {% for code, name in dub_languages.items() %}
-        <option value="{{ code }}">{{ name }}</option>
-        {% endfor %}
-      </select>
-      <button onclick="startDub({{ job.id }})" class="btn btn-primary btn-block">🎙 Start Dubbing</button>
-      {% if dubs %}
-      <div class="text-xs text-dim mt-10 mb-4">Previous dubs:</div>
-      {% for dub in dubs %}
-      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);">
-        <span class="text-sm">{{ dub_languages.get(dub.target_language, dub.target_language) }}</span>
-        <span class="text-xs pill pill-{{ 'done' if dub.status=='done' else 'running' if dub.status=='running' else 'error' }}">{{ dub.status }}</span>
-        {% if dub.status == 'done' and dub.output_path %}<a href="/api/dub/{{ dub.id }}/download" class="btn btn-ghost btn-sm">⬇</a>{% endif %}
-      </div>
-      {% endfor %}
-      {% endif %}
+      <div class="card-title mb-16"><span class="accent">🎬</span> Video File</div>
+      <div class="text-dim text-sm mb-12">{{ job.video_path|replace('/home/user/Youtube/','') }}</div>
+      <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-block">
+        ⬇ Download MP4
+      </a>
     </div>
     {% endif %}
 
-  </div>
-</div>
+    <!-- Publish to Platforms -->
+    {% if job.status == 'done' and job.video_path %}
+    <div class="card" id="publishPanel">
+      <div class="card-title mb-4"><span class="accent">📡</span> Publish to Platforms</div>
+      <div class="text-dim text-xs mb-16">Review your video above, then select where to publish.</div>
 
-<!-- Edit & Regenerate modal -->
-<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:36px;width:100%;max-width:500px;position:relative;">
-    <button onclick="document.getElementById('editModal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
-    <h2 style="margin:0 0 20px;font-size:18px;">Edit & Regenerate</h2>
-    <div class="form-group mb-14">
-      <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:6px;">Topic</label>
-      <textarea id="editTopic" rows="3" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;color:var(--text);box-sizing:border-box;resize:vertical;">{{ job.topic }}</textarea>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-      <div>
-        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:6px;">Format</label>
-        <select id="editFormat" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;color:var(--text);font-size:13px;">
-          <option value="short" {% if job.format=='short' %}selected{% endif %}>Short / TikTok</option>
-          <option value="reel" {% if job.format=='reel' %}selected{% endif %}>Instagram Reel</option>
-          <option value="long" {% if job.format=='long' %}selected{% endif %}>Long-Form</option>
-          <option value="podcast" {% if job.format=='podcast' %}selected{% endif %}>Podcast</option>
-          <option value="countdown" {% if job.format=='countdown' %}selected{% endif %}>Countdown / Top N</option>
+      <div class="platform-grid" id="pub-platform-grid">
+        {% set platform_list = [
+          ('youtube','▶️','YouTube'),
+          ('tiktok','🎵','TikTok'),
+          ('instagram','📸','Instagram'),
+          ('facebook','📘','Facebook'),
+          ('twitter','🐦','Twitter / X'),
+          ('linkedin','💼','LinkedIn'),
+          ('pinterest','📌','Pinterest'),
+          ('threads','🧵','Threads'),
+        ] %}
+        {% for p, icon, label in platform_list %}
+        <div class="platform-card {{ p }} {% if p in connected_platforms %}pub-connected{% endif %}"
+             data-platform="{{ p }}" onclick="togglePubPlatform(this)"
+             title="{% if p not in connected_platforms %}Not connected — connect in Accounts{% endif %}">
+          <div class="platform-icon">{{ icon }}</div>
+          <div class="platform-name">{{ label }}</div>
+          {% if p not in connected_platforms %}
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">not connected</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="form-group mt-16">
+        <label>Privacy / Visibility</label>
+        <select id="pub-privacy">
+          <option value="public">🌍 Public</option>
+          <option value="unlisted">🔗 Unlisted</option>
+          <option value="private" selected>🔒 Private</option>
         </select>
       </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:6px;">Voice</label>
-        <input id="editVoice" type="text" value="{{ job.voice or '' }}" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;color:var(--text);font-size:13px;box-sizing:border-box;">
-      </div>
+
+      <button class="btn btn-primary btn-block mt-16" onclick="publishNow()" id="pub-btn">
+        Publish Now
+      </button>
+
+      <div id="pub-results" style="display:none;margin-top:16px;"></div>
     </div>
-    <div style="margin-bottom:20px;">
-      <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:6px;">Extra Instructions</label>
-      <input id="editInstructions" type="text" placeholder="e.g. focus on goals scored, add more stats" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;color:var(--text);font-size:13px;box-sizing:border-box;">
-    </div>
-    <button onclick="regenJob()" class="btn btn-primary" style="width:100%;padding:13px;font-size:15px;font-weight:700;">🚀 Regenerate Video</button>
+    {% endif %}
+
   </div>
 </div>
 
@@ -294,161 +244,84 @@
 {% if job.status == 'running' %}
 <script>
 (function poll() {
-  fetch('/api/job/{{ job.id }}').then(r => r.json()).then(j => {
-    if (j.progress !== undefined) {
-      const pct = j.progress + '%';
-      const bar = document.getElementById('detail-bar');
-      const rbar = document.getElementById('right-bar');
-      const dpct = document.getElementById('detail-pct');
-      if (bar) bar.style.width = pct;
-      if (rbar) rbar.style.width = pct;
-      if (dpct) dpct.textContent = pct;
-    }
-    if (j.current_step) {
-      const s = document.getElementById('detail-step');
-      const rs = document.getElementById('right-step');
-      if (s) s.textContent = j.current_step;
-      if (rs) rs.textContent = j.current_step;
-    }
-    if (j.status === 'done' || j.status === 'error') {
+  fetch('/api/job/{{ job.id }}').then(r => r.json()).then(job => {
+    if (job.progress !== undefined) document.getElementById('detail-bar').style.width = job.progress + '%';
+    if (job.current_step) document.getElementById('detail-step').textContent = job.current_step;
+    if (job.status === 'done' || job.status === 'error') {
       location.reload();
     } else {
       setTimeout(poll, 2000);
     }
-  }).catch(() => setTimeout(poll, 4000));
+  });
 })();
 </script>
 {% endif %}
+
+{% if job.status == 'done' and job.video_path %}
 <script>
-async function retryJob(id, btn) {
-  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+const _pubPlatforms = new Set();
+
+function togglePubPlatform(el) {
+  const p = el.dataset.platform;
+  if (_pubPlatforms.has(p)) {
+    _pubPlatforms.delete(p);
+    el.classList.remove('selected');
+  } else {
+    _pubPlatforms.add(p);
+    el.classList.add('selected');
+  }
+}
+
+async function publishNow() {
+  if (_pubPlatforms.size === 0) {
+    toast('error', 'No platforms selected', 'Select at least one platform to publish to.');
+    return;
+  }
+  const btn = document.getElementById('pub-btn');
+  btn.disabled = true;
+  btn.textContent = 'Publishing...';
+
+  const privacy = document.getElementById('pub-privacy').value;
   try {
-    const r = await fetch(`/api/jobs/${id}/retry`, {method:'POST'});
-    if (r.status === 401) { alert('Session expired — please sign in again.'); window.location.href = '/login'; return; }
-    const d = await r.json();
-    if (d.error) { alert(d.error); if (btn) { btn.disabled = false; btn.textContent = '↺ Retry'; } return; }
-    location.reload();
+    const resp = await fetch('/api/jobs/{{ job.id }}/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platforms: Array.from(_pubPlatforms), privacy }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      toast('error', 'Publish failed', data.error || 'Unknown error');
+      btn.disabled = false;
+      btn.textContent = 'Publish Now';
+      return;
+    }
+    renderPubResults(data.publish_results || {});
+    btn.textContent = 'Published!';
+    toast('success', 'Published!', `Sent to ${_pubPlatforms.size} platform(s).`);
   } catch (e) {
-    alert('Retry failed: ' + e.message);
-    if (btn) { btn.disabled = false; btn.textContent = '↺ Retry'; }
-  }
-}
-async function forceReset(id) {
-  if (!confirm('Force-reset this job? It will be marked as failed so you can retry it.')) return;
-  const r = await fetch(`/api/jobs/${id}/force-reset`, {method:'POST'});
-  const d = await r.json();
-  if (d.ok) location.reload();
-  else alert(d.error || 'Error');
-}
-async function cancelJob(id, btn) {
-  if (!confirm('Cancel this job?')) return;
-  btn.disabled = true;
-  await fetch(`/api/jobs/${id}/cancel`, {method:'POST'});
-  location.reload();
-}
-async function deleteJob(id, btn) {
-  if (!confirm('Delete this job? Cannot be undone.')) return;
-  btn.disabled = true;
-  await fetch(`/api/jobs/${id}/delete`, {method:'POST'});
-  window.location.href = '/jobs';
-}
-function showEditModal() {
-  document.getElementById('editModal').style.display = 'flex';
-}
-async function regenJob() {
-  const topic = document.getElementById('editTopic').value.trim();
-  const format = document.getElementById('editFormat').value;
-  const voice = document.getElementById('editVoice').value.trim();
-  const instructions = document.getElementById('editInstructions').value.trim();
-  if (!topic) { alert('Topic is required'); return; }
-  const r = await fetch('/api/create', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      topic, format, voice: voice || undefined,
-      custom_instructions: instructions || undefined,
-      platforms: {{ job.platforms | tojson }},
-      audience: {{ (job.audience or 'general public') | tojson }},
-      style: {{ (job.style or 'fire') | tojson }},
-    })
-  });
-  const d = await r.json();
-  if (d.job_id) window.location.href = `/jobs/${d.job_id}`;
-  else alert(d.error || 'Could not start job');
-}
-
-// Script toggle
-function toggleScript(btn) {
-  const box = document.getElementById('scriptBox');
-  if (box.style.display === 'none') {
-    btn.textContent = 'Hide';
-    box.style.display = 'block';
-    if (!box.dataset.loaded) {
-      box.textContent = 'Loading…';
-      fetch('/api/jobs/{{ job.id }}/script')
-        .then(r => r.text())
-        .then(t => { box.textContent = t; box.dataset.loaded = '1'; })
-        .catch(() => { box.textContent = 'Could not load script.'; });
-    }
-  } else {
-    btn.textContent = 'Show';
-    box.style.display = 'none';
+    toast('error', 'Network error', e.message);
+    btn.disabled = false;
+    btn.textContent = 'Publish Now';
   }
 }
 
-function toggleBuildLog() {
-  const box = document.getElementById('buildLogBox');
-  const btn = document.getElementById('buildLogToggle');
-  const copyBtn = document.getElementById('buildLogCopy');
-  if (box.style.display === 'none') {
-    btn.textContent = 'Hide';
-    copyBtn.style.display = 'inline-block';
-    box.style.display = 'block';
-    if (!box.dataset.loaded) {
-      box.textContent = 'Loading build log…';
-      fetch('/api/jobs/{{ job.id }}/build-log')
-        .then(r => r.text())
-        .then(t => { box.textContent = t; box.dataset.loaded = '1'; })
-        .catch(() => { box.textContent = 'Could not load build log.'; });
-    }
-  } else {
-    btn.textContent = 'Show';
-    copyBtn.style.display = 'none';
-    box.style.display = 'none';
+function renderPubResults(results) {
+  const el = document.getElementById('pub-results');
+  el.style.display = 'block';
+  el.innerHTML = '';
+  for (const [platform, result] of Object.entries(results)) {
+    const isOk = result.url || result.video_id || result.tweet_id || result.post_id || result.pin_id || result.thread_id || result.publish_id;
+    const isSkipped = result.status === 'skipped';
+    const isError = result.error;
+    const statusColor = isError ? 'var(--red)' : isSkipped ? 'var(--yellow)' : 'var(--green)';
+    const statusText = isError ? ('Error: ' + result.error) : isSkipped ? result.reason : ('Published → ' + (result.url || 'done'));
+    el.innerHTML += `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span class="platform-tag ${platform}">${platform}</span>
+        <span style="font-size:12px;color:${statusColor};text-align:right;max-width:65%;">${statusText}</span>
+      </div>`;
   }
-}
-
-function copyBuildLog() {
-  const box = document.getElementById('buildLogBox');
-  const text = box.textContent || '';
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById('buildLogCopy');
-    btn.textContent = 'Copied!';
-    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-  }).catch(() => {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    const btn = document.getElementById('buildLogCopy');
-    btn.textContent = 'Copied!';
-    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
-  });
-}
-
-// Dub
-async function startDub(jobId) {
-  const lang = document.getElementById('dubLang').value;
-  const r = await fetch('/api/dub/create', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({job_id: jobId, target_language: lang})
-  });
-  const d = await r.json();
-  if (d.ok || d.dub_id) { toast && toast('success','Dubbing started','Check back in a few minutes'); setTimeout(() => location.reload(), 1500); }
-  else alert(d.error || 'Error starting dub');
 }
 </script>
+{% endif %}
 {% endblock %}

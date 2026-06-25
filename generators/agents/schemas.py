@@ -133,3 +133,7 @@ class ProductionResult(BaseModel):
     pipeline_cost_credits: int
     status: Literal["success", "partial", "failed"]
     errors: list[str] = Field(default_factory=list)
+    video_path: str = ""
+    audio_path: str = ""
+    thumbnail_path: str = ""
+    manifest_path: str = ""

@@ -610,7 +610,65 @@ def job_detail(job_id):
     if not job:
         return redirect("/jobs")
     dubs = db.get_dub_jobs_for_source(user_id=current_user.id, source_job_id=job_id)
-    return render_template("job_detail.html", job=job, dubs=dubs, dub_languages=DUB_LANGUAGES)
+    accounts = db.get_accounts(user_id=current_user.id)
+    connected = {a["platform"] for a in accounts if a["is_active"]}
+    return render_template("job_detail.html", job=job, dubs=dubs, dub_languages=DUB_LANGUAGES,
+                           connected_platforms=connected)
+
+
+@app.route("/api/jobs/<int:job_id>/publish", methods=["POST"])
+@login_required
+def api_publish_job(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+    if job["status"] != "done":
+        return jsonify({"error": "Job must be complete before publishing"}), 400
+    if not job.get("video_path"):
+        return jsonify({"error": "No video file found for this job"}), 400
+
+    data = request.json or {}
+    platforms = data.get("platforms", [])
+    privacy = data.get("privacy", "private")
+    if not platforms:
+        return jsonify({"error": "Select at least one platform"}), 400
+
+    title = job.get("title") or job.get("topic", "")
+    description = job.get("description", "")
+    hashtags, keywords, cdn_url = [], [], ""
+    is_short = job.get("format") in ("short", "reel")
+
+    if job.get("manifest_path"):
+        try:
+            with open(job["manifest_path"]) as f:
+                manifest_data = json.load(f)
+            hashtags = manifest_data.get("hashtags", [])
+            keywords = manifest_data.get("keywords", [])
+            cdn_url = manifest_data.get("files", {}).get("cdn_url", "")
+            if not description:
+                description = manifest_data.get("description", "")
+        except Exception:
+            pass
+
+    import social_optimize
+    results = social_optimize.publish_to_platforms(
+        video_path=job["video_path"],
+        title=title, description=description,
+        hashtags=hashtags, keywords=keywords,
+        platforms=platforms, privacy=privacy,
+        is_short=is_short, cdn_url=cdn_url,
+    )
+
+    existing = job.get("publish_results") or {}
+    if isinstance(existing, str):
+        try:
+            existing = json.loads(existing)
+        except Exception:
+            existing = {}
+    existing.update(results)
+    db.update_job(job_id, publish_results=existing)
+
+    return jsonify({"publish_results": results})
 
 
 @app.route("/api/jobs/<int:job_id>/research")
@@ -2012,17 +2070,31 @@ def _push_studio_event(job_id: str, data: dict):
 def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
     from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
     from generators.production_engine import ProductionStudioEngine
-    if user_id:
-        _tok = _get_user_higgsfield_token(user_id)
-        _avg._session_token.value = _tok
-        _hmcp._session_token.value = _tok
+    niche = params["niche"]
+
+    # Create a DB job record so the output appears in the Jobs list
+    db_job_id = db.create_job(
+        topic=niche, format="long", platforms=[],
+        audience=params.get("audience", "general public"),
+        voice=params.get("voice") or config.DEFAULT_VOICE,
+        style=params.get("thumbnail_style", "fire"),
+        privacy=params.get("privacy", "private"),
+        user_id=user_id,
+    )
+    db.update_job(db_job_id, status="running", progress=5, current_step="Starting Production Studio…")
+
+
     def _cb(msg: str, pct: int):
+        db.update_job(db_job_id, progress=pct, current_step=msg)
         with _studio_lock:
             if studio_job_id in _studio_jobs:
                 _studio_jobs[studio_job_id].update({"progress": pct, "step": msg, "status": "running"})
         _push_studio_event(studio_job_id, {"progress": pct, "step": msg, "status": "running"})
+
     with _studio_lock:
-        _studio_jobs[studio_job_id] = {"status": "running", "progress": 0, "step": "Initialising…"}
+        _studio_jobs[studio_job_id] = {
+            "status": "running", "progress": 0, "step": "Initialising…", "db_job_id": db_job_id,
+        }
     try:
         user_tier = params.get("subscription_tier", "free")
         engine = ProductionStudioEngine(
@@ -2030,7 +2102,7 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
             subscription_tier=user_tier,
         )
         result = engine.run_daily_pipeline(
-            niche=params["niche"], remaining_credits=params.get("remaining_credits", 500),
+            niche=niche, remaining_credits=params.get("remaining_credits", 500),
             target_duration=params.get("target_duration", 480),
             audience=params.get("audience", ""), is_portrait=params.get("is_portrait", False),
             voice=params.get("voice") or config.DEFAULT_VOICE,
@@ -2038,32 +2110,51 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
             privacy=params.get("privacy", "private"), dry_run=params.get("dry_run", False),
             research_enabled=params.get("research_enabled", True),
             competitor_titles=params.get("competitor_titles") or [],
-            platforms=params.get("platforms") or [],
+            platforms=[],
         )
         result_dict = result.model_dump()
+        job_title = result.seo.title_final if result.seo else niche
+
+        # Save completed output to the DB job
+        db.update_job(
+            db_job_id, status="done", progress=100, current_step="Complete!",
+            title=job_title,
+            video_path=result.video_path or None,
+            audio_path=result.audio_path or None,
+            thumbnail_path=result.thumbnail_path or None,
+            manifest_path=result.manifest_path or None,
+            completed_at=datetime.now().isoformat(),
+        )
+
         with _studio_lock:
             _studio_jobs[studio_job_id].update({
                 "status": "done", "progress": 100,
                 "step": "Production complete!", "result": result_dict,
+                "db_job_id": db_job_id,
             })
         _push_studio_event(studio_job_id, {
             "progress": 100, "step": "Production complete!",
-            "status": "done", "result": result_dict,
+            "status": "done", "result": result_dict, "db_job_id": db_job_id,
         })
         if user_id:
             try:
                 from notifications import send_notification
                 send_notification(user_id, "job_complete", {
-                    "job_id": studio_job_id, "title": result_dict.get("title", "Studio Production"),
+                    "job_id": db_job_id, "title": job_title,
                 })
             except Exception:
                 pass
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
+        db.update_job(db_job_id, status="error", error_msg=str(e), current_step="Failed")
         with _studio_lock:
-            _studio_jobs[studio_job_id].update({"status": "error", "step": f"Error: {e}", "traceback": tb})
-        _push_studio_event(studio_job_id, {"status": "error", "step": f"Error: {e}", "traceback": tb})
+            _studio_jobs[studio_job_id].update({
+                "status": "error", "step": f"Error: {e}", "traceback": tb, "db_job_id": db_job_id,
+            })
+        _push_studio_event(studio_job_id, {
+            "status": "error", "step": f"Error: {e}", "traceback": tb, "db_job_id": db_job_id,
+        })
 
 
 @app.route("/studio")
