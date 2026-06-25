@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set active_page = "settings" %}
 
-{% block title %}Settings — Social Optimize Machine{% endblock %}
+{% block title %}Settings — Social Optimize{% endblock %}
 {% block topbar_title %}Settings{% endblock %}
 {% block topbar_sub %}API keys and configuration{% endblock %}
 {% block topbar_actions %}{% endblock %}
@@ -117,17 +117,25 @@
           5. Select "Google Flow" on the Create page
         </div>
       </div>
-      <div class="card" style="background:var(--bg-elevated);border:1px solid var(--blue);">
+      <div class="card" id="ai-engine-card" style="background:var(--bg-elevated);border:1px solid var(--blue);">
         <div style="font-size:24px;margin-bottom:8px;">🤖</div>
-        <div class="text-bold mb-4">7. Higgsfield AI</div>
-        <div class="text-dim text-sm mb-12">Access Kling v2, Wan, HunyuanVideo, Luma and more.</div>
+        <div class="text-bold mb-4">7. Social Optimize AI Video Engine</div>
+        <div class="text-dim text-sm mb-12">Powers AI video generation — Kling, Veo, Cinema Studio, Seedance, Wan, and more.</div>
+        <div id="ai-engine-warning" style="display:none;background:#3a1a1a;border:1px solid #c0392b;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px;color:#e74c3c;">
+          ⚠️ <strong>Wrong value detected</strong> — You entered the endpoint URL, not the API token.<br><br>
+          The endpoint (<code>https://mcp.higgsfield.ai/mcp</code>) is already built into the app — you do <strong>not</strong> need to set it.<br><br>
+          What you need is your <strong>API Bearer Token</strong> (a long alphanumeric key from the Higgsfield dashboard).<br>
+          In Render → Environment, set: <code>HIGGSFIELD_MCP_TOKEN = &lt;your-bearer-token&gt;</code>
+        </div>
         <div class="text-xs">
-          1. Go to <strong>higgsfield.ai</strong><br>
-          2. Sign up → Dashboard → API Keys<br>
-          3. Copy your key + secret<br>
-          4. Add to <code>.env</code>:<br>
-          <code>HIGGSFIELD_API_KEY=key:secret</code><br>
-          5. Select model on the Create page
+          <strong>How to get your AI token:</strong><br>
+          1. Log in to your Higgsfield AI account<br>
+          2. Go to Account → API Keys (or Settings → Tokens)<br>
+          3. Copy the <strong>Bearer token</strong> (looks like: <code>hf_xxxxxxxxxxxxxx...</code>)<br><br>
+          <strong>In Render dashboard → your service → Environment:</strong><br>
+          Add variable name: <code>HIGGSFIELD_MCP_TOKEN</code><br>
+          Value: <em>paste your bearer token here</em><br><br>
+          ⚠️ Do <strong>NOT</strong> paste the URL — the URL is already in the app code.
         </div>
       </div>
       <div class="card" style="background:var(--bg-elevated);">
@@ -156,11 +164,18 @@
 (async () => {
   const resp = await fetch('/api/settings/check');
   const data = await resp.json();
+
+  // Show warning banner if the user entered the URL instead of the token
+  if (data.higgsville_url_as_token) {
+    document.getElementById('ai-engine-warning').style.display = 'block';
+    document.getElementById('ai-engine-card').style.borderColor = '#c0392b';
+  }
+
   const labels = {
     anthropic:   ['🤖 Anthropic AI',        'Required for AI script generation'],
     pexels:      ['🖼️ Pexels Media',         'Free stock footage & images'],
     google_flow: ['🎬 Google Flow / Veo 3',  'AI-generated cinematic video clips'],
-    higgsville:  ['🎬 Higgsville',           'Kling 3, Veo 3.1, Cinema Studio + 14 more models'],
+    higgsville:  ['🎬 Social Optimize AI',   'Kling 3, Veo 3.1, Cinema Studio + 14 more models'],
     youtube:     ['▶️ YouTube',              'Upload videos & Shorts'],
     tiktok:      ['🎵 TikTok',              'Post videos to TikTok'],
     instagram:   ['📸 Instagram',           'Publish Reels'],
@@ -168,14 +183,18 @@
   const grid = document.getElementById('api-check-grid');
   grid.innerHTML = '';
   for (const [key, ok] of Object.entries(data)) {
+    if (key === 'higgsville_url_as_token') continue;
     const [label, hint] = labels[key] || [key, ''];
+    const urlMistake = key === 'higgsville' && data.higgsville_url_as_token;
+    const statusLabel = urlMistake ? '⚠ Wrong Value' : (ok ? '✓ Configured' : '✗ Missing');
+    const statusClass = urlMistake ? 'pill-error' : (ok ? 'pill-done' : 'pill-error');
     grid.innerHTML += `
       <div class="flex-between" style="padding:10px;background:var(--bg-elevated);border-radius:8px;border:1px solid var(--border);">
         <div>
           <div class="text-sm text-bold">${label}</div>
           <div class="text-xs text-dim">${hint}</div>
         </div>
-        <span class="pill ${ok ? 'pill-done' : 'pill-error'}">${ok ? '✓ Configured' : '✗ Missing'}</span>
+        <span class="pill ${statusClass}">${statusLabel}</span>
       </div>`;
   }
 })();

@@ -16,7 +16,7 @@
   --red-dim:       #8a6910;
   --red-glow:      rgba(212,160,23,0.20);
   --white:         #f5f5f5;
-  --white-dim:     #aaaaaa;
+  --white-dim:     #cccccc;
   --black:         #0a0a0a;
 
   /* Highlight accents — Red moved here */
@@ -36,6 +36,13 @@
   --radius-lg:     16px;
   --shadow:        0 4px 24px rgba(0,0,0,0.5);
   --transition:    all 0.2s ease;
+
+  /* Landing page aliases */
+  --bg:            #0a0a0a;
+  --text:          #f5f5f5;
+  --muted:         #cccccc;
+  --card:          #141414;
+  --accent:        #d4a017;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

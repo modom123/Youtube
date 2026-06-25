@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation — Social Optimize</title>
+  <meta name="description" content="Complete guides and tutorials for creating AI-powered video content.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050507;
+      --bg2: #0a0a0e;
+      --card: #131318;
+      --border: #1e1e25;
+      --text: #f0f0f2;
+      --text-secondary: #c8c8d0;
+      --muted: #6e6e7a;
+      --gold: #c9a227;
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; }
+    img { max-width: 100%; display: block; }
+
+    /* NAV */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: 64px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 48px;
+      background: rgba(5,5,7,.92); border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 16px; font-weight: 800; }
+    .nav-logo-mark { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--gold), #8b6914); display: flex; align-items: center; justify-content: center; }
+    .nav-logo-mark svg { width: 16px; height: 16px; fill: #000; }
+    .nav-logo span { color: var(--gold); }
+
+    /* LAYOUT */
+    .docs-layout { display: grid; grid-template-columns: 280px 1fr; gap: 0; margin-top: 64px; min-height: calc(100vh - 64px); }
+    .docs-sidebar { background: var(--bg2); border-right: 1px solid var(--border); padding: 32px 0; overflow-y: auto; max-height: calc(100vh - 64px); position: sticky; top: 64px; }
+    .docs-content { padding: 48px; background: var(--bg); }
+
+    /* SEARCH */
+    .docs-search { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .docs-search input {
+      width: 100%; background: rgba(255,255,255,.05); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; font-family: var(--font); color: var(--text); font-size: 13px;
+    }
+    .docs-search input::placeholder { color: var(--muted); }
+
+    /* SIDEBAR */
+    .docs-nav-section { margin-bottom: 24px; padding: 0 20px; }
+    .docs-nav-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 12px; padding: 0 8px; }
+    .docs-nav-item { display: block; padding: 10px 12px; font-size: 13px; color: var(--text-secondary); text-decoration: none; border-radius: 8px; transition: all .2s; margin-bottom: 4px; }
+    .docs-nav-item:hover, .docs-nav-item.active { background: rgba(201,162,39,.1); color: var(--gold); }
+
+    /* CONTENT */
+    .docs-header { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+    .docs-breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .docs-breadcrumb a { color: var(--gold); text-decoration: none; }
+    .docs-title { font-size: 36px; font-weight: 800; margin-bottom: 12px; }
+    .docs-meta { font-size: 12px; color: var(--muted); }
+
+    /* MARKDOWN */
+    .docs-body h2 { font-size: 24px; font-weight: 800; margin: 32px 0 16px; }
+    .docs-body h3 { font-size: 18px; font-weight: 700; margin: 24px 0 12px; }
+    .docs-body p { margin-bottom: 16px; line-height: 1.8; color: var(--text-secondary); }
+    .docs-body ul, .docs-body ol { margin-left: 20px; margin-bottom: 16px; }
+    .docs-body li { margin-bottom: 8px; color: var(--text-secondary); }
+    .docs-body code {
+      background: rgba(255,255,255,.03); padding: 2px 6px; border-radius: 4px;
+      font-family: var(--mono); font-size: 13px; color: var(--gold);
+    }
+    .docs-body pre {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; overflow-x: auto; margin-bottom: 16px;
+    }
+    .docs-body pre code {
+      background: none; padding: 0; color: var(--text-secondary); display: block;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      .nav { padding: 0 20px; }
+      .docs-layout { grid-template-columns: 1fr; }
+      .docs-sidebar { display: none; position: fixed; left: -280px; top: 64px; width: 280px; height: calc(100vh - 64px); z-index: 99; transition: left .3s; }
+      .docs-sidebar.open { left: 0; }
+      .docs-content { padding: 32px 20px; }
+      .docs-title { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <a class="nav-logo" href="/">
+    <div class="nav-logo-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#000"/></svg>
+    </div>
+    <div><span>Social</span> Optimize</div>
+  </a>
+</nav>
+
+<!-- LAYOUT -->
+<div class="docs-layout">
+  <!-- SIDEBAR -->
+  <aside class="docs-sidebar" id="docsSidebar">
+    <div class="docs-search">
+      <input type="text" placeholder="Search docs..." id="docsSearch">
+    </div>
+
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Getting Started</div>
+      <a href="#" class="docs-nav-item active" onclick="showDoc('getting-started')">Sign Up & Onboard</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('connect-platform')">Connect Your Platform</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('first-video')">Create Your First Video</a>
+    </div>
+
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Studio 56</div>
+      <a href="#" class="docs-nav-item" onclick="showDoc('studio-overview')">Understanding the 5 Agents</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('research-phase')">Research Phase</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('script-generation')">Script Generation</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('voice-audio')">Voice & Audio</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('video-generation')">Video Generation & Editing</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('publishing')">Publishing to Platforms</a>
+    </div>
+
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Hollywood Agent</div>
+      <a href="#" class="docs-nav-item" onclick="showDoc('hollywood-overview')">What is Hollywood?</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('browser-automation')">Browser Automation</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('competitor-analysis')">Competitor Analysis</a>
+    </div>
+
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Platforms</div>
+      <a href="#" class="docs-nav-item" onclick="showDoc('youtube')">YouTube</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('tiktok')">TikTok</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('instagram')">Instagram</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('facebook')">Facebook</a>
+    </div>
+
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">Billing</div>
+      <a href="#" class="docs-nav-item" onclick="showDoc('billing')">Upgrading Your Plan</a>
+      <a href="#" class="docs-nav-item" onclick="showDoc('usage-limits')">Usage Limits</a>
+    </div>
+
+    <div class="docs-nav-section">
+      <div class="docs-nav-title">FAQ</div>
+      <a href="#" class="docs-nav-item" onclick="showDoc('faq')">Common Questions</a>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="docs-content">
+    <div class="docs-header">
+      <div class="docs-breadcrumb"><a href="/">Home</a> / Docs</div>
+      <h1 class="docs-title" id="docTitle">Sign Up & Onboard</h1>
+      <div class="docs-meta" id="docMeta">Last updated 3 days ago</div>
+    </div>
+
+    <div class="docs-body" id="docBody">
+      <!-- Getting Started -->
+      <div id="doc-getting-started" style="display: block;">
+        <h2>Sign Up & Onboard</h2>
+        <p>Get started with Social Optimize in less than 5 minutes.</p>
+
+        <h3>Create Your Account</h3>
+        <p>Navigate to the <a href="{{ url_for('auth.register') }}" style="color: var(--gold);">registration page</a> and enter your email address. You'll receive a confirmation link within seconds.</p>
+        <pre><code>1. Click "Sign Up" on the homepage
+2. Enter your email address
+3. Check your inbox for confirmation
+4. Set your password (minimum 12 characters)
+5. You're in! Start with 3 free videos</code></pre>
+
+        <h3>Complete Your Profile</h3>
+        <p>Once logged in, complete your creator profile. This helps our AI agents understand your content style and audience.</p>
+        <ul>
+          <li><strong>Creator Name</strong> — Your on-screen name</li>
+          <li><strong>Niche</strong> — What content you create (tech, finance, lifestyle, etc.)</li>
+          <li><strong>Audience</strong> — Who you're creating for</li>
+          <li><strong>Content Goals</strong> — Views, followers, engagement, sales</li>
+        </ul>
+
+        <h3>Choose Your First Platform</h3>
+        <p>Select where you want to publish your first video. You can add more platforms later.</p>
+        <p>Most creators start with <strong>TikTok</strong> or <strong>YouTube</strong>. We'll walk you through OAuth approval for each platform.</p>
+
+        <h3>Billing Setup</h3>
+        <p>All new accounts include 3 free videos. When you're ready to go beyond that, add a payment method. No charges until you upgrade.</p>
+      </div>
+
+      <!-- Connect Platform -->
+      <div id="doc-connect-platform" style="display: none;">
+        <h2>Connect Your First Platform</h2>
+        <p>Authorize Social Optimize to publish videos on your behalf.</p>
+
+        <h3>Supported Platforms</h3>
+        <p>We currently support: YouTube, TikTok, Instagram, Facebook, X (Twitter), Twitch, Pinterest, and Threads.</p>
+
+        <h3>OAuth Connection Flow</h3>
+        <p>Each platform uses OAuth for secure authorization — we never see your password.</p>
+        <ol>
+          <li>Click "Connect" next to your platform</li>
+          <li>You'll be redirected to that platform's login</li>
+          <li>Review and approve the permission scopes</li>
+          <li>You'll return to Social Optimize — you're connected!</li>
+        </ol>
+
+        <h3>Troubleshooting</h3>
+        <p><strong>Still having issues?</strong> Make sure you're using an account with publishing permissions. Corporate or Business accounts sometimes have restrictions.</p>
+      </div>
+
+      <!-- First Video -->
+      <div id="doc-first-video" style="display: none;">
+        <h2>Create Your First Video</h2>
+        <p>End-to-end walkthrough of generating and publishing your first piece of content.</p>
+
+        <h3>Step 1: Choose Your Topic</h3>
+        <p>Start simple — a question you answer, a trend you're commenting on, or a topic in your niche.</p>
+        <p>Example: "5 Free AI Tools That Replace Expensive Software"</p>
+
+        <h3>Step 2: Research Phase</h3>
+        <p>Our Research Agent will analyze trends, competitor content, and engagement data for your topic. You can watch this live in the dashboard.</p>
+        <p>This takes ~30 seconds. You'll see:</p>
+        <ul>
+          <li>Current trend velocity (is it rising or falling?)</li>
+          <li>Competitor videos on this topic</li>
+          <li>Winning hooks and structures</li>
+          <li>Best platforms for this content</li>
+        </ul>
+
+        <h3>Step 3: Script Generation</h3>
+        <p>The Script Agent creates a retention-optimized script with:</p>
+        <ul>
+          <li>A hook that grabs attention in the first 3 seconds</li>
+          <li>Value-packed body with storytelling</li>
+          <li>Clear CTA at the end</li>
+        </ul>
+        <p>You can edit, rewrite, or regenerate at any time.</p>
+
+        <h3>Step 4: Voiceover & Audio</h3>
+        <p>Choose from 6 AI voices with natural cadence. We'll generate studio-quality audio from your script in ~10 seconds.</p>
+
+        <h3>Step 5: Video Generation</h3>
+        <p>Our Video Agent generates cinematic B-roll matching your script using Kling 3.0, Veo 3.1, or stock footage — depending on your plan and budget.</p>
+
+        <h3>Step 6: Publish</h3>
+        <p>Add a title, description, and platform-specific metadata. Choose to publish now or schedule for later. Click "Publish" and watch it go live across all connected platforms simultaneously.</p>
+      </div>
+
+      <!-- Studio Overview -->
+      <div id="doc-studio-overview" style="display: none;">
+        <h2>Understanding the 5 Agents</h2>
+        <p>Social Optimize runs 5 specialized AI agents that work together to create and publish your content.</p>
+
+        <h3>1. Research Agent</h3>
+        <p>Analyzes trends, competitors, and audience behavior. Finds winning angles before you script.</p>
+        <p><strong>Output:</strong> Trend data, competitor analysis, recommended hooks</p>
+
+        <h3>2. Script Agent</h3>
+        <p>Writes retention-optimized scripts with proven structures. Designed for the 3-second engagement window.</p>
+        <p><strong>Output:</strong> Full script with timing cues</p>
+
+        <h3>3. Voice Agent</h3>
+        <p>Converts scripts into studio-quality audio using neural voice synthesis. 6 voices, multiple languages.</p>
+        <p><strong>Output:</strong> MP3 voiceover with proper timing</p>
+
+        <h3>4. Video Agent</h3>
+        <p>Generates cinematic video sequences matching your script. Routes between free stock footage, cheap AI models, and premium generators.</p>
+        <p><strong>Output:</strong> H.264 video file, properly timed to voiceover</p>
+
+        <h3>5. Publish Agent</h3>
+        <p>Handles platform-specific publishing, metadata generation, and scheduling across all 8 platforms simultaneously.</p>
+        <p><strong>Output:</strong> Live videos across YouTube, TikTok, Instagram, etc.</p>
+      </div>
+
+      <!-- Research Phase -->
+      <div id="doc-research-phase" style="display: none;">
+        <h2>The Research Phase</h2>
+        <p>Before any script is written, our Research Agent analyzes the landscape for your topic.</p>
+
+        <h3>What It Checks</h3>
+        <ul>
+          <li><strong>Google Trends</strong> — Real-time search interest over 7/30/90 days</li>
+          <li><strong>Competitor Analysis</strong> — Top videos on this topic and their engagement metrics</li>
+          <li><strong>Hashtag Research</strong> — Platform-specific tag volume and competition</li>
+          <li><strong>Audience Sentiment</strong> — What people actually want to know about this topic</li>
+        </ul>
+
+        <h3>Interpreting the Results</h3>
+        <p>The Research Agent gives you a confidence score and recommendation:</p>
+        <ul>
+          <li><strong>Green (High Opportunity)</strong> — Growing trend, low competition</li>
+          <li><strong>Yellow (Medium)</strong> — Stable trend with some competition</li>
+          <li><strong>Red (Caution)</strong> — Declining trend or very saturated</li>
+        </ul>
+
+        <h3>Using Research Insights</h3>
+        <p>You can:</p>
+        <ul>
+          <li>Accept the research and auto-generate a script</li>
+          <li>Modify the focus before scripting</li>
+          <li>Choose different platforms based on opportunity</li>
+          <li>Download research data as a PDF or CSV</li>
+        </ul>
+      </div>
+
+      <!-- Script Generation -->
+      <div id="doc-script-generation" style="display: none;">
+        <h2>Script Generation</h2>
+        <p>Retention-engineered scripts that keep viewers watching past the 3-second mark.</p>
+
+        <h3>Script Structure</h3>
+        <pre><code>[0-3s]  HOOK — Immediate curiosity/value promise
+[3-15s] OPEN LOOP — Build tension, question without answer
+[15-45s] VALUE — Answer, storytelling, proof
+[45-55s] EMOTIONAL BEAT — Resonance, vulnerability
+[55-60s] CTA — Clear call-to-action (subscribe, visit link, etc.)</code></pre>
+
+        <h3>Customization</h3>
+        <p>Edit the script directly in the editor. Change tone, add examples, adjust length. Our formatting respects your changes while maintaining timing cues.</p>
+
+        <h3>Regeneration</h3>
+        <p>Don't like the result? Click "Regenerate" and the Script Agent will create a new version with a different angle. Each version is completely different.</p>
+      </div>
+
+      <!-- Voice & Audio -->
+      <div id="doc-voice-audio" style="display: none;">
+        <h2>Voice & Audio Production</h2>
+        <p>Studio-quality voiceovers from your script in seconds.</p>
+
+        <h3>Available Voices</h3>
+        <ul>
+          <li><strong>Alex</strong> — Energetic, casual (best for shorts)</li>
+          <li><strong>Jordan</strong> — Professional, authoritative (best for educational)</li>
+          <li><strong>Casey</strong> — Warm, conversational (best for storytelling)</li>
+          <li><strong>Morgan</strong> — Neutral, informative (best for news/updates)</li>
+          <li><strong>Sam</strong> — Enthusiastic, upbeat (best for product reviews)</li>
+          <li><strong>Taylor</strong> — Calm, measured (best for wellness content)</li>
+        </ul>
+
+        <h3>Customization</h3>
+        <p>Adjust speed (0.8x to 1.5x), pitch, and pronunciation for specific words. Add pauses between sentences. Download the WAV file for any additional editing.</p>
+
+        <h3>Sync to Video</h3>
+        <p>The system automatically syncs your voiceover timing to the video generation phase. Pauses in your script create visual breaks in the video.</p>
+      </div>
+
+      <!-- Video Generation -->
+      <div id="doc-video-generation" style="display: none;">
+        <h2>Video Generation & Editing</h2>
+        <p>From script to cinematic B-roll in one click.</p>
+
+        <h3>The Three-Tier System</h3>
+        <ul>
+          <li><strong>FREE Tier</strong> — Pexels stock footage (no charge)</li>
+          <li><strong>BUDGET Tier</strong> — Open-source AI models like CogVideo (~$0.02 per video)</li>
+          <li><strong>PREMIUM Tier</strong> — Kling 3.0, Veo 3.1 (~$0.35 per video)</li>
+        </ul>
+
+        <h3>How to Choose</h3>
+        <p>The system intelligently routes based on:</p>
+        <ul>
+          <li>Your plan tier</li>
+          <li>Scene complexity (easy scenes use free/cheap, complex scenes go premium)</li>
+          <li>Your monthly budget remaining</li>
+        </ul>
+
+        <h3>Editing & Revisions</h3>
+        <p>After generation, you can:</p>
+        <ul>
+          <li>Trim clips</li>
+          <li>Reorder scenes</li>
+          <li>Add text overlays and captions</li>
+          <li>Regenerate specific clips</li>
+          <li>Export at 1080p, 2K, or 4K resolution</li>
+        </ul>
+      </div>
+
+      <!-- Publishing -->
+      <div id="doc-publishing" style="display: none;">
+        <h2>Publishing to Platforms</h2>
+        <p>One-click publishing to all 8 platforms simultaneously.</p>
+
+        <h3>Platform-Specific Optimization</h3>
+        <p>Your video is automatically reformatted for each platform:</p>
+        <ul>
+          <li><strong>YouTube</strong> — 16:9, optimized title/description/tags, thumbnail</li>
+          <li><strong>TikTok</strong> — 9:16 vertical, trending sounds, caption sync</li>
+          <li><strong>Instagram Reels</strong> — 9:16, carousel-compatible</li>
+          <li><strong>Facebook</strong> — Auto-captioning, engagement hooks</li>
+        </ul>
+
+        <h3>Scheduling</h3>
+        <p>Choose to publish immediately or schedule for peak engagement times (specific times vary by your audience and platform).</p>
+
+        <h3>Post-Publication</h3>
+        <p>Once published, the Hollywood Agent can automate engagement: likes, comments, follows, and DMs to build initial momentum.</p>
+      </div>
+
+      <!-- Hollywood Overview -->
+      <div id="doc-hollywood-overview" style="display: none;">
+        <h2>What is Hollywood?</h2>
+        <p>The Hollywood Agent is your AI content manager — handling growth, engagement, and strategy across all platforms.</p>
+
+        <h3>What Hollywood Does</h3>
+        <ul>
+          <li><strong>Auto-Engagement</strong> — Generates authentic comments, follows, and likes on your behalf</li>
+          <li><strong>Content Planning</strong> — Suggests what to create based on trending topics and your audience</li>
+          <li><strong>Competitor Monitoring</strong> — Tracks what competitors are doing and why it works</li>
+          <li><strong>Schedule Optimization</strong> — Finds your best posting times</li>
+          <li><strong>Community Management</strong> — Auto-replies to comments and DMs</li>
+        </ul>
+
+        <h3>Safety & Compliance</h3>
+        <p>Hollywood uses warmup accounts, proxy rotation, and behavior randomization to stay within platform guidelines. All actions are logged for your transparency.</p>
+      </div>
+
+      <!-- Browser Automation -->
+      <div id="doc-browser-automation" style="display: none;">
+        <h2>Browser Automation</h2>
+        <p>How Hollywood automates platform interactions safely.</p>
+
+        <h3>How It Works</h3>
+        <p>Hollywood uses headless browser automation (Playwright) to interact with platforms like a real user would. This includes:</p>
+        <ul>
+          <li>Logging into accounts</li>
+          <li>Scrolling feeds</li>
+          <li>Liking posts</li>
+          <li>Posting comments</li>
+          <li>Following accounts</li>
+          <li>Scheduling posts</li>
+        </ul>
+
+        <h3>Safety Measures</h3>
+        <ul>
+          <li><strong>Warmup Profiles</strong> — Hollywood uses separate accounts that "warm up" before engaging on your main account</li>
+          <li><strong>Rate Limiting</strong> — Random delays between actions to mimic human behavior</li>
+          <li><strong>Proxy Rotation</strong> — Different IP addresses to avoid detection</li>
+          <li><strong>Behavior Randomization</strong> — Varies action patterns daily</li>
+        </ul>
+
+        <h3>Platform Compliance</h3>
+        <p>All platforms prohibit automation. We stay within safe limits by:</p>
+        <ul>
+          <li>Limiting actions per day</li>
+          <li>Using only official platform APIs when available</li>
+          <li>Complying with platform ToS</li>
+        </ul>
+      </div>
+
+      <!-- Competitor Analysis -->
+      <div id="doc-competitor-analysis" style="display: none;">
+        <h2>Competitor Analysis</h2>
+        <p>Hollywood's competitive intelligence features help you stay ahead.</p>
+
+        <h3>What We Track</h3>
+        <ul>
+          <li><strong>Content Strategy</strong> — What topics competitors are covering</li>
+          <li><strong>Upload Frequency</strong> — How often they post</li>
+          <li><strong>Engagement Metrics</strong> — Likes, comments, shares, watch time</li>
+          <li><strong>Audience Overlap</strong> — Who is engaging with both you and them</li>
+          <li><strong>Trend Following</strong> — How fast they react to trends</li>
+        </ul>
+
+        <h3>Actionable Insights</h3>
+        <p>Hollywood identifies:</p>
+        <ul>
+          <li>Content gaps (topics they're not covering)</li>
+          <li>Winning formats (their most successful video types)</li>
+          <li>Audience migration (followers switching to/from you)</li>
+          <li>Collaboration opportunities</li>
+        </ul>
+      </div>
+
+      <!-- FAQ -->
+      <div id="doc-faq" style="display: none;">
+        <h2>Frequently Asked Questions</h2>
+
+        <h3>How much does it cost to create a video?</h3>
+        <p>Free videos use stock footage at no credit cost. Paid videos using AI models consume Social Optimize Credits — open-source models use fewer credits, premium models use more. Your plan includes a monthly credit allowance.</p>
+
+        <h3>Can I edit videos after they're generated?</h3>
+        <p>Yes! The entire video is editable in our studio. Trim clips, add text, regenerate specific scenes, and export at any resolution.</p>
+
+        <h3>What if my video doesn't get views?</h3>
+        <p>Our Research Agent ensures every topic has strong potential. If a video underperforms, we analyze why and adjust future videos. You can also use Hollywood for engagement automation.</p>
+
+        <h3>Can I schedule videos in advance?</h3>
+        <p>Yes. Create videos any time, then schedule them to publish at optimal times (different for each platform). You can batch-create 50+ videos and schedule them weeks in advance.</p>
+
+        <h3>Do you provide customer support?</h3>
+        <p>Yes! Free plans have community support. Paid plans include email (Starter), priority (Pro), and dedicated manager (Agency). All include access to our documentation and guides.</p>
+      </div>
+
+      <!-- Billing -->
+      <div id="doc-billing" style="display: none;">
+        <h2>Upgrading Your Plan</h2>
+        <p>Scale your content creation as your audience grows.</p>
+
+        <h3>Plan Comparison</h3>
+        <ul>
+          <li><strong>Free</strong> — 3 videos/month, 2 platforms, basic research</li>
+          <li><strong>Starter</strong> — 15 videos/month, 3 platforms, full research</li>
+          <li><strong>Pro</strong> — 50 videos/month, 8 platforms, Hollywood Agent, advanced analytics</li>
+          <li><strong>Agency</strong> — Unlimited videos, team seats, API access, white-label</li>
+        </ul>
+
+        <h3>How to Upgrade</h3>
+        <ol>
+          <li>Go to Settings → Billing</li>
+          <li>Click "Upgrade Plan"</li>
+          <li>Select your new plan</li>
+          <li>Enter your payment information</li>
+          <li>New features are instant!</li>
+        </ol>
+
+        <h3>Downgrading</h3>
+        <p>You can downgrade anytime. Changes take effect on your next billing cycle. Pro-rated refunds are issued within 2 business days.</p>
+      </div>
+
+      <!-- Usage Limits -->
+      <div id="doc-usage-limits" style="display: none;">
+        <h2>Usage Limits</h2>
+        <p>Understanding what counts toward your monthly limits.</p>
+
+        <h3>Video Limit</h3>
+        <p>Each completed video (published or not) counts as 1 video against your monthly limit. You cannot exceed your limit mid-month.</p>
+
+        <h3>Platform Connections</h3>
+        <p>This is the number of separate platform accounts you can publish to. You can publish 1 video to 3 platforms and it counts as 1 video, not 3.</p>
+
+        <h3>Storage</h3>
+        <p>All videos are stored for 30/90/180 days depending on your plan. Older videos are archived but remain downloadable.</p>
+
+        <h3>API Rate Limits (Agency Only)</h3>
+        <p>API calls are limited to 1000/day. Contact support if you need higher limits.</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border);">
+      <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">Last updated: June 23, 2026</p>
+      <a href="https://github.com/socialoptimize/docs" style="font-size: 12px; color: var(--gold); text-decoration: none;">Edit on GitHub →</a>
+    </div>
+  </main>
+</div>
+
+<script>
+function showDoc(docId) {
+  event.preventDefault();
+
+  // Hide all docs
+  document.querySelectorAll('[id^="doc-"]').forEach(el => el.style.display = 'none');
+
+  // Show selected doc
+  const selectedDoc = document.getElementById(`doc-${docId}`);
+  if (selectedDoc) selectedDoc.style.display = 'block';
+
+  // Update sidebar active state
+  document.querySelectorAll('.docs-nav-item').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+
+  // Update title
+  document.getElementById('docTitle').textContent = event.target.textContent;
+
+  // Scroll to top
+  document.querySelector('.docs-content').scrollTop = 0;
+}
+</script>
+
+</body>
+</html>

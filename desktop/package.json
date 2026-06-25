@@ -1,0 +1,84 @@
+{
+  "name": "social-optimize",
+  "version": "1.0.0",
+  "description": "Social Optimize — Desktop App (macOS, Windows, Linux)",
+  "main": "main.js",
+  "author": {
+    "name": "Social Optimize",
+    "email": "support@socialoptimize.online"
+  },
+  "homepage": "https://socialoptimize.online",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/modom123/youtube"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "APP_ENV=development electron .",
+    "build": "electron-builder --publish never",
+    "build:mac": "electron-builder --mac --publish never",
+    "build:mac:arm": "electron-builder --mac --arm64 --publish never",
+    "build:win": "electron-builder --win --publish never",
+    "build:linux": "electron-builder --linux --publish never",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.socialoptimize.app",
+    "productName": "Social Optimize",
+    "copyright": "Copyright © 2025 Social Optimize",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "assets/**",
+      "!assets/screenshots",
+      "node_modules/**",
+      "!node_modules/.cache"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "darkModeSupport": true,
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ],
+      "icon": "assets/icon.icns"
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Office;Network",
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "dmg": {
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
+    }
+  }
+}

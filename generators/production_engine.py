@@ -43,16 +43,23 @@ class ProductionStudioEngine:
         self,
         monthly_budget: int = 500,
         progress_callback: ProgressCallback = _noop,
+        subscription_tier: str = "free",
     ):
         self.monthly_budget = monthly_budget
         self.cb = progress_callback
 
-        # Instantiate agents
+        # Instantiate agents and apply tier-based model routing
         self.trend_architect = TrendArchitect()
         self.narrative_designer = NarrativeDesigner()
         self.asset_curator = AssetCurator()
         self.cost_engineer = CostEngineer()
         self.growth_engineer = GrowthEngineer()
+
+        for agent in (
+            self.trend_architect, self.narrative_designer,
+            self.asset_curator, self.cost_engineer, self.growth_engineer,
+        ):
+            agent.set_tier(subscription_tier)
 
     # ── Public entry point ───────────────────────────────────────────────────
 

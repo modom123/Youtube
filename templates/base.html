@@ -3,7 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Social Optimize Machine{% endblock %}</title>
+  <title>{% block title %}Social Optimize{% endblock %}</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#d4a017">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SOM">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16.png">
+
+  <!-- Desktop / Windows / Microsoft -->
+  <meta name="msapplication-TileColor" content="#d4a017">
+  <meta name="msapplication-TileImage" content="/static/icons/icon-144.png">
+  <meta name="application-name" content="Social Optimize">
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Social Optimize">
+  <meta property="og:description" content="AI-powered social media content creation platform">
+  <meta property="og:image" content="/static/icons/icon-512.png">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
@@ -16,8 +39,8 @@
     <div class="sidebar-logo">
       <div class="logo-icon">🎬</div>
       <div class="logo-text">
-        <span class="red">Social Optimize</span>
-        <span class="dim">Command Center</span>
+        <span class="red">{% if current_user.is_authenticated and current_user.is_admin %}Social Money{% else %}Social Optimize{% endif %}</span>
+        <span class="dim">{% if current_user.is_authenticated and current_user.is_admin %}Internal Dashboard{% else %}Command Center{% endif %}</span>
       </div>
     </div>
 
@@ -29,8 +52,17 @@
       <a href="/create" class="nav-item {% if active_page=='create' %}active{% endif %}">
         <span class="icon">🚀</span> Create Content
       </a>
-      <a href="/studio" class="nav-item {% if active_page=='studio' %}active{% endif %}">
-        <span class="icon">🎙</span> Production Studio
+      <a href="/quickpost" class="nav-item {% if active_page=='quickpost' %}active{% endif %}">
+        <span class="icon">📸</span> Quick Post
+      </a>
+      <a href="/studio" class="nav-item {% if active_page=='studio' %}active{% endif %}" title="Podcast & Long-Form Audio Production">
+        <span class="icon">🎙</span> Studio 56
+      </a>
+      <a href="/commercial" class="nav-item {% if active_page=='commercial' %}active{% endif %}" title="Brand Ad Creator — Photo/Video to Commercial">
+        <span class="icon">📺</span> Commercial Studio
+      </a>
+      <a href="/hollywood" class="nav-item {% if active_page=='hollywood' %}active{% endif %}" title="Cinematic AI Director — Short Films & Shot Lists">
+        <span class="icon">🎬</span> Hollywood
       </a>
       <a href="/batch" class="nav-item {% if active_page=='batch' %}active{% endif %}">
         <span class="icon">📦</span> Batch Mode
@@ -52,8 +84,18 @@
       <a href="/contacts" class="nav-item {% if active_page=='contacts' %}active{% endif %}">
         <span class="icon">👥</span> Contacts
       </a>
+      <a href="/outreach" class="nav-item {% if active_page=='outreach' %}active{% endif %}">
+        <span class="icon">📣</span> Outreach
+      </a>
+      <a href="/inbox" class="nav-item {% if active_page=='inbox' %}active{% endif %}">
+        <span class="icon">💬</span> Inbox
+        <span id="inbox-badge" style="display:none;margin-left:auto;background:var(--accent);color:#fff;font-size:9px;font-weight:800;border-radius:10px;padding:1px 6px;"></span>
+      </a>
       <a href="/competitors" class="nav-item {% if active_page=='competitors' %}active{% endif %}">
         <span class="icon">🔍</span> Competitors
+      </a>
+      <a href="/engagement" class="nav-item {% if active_page=='engagement' %}active{% endif %}">
+        <span class="icon">🤝</span> Engagement
       </a>
 
       <span class="sidebar-section-label">Tools</span>
@@ -71,6 +113,11 @@
       <a href="/settings" class="nav-item {% if active_page=='settings' %}active{% endif %}">
         <span class="icon">⚙️</span> Settings
       </a>
+      {% if current_user.is_authenticated and current_user.is_admin %}
+      <a href="/admin" class="nav-item {% if active_page=='admin' %}active{% endif %}">
+        <span class="icon">🛡</span> Admin
+      </a>
+      {% endif %}
     </nav>
 
     <div class="sidebar-footer">
@@ -131,6 +178,17 @@
 
 <script src="/static/js/app.js"></script>
 {% block scripts %}{% endblock %}
+
+<!-- PWA service worker registration -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/static/sw.js')
+      .then(function(reg) { console.log('SW registered:', reg.scope); })
+      .catch(function(err) { console.warn('SW registration failed:', err); });
+  });
+}
+</script>
 
 {% if current_user.is_authenticated %}
 <script>

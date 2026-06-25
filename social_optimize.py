@@ -1,19 +1,17 @@
 """
-Social Optimize Machine - Core Orchestrator
+Social Optimize - Core Orchestrator
 Turns any topic into a complete multi-platform content package.
 """
 import json
+import concurrent.futures
 from datetime import datetime
-from pathlib import Path
-from typing import Optional
 import config
 from generators import script_generator, audio_generator, video_generator, media_fetcher, thumbnail_generator
 from generators.researcher import research_topic, brief_to_context
 from generators import graphics_generator
 from generators import ai_video_generator
 from publishers import (
-    youtube_publisher, tiktok_publisher, instagram_publisher,
-    facebook_publisher, twitter_publisher, linkedin_publisher,
+    youtube_publisher, tiktok_publisher, facebook_publisher, twitter_publisher, linkedin_publisher,
     pinterest_publisher, threads_publisher,
 )
 from utils import file_manager, logger
@@ -66,6 +64,15 @@ CONTENT_PROFILES = {
         "is_short": False,
         "content_type": "commercial_30",  # overridden at runtime
     },
+    "countdown": {
+        "label": "Countdown / Top N Ranked List",
+        "duration": 720,  # 12 minutes default — enough for top 25
+        "width": config.VIDEO_WIDTH,
+        "height": config.VIDEO_HEIGHT,
+        "is_portrait": False,
+        "is_short": False,
+        "content_type": "countdown",
+    },
 }
 
 
@@ -96,6 +103,8 @@ def run(
     ad_platforms: list = None,
     target_duration: int = None,
     ai_model: str = "claude",
+    subscription_tier: str = "starter",
+    progress_cb=None,
 ) -> dict:
     """
     Full pipeline: topic → research → script → audio → video → publish.
@@ -121,6 +130,13 @@ def run(
     profile = CONTENT_PROFILES.get(format, CONTENT_PROFILES["short"]).copy()
     voice = voice or config.DEFAULT_VOICE
 
+    def _push_progress(pct: int, msg: str):
+        if progress_cb:
+            try:
+                progress_cb(pct, msg)
+            except Exception:
+                pass
+
     # Commercial: set content_type and duration from ad_format
     if format == "commercial":
         profile["content_type"] = ad_format or "commercial_30"
@@ -142,7 +158,7 @@ def run(
     elif target_duration and format == "podcast":
         profile["duration"] = target_duration
 
-    logger.header("Social Optimize Machine")
+    logger.header("Social Optimize")
     logger.info(f"Topic: [bold]{topic}[/bold]")
     logger.info(f"Format: {profile['label']}")
     logger.info(f"Platforms: {', '.join(platforms) if platforms else 'generate only (dry run)'}")
@@ -170,6 +186,7 @@ def run(
     # ── 2. Research the topic ────────────────────────────────────────────────
     research_context = ""
     brief = None
+    _push_progress(8, "Researching topic from Wikipedia & web...")
     if not skip_research:
         with logger.spinner(f"Researching '{topic}' from Wikipedia & web..."):
             try:
@@ -202,17 +219,66 @@ def run(
                 logger.warn(f"Research failed ({e}) — continuing without it")
 
     # ── 3. Generate script ───────────────────────────────────────────────────
-    model_label = "Gemini Flash" if ai_model == "gemini" else "Claude AI"
+    _MODEL_LABELS = {
+        "claude": "Claude AI", "deepseek": "DeepSeek-V3",
+        "qwen": "Qwen (Alibaba)", "groq": "Groq/Llama",
+        "gemini": "Gemini Flash", "parallel": "Parallel Race", "auto": "AI",
+    }
+    model_label = _MODEL_LABELS.get(ai_model, "AI")
+    _push_progress(18, f"Generating script with {model_label}...")
+    SCRIPT_TIMEOUT = 90  # seconds — fail fast; Anthropic SDK retries are disabled
+    _script_kwargs = dict(
+        topic=topic,
+        content_type=profile["content_type"],
+        target_duration=profile["duration"],
+        audience=audience,
+        custom_instructions=custom_instructions,
+        research_context=research_context,
+        subscription_tier=subscription_tier,
+    )
+
+    def _run_script_with_timeout(model: str):
+        # NOTE: Do NOT use ThreadPoolExecutor as a context manager here —
+        # its __exit__ calls shutdown(wait=True) which blocks even after TimeoutError.
+        # Instead: submit, get with timeout, then shutdown(wait=False) to release.
+        _executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        _fut = _executor.submit(script_generator.generate_script, ai_model=model, **_script_kwargs)
+        try:
+            return _fut.result(timeout=SCRIPT_TIMEOUT)
+        except concurrent.futures.TimeoutError:
+            raise RuntimeError(
+                f"Script engine '{model}' did not respond in {SCRIPT_TIMEOUT}s"
+            )
+        finally:
+            # shutdown(wait=False) lets the orphaned thread die on its own;
+            # the main thread moves on immediately.
+            _executor.shutdown(wait=False)
+
     with logger.spinner(f"Generating script with {model_label}..."):
-        script = script_generator.generate_script(
-            topic=topic,
-            content_type=profile["content_type"],
-            target_duration=profile["duration"],
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-            ai_model=ai_model,
-        )
+        script = None
+        last_err = None
+        try:
+            script = _run_script_with_timeout(ai_model)
+            logger.success(f"Script generated via {model_label}")
+        except Exception as e:
+            last_err = e
+            logger.warn(f"Script engine '{ai_model}' failed: {e}")
+
+        # Automatic fallback to Claude if primary model failed
+        if script is None and ai_model not in ("claude", "parallel"):
+            _push_progress(18, "Retrying script with Claude AI...")
+            try:
+                script = _run_script_with_timeout("claude")
+                logger.success("Script generated via Claude (fallback)")
+            except Exception as e:
+                last_err = e
+                logger.warn(f"Claude fallback also failed: {e}")
+
+        if script is None:
+            raise RuntimeError(
+                f"Script generation failed ({last_err}). "
+                "Verify ANTHROPIC_API_KEY is set on Render, then retry this job."
+            )
 
     script_path = job / "script.json"
     with open(script_path, "w") as f:
@@ -238,6 +304,7 @@ def run(
     logger.success(f"Script: {script.title[:60]}")
 
     # ── 4. Generate audio voiceover ──────────────────────────────────────────
+    _push_progress(35, f"Creating voiceover audio ({voice})...")
     audio_path = job / "voiceover.mp3"
     with logger.spinner(f"Generating voiceover ({voice})..."):
         audio_generator.generate_audio(
@@ -252,6 +319,7 @@ def run(
     logger.success(f"Voiceover: {duration:.1f}s ({file_manager.get_file_size_mb(audio_path):.1f} MB)")
 
     # ── 5. Fetch stock media ─────────────────────────────────────────────────
+    _push_progress(50, "Fetching stock media from Pexels...")
     with logger.spinner("Fetching stock media from Pexels..."):
         stock_dir = job / "stock"
         video_clips, image_clips = media_fetcher.fetch_media_for_topic(
@@ -294,6 +362,7 @@ def run(
     all_video_clips = ai_clips + list(video_clips)
 
     # ── 6. Generate thumbnail ────────────────────────────────────────────────
+    _push_progress(62, "Generating thumbnail...")
     thumbnail_path = job / "thumbnail.jpg"
     bg_image = image_clips[0] if image_clips else None
     with logger.spinner("Generating thumbnail..."):
@@ -313,6 +382,7 @@ def run(
     content_graphics = []
     content_images_dir = job / "graphics"
     if not skip_research and brief:
+        _push_progress(68, "Creating ranked cards and infographics...")
         with logger.spinner("Generating ranked cards, charts, and infographics..."):
             try:
                 gfx = graphics_generator.generate_content_graphics(
@@ -347,6 +417,7 @@ def run(
     all_image_sources = content_graphics + list(image_clips)
 
     # ── 7. Assemble video ────────────────────────────────────────────────────
+    _push_progress(78, "Assembling final video...")
     video_path = job / "video.mp4"
     with logger.spinner("Assembling video..."):
         if format == "podcast":
@@ -379,6 +450,7 @@ def run(
     logger.success(f"Video assembled: {video_mb:.1f} MB")
 
     # ── 8. Publish ───────────────────────────────────────────────────────────
+    _push_progress(93, "Publishing to platforms...")
     if dry_run:
         logger.warn("Dry run — skipping upload to platforms")
     else:
