@@ -345,11 +345,19 @@ def run(
     if video_clips or image_clips:
         logger.success(f"Stock media: {len(video_clips)} videos, {len(image_clips)} images")
     else:
-        logger.warn("No stock media fetched (check PEXELS_API_KEY). Using gradient background.")
+        logger.warn("No stock media fetched — will use AI-generated visuals")
 
     # ── 5b. Generate AI video clips (Google Flow / Higgsfield) ───────────────
     ai_clips = []
-    if ai_video_provider and ai_video_provider != "none":
+    _use_ai_video = ai_video_provider and ai_video_provider != "none"
+    # Auto-enable Higgsfield when no stock media and token is available
+    if not _use_ai_video and not video_clips and not image_clips and config.HIGGSFIELD_MCP_TOKEN:
+        _use_ai_video = True
+        ai_video_provider = "higgsville"
+        print("[pipeline] No stock media — auto-enabling Higgsfield AI visuals")
+
+    if _use_ai_video:
+        _push_progress(55, f"Generating AI visuals via {ai_video_provider}...")
         with logger.spinner(f"Generating AI video clips via {ai_video_provider}..."):
             try:
                 ai_clips = ai_video_generator.generate_ai_clips(
@@ -369,7 +377,31 @@ def run(
                 }
                 logger.success(f"AI video: {len(ai_clips)} clips generated via {ai_video_provider}")
             except Exception as e:
-                logger.warn(f"AI video generation failed ({e}) — using stock media only")
+                logger.warn(f"AI video generation failed ({e}) — using fallback visuals")
+
+        # If AI video clips failed, try generating AI images as backgrounds
+        if not ai_clips and config.HIGGSFIELD_MCP_TOKEN:
+            _push_progress(58, "Generating AI background images...")
+            with logger.spinner("Generating AI background images via Higgsfield..."):
+                try:
+                    from generators.higgsfield_mcp import generate_image_via_mcp
+                    ai_images_dir = job / "ai_images"
+                    ai_images_dir.mkdir(parents=True, exist_ok=True)
+                    ar = "9:16" if profile["is_portrait"] else "16:9"
+                    img_prompts = ai_video_generator.build_video_prompts(
+                        topic=topic, keywords=script.keywords[:4],
+                        sections=script.sections, is_portrait=profile["is_portrait"],
+                    )[:6]
+                    for i, prompt in enumerate(img_prompts):
+                        out = ai_images_dir / f"ai_bg_{i:02d}.jpg"
+                        result = generate_image_via_mcp(prompt, out, aspect_ratio=ar)
+                        if result:
+                            image_clips.append(result)
+                            print(f"[pipeline] AI image {i+1}: {result.name}")
+                    if image_clips:
+                        logger.success(f"Generated {len(image_clips)} AI background images")
+                except Exception as e:
+                    logger.warn(f"AI image generation failed ({e})")
 
     # AI clips go first for maximum visual impact, then stock videos
     all_video_clips = ai_clips + list(video_clips)

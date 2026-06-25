@@ -239,8 +239,8 @@ def fetch_media_for_topic(
             except Exception as e:
                 print(f"[media] Pixabay image search failed for '{query}': {e}")
 
-    # ── Pexels fallback if Pixabay didn't yield enough ──
-    if config.PEXELS_API_KEY and (len(video_paths) < 2 or len(image_paths) < 3):
+    # ── Pexels — always try if we don't have enough media ──
+    if config.PEXELS_API_KEY and (len(video_paths) < video_count or len(image_paths) < 4):
         print(f"[media] Trying Pexels fallback (have {len(video_paths)} videos, {len(image_paths)} images)")
         for query in queries:
             if len(video_paths) >= video_count and len(image_paths) >= 6:

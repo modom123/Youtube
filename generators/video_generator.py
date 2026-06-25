@@ -49,6 +49,37 @@ def _get_video_duration(path: Path) -> float:
         return 0
 
 
+_FONT_PATHS = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+]
+_FONT_PATHS_REGULAR = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+]
+
+_GRADIENT_PALETTES = [
+    ((10, 15, 60), (30, 60, 120)),     # deep blue
+    ((15, 50, 80), (10, 100, 130)),    # ocean teal
+    ((60, 10, 60), (120, 30, 100)),    # purple
+    ((20, 60, 40), (10, 110, 70)),     # forest green
+    ((80, 30, 10), (140, 60, 20)),     # warm amber
+    ((10, 30, 70), (50, 20, 90)),      # indigo
+]
+
+
+def _load_font(size: int, bold: bool = True):
+    paths = _FONT_PATHS if bold else _FONT_PATHS_REGULAR
+    for fp in paths:
+        try:
+            return ImageFont.truetype(fp, size)
+        except Exception:
+            pass
+    return ImageFont.load_default()
+
+
 def _make_gradient_image(width: int, height: int, c1: tuple, c2: tuple) -> Path:
     """Create a gradient image and save to temp file."""
     grad = np.zeros((height, width, 3), dtype=np.uint8)
@@ -65,41 +96,139 @@ def _make_gradient_image(width: int, height: int, c1: tuple, c2: tuple) -> Path:
     return Path(tmp.name)
 
 
-def _make_text_image(
+def _wrap_text(text: str, font, max_width: int) -> list[str]:
+    """Word-wrap text to fit within max_width pixels."""
+    words = text.split()
+    lines = []
+    current = ""
+    dummy = Image.new("RGB", (1, 1))
+    draw = ImageDraw.Draw(dummy)
+    for word in words:
+        test = f"{current} {word}".strip() if current else word
+        bbox = draw.textbbox((0, 0), test, font=font)
+        if bbox[2] - bbox[0] <= max_width:
+            current = test
+        else:
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    return lines or [text]
+
+
+def _make_text_card(
     text: str,
     width: int,
-    font_size: int = 36,
-    color: tuple = (255, 255, 255),
-    bg: tuple = (0, 0, 0, 140),
-) -> Optional[np.ndarray]:
-    """Render text to a numpy image array using Pillow."""
-    font_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-    ]
-    font = None
-    for fp in font_paths:
-        try:
-            font = ImageFont.truetype(fp, font_size)
-            break
-        except Exception:
-            pass
-    if not font:
-        font = ImageFont.load_default()
-
-    dummy = Image.new("RGBA", (1, 1))
-    draw = ImageDraw.Draw(dummy)
-    bbox = draw.textbbox((0, 0), text, font=font)
-    tw = bbox[2] - bbox[0]
-    th = bbox[3] - bbox[1]
-    pad = 20
-    img = Image.new("RGBA", (min(tw + pad * 2, width), th + pad * 2), (0, 0, 0, 0))
-    overlay = Image.new("RGBA", img.size, bg)
-    img = Image.alpha_composite(img, overlay)
+    height: int,
+    palette_idx: int = 0,
+    subtitle: str = "",
+    number: str = "",
+) -> Path:
+    """Create a professional text card image with gradient background."""
+    c1, c2 = _GRADIENT_PALETTES[palette_idx % len(_GRADIENT_PALETTES)]
+    grad = np.zeros((height, width, 3), dtype=np.uint8)
+    for y in range(height):
+        t = y / max(height - 1, 1)
+        grad[y, :] = [
+            int(c1[0] + (c2[0] - c1[0]) * t),
+            int(c1[1] + (c2[1] - c1[1]) * t),
+            int(c1[2] + (c2[2] - c1[2]) * t),
+        ]
+    img = Image.fromarray(grad)
     draw = ImageDraw.Draw(img)
-    draw.text((pad, pad), text, font=font, fill=color + (255,) if len(color) == 3 else color)
-    return np.array(img.convert("RGB"))
+
+    # Decorative accent line at top
+    accent_color = (255, 200, 50)
+    draw.rectangle([(0, 0), (width, 4)], fill=accent_color)
+
+    text_area_w = int(width * 0.8)
+    center_x = width // 2
+
+    y_cursor = height // 2
+
+    if number:
+        num_font = _load_font(min(120, height // 4))
+        bbox = draw.textbbox((0, 0), number, font=num_font)
+        nw = bbox[2] - bbox[0]
+        nh = bbox[3] - bbox[1]
+        y_cursor = int(height * 0.25)
+        draw.text((center_x - nw // 2, y_cursor - nh // 2), number, font=num_font, fill=accent_color)
+        y_cursor += nh // 2 + 30
+
+    main_font_size = min(48, height // 12)
+    main_font = _load_font(main_font_size)
+    lines = _wrap_text(text, main_font, text_area_w)
+    line_h = main_font_size + 8
+
+    if not number:
+        total_text_h = len(lines) * line_h
+        y_cursor = (height - total_text_h) // 2
+
+    for line in lines[:8]:
+        bbox = draw.textbbox((0, 0), line, font=main_font)
+        lw = bbox[2] - bbox[0]
+        draw.text((center_x - lw // 2, y_cursor), line, font=main_font, fill=(255, 255, 255))
+        y_cursor += line_h
+
+    if subtitle:
+        y_cursor += 20
+        sub_font = _load_font(min(28, height // 20), bold=False)
+        sub_lines = _wrap_text(subtitle, sub_font, text_area_w)
+        for sl in sub_lines[:4]:
+            bbox = draw.textbbox((0, 0), sl, font=sub_font)
+            sw = bbox[2] - bbox[0]
+            draw.text((center_x - sw // 2, y_cursor), sl, font=sub_font, fill=(200, 200, 220))
+            y_cursor += min(32, height // 18)
+
+    # Bottom accent bar
+    draw.rectangle([(0, height - 4), (width, height)], fill=accent_color)
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    img.save(tmp.name)
+    return Path(tmp.name)
+
+
+def _generate_section_cards(
+    sections: list[dict],
+    narration_text: str,
+    width: int,
+    height: int,
+    total_duration: float,
+) -> list[tuple]:
+    """Generate text card images for each section. Returns list of (path, duration)."""
+    if not sections:
+        card = _make_text_card(narration_text[:120] or "Content", width, height)
+        return [(card, total_duration)]
+
+    cards = []
+    total_section_dur = sum(s.get("duration", 10) for s in sections) or 1
+    scale = total_duration / total_section_dur
+
+    for i, section in enumerate(sections):
+        name = section.get("name", f"Section {i + 1}")
+        visual_cue = section.get("visual_cue", "")
+        raw_dur = section.get("duration", 10)
+        dur = max(2.0, raw_dur * scale)
+
+        # Detect countdown numbers in section name
+        import re
+        num_match = re.search(r'#(\d+)|(?:number|no\.?)\s*(\d+)', name, re.IGNORECASE)
+        number_str = ""
+        if num_match:
+            number_str = f"#{num_match.group(1) or num_match.group(2)}"
+
+        card = _make_text_card(
+            text=name,
+            width=width,
+            height=height,
+            palette_idx=i,
+            subtitle=visual_cue[:150] if visual_cue else "",
+            number=number_str,
+        )
+        cards.append((card, dur))
+
+    return cards
 
 
 def _prepare_clip_segment(source: Path, duration: float, width: int, height: int, tmpdir: Path, idx: int) -> Optional[Path]:
@@ -208,35 +337,22 @@ def create_video(
                     break
 
         if not segments:
-            print("[video] No visual segments — creating gradient backgrounds")
-            gradients = [
-                ((15, 15, 40), (40, 20, 60)),
-                ((10, 25, 45), (20, 50, 70)),
-                ((30, 15, 35), (50, 25, 55)),
-                ((5, 20, 35), (15, 45, 60)),
-            ]
-            elapsed = 0.0
-            idx = 0
-            while elapsed < total_duration:
-                seg_dur = min(random.uniform(5, 10), total_duration - elapsed)
-                if seg_dur < 0.5:
-                    break
-                c1, c2 = gradients[idx % len(gradients)]
-                grad_img = _make_gradient_image(width, height, c1, c2)
-                seg = _prepare_clip_segment(grad_img, seg_dur, width, height, tmpdir, idx + 1000)
+            print("[video] No stock visuals — generating text card slides from sections")
+            section_cards = _generate_section_cards(
+                sections or [], narration_text, width, height, total_duration,
+            )
+            for i, (card_path, card_dur) in enumerate(section_cards):
+                seg = _prepare_clip_segment(card_path, card_dur, width, height, tmpdir, i + 1000)
                 if seg:
                     segments.append(seg)
-                    elapsed += seg_dur
-                grad_img.unlink(missing_ok=True)
-                idx += 1
+                card_path.unlink(missing_ok=True)
 
         if not segments:
-            # Last resort: single color frame
-            color_img = _make_gradient_image(width, height, (15, 15, 40), (15, 15, 40))
-            seg = _prepare_clip_segment(color_img, total_duration, width, height, tmpdir, 9999)
+            card = _make_text_card("Content", width, height)
+            seg = _prepare_clip_segment(card, total_duration, width, height, tmpdir, 9999)
             if seg:
                 segments.append(seg)
-            color_img.unlink(missing_ok=True)
+            card.unlink(missing_ok=True)
 
         # Write concat list
         concat_file = tmpdir / "concat.txt"
@@ -258,7 +374,6 @@ def create_video(
         if r.returncode != 0:
             stderr = r.stderr.decode("utf-8", errors="replace")[-500:]
             print(f"[video] Concat failed, trying re-encode: {stderr}")
-            # Fallback: re-encode during concat
             cmd = [
                 ffmpeg, "-y",
                 "-f", "concat", "-safe", "0", "-i", str(concat_file),
