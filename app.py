@@ -2054,9 +2054,31 @@ def api_save_platform_creds():
     return jsonify({"status": "saved", "platform": platform, "ready": True})
 
 
+@app.route("/api/settings/api-key", methods=["POST"])
+@login_required
+def api_save_api_key():
+    """Save an API key to DB and patch config live."""
+    data = request.json or {}
+    service = data.get("service", "").upper()
+    key = (data.get("key") or "").strip()
+
+    ALLOWED = {
+        "ANTHROPIC_API_KEY", "PEXELS_API_KEY", "GOOGLE_API_KEY",
+        "HIGGSFIELD_MCP_TOKEN", "ELEVENLABS_API_KEY", "PIXABAY_API_KEY",
+    }
+    if service not in ALLOWED:
+        return jsonify({"error": "Unknown service"}), 400
+    if not key:
+        return jsonify({"error": "Key is required"}), 400
+
+    db.set_setting(f"apikey_{service}", key)
+    setattr(config, service, key)
+    return jsonify({"status": "saved", "service": service})
+
+
 def _load_platform_creds_from_db():
-    """Load any OAuth credentials saved via UI into config at startup."""
-    keys = [
+    """Load OAuth credentials and API keys saved via UI into config at startup."""
+    oauth_keys = [
         "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
         "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET",
         "FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET",
@@ -2066,8 +2088,17 @@ def _load_platform_creds_from_db():
         "SNAP_CLIENT_ID", "SNAP_CLIENT_SECRET",
         "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET",
     ]
-    for key in keys:
+    for key in oauth_keys:
         val = db.get_setting(f"oauth_{key}")
+        if val and not getattr(config, key, ""):
+            setattr(config, key, val)
+
+    api_keys = [
+        "ANTHROPIC_API_KEY", "PEXELS_API_KEY", "GOOGLE_API_KEY",
+        "HIGGSFIELD_MCP_TOKEN", "ELEVENLABS_API_KEY", "PIXABAY_API_KEY",
+    ]
+    for key in api_keys:
+        val = db.get_setting(f"apikey_{key}")
         if val and not getattr(config, key, ""):
             setattr(config, key, val)
 
