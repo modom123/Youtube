@@ -625,6 +625,61 @@ def get_thumbnail(job_id):
     return send_file(str(path), mimetype="image/jpeg")
 
 
+@app.route("/api/jobs/<int:job_id>/video")
+@login_required
+def stream_video(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job or not job.get("video_path"):
+        return jsonify({"error": "Video not found"}), 404
+    path = Path(job["video_path"])
+    if not path.exists():
+        return jsonify({"error": "File missing on disk"}), 404
+    return send_file(str(path), mimetype="video/mp4", conditional=True)
+
+
+@app.route("/api/jobs/<int:job_id>/script")
+@login_required
+def get_script(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+    # Try script_path first, then manifest
+    spath = job.get("script_path")
+    if not spath and job.get("manifest_path"):
+        try:
+            with open(job["manifest_path"]) as f:
+                spath = json.load(f).get("files", {}).get("script")
+        except Exception:
+            pass
+    if spath:
+        try:
+            with open(spath) as f:
+                content = f.read()
+            fmt = request.args.get("format", "text")
+            if fmt == "json":
+                try:
+                    return jsonify(json.loads(content))
+                except Exception:
+                    pass
+            return content, 200, {"Content-Type": "text/plain; charset=utf-8"}
+        except Exception:
+            pass
+    return jsonify({"error": "Script not available"}), 404
+
+
+@app.route("/api/jobs/<int:job_id>/force-reset", methods=["POST"])
+@login_required
+def force_reset_job(job_id):
+    """Unstick a job that is hung as 'running' so it can be retried."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    db.update_job(job_id, status="error", progress=0,
+                  current_step="Reset by user — ready to retry",
+                  error_msg="Job was force-reset (was stuck as running)")
+    return jsonify({"ok": True})
+
+
 # ── Social Accounts ───────────────────────────────────────────────────────────
 
 @app.route("/accounts")
