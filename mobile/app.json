@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Social Money",
-    "slug": "social-money",
+    "name": "Social Optimize",
+    "slug": "social-optimize",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "socialmoney",
+    "scheme": "socialoptimize",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0a0a0a",
     "splash": {
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.socialmoney.app",
+      "bundleIdentifier": "com.socialoptimize.app",
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Used for uploading media content",
@@ -31,7 +31,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#0a0a0a"
       },
-      "package": "com.socialmoney.app",
+      "package": "com.socialoptimize.app",
       "versionCode": 1,
       "permissions": [
         "CAMERA",

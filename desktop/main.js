@@ -1,5 +1,5 @@
 /**
- * Social Money — Electron Main Process
+ * Social Optimize — Electron Main Process
  * Supports macOS, Windows, and Linux.
  *
  * In development: starts a local Flask server on port 5001
@@ -17,7 +17,7 @@ const http = require('http');
 const isDev = process.env.APP_ENV === 'development' || !app.isPackaged;
 const FLASK_PORT = 5001;
 const LOCAL_URL = `http://127.0.0.1:${FLASK_PORT}`;
-const PRODUCTION_URL = process.env.APP_URL || 'https://social-money.onrender.com';
+const PRODUCTION_URL = process.env.APP_URL || 'https://socialoptimize.online';
 const APP_URL = isDev ? LOCAL_URL : PRODUCTION_URL;
 
 let mainWindow = null;
@@ -124,7 +124,7 @@ function createMainWindow() {
     ...bounds,
     minWidth: 900,
     minHeight: 600,
-    title: 'Social Money',
+    title: 'Social Optimize',
     backgroundColor: '#0a0a0a',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     vibrancy: process.platform === 'darwin' ? 'under-window' : undefined,
