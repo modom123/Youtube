@@ -7,6 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    espeak-ng \
     libsm6 \
     libxext6 \
     fonts-liberation \
