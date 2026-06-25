@@ -287,7 +287,13 @@ def check_usage_gate(user_id: int) -> tuple[bool, str]:
     if limit == -1:  # unlimited
         return True, ""
 
-    if (user["videos_used"] or 0) >= limit:
+    # Count only successfully completed jobs in the current billing period to avoid
+    # the counter getting inflated by failed/error jobs.
+    from datetime import datetime as _dt
+    period_start = user.get("period_start") or _dt.now().strftime("%Y-%m-01")
+    actual_done = db.count_completed_jobs_since(user_id, period_start)
+
+    if actual_done >= limit:
         if sub_status == "trialing":
             return False, (
                 "You've reached the trial limit. Your full plan unlocks automatically when your 14-day trial ends — "

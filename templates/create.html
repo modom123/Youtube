@@ -539,6 +539,14 @@ async function launchJob(payload) {
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(payload),
   });
+  if (!resp.ok) {
+    let errMsg = `Server error (${resp.status})`;
+    try { const d = await resp.json(); errMsg = d.error || errMsg; } catch(_) {}
+    panel.style.display = 'none';
+    document.getElementById('launch-btn').disabled = false;
+    toast('error', 'Cannot Create Job', errMsg);
+    return;
+  }
   const { job_id } = await resp.json();
 
   return new Promise((resolve) => {

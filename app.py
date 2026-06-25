@@ -211,6 +211,11 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
             return
         print(f"[job #{job_id}] Pipeline completed successfully!")
         _job_cancelled.set()
+        if user_id:
+            try:
+                db.increment_user_usage(user_id, videos=1)
+            except Exception as _ue:
+                print(f"[job #{job_id}] increment_user_usage failed (non-fatal): {_ue}")
         job_title = manifest.get("title")
         blog.success("Job completed successfully")
         db.update_job(
@@ -525,7 +530,6 @@ def api_create():
         style=data.get("style", "fire"), privacy=data.get("privacy", "private"),
         skip_research=skip_research, user_id=current_user.id,
     )
-    db.increment_user_usage(current_user.id, videos=1)
     fmt = data.get("format", "short")
     params = {
         "topic": topic, "format": fmt,
@@ -2212,7 +2216,6 @@ def api_settings_check():
     return jsonify({
         "anthropic":        bool(config.ANTHROPIC_API_KEY),
         "pixabay":          bool(config.PIXABAY_API_KEY),
-        "pixabay":          bool(getattr(config, "PIXABAY_API_KEY", "")),
         "elevenlabs":       bool(getattr(config, "ELEVENLABS_API_KEY", "")),
         "google_flow":      bool(config.GOOGLE_API_KEY),
         "higgsville":       bool(tok) and not token_is_url,
@@ -3839,25 +3842,20 @@ def _execute_scheduled_post(post: dict):
     if not video_path or not Path(video_path).exists():
         raise ValueError("Video file not found")
     platform = post.get("platform", "youtube")
-    try:
-        import social_optimize
-        if platform == "youtube":
-            social_optimize.publish_to_youtube(
-                video_path=video_path, title=post.get("job_title") or "Scheduled Video", privacy="public",
-            )
-        elif platform == "tiktok":
-            social_optimize.publish_to_tiktok(
-                video_path=video_path, title=post.get("job_title") or "Scheduled Video",
-            )
-        elif platform == "instagram":
-            social_optimize.publish_to_instagram(
-                video_path=video_path, title=post.get("job_title") or "Scheduled Video",
-            )
-        else:
-            raise ValueError(f"Unsupported platform: {platform}")
-    except AttributeError:
-        # social_optimize may not have these functions yet — fail gracefully
-        raise ValueError(f"Platform publishing not implemented for: {platform}")
+    import social_optimize
+    title = post.get("job_title") or "Scheduled Video"
+    description = post.get("description") or title
+    social_optimize.publish_to_platforms(
+        video_path=video_path,
+        title=title,
+        description=description,
+        hashtags=post.get("hashtags") or [],
+        keywords=post.get("keywords") or [],
+        platforms=[platform],
+        privacy="public",
+        is_short=(post.get("format") == "short"),
+        cdn_url=post.get("cdn_url") or "",
+    )
 
 
 def _competitor_refresh_thread():

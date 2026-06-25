@@ -393,6 +393,16 @@ def reset_usage_if_new_period(user_id: int):
         update_user(user_id, videos_used=0, credits_used=0, period_start=current_month_start)
 
 
+def count_completed_jobs_since(user_id: int, since_date: str) -> int:
+    """Count jobs with status='done' for user since the given date (YYYY-MM-DD)."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM jobs WHERE user_id=? AND status='done' AND created_at >= ?",
+            (user_id, since_date),
+        ).fetchone()
+        return (row["cnt"] if row else 0) or 0
+
+
 def get_user_by_stripe_customer(stripe_customer_id: str):
     with get_conn() as conn:
         return row_to_dict(conn.execute(
@@ -426,7 +436,9 @@ def get_accounts(user_id: int = None):
 
 def upsert_account(platform, username, display_name=None, avatar_url=None,
                    access_token=None, refresh_token=None, account_id=None, followers=0,
-                   user_id=None):
+                   user_id=None, platform_user_id=None):
+    if platform_user_id and not account_id:
+        account_id = platform_user_id
     with get_conn() as conn:
         q = "SELECT id FROM social_accounts WHERE platform=? AND username=?"
         params = [platform, username]
