@@ -189,11 +189,19 @@
     {% endif %}
 
     <!-- Publish to Platforms -->
-    {% if job.status == 'done' and job.video_path %}
+    {% if job.status == 'done' %}
     <div class="card" id="publishPanel">
       <div class="card-title mb-4"><span class="accent">📡</span> Publish to Platforms</div>
+      {% if not job.video_path %}
+      <div style="background:var(--bg-elevated);border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div class="text-yellow text-sm mb-4">⚠ No video file found for this job.</div>
+        <div class="text-xs text-dim">The video may have failed to assemble. Use "Create in Different Format" below to regenerate this content.</div>
+      </div>
+      {% else %}
       <div class="text-dim text-xs mb-16">Review your video above, then select where to publish.</div>
+      {% endif %}
 
+      {% if job.video_path %}
       <div class="platform-grid" id="pub-platform-grid">
         {% set platform_list = [
           ('youtube','▶️','YouTube'),
@@ -232,6 +240,35 @@
       </button>
 
       <div id="pub-results" style="display:none;margin-top:16px;"></div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Create in Different Format -->
+    {% if job.status == 'done' %}
+    <div class="card" id="reformatPanel">
+      <div class="card-title mb-4"><span class="accent">🔄</span> Create in Different Format</div>
+      <div class="text-dim text-xs mb-16">Use this topic to generate a new video in a different format or style.</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;" id="reformat-grid">
+        {% for fmt, icon, label, desc in [
+          ('short','📱','YouTube Short','60s vertical clip'),
+          ('long','📺','Long Form','Standard landscape video'),
+          ('reel','🎬','Instagram Reel','60s vertical reel'),
+          ('studio','⭐','Production Studio','AI-enhanced quality'),
+        ] %}
+        <div class="platform-card" data-fmt="{{ fmt }}" onclick="toggleFmt(this)"
+             style="padding:12px;text-align:left;height:auto;">
+          <div style="font-size:18px;margin-bottom:4px;">{{ icon }}</div>
+          <div class="text-sm text-bold">{{ label }}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">{{ desc }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <button class="btn btn-ghost btn-block" onclick="createReformat()" id="reformat-btn">
+        Generate New Version
+      </button>
     </div>
     {% endif %}
 
@@ -257,7 +294,7 @@
 </script>
 {% endif %}
 
-{% if job.status == 'done' and job.video_path %}
+{% if job.status == 'done' %}
 <script>
 const _pubPlatforms = new Set();
 
@@ -310,7 +347,6 @@ function renderPubResults(results) {
   el.style.display = 'block';
   el.innerHTML = '';
   for (const [platform, result] of Object.entries(results)) {
-    const isOk = result.url || result.video_id || result.tweet_id || result.post_id || result.pin_id || result.thread_id || result.publish_id;
     const isSkipped = result.status === 'skipped';
     const isError = result.error;
     const statusColor = isError ? 'var(--red)' : isSkipped ? 'var(--yellow)' : 'var(--green)';
@@ -320,6 +356,55 @@ function renderPubResults(results) {
         <span class="platform-tag ${platform}">${platform}</span>
         <span style="font-size:12px;color:${statusColor};text-align:right;max-width:65%;">${statusText}</span>
       </div>`;
+  }
+}
+
+// Reformat / create in different format
+let _selectedFmt = null;
+
+function toggleFmt(el) {
+  document.querySelectorAll('#reformat-grid .platform-card').forEach(c => c.classList.remove('selected'));
+  _selectedFmt = el.dataset.fmt;
+  el.classList.add('selected');
+}
+
+async function createReformat() {
+  if (!_selectedFmt) {
+    toast('error', 'No format selected', 'Click a format card first.');
+    return;
+  }
+  const btn = document.getElementById('reformat-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creating new job...';
+
+  const isShort = _selectedFmt === 'short' || _selectedFmt === 'reel';
+  const useStudio = _selectedFmt === 'studio';
+
+  try {
+    const endpoint = useStudio ? '/api/studio/run' : '/api/create';
+    const body = useStudio
+      ? { niche: {{ job.topic|tojson }}, voice: {{ (job.voice or '')|tojson }}, is_portrait: false, dry_run: false }
+      : { topic: {{ job.topic|tojson }}, format: _selectedFmt, voice: {{ (job.voice or '')|tojson }}, platforms: [], privacy: 'private' };
+
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      toast('error', 'Failed', data.error || 'Could not start job');
+      btn.disabled = false;
+      btn.textContent = 'Generate New Version';
+      return;
+    }
+    const jobId = data.job_id;
+    toast('success', 'Job created!', jobId ? 'Redirecting to new job...' : 'Check Jobs for progress.');
+    setTimeout(() => { window.location.href = jobId ? '/jobs/' + jobId : '/jobs'; }, 1500);
+  } catch (e) {
+    toast('error', 'Network error', e.message);
+    btn.disabled = false;
+    btn.textContent = 'Generate New Version';
   }
 }
 </script>
