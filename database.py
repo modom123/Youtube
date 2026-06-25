@@ -325,6 +325,11 @@ def init_db():
         if "webhook_url" not in user_cols:
             conn.execute("ALTER TABLE users ADD COLUMN webhook_url TEXT")
 
+        # Migrate: add build_log column for diagnostic logging
+        job_cols = [r["name"] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()]
+        if "build_log" not in job_cols:
+            conn.execute("ALTER TABLE jobs ADD COLUMN build_log TEXT DEFAULT ''")
+
 
 def row_to_dict(row):
     if row is None:

@@ -91,6 +91,21 @@
     </div>
     {% endif %}
 
+    <!-- Build Log (Diagnostic) -->
+    {% if job.status in ('done', 'error') %}
+    <div class="card">
+      <div class="flex-between mb-8">
+        <div class="card-title">Build Log</div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="toggleBuildLog()" class="btn btn-ghost btn-sm" id="buildLogToggle">Show</button>
+          <button onclick="copyBuildLog()" class="btn btn-ghost btn-sm" id="buildLogCopy" style="display:none;">Copy</button>
+        </div>
+      </div>
+      <div class="text-xs text-dim mb-8">Full diagnostic trace of every pipeline step — copy and share for debugging</div>
+      <div id="buildLogBox" style="display:none;max-height:500px;overflow-y:auto;background:var(--bg2);border-radius:8px;padding:14px;font-family:monospace;font-size:11px;line-height:1.6;white-space:pre-wrap;color:var(--text-secondary);"></div>
+    </div>
+    {% endif %}
+
     <!-- Script -->
     {% if job.script_path or job.title %}
     <div class="card">
@@ -379,6 +394,48 @@ function toggleScript(btn) {
     btn.textContent = 'Show';
     box.style.display = 'none';
   }
+}
+
+function toggleBuildLog() {
+  const box = document.getElementById('buildLogBox');
+  const btn = document.getElementById('buildLogToggle');
+  const copyBtn = document.getElementById('buildLogCopy');
+  if (box.style.display === 'none') {
+    btn.textContent = 'Hide';
+    copyBtn.style.display = 'inline-block';
+    box.style.display = 'block';
+    if (!box.dataset.loaded) {
+      box.textContent = 'Loading build log…';
+      fetch('/api/jobs/{{ job.id }}/build-log')
+        .then(r => r.text())
+        .then(t => { box.textContent = t; box.dataset.loaded = '1'; })
+        .catch(() => { box.textContent = 'Could not load build log.'; });
+    }
+  } else {
+    btn.textContent = 'Show';
+    copyBtn.style.display = 'none';
+    box.style.display = 'none';
+  }
+}
+
+function copyBuildLog() {
+  const box = document.getElementById('buildLogBox');
+  const text = box.textContent || '';
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('buildLogCopy');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('buildLogCopy');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+  });
 }
 
 // Dub

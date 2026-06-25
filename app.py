@@ -115,7 +115,9 @@ def _run_job_thread(job_id: int, params: dict, user_id: int = None):
 def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
     import social_optimize
     from generators.ai_router import route as _route_model
+    from utils.build_log import BuildLog
     print(f"[job #{job_id}] Thread inner started, setting up...")
+    blog = BuildLog(job_id)
 
     try:
         from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
@@ -123,8 +125,10 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
             _tok = _get_user_higgsfield_token(user_id)
             _avg._session_token.value = _tok
             _hmcp._session_token.value = _tok
+        blog.info("Higgsfield token loaded" if user_id else "No user_id — skipping Higgsfield token")
     except Exception as e:
         print(f"[job #{job_id}] Higgsfield token setup failed (non-fatal): {e}")
+        blog.warn(f"Higgsfield token setup failed: {e}")
 
     raw_model = params.get("ai_model", "auto")
     user_row = db.get_user_by_id(user_id) if user_id else {}
@@ -138,6 +142,7 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
     params.setdefault("subscription_tier", tier)
     print(f"[router] Job #{job_id} format={params.get('format')} tier={tier} "
           f"requested={raw_model} → using={routed_model}")
+    blog.info(f"AI model routed: {raw_model} → {routed_model}", tier=tier, format=params.get("format"))
 
     # Hard watchdog: mark job as failed if thread runs longer than 15 minutes
     _WATCHDOG_SECONDS = 900
@@ -191,11 +196,23 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
     ul.error = _hook_error
     try:
         params["progress_cb"] = progress_cb
+        params["build_log"] = blog
         print(f"[job #{job_id}] Entering social_optimize.run()...")
-        manifest = social_optimize.run(**params)
+        try:
+            manifest = social_optimize.run(**params)
+        except Exception as e:
+            import traceback as _tb
+            blog.error(f"Pipeline crashed: {e}", exc=e)
+            db.update_job(job_id, status="error", error_msg=str(e),
+                          current_step="Failed", build_log=blog.to_text())
+            push_event(job_id, {"progress": 0, "step": f"Error: {e}", "status": "error",
+                                "traceback": _tb.format_exc()})
+            _job_cancelled.set()
+            return
         print(f"[job #{job_id}] Pipeline completed successfully!")
         _job_cancelled.set()
         job_title = manifest.get("title")
+        blog.success("Job completed successfully")
         db.update_job(
             job_id, status="done", progress=100, current_step="Complete!",
             title=job_title, duration=manifest.get("duration", 0),
@@ -206,6 +223,7 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
             manifest_path=manifest.get("files", {}).get("manifest"),
             publish_results=manifest.get("publish_results", {}),
             completed_at=datetime.now().isoformat(),
+            build_log=blog.to_text(),
         )
         push_event(job_id, {
             "progress": 100, "step": "Complete!", "status": "done",
@@ -757,6 +775,25 @@ def force_reset_job(job_id):
                   current_step="Reset by user — ready to retry",
                   error_msg="Job was force-reset (was stuck as running)")
     return jsonify({"ok": True})
+
+
+@app.route("/api/jobs/<int:job_id>/build-log")
+@login_required
+def get_build_log(job_id):
+    """Return the full diagnostic build log for a job."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    log_text = job.get("build_log") or ""
+    if not log_text:
+        log_text = f"No build log available for Job #{job_id}.\n"
+        if job.get("status") == "running":
+            log_text += "The job is still running — the log will be saved when it finishes.\n"
+        elif job.get("status") == "pending":
+            log_text += "The job hasn't started yet.\n"
+        elif job.get("error_msg"):
+            log_text += f"\nError message: {job['error_msg']}\n"
+    return log_text, 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 
 # ── Social Accounts ───────────────────────────────────────────────────────────

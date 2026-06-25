@@ -15,6 +15,7 @@ from publishers import (
     pinterest_publisher, threads_publisher,
 )
 from utils import file_manager, logger
+from utils.build_log import BuildLog
 
 
 CONTENT_PROFILES = {
@@ -105,6 +106,7 @@ def run(
     ai_model: str = "claude",
     subscription_tier: str = "starter",
     progress_cb=None,
+    build_log: BuildLog = None,
 ) -> dict:
     """
     Full pipeline: topic → research → script → audio → video → publish.
@@ -136,6 +138,26 @@ def run(
                 progress_cb(pct, msg)
             except Exception:
                 pass
+
+    def _blog(level: str, msg: str, **kw):
+        if build_log:
+            getattr(build_log, level, build_log.info)(msg, **kw)
+
+    if build_log:
+        build_log.config(
+            topic=topic, format=format, platforms=platforms or [],
+            audience=audience, voice=voice, ai_model=ai_model,
+            ai_video_provider=ai_video_provider, higgsfield_model=higgsfield_model,
+            subscription_tier=subscription_tier, skip_research=skip_research,
+            is_portrait=profile.get("is_portrait", False),
+            target_duration=profile.get("duration"),
+            pixabay_key_set=bool(config.PIXABAY_API_KEY),
+            pexels_key_set=bool(config.PEXELS_API_KEY),
+            higgsfield_token_set=bool(config.HIGGSFIELD_MCP_TOKEN),
+            anthropic_key_set=bool(getattr(config, "ANTHROPIC_API_KEY", "")),
+            google_key_set=bool(getattr(config, "GOOGLE_API_KEY", "")),
+            elevenlabs_key_set=bool(getattr(config, "ELEVENLABS_API_KEY", "")),
+        )
 
     # Commercial: set content_type and duration from ad_format
     if format == "commercial":
@@ -187,6 +209,8 @@ def run(
     research_context = ""
     brief = None
     _push_progress(8, "Researching topic from Wikipedia & web...")
+    if build_log:
+        build_log.stage_start("Research", skip_research=skip_research)
     if not skip_research:
         with logger.spinner(f"Researching '{topic}' from Wikipedia & web..."):
             try:
@@ -215,8 +239,10 @@ def run(
                     f"Research complete — {len(brief.key_facts)} facts, "
                     f"{len(brief.data_points)} data points from {len(brief.sources)} sources"
                 )
+                _blog("success", f"Research: {len(brief.key_facts)} facts, {len(brief.data_points)} data points, {len(brief.sources)} sources")
             except Exception as e:
                 logger.warn(f"Research failed ({e}) — continuing without it")
+                _blog("error", f"Research failed: {e}", exc=e)
 
     # ── 3. Generate script ───────────────────────────────────────────────────
     _MODEL_LABELS = {
@@ -254,6 +280,8 @@ def run(
             # the main thread moves on immediately.
             _executor.shutdown(wait=False)
 
+    if build_log:
+        build_log.stage_start("Script Generation", model=ai_model, label=model_label, timeout=SCRIPT_TIMEOUT)
     print(f"[pipeline] Starting script generation stage with {model_label}...")
     with logger.spinner(f"Generating script with {model_label}..."):
         script = None
@@ -261,9 +289,11 @@ def run(
         try:
             script = _run_script_with_timeout(ai_model)
             logger.success(f"Script generated via {model_label}")
+            _blog("success", f"Script generated via {model_label}")
         except Exception as e:
             last_err = e
             logger.warn(f"Script engine '{ai_model}' failed: {e}")
+            _blog("warn", f"Script engine '{ai_model}' failed: {e}")
 
         # Fallback chain: try every other available model
         if script is None:
@@ -279,12 +309,15 @@ def run(
                 try:
                     script = _run_script_with_timeout(fb_model)
                     logger.success(f"Script generated via {fb_label} (fallback)")
+                    _blog("success", f"Script generated via {fb_label} (fallback)")
                     break
                 except Exception as e:
                     last_err = e
                     logger.warn(f"{fb_label} fallback also failed: {e}")
+                    _blog("warn", f"Fallback {fb_label} failed: {e}")
 
         if script is None:
+            _blog("error", f"ALL script engines failed", last_error=str(last_err))
             raise RuntimeError(
                 f"All script engines failed ({last_err}). "
                 "Check API keys (ANTHROPIC_API_KEY, GOOGLE_API_KEY, etc.) on Render."
@@ -312,9 +345,15 @@ def run(
     manifest["files"]["script"] = str(script_path)
 
     logger.success(f"Script: {script.title[:60]}")
+    if build_log:
+        build_log.stage_end("Script Generation", title=script.title[:80],
+                            sections=len(script.sections), keywords=script.keywords[:5],
+                            narration_len=len(script.narration))
 
     # ── 4. Generate audio voiceover ──────────────────────────────────────────
     _push_progress(35, f"Creating voiceover audio ({voice})...")
+    if build_log:
+        build_log.stage_start("Audio Generation", voice=voice)
     audio_path = job / "voiceover.mp3"
     print(f"[pipeline] Starting audio generation stage...")
     with logger.spinner(f"Generating voiceover ({voice})..."):
@@ -329,9 +368,14 @@ def run(
     manifest["duration"] = duration
     manifest["files"]["audio"] = str(audio_path)
     logger.success(f"Voiceover: {duration:.1f}s ({file_manager.get_file_size_mb(audio_path):.1f} MB)")
+    if build_log:
+        build_log.stage_end("Audio Generation", duration_audio=f"{duration:.1f}s",
+                            size_mb=f"{file_manager.get_file_size_mb(audio_path):.1f}")
 
     # ── 5. Fetch stock media ─────────────────────────────────────────────────
     _push_progress(50, "Fetching stock media...")
+    if build_log:
+        build_log.stage_start("Stock Media Fetch", keywords=script.keywords[:5])
     print(f"[pipeline] Starting media fetch stage...")
     with logger.spinner("Fetching stock media..."):
         stock_dir = job / "stock"
@@ -344,8 +388,12 @@ def run(
 
     if video_clips or image_clips:
         logger.success(f"Stock media: {len(video_clips)} videos, {len(image_clips)} images")
+        _blog("success", f"Stock media: {len(video_clips)} videos, {len(image_clips)} images")
     else:
         logger.warn("No stock media fetched — will use AI-generated visuals")
+        _blog("warn", "No stock media fetched — zero results from Pixabay/Pexels")
+    if build_log:
+        build_log.stage_end("Stock Media Fetch", videos=len(video_clips), images=len(image_clips))
 
     # ── 5b. Generate AI video clips (Google Flow / Higgsfield) ───────────────
     ai_clips = []
@@ -358,6 +406,8 @@ def run(
 
     if _use_ai_video:
         _push_progress(55, f"Generating AI visuals via {ai_video_provider}...")
+        if build_log:
+            build_log.stage_start("AI Video Generation", provider=ai_video_provider, model=higgsfield_model)
         with logger.spinner(f"Generating AI video clips via {ai_video_provider}..."):
             try:
                 ai_clips = ai_video_generator.generate_ai_clips(
@@ -376,8 +426,10 @@ def run(
                     "model": higgsfield_model if ai_video_provider in ("higgsville", "both") else "veo3",
                 }
                 logger.success(f"AI video: {len(ai_clips)} clips generated via {ai_video_provider}")
+                _blog("success", f"AI video: {len(ai_clips)} clips via {ai_video_provider}")
             except Exception as e:
                 logger.warn(f"AI video generation failed ({e}) — using fallback visuals")
+                _blog("error", f"AI video generation failed: {e}", exc=e)
 
         # If AI video clips failed, try generating AI images as backgrounds
         if not ai_clips and config.HIGGSFIELD_MCP_TOKEN:
@@ -400,8 +452,12 @@ def run(
                             print(f"[pipeline] AI image {i+1}: {result.name}")
                     if image_clips:
                         logger.success(f"Generated {len(image_clips)} AI background images")
+                        _blog("success", f"AI background images: {len(image_clips)}")
                 except Exception as e:
                     logger.warn(f"AI image generation failed ({e})")
+                    _blog("error", f"AI image generation failed: {e}", exc=e)
+        if build_log:
+            build_log.stage_end("AI Video Generation", ai_clips=len(ai_clips))
 
     # AI clips go first for maximum visual impact, then stock videos
     all_video_clips = ai_clips + list(video_clips)
@@ -463,6 +519,10 @@ def run(
 
     # ── 7. Assemble video ────────────────────────────────────────────────────
     _push_progress(78, "Assembling final video...")
+    if build_log:
+        build_log.stage_start("Video Assembly", total_video_clips=len(all_video_clips),
+                              total_image_sources=len(all_image_sources),
+                              content_graphics=len(content_graphics))
     print(f"[pipeline] Starting video assembly stage...")
     video_path = job / "video.mp4"
     with logger.spinner("Assembling video..."):
@@ -494,6 +554,8 @@ def run(
     manifest["files"]["video"] = str(video_path)
     video_mb = file_manager.get_file_size_mb(video_path)
     logger.success(f"Video assembled: {video_mb:.1f} MB")
+    if build_log:
+        build_log.stage_end("Video Assembly", size_mb=f"{video_mb:.1f}")
 
     # ── 8. Publish ───────────────────────────────────────────────────────────
     _push_progress(93, "Publishing to platforms...")
@@ -630,5 +692,10 @@ def run(
 
     logger.header("Done!")
     logger.print_job_summary(manifest)
+
+    if build_log:
+        build_log.success("Pipeline completed successfully", title=manifest.get("title", ""),
+                          video_mb=f"{video_mb:.1f}", duration=f"{duration:.1f}s")
+        manifest["build_log"] = build_log.to_text()
 
     return manifest
