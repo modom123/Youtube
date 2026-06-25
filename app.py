@@ -2019,6 +2019,59 @@ def api_research_preview():
         return jsonify({"error": str(e), "facts": [], "sources": [], "data_points": []})
 
 
+@app.route("/api/settings/platform-creds", methods=["POST"])
+@login_required
+def api_save_platform_creds():
+    """Save platform OAuth credentials to DB and patch config live."""
+    data = request.json or {}
+    platform = data.get("platform", "").lower()
+
+    PLATFORM_CONFIG = {
+        "youtube":   [("YOUTUBE_CLIENT_ID", "client_id"), ("YOUTUBE_CLIENT_SECRET", "client_secret")],
+        "tiktok":    [("TIKTOK_CLIENT_KEY", "client_id"), ("TIKTOK_CLIENT_SECRET", "client_secret")],
+        "facebook":  [("FACEBOOK_APP_ID", "client_id"), ("FACEBOOK_APP_SECRET", "client_secret")],
+        "instagram": [("FACEBOOK_APP_ID", "client_id"), ("FACEBOOK_APP_SECRET", "client_secret")],
+        "twitter":   [("TWITTER_CLIENT_ID", "client_id"), ("TWITTER_CLIENT_SECRET", "client_secret")],
+        "threads":   [("THREADS_APP_ID", "client_id"), ("THREADS_APP_SECRET", "client_secret")],
+        "twitch":    [("TWITCH_CLIENT_ID", "client_id"), ("TWITCH_CLIENT_SECRET", "client_secret")],
+        "snapchat":  [("SNAP_CLIENT_ID", "client_id"), ("SNAP_CLIENT_SECRET", "client_secret")],
+        "linkedin":  [("LINKEDIN_CLIENT_ID", "client_id"), ("LINKEDIN_CLIENT_SECRET", "client_secret")],
+    }
+
+    if platform not in PLATFORM_CONFIG:
+        return jsonify({"error": "Unknown platform"}), 400
+
+    client_id = (data.get("client_id") or "").strip()
+    client_secret = (data.get("client_secret") or "").strip()
+    if not client_id or not client_secret:
+        return jsonify({"error": "Both Client ID and Client Secret are required"}), 400
+
+    for config_key, field in PLATFORM_CONFIG[platform]:
+        val = client_id if field == "client_id" else client_secret
+        db.set_setting(f"oauth_{config_key}", val)
+        setattr(config, config_key, val)
+
+    return jsonify({"status": "saved", "platform": platform, "ready": True})
+
+
+def _load_platform_creds_from_db():
+    """Load any OAuth credentials saved via UI into config at startup."""
+    keys = [
+        "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
+        "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET",
+        "FACEBOOK_APP_ID", "FACEBOOK_APP_SECRET",
+        "TWITTER_CLIENT_ID", "TWITTER_CLIENT_SECRET",
+        "THREADS_APP_ID", "THREADS_APP_SECRET",
+        "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET",
+        "SNAP_CLIENT_ID", "SNAP_CLIENT_SECRET",
+        "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET",
+    ]
+    for key in keys:
+        val = db.get_setting(f"oauth_{key}")
+        if val and not getattr(config, key, ""):
+            setattr(config, key, val)
+
+
 @app.route("/api/settings/check")
 def api_settings_check():
     tok = config.HIGGSFIELD_MCP_TOKEN or ""
@@ -3730,6 +3783,7 @@ def start_background_threads():
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 db.init_db()
+_load_platform_creds_from_db()
 start_background_threads()
 
 # Start the job monitor agent (auto-resets stuck jobs every 5 min)
