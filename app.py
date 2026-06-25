@@ -25,6 +25,7 @@ import database as db
 import config
 from auth import auth_bp, make_user
 from billing import billing_bp, check_usage_gate
+from admin import admin_bp
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
@@ -41,6 +42,7 @@ def load_user(user_id):
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(billing_bp)
+app.register_blueprint(admin_bp)
 
 ALLOWED_EXTENSIONS = {"csv", "vcf", "vcard", "txt"}
 

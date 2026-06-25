@@ -156,6 +156,24 @@ def init_db():
             value TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            token      TEXT UNIQUE NOT NULL,
+            expires_at TEXT NOT NULL,
+            used       INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            action        TEXT NOT NULL,
+            target_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            details       TEXT DEFAULT '{}',
+            created_at    TEXT DEFAULT (datetime('now'))
+        );
+
         -- Feature 1: Analytics
         CREATE TABLE IF NOT EXISTS analytics_cache (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1103,6 +1121,102 @@ def get_inbound_calls(limit: int = 100):
 def get_admin_users():
     with get_conn() as conn:
         rows = conn.execute("SELECT * FROM users WHERE is_admin=1").fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_all_users(limit: int = 500, tier: str = None):
+    with get_conn() as conn:
+        if tier:
+            rows = conn.execute(
+                "SELECT *, videos_used AS videos_used_this_month FROM users WHERE subscription_tier=? ORDER BY created_at DESC LIMIT ?",
+                (tier, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT *, videos_used AS videos_used_this_month FROM users ORDER BY created_at DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_admin_stats():
+    """Return MRR, tier counts, and status counts for the admin dashboard."""
+    tier_prices = {"starter": 29, "creator": 79, "agency": 199}
+    with get_conn() as conn:
+        rows = conn.execute("SELECT subscription_tier, subscription_status FROM users").fetchall()
+    total = len(rows)
+    tier_counts = {"free": 0, "starter": 0, "creator": 0, "agency": 0}
+    status_counts = {"active": 0, "canceled": 0, "past_due": 0, "suspended": 0}
+    mrr = 0
+    for r in rows:
+        tier = r["subscription_tier"] or "free"
+        status = r["subscription_status"] or "active"
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+        status_counts[status] = status_counts.get(status, 0) + 1
+        if status == "active" and tier in tier_prices:
+            mrr += tier_prices[tier]
+    return {
+        "total_users": total,
+        "tier_counts": tier_counts,
+        "status_counts": status_counts,
+        "mrr": mrr,
+    }
+
+
+def get_user_jobs_summary(user_id: int):
+    with get_conn() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM jobs WHERE user_id=?", (user_id,)).fetchone()[0]
+        done = conn.execute("SELECT COUNT(*) FROM jobs WHERE user_id=? AND status='done'", (user_id,)).fetchone()[0]
+        recent = conn.execute(
+            "SELECT id, topic, format, status, created_at FROM jobs WHERE user_id=? ORDER BY created_at DESC LIMIT 10",
+            (user_id,)
+        ).fetchall()
+    return {"total": total, "done": done, "recent": [row_to_dict(r) for r in recent]}
+
+
+# ── Password Reset ────────────────────────────────────────────────────────────
+
+def create_password_reset_token(user_id: int, token: str, expires_at: str):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM password_reset_tokens WHERE user_id=? AND used=0", (user_id,))
+        conn.execute(
+            "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?,?,?)",
+            (user_id, token, expires_at)
+        )
+
+
+def get_password_reset_token(token: str):
+    with get_conn() as conn:
+        return row_to_dict(conn.execute(
+            "SELECT * FROM password_reset_tokens WHERE token=? AND used=0", (token,)
+        ).fetchone())
+
+
+def consume_password_reset_token(token: str):
+    with get_conn() as conn:
+        conn.execute("UPDATE password_reset_tokens SET used=1 WHERE token=?", (token,))
+
+
+# ── Audit Log ─────────────────────────────────────────────────────────────────
+
+def log_audit(admin_id: int, action: str, target_user_id: int = None, details: dict = None):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO audit_log (admin_id, action, target_user_id, details) VALUES (?,?,?,?)",
+            (admin_id, action, target_user_id, json.dumps(details or {}))
+        )
+
+
+def get_audit_log(limit: int = 100):
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT a.*, u.email AS admin_email, t.email AS target_email
+               FROM audit_log a
+               LEFT JOIN users u ON u.id = a.admin_id
+               LEFT JOIN users t ON t.id = a.target_user_id
+               ORDER BY a.created_at DESC LIMIT ?""",
+            (limit,)
+        ).fetchall()
     return [row_to_dict(r) for r in rows]
 
 

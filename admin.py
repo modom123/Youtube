@@ -1,0 +1,203 @@
+"""Admin Blueprint — client management, provisioning, audit log."""
+import os
+import secrets
+import smtplib
+import json
+from datetime import datetime, timedelta
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, abort
+from flask_login import login_required, current_user
+from werkzeug.security import generate_password_hash
+
+import database as db
+import config
+
+admin_bp = Blueprint("admin", __name__)
+
+
+def _require_admin():
+    if not current_user.is_authenticated or not current_user.is_admin:
+        abort(403)
+
+
+def _send_email(to: str, subject: str, html: str, text: str):
+    host = config.SMTP_HOST
+    port = config.SMTP_PORT
+    user = config.SMTP_USER
+    pw = config.SMTP_PASS
+    from_addr = config.SMTP_FROM
+    if not host or not user:
+        return False
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = from_addr
+        msg["To"] = to
+        msg.attach(MIMEText(text, "plain"))
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(host, port) as srv:
+            srv.ehlo()
+            srv.starttls()
+            srv.login(user, pw)
+            srv.sendmail(from_addr, to, msg.as_string())
+        return True
+    except Exception:
+        return False
+
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+
+@admin_bp.route("/admin")
+@login_required
+def admin_dashboard():
+    _require_admin()
+    stats = db.get_admin_stats()
+    users = db.get_all_users(limit=500)
+    return render_template("admin.html", users=users, **stats)
+
+
+# ── User detail ───────────────────────────────────────────────────────────────
+
+@admin_bp.route("/admin/user/<int:uid>")
+@login_required
+def admin_user_detail(uid):
+    _require_admin()
+    user = db.get_user_by_id(uid)
+    if not user:
+        abort(404)
+    jobs = db.get_user_jobs_summary(uid)
+    return render_template("admin/user.html", u=user, jobs=jobs)
+
+
+# ── API: Change tier ──────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/user/<int:uid>/tier", methods=["POST"])
+@login_required
+def admin_set_tier(uid):
+    _require_admin()
+    tier = request.json.get("tier", "").strip()
+    if tier not in ("free", "starter", "creator", "agency"):
+        return jsonify({"ok": False, "error": "Invalid tier"}), 400
+    db.update_user(uid, subscription_tier=tier)
+    db.log_audit(current_user.id, "set_tier", uid, {"tier": tier})
+    return jsonify({"ok": True})
+
+
+# ── API: Change status ────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/user/<int:uid>/status", methods=["POST"])
+@login_required
+def admin_set_status(uid):
+    _require_admin()
+    status = request.json.get("status", "").strip()
+    if status not in ("active", "canceled", "past_due", "suspended"):
+        return jsonify({"ok": False, "error": "Invalid status"}), 400
+    db.update_user(uid, subscription_status=status)
+    db.log_audit(current_user.id, "set_status", uid, {"status": status})
+    return jsonify({"ok": True})
+
+
+# ── API: Reset usage ──────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/user/<int:uid>/reset-usage", methods=["POST"])
+@login_required
+def admin_reset_usage(uid):
+    _require_admin()
+    db.update_user(uid, videos_used=0, credits_used=0, period_start=datetime.now().strftime("%Y-%m-01"))
+    db.log_audit(current_user.id, "reset_usage", uid)
+    return jsonify({"ok": True})
+
+
+# ── API: Toggle admin ─────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/user/<int:uid>/toggle-admin", methods=["POST"])
+@login_required
+def admin_toggle_admin(uid):
+    _require_admin()
+    if uid == current_user.id:
+        return jsonify({"ok": False, "error": "Cannot change your own admin status"}), 400
+    user = db.get_user_by_id(uid)
+    if not user:
+        return jsonify({"ok": False, "error": "User not found"}), 404
+    new_val = 0 if user.get("is_admin") else 1
+    db.update_user(uid, is_admin=new_val)
+    db.log_audit(current_user.id, "toggle_admin", uid, {"is_admin": new_val})
+    return jsonify({"ok": True, "is_admin": bool(new_val)})
+
+
+# ── API: Provision new client ─────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/provision", methods=["POST"])
+@login_required
+def admin_provision():
+    _require_admin()
+    data = request.json or {}
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    tier = (data.get("tier") or "free").strip()
+    send_invite = bool(data.get("send_invite", True))
+
+    if not email:
+        return jsonify({"ok": False, "error": "Email is required"}), 400
+    if tier not in ("free", "starter", "creator", "agency"):
+        return jsonify({"ok": False, "error": "Invalid tier"}), 400
+    if db.get_user_by_email(email):
+        return jsonify({"ok": False, "error": "An account with that email already exists"}), 409
+
+    temp_pw = secrets.token_urlsafe(12)
+    pw_hash = generate_password_hash(temp_pw)
+    user_id = db.create_user(email=email, password_hash=pw_hash, name=name or email.split("@")[0])
+    if tier != "free":
+        db.update_user(user_id, subscription_tier=tier)
+
+    db.log_audit(current_user.id, "provision_user", user_id, {"email": email, "tier": tier})
+
+    email_sent = False
+    if send_invite and config.SMTP_HOST and config.SMTP_USER:
+        login_url = f"{config.APP_BASE_URL}/auth/login"
+        html = f"""
+        <html><body style="font-family:sans-serif;background:#111;color:#eee;padding:32px;">
+        <div style="max-width:560px;margin:0 auto;">
+          <h1 style="color:#d4a017;font-size:28px;margin-bottom:8px;">Social Optimize Machine</h1>
+          <p style="color:#ccc;font-size:16px;">Hi {name or email},</p>
+          <p style="color:#ccc;">Your account has been created on the <strong style="color:#fff;">{tier.title()}</strong> plan.</p>
+          <table style="background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:20px;margin:20px 0;width:100%;">
+            <tr><td style="color:#888;padding:4px 0;">Email</td><td style="color:#fff;">{email}</td></tr>
+            <tr><td style="color:#888;padding:4px 0;">Temp Password</td><td style="color:#d4a017;font-family:monospace;font-size:16px;">{temp_pw}</td></tr>
+            <tr><td style="color:#888;padding:4px 0;">Plan</td><td style="color:#fff;">{tier.title()}</td></tr>
+          </table>
+          <p style="color:#aaa;font-size:13px;">Please log in and change your password from the Settings page.</p>
+          <a href="{login_url}" style="display:inline-block;margin-top:8px;padding:12px 28px;background:#d4a017;color:#000;font-weight:700;text-decoration:none;border-radius:10px;font-size:15px;">
+            Log In Now
+          </a>
+        </div></body></html>"""
+        text = f"Social Optimize Machine\n\nYour account:\nEmail: {email}\nTemp Password: {temp_pw}\nPlan: {tier.title()}\n\nLog in: {login_url}"
+        email_sent = _send_email(email, "Your Social Optimize Machine account is ready", html, text)
+
+    return jsonify({
+        "ok": True,
+        "user_id": user_id,
+        "temp_password": temp_pw,
+        "email_sent": email_sent,
+    })
+
+
+# ── API: Audit log ────────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/audit-log")
+@login_required
+def admin_audit_log():
+    _require_admin()
+    limit = int(request.args.get("limit", 100))
+    return jsonify(db.get_audit_log(limit=limit))
+
+
+# ── API: Stats refresh ────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/stats")
+@login_required
+def admin_stats():
+    _require_admin()
+    return jsonify(db.get_admin_stats())

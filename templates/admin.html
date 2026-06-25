@@ -68,6 +68,42 @@
   </div>
 </div>
 
+<!-- Provision client button -->
+<div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+  <button class="btn btn-primary" onclick="document.getElementById('provisionModal').style.display='flex'" style="padding:10px 22px;font-size:14px;font-weight:700;">+ Provision Client</button>
+</div>
+
+<!-- Provision modal -->
+<div id="provisionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;padding:36px;width:100%;max-width:440px;position:relative;">
+    <button onclick="document.getElementById('provisionModal').style.display='none'" style="position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    <h2 style="margin:0 0 6px;font-size:18px;">Provision New Client</h2>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 24px;">Creates an account and emails login credentials.</p>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Full Name</label>
+      <input id="prov-name" type="text" placeholder="Jane Smith" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;color:var(--text);box-sizing:border-box;outline:none;">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Email Address *</label>
+      <input id="prov-email" type="email" placeholder="jane@company.com" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;color:var(--text);box-sizing:border-box;outline:none;">
+    </div>
+    <div style="margin-bottom:20px;">
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Plan</label>
+      <select id="prov-tier" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;color:var(--text);box-sizing:border-box;cursor:pointer;">
+        <option value="free">Free</option>
+        <option value="starter">Starter — $29/mo</option>
+        <option value="creator" selected>Creator — $79/mo</option>
+        <option value="agency">Agency — $199/mo</option>
+      </select>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;margin-bottom:20px;">
+      <input type="checkbox" id="prov-invite" checked> Send invite email with login credentials
+    </label>
+    <button onclick="provisionClient()" style="width:100%;background:var(--gold);color:#000;font-weight:800;font-size:15px;border:none;border-radius:10px;padding:13px;cursor:pointer;">Create Account</button>
+    <div id="prov-result" style="margin-top:14px;font-size:13px;display:none;"></div>
+  </div>
+</div>
+
 <!-- Filters & search -->
 <div class="filter-row">
   <button class="filter-btn active" onclick="filterTier('all', this)">All</button>
@@ -216,5 +252,61 @@ function resetUsage(uid, btn) {
       if (d.ok) { showToast('Usage reset', 'success'); location.reload(); }
     });
 }
+
+function provisionClient() {
+  const name = document.getElementById('prov-name').value.trim();
+  const email = document.getElementById('prov-email').value.trim();
+  const tier = document.getElementById('prov-tier').value;
+  const invite = document.getElementById('prov-invite').checked;
+  const result = document.getElementById('prov-result');
+  if (!email) { showToast('Email is required', 'error'); return; }
+  fetch('/api/admin/provision', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, email, tier, send_invite: invite})
+  }).then(r => r.json()).then(d => {
+    result.style.display = 'block';
+    if (d.ok) {
+      result.style.color = '#4ade80';
+      result.innerHTML = 'Account created! User ID #' + d.user_id +
+        '<br>Temp password: <strong style="font-family:monospace;color:var(--gold)">' + d.temp_password + '</strong>' +
+        (d.email_sent ? '<br><span style="color:var(--muted)">Invite email sent.</span>' : '<br><span style="color:#fbbf24">Email not sent (SMTP not configured). Share credentials manually.</span>');
+      showToast('Client account created', 'success');
+      setTimeout(() => location.reload(), 4000);
+    } else {
+      result.style.color = '#f87171';
+      result.textContent = d.error || 'Error creating account';
+    }
+  });
+}
+
+// Load audit log
+document.addEventListener('DOMContentLoaded', function() {
+  fetch('/api/admin/audit-log?limit=25').then(r => r.json()).then(rows => {
+    const tbody = document.getElementById('auditBody');
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">No activity yet.</td></tr>'; return; }
+    tbody.innerHTML = rows.map(r => `<tr>
+      <td style="color:var(--muted);font-size:12px;">${(r.created_at||'').slice(0,16)}</td>
+      <td style="color:var(--text);">${r.admin_email||'—'}</td>
+      <td><span style="background:rgba(201,162,39,.1);color:var(--gold);padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;">${r.action}</span></td>
+      <td style="color:var(--muted);">${r.target_email||'—'}</td>
+      <td style="font-size:12px;color:var(--muted);">${r.details && r.details!=='{}' ? r.details : ''}</td>
+    </tr>`).join('');
+  });
+});
 </script>
+
+<!-- Audit log -->
+<div class="card" style="margin-top:24px;">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border);font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center;">
+    Audit Log
+    <span style="font-size:12px;color:var(--muted);font-weight:400;">Last 25 actions</span>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="admin-table">
+      <thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>Target User</th><th>Details</th></tr></thead>
+      <tbody id="auditBody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px;">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

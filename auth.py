@@ -1,8 +1,15 @@
-"""Auth Blueprint — register, login, logout."""
+"""Auth Blueprint — register, login, logout, password reset."""
+import secrets
+import smtplib
+from datetime import datetime, timedelta
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import database as db
+import config
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -84,6 +91,82 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for("landing"))
+
+
+@auth_bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = db.get_user_by_email(email)
+        # Always show success message to prevent email enumeration
+        if user:
+            token = secrets.token_urlsafe(32)
+            expires = (datetime.utcnow() + timedelta(hours=2)).isoformat()
+            db.create_password_reset_token(user["id"], token, expires)
+            _send_reset_email(email, token)
+        flash("If that email has an account, a reset link has been sent.", "info")
+        return redirect(url_for("auth.forgot_password"))
+    return render_template("auth/forgot_password.html")
+
+
+@auth_bp.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+    record = db.get_password_reset_token(token)
+    if not record:
+        flash("This reset link is invalid or has already been used.", "error")
+        return redirect(url_for("auth.forgot_password"))
+    if datetime.utcnow().isoformat() > record["expires_at"]:
+        flash("This reset link has expired. Please request a new one.", "error")
+        return redirect(url_for("auth.forgot_password"))
+    if request.method == "POST":
+        pw = request.form.get("password", "")
+        pw2 = request.form.get("password2", "")
+        if len(pw) < 8:
+            flash("Password must be at least 8 characters.", "error")
+            return render_template("auth/reset_password.html", token=token)
+        if pw != pw2:
+            flash("Passwords do not match.", "error")
+            return render_template("auth/reset_password.html", token=token)
+        db.update_user(record["user_id"], password_hash=generate_password_hash(pw))
+        db.consume_password_reset_token(token)
+        flash("Password updated. Please log in.", "success")
+        return redirect(url_for("auth.login"))
+    return render_template("auth/reset_password.html", token=token)
+
+
+def _send_reset_email(email: str, token: str):
+    host = config.SMTP_HOST
+    if not host or not config.SMTP_USER:
+        return
+    reset_url = f"{config.APP_BASE_URL}/auth/reset-password/{token}"
+    html = f"""<html><body style="font-family:sans-serif;background:#111;color:#eee;padding:32px;">
+    <div style="max-width:520px;margin:0 auto;">
+      <h2 style="color:#d4a017;">Reset Your Password</h2>
+      <p style="color:#ccc;">Click the button below to set a new password. This link expires in 2 hours.</p>
+      <a href="{reset_url}" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#d4a017;color:#000;font-weight:700;text-decoration:none;border-radius:10px;">
+        Reset Password
+      </a>
+      <p style="color:#666;font-size:12px;margin-top:24px;">If you didn't request this, ignore this email.</p>
+    </div></body></html>"""
+    text = f"Reset your password:\n{reset_url}\n\nExpires in 2 hours."
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Reset your Social Optimize Machine password"
+        msg["From"] = config.SMTP_FROM
+        msg["To"] = email
+        msg.attach(MIMEText(text, "plain"))
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(host, config.SMTP_PORT) as srv:
+            srv.ehlo()
+            srv.starttls()
+            srv.login(config.SMTP_USER, config.SMTP_PASS)
+            srv.sendmail(config.SMTP_FROM, email, msg.as_string())
+    except Exception:
+        pass
 
 
 # ── Flask-Login User class ────────────────────────────────────────────────────
