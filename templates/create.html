@@ -595,10 +595,22 @@ async function launchJob(payload) {
   const { job_id } = await resp.json();
 
   return new Promise((resolve) => {
-    const es = new EventSource(`/api/job/${job_id}/stream`);
+    let es = new EventSource(`/api/job/${job_id}/stream`);
+    let resolved = false;
     const log = document.getElementById('prog-log');
 
-    es.onmessage = (e) => {
+    function reconnect() {
+      if (resolved) return;
+      es.close();
+      setTimeout(() => {
+        es = new EventSource(`/api/job/${job_id}/stream`);
+        es.onmessage = onMessage;
+        es.onerror = onError;
+      }, 2000);
+    }
+    function onError() { reconnect(); }
+
+    function onMessage(e) {
       const d = JSON.parse(e.data);
       if (d.progress !== undefined) document.getElementById('prog-bar').style.width = d.progress + '%';
       if (d.step) document.getElementById('prog-step').textContent = d.step;
@@ -611,6 +623,7 @@ async function launchJob(payload) {
         log.scrollTop = log.scrollHeight;
       }
       if (d.status === 'done') {
+        resolved = true;
         es.close();
         document.getElementById('prog-status').className = 'pill pill-done';
         document.getElementById('prog-status').textContent = 'Done!';
@@ -625,6 +638,7 @@ async function launchJob(payload) {
         resolve();
       }
       if (d.status === 'error') {
+        resolved = true;
         es.close();
         document.getElementById('prog-status').className = 'pill pill-error';
         document.getElementById('prog-status').textContent = 'Error';
@@ -632,7 +646,9 @@ async function launchJob(payload) {
         document.getElementById('launch-btn').disabled = false;
         resolve();
       }
-    };
+    }
+    es.onmessage = onMessage;
+    es.onerror = onError;
   });
 }
 

@@ -205,7 +205,7 @@ def _generate_script_claude(
     subscription_tier: str = "starter",
 ) -> "ContentScript":
     """Generate a complete content script using Claude AI."""
-    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=120.0)
 
     prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
     if custom_instructions:

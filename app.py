@@ -88,47 +88,26 @@ def _run_job_thread(job_id: int, params: dict, user_id: int = None):
         _tok = _get_user_higgsfield_token(user_id)
         _avg._session_token.value = _tok
         _hmcp._session_token.value = _tok
-    steps = [
-        (10, "Generating script with Claude AI..."),
-        (25, "Creating voiceover audio..."),
-        (40, "Fetching stock media..."),
-        (55, "Generating thumbnail..."),
-        (75, "Assembling video..."),
-        (90, "Publishing to platforms..."),
-    ]
-    class ProgressHook:
-        def __init__(self):
-            self.step_idx = 0
-        def advance(self, msg=None):
-            if self.step_idx < len(steps):
-                pct, label = steps[self.step_idx]
-                m = msg or label
-                db.update_job(job_id, progress=pct, current_step=m, status="running")
-                push_event(job_id, {"progress": pct, "step": m, "status": "running"})
-                self.step_idx += 1
-    hook = ProgressHook()
+    def progress_cb(pct: int, msg: str):
+        db.update_job(job_id, progress=pct, current_step=msg, status="running")
+        push_event(job_id, {"progress": pct, "step": msg, "status": "running"})
+
     try:
-        db.update_job(job_id, status="running", progress=5, current_step="Starting...")
-        push_event(job_id, {"progress": 5, "step": "Starting...", "status": "running"})
-        hook.advance()
+        db.update_job(job_id, status="running", progress=3, current_step="Starting...")
+        push_event(job_id, {"progress": 3, "step": "Starting...", "status": "running"})
         import utils.logger as ul
-        _orig_step = ul.step
         _orig_success = ul.success
         _orig_warn = ul.warn
-        def _hook_step(icon, msg):
-            _orig_step(icon, msg)
-            hook.advance(msg)
         def _hook_success(msg):
             _orig_success(msg)
             push_event(job_id, {"log": f"✓ {msg}", "status": "running"})
         def _hook_warn(msg):
             _orig_warn(msg)
             push_event(job_id, {"log": f"⚠ {msg}", "status": "running"})
-        ul.step = _hook_step
         ul.success = _hook_success
         ul.warn = _hook_warn
+        params["progress_cb"] = progress_cb
         manifest = social_optimize.run(**params)
-        ul.step = _orig_step
         ul.success = _orig_success
         ul.warn = _orig_warn
         job_title = manifest.get("title")
@@ -487,6 +466,7 @@ def api_create():
 def job_stream(job_id):
     def generate():
         last_idx = 0
+        heartbeat_counter = 0
         while True:
             with _job_lock:
                 events = _job_events.get(job_id, [])
@@ -500,6 +480,10 @@ def job_stream(job_id):
                     yield f"data: {json.dumps({'status': job['status'], 'progress': job['progress']})}\n\n"
                 time.sleep(0.5)
                 break
+            heartbeat_counter += 1
+            if heartbeat_counter >= 20:
+                yield ": heartbeat\n\n"
+                heartbeat_counter = 0
             time.sleep(0.5)
     return Response(stream_with_context(generate()), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
