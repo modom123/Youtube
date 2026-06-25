@@ -84,15 +84,29 @@ def push_event(job_id: int, data: dict):
 
 
 def _run_job_thread(job_id: int, params: dict, user_id: int = None):
+    try:
+        _run_job_thread_inner(job_id, params, user_id)
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"[job #{job_id}] FATAL: {e}\n{tb}")
+        try:
+            db.update_job(job_id, status="error", error_msg=str(e), current_step="Failed")
+            push_event(job_id, {"progress": 0, "step": f"Error: {e}", "status": "error", "traceback": tb})
+        except Exception:
+            pass
+
+
+def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
     import social_optimize
     from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
     from generators.ai_router import route as _route_model
+    print(f"[job #{job_id}] Thread started, setting up...")
     if user_id:
         _tok = _get_user_higgsfield_token(user_id)
         _avg._session_token.value = _tok
         _hmcp._session_token.value = _tok
 
-    # Resolve "auto" model preference via the router
     raw_model = params.get("ai_model", "auto")
     user_row = db.get_user_by_id(user_id) if user_id else {}
     tier = (user_row or {}).get("subscription_tier", "starter")
@@ -125,39 +139,36 @@ def _run_job_thread(job_id: int, params: dict, user_id: int = None):
         db.update_job(job_id, progress=pct, current_step=msg, status="running")
         push_event(job_id, {"progress": pct, "step": msg, "status": "running"})
 
+    db.update_job(job_id, status="running", progress=3, current_step="Starting...")
+    push_event(job_id, {"progress": 3, "step": "Starting...", "status": "running"})
+    import utils.logger as ul
+    _orig_success = ul.success
+    _orig_warn = ul.warn
+    _orig_error = ul.error
+    def _hook_success(msg):
+        try:
+            _orig_success(msg)
+        except Exception:
+            pass
+        push_event(job_id, {"log": f"✓ {msg}", "status": "running"})
+    def _hook_warn(msg):
+        try:
+            _orig_warn(msg)
+        except Exception:
+            pass
+        push_event(job_id, {"log": f"⚠ {msg}", "status": "running"})
+    def _hook_error(msg):
+        try:
+            _orig_error(msg)
+        except Exception:
+            pass
+        push_event(job_id, {"log": f"✗ {msg}", "status": "running"})
+    ul.success = _hook_success
+    ul.warn = _hook_warn
+    ul.error = _hook_error
     try:
-        db.update_job(job_id, status="running", progress=3, current_step="Starting...")
-        push_event(job_id, {"progress": 3, "step": "Starting...", "status": "running"})
-        import utils.logger as ul
-        _orig_success = ul.success
-        _orig_warn = ul.warn
-        _orig_error = ul.error
-        def _hook_success(msg):
-            try:
-                _orig_success(msg)
-            except Exception:
-                pass
-            push_event(job_id, {"log": f"✓ {msg}", "status": "running"})
-        def _hook_warn(msg):
-            try:
-                _orig_warn(msg)
-            except Exception:
-                pass
-            push_event(job_id, {"log": f"⚠ {msg}", "status": "running"})
-        def _hook_error(msg):
-            try:
-                _orig_error(msg)
-            except Exception:
-                pass
-            push_event(job_id, {"log": f"✗ {msg}", "status": "running"})
-        ul.success = _hook_success
-        ul.warn = _hook_warn
-        ul.error = _hook_error
         params["progress_cb"] = progress_cb
         manifest = social_optimize.run(**params)
-        ul.success = _orig_success
-        ul.warn = _orig_warn
-        ul.error = _orig_error
         job_title = manifest.get("title")
         db.update_job(
             job_id, status="done", progress=100, current_step="Complete!",
@@ -181,23 +192,10 @@ def _run_job_thread(job_id: int, params: dict, user_id: int = None):
                 send_notification(user_id, "job_complete", {"job_id": job_id, "title": job_title})
             except Exception:
                 pass
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        try:
-            ul.success = _orig_success
-            ul.warn = _orig_warn
-            ul.error = _orig_error
-        except Exception:
-            pass
-        db.update_job(job_id, status="error", error_msg=str(e), current_step="Failed")
-        push_event(job_id, {"progress": 0, "step": f"Error: {e}", "status": "error", "traceback": tb})
-        if user_id:
-            try:
-                from notifications import send_notification
-                send_notification(user_id, "job_error", {"job_id": job_id, "error": str(e)})
-            except Exception:
-                pass
+    finally:
+        ul.success = _orig_success
+        ul.warn = _orig_warn
+        ul.error = _orig_error
 
 
 @app.route("/")
