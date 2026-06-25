@@ -1,4 +1,4 @@
-"""SQLite database layer for the Social Optimize Machine dashboard."""
+"""SQLite database layer for the Social Optimize dashboard."""
 import sqlite3
 import json
 import uuid
@@ -69,6 +69,59 @@ def init_db():
             imported_at TEXT DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS outreach_campaigns (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name        TEXT NOT NULL,
+            type        TEXT NOT NULL DEFAULT 'email',
+            subject     TEXT,
+            body        TEXT NOT NULL,
+            status      TEXT DEFAULT 'draft',
+            sent_count  INTEGER DEFAULT 0,
+            open_count  INTEGER DEFAULT 0,
+            created_at  TEXT DEFAULT (datetime('now')),
+            sent_at     TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS outreach_sends (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id     INTEGER REFERENCES outreach_campaigns(id) ON DELETE CASCADE,
+            contact_id      INTEGER REFERENCES contacts(id) ON DELETE CASCADE,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            status          TEXT DEFAULT 'pending',
+            sent_at         TEXT,
+            error_msg       TEXT,
+            message_sid     TEXT,
+            UNIQUE(campaign_id, contact_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS inbound_sms (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_sid     TEXT UNIQUE,
+            from_number     TEXT NOT NULL,
+            to_number       TEXT,
+            body            TEXT,
+            received_at     TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS inbound_calls (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            call_sid        TEXT UNIQUE,
+            from_number     TEXT NOT NULL,
+            to_number       TEXT,
+            call_status     TEXT DEFAULT 'ringing',
+            duration        INTEGER DEFAULT 0,
+            recording_sid   TEXT,
+            recording_url   TEXT,
+            recording_duration INTEGER DEFAULT 0,
+            caller_city     TEXT,
+            caller_state    TEXT,
+            caller_country  TEXT,
+            transcription   TEXT,
+            received_at     TEXT DEFAULT (datetime('now')),
+            updated_at      TEXT DEFAULT (datetime('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS jobs (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -101,6 +154,24 @@ def init_db():
         CREATE TABLE IF NOT EXISTS settings (
             key   TEXT PRIMARY KEY,
             value TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            token      TEXT UNIQUE NOT NULL,
+            expires_at TEXT NOT NULL,
+            used       INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            admin_id      INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            action        TEXT NOT NULL,
+            target_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            details       TEXT DEFAULT '{}',
+            created_at    TEXT DEFAULT (datetime('now'))
         );
 
         -- Feature 1: Analytics
@@ -350,7 +421,7 @@ def get_accounts(user_id: int = None):
 
 def upsert_account(platform, username, display_name=None, avatar_url=None,
                    access_token=None, refresh_token=None, account_id=None, followers=0,
-                   user_id=None):
+                   user_id=None, **kwargs):
     with get_conn() as conn:
         q = "SELECT id FROM social_accounts WHERE platform=? AND username=?"
         params = [platform, username]
@@ -474,10 +545,17 @@ def get_job(job_id, user_id=None):
     return row_to_dict(row)
 
 
+def delete_job(job_id, user_id=None):
+    with get_conn() as conn:
+        if user_id:
+            conn.execute("DELETE FROM jobs WHERE id=? AND user_id=?", (job_id, user_id))
+        else:
+            conn.execute("DELETE FROM jobs WHERE id=?", (job_id,))
+
+
 def get_jobs(limit=50, user_id=None, team_id=None):
     with get_conn() as conn:
         if team_id:
-            # Return jobs for all members of the team
             rows = conn.execute("""
                 SELECT j.* FROM jobs j
                 JOIN team_members tm ON tm.user_id = j.user_id
@@ -493,6 +571,15 @@ def get_jobs(limit=50, user_id=None, team_id=None):
             rows = conn.execute(
                 "SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)
             ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_all_running_jobs():
+    """Return all jobs currently in 'running' or 'pending' status (for monitor agent)."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM jobs WHERE status IN ('running','pending') ORDER BY created_at ASC"
+        ).fetchall()
     return [row_to_dict(r) for r in rows]
 
 
@@ -836,7 +923,6 @@ def get_team_members(team_id: str):
 
 def add_team_member(team_id: str, invited_email: str, role: str = "editor") -> str:
     member_id = str(uuid.uuid4())
-    # Check if user exists
     with get_conn() as conn:
         user = conn.execute("SELECT id FROM users WHERE email=?", (invited_email.lower(),)).fetchone()
         user_id = user["id"] if user else None
@@ -938,3 +1024,228 @@ def get_all_competitor_channels_for_refresh():
     with get_conn() as conn:
         rows = conn.execute("SELECT * FROM competitor_channels").fetchall()
     return [row_to_dict(r) for r in rows]
+
+
+# ── Feature 9: Outreach Campaigns ────────────────────────────────────────────
+
+def create_campaign(user_id, name, type_, subject, body):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO outreach_campaigns (user_id, name, type, subject, body) VALUES (?,?,?,?,?)",
+            (user_id, name, type_, subject, body)
+        )
+        return cur.lastrowid
+
+
+def get_campaigns(user_id):
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM outreach_campaigns WHERE user_id=? ORDER BY created_at DESC", (user_id,)
+        ).fetchall()]
+
+
+def get_campaign(campaign_id, user_id):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM outreach_campaigns WHERE id=? AND user_id=?", (campaign_id, user_id)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def delete_campaign(campaign_id, user_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM outreach_campaigns WHERE id=? AND user_id=?", (campaign_id, user_id))
+
+
+def log_send(campaign_id, contact_id, user_id, status, error_msg=None, message_sid=None):
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR REPLACE INTO outreach_sends
+               (campaign_id, contact_id, user_id, status, sent_at, error_msg, message_sid)
+               VALUES (?,?,?,?,datetime('now'),?,?)""",
+            (campaign_id, contact_id, user_id, status, error_msg, message_sid)
+        )
+
+
+def increment_campaign_sent(campaign_id, count=1):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE outreach_campaigns SET sent_count=sent_count+?, sent_at=datetime('now'), status='sent' WHERE id=?",
+            (count, campaign_id)
+        )
+
+
+def get_campaign_sends(campaign_id):
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            """SELECT os.*, c.name, c.email, c.phone FROM outreach_sends os
+               JOIN contacts c ON c.id=os.contact_id
+               WHERE os.campaign_id=?""", (campaign_id,)
+        ).fetchall()]
+
+
+def update_send_status_by_sid(message_sid: str, status: str):
+    """Update outreach_sends delivery status when Twilio posts a status callback."""
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE outreach_sends SET status=? WHERE message_sid=?",
+            (status, message_sid)
+        )
+
+
+def log_inbound_call(call_sid: str, from_: str, to: str,
+                     status: str = "ringing",
+                     city: str = None, state: str = None, country: str = None):
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO inbound_calls
+               (call_sid, from_number, to_number, call_status, caller_city, caller_state, caller_country)
+               VALUES (?,?,?,?,?,?,?)""",
+            (call_sid, from_, to, status, city, state, country)
+        )
+
+
+def update_inbound_call(call_sid: str, **kwargs):
+    if not kwargs:
+        return
+    kwargs.pop("updated_at", None)
+    cols = ", ".join(f"{k}=?" for k in kwargs) + ", updated_at=datetime('now')"
+    vals = list(kwargs.values()) + [call_sid]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE inbound_calls SET {cols} WHERE call_sid=?", vals)
+
+
+def get_inbound_calls(limit: int = 100):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM inbound_calls ORDER BY received_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_admin_users():
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM users WHERE is_admin=1").fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_all_users(limit: int = 500, tier: str = None):
+    with get_conn() as conn:
+        if tier:
+            rows = conn.execute(
+                "SELECT *, videos_used AS videos_used_this_month FROM users WHERE subscription_tier=? ORDER BY created_at DESC LIMIT ?",
+                (tier, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT *, videos_used AS videos_used_this_month FROM users ORDER BY created_at DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_admin_stats():
+    """Return MRR, tier counts, and status counts for the admin dashboard."""
+    tier_prices = {"starter": 29, "creator": 79, "agency": 199}
+    with get_conn() as conn:
+        rows = conn.execute("SELECT subscription_tier, subscription_status FROM users").fetchall()
+    total = len(rows)
+    tier_counts = {"free": 0, "starter": 0, "creator": 0, "agency": 0}
+    status_counts = {"active": 0, "canceled": 0, "past_due": 0, "suspended": 0}
+    mrr = 0
+    for r in rows:
+        tier = r["subscription_tier"] or "free"
+        status = r["subscription_status"] or "active"
+        tier_counts[tier] = tier_counts.get(tier, 0) + 1
+        status_counts[status] = status_counts.get(status, 0) + 1
+        if status == "active" and tier in tier_prices:
+            mrr += tier_prices[tier]
+    return {
+        "total_users": total,
+        "tier_counts": tier_counts,
+        "status_counts": status_counts,
+        "mrr": mrr,
+    }
+
+
+def get_user_jobs_summary(user_id: int):
+    with get_conn() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM jobs WHERE user_id=?", (user_id,)).fetchone()[0]
+        done = conn.execute("SELECT COUNT(*) FROM jobs WHERE user_id=? AND status='done'", (user_id,)).fetchone()[0]
+        recent = conn.execute(
+            "SELECT id, topic, format, status, created_at FROM jobs WHERE user_id=? ORDER BY created_at DESC LIMIT 10",
+            (user_id,)
+        ).fetchall()
+    return {"total": total, "done": done, "recent": [row_to_dict(r) for r in recent]}
+
+
+# ── Password Reset ────────────────────────────────────────────────────────────
+
+def create_password_reset_token(user_id: int, token: str, expires_at: str):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM password_reset_tokens WHERE user_id=? AND used=0", (user_id,))
+        conn.execute(
+            "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?,?,?)",
+            (user_id, token, expires_at)
+        )
+
+
+def get_password_reset_token(token: str):
+    with get_conn() as conn:
+        return row_to_dict(conn.execute(
+            "SELECT * FROM password_reset_tokens WHERE token=? AND used=0", (token,)
+        ).fetchone())
+
+
+def consume_password_reset_token(token: str):
+    with get_conn() as conn:
+        conn.execute("UPDATE password_reset_tokens SET used=1 WHERE token=?", (token,))
+
+
+# ── Audit Log ─────────────────────────────────────────────────────────────────
+
+def log_audit(admin_id: int, action: str, target_user_id: int = None, details: dict = None):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO audit_log (admin_id, action, target_user_id, details) VALUES (?,?,?,?)",
+            (admin_id, action, target_user_id, json.dumps(details or {}))
+        )
+
+
+def get_audit_log(limit: int = 100):
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT a.*, u.email AS admin_email, t.email AS target_email
+               FROM audit_log a
+               LEFT JOIN users u ON u.id = a.admin_id
+               LEFT JOIN users t ON t.id = a.target_user_id
+               ORDER BY a.created_at DESC LIMIT ?""",
+            (limit,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_inbound_sms(limit: int = 100):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM inbound_sms ORDER BY received_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def log_inbound_sms(from_: str, to: str, body: str, message_sid: str):
+    """Store an inbound SMS reply received via the Twilio webhook."""
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO inbound_sms (message_sid, from_number, to_number, body, received_at)
+               VALUES (?,?,?,?,datetime('now'))""",
+            (message_sid, from_, to, body)
+        )
+
+
+def increment_credits_used(user_id: int, amount: int = 1):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET credits_used = credits_used + ? WHERE id=?",
+            (amount, user_id)
+        )

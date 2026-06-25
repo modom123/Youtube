@@ -24,36 +24,85 @@ STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 # ── Subscription tiers ───────────────────────────────────────────────────────
 TIERS = {
     "free": {
-        "label": "Free Trial",
+        "label": "Free",
+        "description": "Get started for free — no credit card, no commitment. 2 AI videos per month.",
         "price_monthly": 0,
+        "trial_days": 0,
         "videos_per_month": 2,
         "higgsfield_credits": 0,
         "stripe_price_id": None,
-        "features": ["2 videos/month", "Pexels stock media", "Basic scripts"],
+        "features": [
+            "2 AI videos/month",
+            "Publish to 8 platforms",
+            "Pexels stock media library",
+            "Basic AI scripts",
+            "Quick Post from photo/video",
+        ],
     },
     "starter": {
         "label": "Starter",
+        "description": "Try free for 14 days — card required, cancel anytime. Then just $29/mo.",
         "price_monthly": 29,
+        "trial_days": 14,
         "videos_per_month": 15,
         "higgsfield_credits": 150,
         "stripe_price_id": STRIPE_PRICE_STARTER,
-        "features": ["15 videos/month", "150 AI video credits", "5-agent pipeline", "YouTube publishing"],
+        "features": [
+            "14-day free trial",
+            "15 AI videos/month",
+            "Publish to 8 platforms",
+            "150 Social Optimize Credits/mo",
+            "5-agent AI pipeline",
+            "Quick Post from photo/video",
+            "Content calendar & scheduling",
+            "Hashtag research",
+            "Email support",
+        ],
     },
     "creator": {
         "label": "Creator",
+        "description": "Try free for 14 days — card required, cancel anytime. Then $79/mo for serious creators.",
         "price_monthly": 79,
+        "trial_days": 14,
         "videos_per_month": 50,
         "higgsfield_credits": 500,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
-        "features": ["50 videos/month", "500 AI video credits", "All platforms", "Production Studio"],
+        "features": [
+            "14-day free trial",
+            "50 AI videos/month",
+            "Publish to all 8 platforms",
+            "500 Social Optimize Credits/mo",
+            "Studio 56 — full production suite",
+            "Commercial Studio — photo → ad",
+            "Quick Post from photo/video",
+            "Hollywood AI agent",
+            "Competitor & trend analysis",
+            "Batch create 30 videos at once",
+            "Priority support",
+        ],
     },
     "agency": {
         "label": "Agency",
+        "description": "Try free for 14 days — card required, cancel anytime. Then $199/mo for unlimited scale.",
         "price_monthly": 199,
-        "videos_per_month": -1,
+        "trial_days": 14,
+        "videos_per_month": 125,
         "higgsfield_credits": 2000,
         "stripe_price_id": STRIPE_PRICE_AGENCY,
-        "features": ["Unlimited videos", "2000 AI video credits", "Priority processing", "All features"],
+        "features": [
+            "14-day free trial",
+            "125 AI videos/month",
+            "Publish to all 8 platforms",
+            "2,000 Social Optimize Credits/mo",
+            "Everything in Creator",
+            "Quick Post from photo/video",
+            "Team management (5 seats)",
+            "White-label exports",
+            "SMS/WhatsApp outreach (Twilio)",
+            "API access",
+            "Dedicated account manager",
+            "24/7 priority support",
+        ],
     },
 }
 
@@ -69,15 +118,30 @@ SCRIPTS_DIR    = OUTPUT_DIR / "scripts"
 for d in [VIDEOS_DIR, AUDIO_DIR, THUMBNAILS_DIR, SCRIPTS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
-# API Keys
+# ── Model routing by subscription tier ───────────────────────────────────────
+# Free tier uses Haiku (cheapest Claude) to keep costs near zero.
+# Paid tiers get Sonnet for quality scripts and agents.
+TIER_CLAUDE_MODEL = {
+    "free":    "claude-haiku-4-5-20251001",
+    "starter": "claude-sonnet-4-6",
+    "creator": "claude-sonnet-4-6",
+    "agency":  "claude-sonnet-4-6",
+}
+
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+DEEPSEEK_API_KEY  = os.getenv("DEEPSEEK_API_KEY", "")
+QWEN_API_KEY      = os.getenv("QWEN_API_KEY", "")       # Alibaba DashScope
+GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")       # Groq (Llama 3.3 70B)
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 
 # Google Flow / Veo 2
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-# Higgsfield AI — single token used by both the CLI and MCP HTTP client
+# Higgsfield AI — bearer token for REST + MCP API calls
+# The endpoint URL is already hardcoded; only the TOKEN needs to be set in Render.
 HIGGSFIELD_MCP_TOKEN = os.getenv("HIGGSFIELD_MCP_TOKEN", "")
+# Optional override for the MCP endpoint URL (defaults to the Higgsfield cloud endpoint)
+HIGGSFIELD_MCP_URL = os.getenv("HIGGSFIELD_MCP_URL", "https://mcp.higgsfield.ai/mcp")
 
 # YouTube
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID", "")
@@ -101,19 +165,37 @@ TIKTOK_ACCESS_TOKEN = os.getenv("TIKTOK_ACCESS_TOKEN", "")
 INSTAGRAM_ACCESS_TOKEN = os.getenv("INSTAGRAM_ACCESS_TOKEN", "")
 INSTAGRAM_ACCOUNT_ID = os.getenv("INSTAGRAM_ACCOUNT_ID", "")
 
-# Facebook
-FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID", "")
+# Facebook / Meta (shared app for Facebook + Instagram)
+FACEBOOK_APP_ID      = os.getenv("FACEBOOK_APP_ID", "")
+FACEBOOK_APP_SECRET  = os.getenv("FACEBOOK_APP_SECRET", "")
+FACEBOOK_PAGE_ID     = os.getenv("FACEBOOK_PAGE_ID", "")
 FACEBOOK_ACCESS_TOKEN = os.getenv("FACEBOOK_ACCESS_TOKEN", "")
 
-# Twitter/X
-TWITTER_API_KEY = os.getenv("TWITTER_API_KEY", "")
-TWITTER_API_SECRET = os.getenv("TWITTER_API_SECRET", "")
-TWITTER_ACCESS_TOKEN = os.getenv("TWITTER_ACCESS_TOKEN", "")
-TWITTER_ACCESS_TOKEN_SECRET = os.getenv("TWITTER_ACCESS_TOKEN_SECRET", "")
+# Twitter/X  (OAuth 2.0 — create app at developer.twitter.com)
+TWITTER_CLIENT_ID     = os.getenv("TWITTER_CLIENT_ID", "")
+TWITTER_CLIENT_SECRET = os.getenv("TWITTER_CLIENT_SECRET", "")
+TWITTER_REDIRECT_URI  = os.getenv("TWITTER_REDIRECT_URI", "https://socialoptimize.online/oauth/twitter/callback")
+
+# Threads  (add Threads product to your Facebook App at developers.facebook.com)
+THREADS_APP_ID     = os.getenv("THREADS_APP_ID", "")
+THREADS_APP_SECRET = os.getenv("THREADS_APP_SECRET", "")
+THREADS_REDIRECT_URI = os.getenv("THREADS_REDIRECT_URI", "https://socialoptimize.online/oauth/threads/callback")
+
+# Twitch  (create app at dev.twitch.tv/console)
+TWITCH_CLIENT_ID     = os.getenv("TWITCH_CLIENT_ID", "")
+TWITCH_CLIENT_SECRET = os.getenv("TWITCH_CLIENT_SECRET", "")
+TWITCH_REDIRECT_URI  = os.getenv("TWITCH_REDIRECT_URI", "https://socialoptimize.online/oauth/twitch/callback")
+
+# Snapchat  (create app at kit.snapchat.com)
+SNAP_CLIENT_ID     = os.getenv("SNAP_CLIENT_ID", "")
+SNAP_CLIENT_SECRET = os.getenv("SNAP_CLIENT_SECRET", "")
+SNAP_REDIRECT_URI  = os.getenv("SNAP_REDIRECT_URI", "https://socialoptimize.online/oauth/snapchat/callback")
 
 # LinkedIn
-LINKEDIN_ACCESS_TOKEN = os.getenv("LINKEDIN_ACCESS_TOKEN", "")
-LINKEDIN_PERSON_ID = os.getenv("LINKEDIN_PERSON_ID", "")
+LINKEDIN_CLIENT_ID     = os.getenv("LINKEDIN_CLIENT_ID", "")
+LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET", "")
+LINKEDIN_ACCESS_TOKEN  = os.getenv("LINKEDIN_ACCESS_TOKEN", "")
+LINKEDIN_PERSON_ID     = os.getenv("LINKEDIN_PERSON_ID", "")
 
 # Pinterest
 PINTEREST_ACCESS_TOKEN = os.getenv("PINTEREST_ACCESS_TOKEN", "")
@@ -147,6 +229,10 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "noreply@socialoptimize.online")
+
+TWILIO_ACCOUNT_SID  = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN   = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_FROM_NUMBER  = os.getenv("TWILIO_FROM_NUMBER", "")
 
 # Google Cloud TTS Neural2 voices
 GOOGLE_TTS_VOICE = os.getenv("GOOGLE_TTS_VOICE", "en-US-Neural2-C")
@@ -199,4 +285,3 @@ HIGGSVILLE_MODELS = {
     "grok_video_v15":         "Grok Imagine 1.5 — Cinematic",
     "grok_video":             "Grok Imagine — Versatile",
 }
-
