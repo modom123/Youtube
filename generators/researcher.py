@@ -207,9 +207,13 @@ def _research_with_gemini(topic: str) -> dict:
             "statistics (list of strings), sources (list of strings). "
             "Return ONLY valid JSON, no markdown or code fences."
         )
+        from google.genai import types as genai_types
         response = client.models.generate_content(
             model="gemini-2.0-flash",
             contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                http_options=genai_types.HttpOptions(timeout=30_000),
+            ),
         )
         raw = response.text.strip()
         raw = re.sub(r"^```(?:json)?\s*", "", raw)

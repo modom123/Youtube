@@ -184,7 +184,9 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
     ul.error = _hook_error
     try:
         params["progress_cb"] = progress_cb
+        print(f"[job #{job_id}] Entering social_optimize.run()...")
         manifest = social_optimize.run(**params)
+        print(f"[job #{job_id}] Pipeline completed successfully!")
         _job_cancelled.set()
         job_title = manifest.get("title")
         db.update_job(

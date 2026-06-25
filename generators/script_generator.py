@@ -312,7 +312,7 @@ def _generate_script_claude(
         )
 
     import httpx
-    timeout = httpx.Timeout(55.0, connect=15.0)
+    timeout = httpx.Timeout(80.0, connect=10.0)
     client = anthropic.Anthropic(api_key=api_key, timeout=timeout, max_retries=0)
 
     prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)

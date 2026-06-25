@@ -226,7 +226,7 @@ def run(
     }
     model_label = _MODEL_LABELS.get(ai_model, "AI")
     _push_progress(18, f"Generating script with {model_label}...")
-    SCRIPT_TIMEOUT = 60  # seconds — fail fast so fallbacks get a chance
+    SCRIPT_TIMEOUT = 90  # seconds — generous for long countdown scripts
     _script_kwargs = dict(
         topic=topic,
         content_type=profile["content_type"],
@@ -254,6 +254,7 @@ def run(
             # the main thread moves on immediately.
             _executor.shutdown(wait=False)
 
+    print(f"[pipeline] Starting script generation stage with {model_label}...")
     with logger.spinner(f"Generating script with {model_label}..."):
         script = None
         last_err = None
@@ -267,12 +268,13 @@ def run(
         # Fallback chain: try every other available model
         if script is None:
             from generators.ai_router import _available_models
-            _fallback_order = ["gemini", "deepseek", "groq", "qwen", "claude"]
+            _fallback_order = ["claude", "gemini", "deepseek", "groq", "qwen"]
             available = _available_models()
             for fb_model in _fallback_order:
                 if fb_model == ai_model or fb_model not in available:
                     continue
                 fb_label = _MODEL_LABELS.get(fb_model, fb_model)
+                print(f"[pipeline] Trying fallback script engine: {fb_label}")
                 _push_progress(18, f"Retrying script with {fb_label}...")
                 try:
                     script = _run_script_with_timeout(fb_model)
@@ -314,6 +316,7 @@ def run(
     # ── 4. Generate audio voiceover ──────────────────────────────────────────
     _push_progress(35, f"Creating voiceover audio ({voice})...")
     audio_path = job / "voiceover.mp3"
+    print(f"[pipeline] Starting audio generation stage...")
     with logger.spinner(f"Generating voiceover ({voice})..."):
         audio_generator.generate_audio(
             text=script.narration,
@@ -321,14 +324,16 @@ def run(
             voice=voice,
         )
         duration = audio_generator.get_audio_duration(audio_path)
+    print(f"[pipeline] Audio stage complete: {duration:.1f}s")
 
     manifest["duration"] = duration
     manifest["files"]["audio"] = str(audio_path)
     logger.success(f"Voiceover: {duration:.1f}s ({file_manager.get_file_size_mb(audio_path):.1f} MB)")
 
     # ── 5. Fetch stock media ─────────────────────────────────────────────────
-    _push_progress(50, "Fetching stock media from Pexels...")
-    with logger.spinner("Fetching stock media from Pexels..."):
+    _push_progress(50, "Fetching stock media...")
+    print(f"[pipeline] Starting media fetch stage...")
+    with logger.spinner("Fetching stock media..."):
         stock_dir = job / "stock"
         video_clips, image_clips = media_fetcher.fetch_media_for_topic(
             keywords=script.keywords[:5],
@@ -426,6 +431,7 @@ def run(
 
     # ── 7. Assemble video ────────────────────────────────────────────────────
     _push_progress(78, "Assembling final video...")
+    print(f"[pipeline] Starting video assembly stage...")
     video_path = job / "video.mp4"
     with logger.spinner("Assembling video..."):
         if format == "podcast":

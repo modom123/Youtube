@@ -347,7 +347,7 @@ def generate_audio(
             def _edge_tts_in_thread():
                 asyncio.run(_generate_speech(clean_text, output_path, ev, rate, pitch))
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                pool.submit(_edge_tts_in_thread).result(timeout=90)
+                pool.submit(_edge_tts_in_thread).result(timeout=30)
             if output_path.exists() and output_path.stat().st_size > 1000:
                 print(f"[audio] edge-tts generated audio ({ev})")
                 edge_ok = True
