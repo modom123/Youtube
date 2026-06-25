@@ -514,3 +514,77 @@ def run(
     logger.print_job_summary(manifest)
 
     return manifest
+
+
+def publish_to_platforms(
+    video_path: str,
+    title: str,
+    description: str,
+    hashtags: list,
+    keywords: list,
+    platforms: list,
+    privacy: str = "private",
+    is_short: bool = False,
+    cdn_url: str = "",
+) -> dict:
+    """Publish an already-generated video to the requested platforms. Returns per-platform results."""
+    results = {}
+    for platform in platforms:
+        try:
+            if platform == "youtube":
+                result = youtube_publisher.upload_video(
+                    video_path=video_path, title=title, description=description,
+                    tags=hashtags + keywords, privacy=privacy, is_short=is_short,
+                )
+                results["youtube"] = result
+            elif platform == "tiktok":
+                result = tiktok_publisher.upload_video(
+                    video_path=video_path, title=title, description=description,
+                    tags=hashtags,
+                    privacy="SELF_ONLY" if privacy == "private" else "PUBLIC_TO_EVERYONE",
+                )
+                results["tiktok"] = result
+            elif platform == "instagram":
+                results["instagram"] = {
+                    "status": "skipped",
+                    "reason": "Instagram requires a public CDN URL. Host the video first.",
+                    "video_path": str(video_path),
+                }
+            elif platform == "facebook":
+                result = facebook_publisher.upload_video(
+                    video_path=video_path, title=title, description=description,
+                    tags=hashtags + keywords,
+                )
+                results["facebook"] = result
+            elif platform == "twitter":
+                result = twitter_publisher.upload_video(
+                    video_path=video_path, title=title, description=description, tags=hashtags,
+                )
+                results["twitter"] = result
+            elif platform == "linkedin":
+                result = linkedin_publisher.upload_video(
+                    video_path=video_path, title=title, description=description,
+                    tags=hashtags + keywords,
+                )
+                results["linkedin"] = result
+            elif platform == "pinterest":
+                result = pinterest_publisher.upload_video(
+                    video_path=video_path, title=title, description=description,
+                    tags=hashtags + keywords,
+                )
+                results["pinterest"] = result
+            elif platform == "threads":
+                if not cdn_url:
+                    results["threads"] = {
+                        "status": "skipped",
+                        "reason": "Threads requires a public CDN URL. No cdn_url found.",
+                        "video_path": str(video_path),
+                    }
+                else:
+                    result = threads_publisher.upload_video(
+                        video_url=cdn_url, title=title, description=description, tags=hashtags,
+                    )
+                    results["threads"] = result
+        except Exception as e:
+            results[platform] = {"error": str(e)}
+    return results

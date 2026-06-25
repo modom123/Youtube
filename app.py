@@ -279,7 +279,65 @@ def job_detail(job_id):
     if not job:
         return redirect("/jobs")
     dubs = db.get_dub_jobs_for_source(user_id=current_user.id, source_job_id=job_id)
-    return render_template("job_detail.html", job=job, dubs=dubs, dub_languages=DUB_LANGUAGES)
+    accounts = db.get_accounts(user_id=current_user.id)
+    connected = {a["platform"] for a in accounts if a["is_active"]}
+    return render_template("job_detail.html", job=job, dubs=dubs, dub_languages=DUB_LANGUAGES,
+                           connected_platforms=connected)
+
+
+@app.route("/api/jobs/<int:job_id>/publish", methods=["POST"])
+@login_required
+def api_publish_job(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+    if job["status"] != "done":
+        return jsonify({"error": "Job must be complete before publishing"}), 400
+    if not job.get("video_path"):
+        return jsonify({"error": "No video file found for this job"}), 400
+
+    data = request.json or {}
+    platforms = data.get("platforms", [])
+    privacy = data.get("privacy", "private")
+    if not platforms:
+        return jsonify({"error": "Select at least one platform"}), 400
+
+    title = job.get("title") or job.get("topic", "")
+    description = job.get("description", "")
+    hashtags, keywords, cdn_url = [], [], ""
+    is_short = job.get("format") in ("short", "reel")
+
+    if job.get("manifest_path"):
+        try:
+            with open(job["manifest_path"]) as f:
+                manifest_data = json.load(f)
+            hashtags = manifest_data.get("hashtags", [])
+            keywords = manifest_data.get("keywords", [])
+            cdn_url = manifest_data.get("files", {}).get("cdn_url", "")
+            if not description:
+                description = manifest_data.get("description", "")
+        except Exception:
+            pass
+
+    import social_optimize
+    results = social_optimize.publish_to_platforms(
+        video_path=job["video_path"],
+        title=title, description=description,
+        hashtags=hashtags, keywords=keywords,
+        platforms=platforms, privacy=privacy,
+        is_short=is_short, cdn_url=cdn_url,
+    )
+
+    existing = job.get("publish_results") or {}
+    if isinstance(existing, str):
+        try:
+            existing = json.loads(existing)
+        except Exception:
+            existing = {}
+    existing.update(results)
+    db.update_job(job_id, publish_results=existing)
+
+    return jsonify({"publish_results": results})
 
 
 @app.route("/api/jobs/<int:job_id>/research")
