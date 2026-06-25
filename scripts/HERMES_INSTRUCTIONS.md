@@ -12,7 +12,7 @@ playwright install chromium
    - Render Dashboard → Account Settings → API Keys → Create API Key
 
 2. **RENDER_SERVICE_ID**
-   - Open your Social Optimize service in Render
+   - Open your Social Money service in Render
    - Copy the ID from the URL: `dashboard.render.com/web/srv-XXXXXXXXXX`
    - It starts with `srv-`
 

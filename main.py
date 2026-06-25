@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Social Optimize Machine - CLI
+Social Money - CLI
 Usage: python main.py create "your topic here" [options]
 """
 import sys
@@ -14,7 +14,7 @@ console = Console()
 
 @click.group()
 def cli():
-    """Social Optimize Machine - Turn any topic into viral content."""
+    """Social Money - Turn any topic into viral content."""
     pass
 
 
@@ -74,7 +74,7 @@ def create(topic, format, platforms, audience, voice, style, privacy, instructio
     import social_optimize
 
     console.print(Panel(
-        f"[bold cyan]Social Optimize Machine[/bold cyan]\n"
+        f"[bold cyan]Social Money[/bold cyan]\n"
         f"[dim]Creating [bold]{format}[/bold] content about: [bold yellow]{topic}[/bold yellow][/dim]",
         expand=False,
     ))

@@ -1,4 +1,4 @@
-"""File management utilities for the Social Optimize Machine."""
+"""File management utilities for the Social Money."""
 import json
 from datetime import datetime
 from pathlib import Path

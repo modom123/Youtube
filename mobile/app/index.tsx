@@ -68,7 +68,7 @@ export default function MainScreen() {
         </View>
         <Text style={styles.errorTitle}>Connection Error</Text>
         <Text style={styles.errorSub}>
-          Could not reach the Social Optimize Machine server.{'\n'}
+          Could not reach the Social Money server.{'\n'}
           Please check your internet connection.
         </Text>
         <TouchableOpacity
@@ -117,7 +117,7 @@ export default function MainScreen() {
           })();
           true;
         `}
-        userAgent={`SOMApp/${Platform.OS} ReactNative`}
+        userAgent={`SocialMoneyApp/${Platform.OS} ReactNative`}
       />
 
       {/* Loading indicator */}

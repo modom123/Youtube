@@ -59,8 +59,8 @@ TASKS = [
         "key": "ANTHROPIC_API_KEY",
         "task": """
 Go to https://console.anthropic.com/settings/keys.
-If there is already a key named 'Social Optimize', copy its value.
-Otherwise click 'Create Key', name it 'Social Optimize', then copy the full key value (starts with sk-ant-).
+If there is already a key named 'Social Money', copy its value.
+Otherwise click 'Create Key', name it 'Social Money', then copy the full key value (starts with sk-ant-).
 Return ONLY the key value, nothing else.
 """
     },
@@ -111,7 +111,7 @@ Return ONLY that price ID, nothing else.
         "key": "YOUTUBE_CLIENT_ID",
         "task": """
 Go to https://console.cloud.google.com/apis/credentials.
-Find the OAuth 2.0 Client ID for the Social Optimize app (or the first one listed).
+Find the OAuth 2.0 Client ID for the Social Money app (or the first one listed).
 Click on it to open details.
 Return ONLY the Client ID value (ends in .apps.googleusercontent.com), nothing else.
 """
@@ -136,7 +136,7 @@ Return ONLY the key value (starts with AIza), nothing else.
         "key": "TIKTOK_CLIENT_KEY",
         "task": """
 Go to https://developers.tiktok.com/apps/.
-Click on the Social Optimize app (or first app listed).
+Click on the Social Money app (or first app listed).
 Find the Client Key.
 Return ONLY the Client Key value, nothing else.
 """
@@ -145,7 +145,7 @@ Return ONLY the Client Key value, nothing else.
         "key": "TIKTOK_CLIENT_SECRET",
         "task": """
 Go to https://developers.tiktok.com/apps/.
-Click on the Social Optimize app.
+Click on the Social Money app.
 Find and reveal the Client Secret.
 Return ONLY the Client Secret value, nothing else.
 """
@@ -154,7 +154,7 @@ Return ONLY the Client Secret value, nothing else.
         "key": "FACEBOOK_APP_ID",
         "task": """
 Go to https://developers.facebook.com/apps/.
-Click on the Social Optimize app. Go to Settings > Basic.
+Click on the Social Money app. Go to Settings > Basic.
 Return ONLY the App ID value, nothing else.
 """
     },
@@ -162,7 +162,7 @@ Return ONLY the App ID value, nothing else.
         "key": "FACEBOOK_APP_SECRET",
         "task": """
 Go to https://developers.facebook.com/apps/.
-Click on the Social Optimize app. Go to Settings > Basic.
+Click on the Social Money app. Go to Settings > Basic.
 Click Show next to App Secret.
 Return ONLY the App Secret value, nothing else.
 """
@@ -172,7 +172,7 @@ Return ONLY the App Secret value, nothing else.
         "task": """
 Go to https://developers.facebook.com/apps/.
 Check if there is a separate Threads app. If yes, click it and return its App ID.
-If no separate Threads app exists, return the same App ID as the main Facebook/Social Optimize app.
+If no separate Threads app exists, return the same App ID as the main Facebook/Social Money app.
 Return ONLY the App ID value, nothing else.
 """
     },
@@ -181,7 +181,7 @@ Return ONLY the App ID value, nothing else.
         "task": """
 Go to https://developers.facebook.com/apps/.
 Check if there is a separate Threads app. If yes, click it, go to Settings > Basic, reveal App Secret.
-If no separate Threads app exists, return the same App Secret as the main Facebook/Social Optimize app.
+If no separate Threads app exists, return the same App Secret as the main Facebook/Social Money app.
 Return ONLY the App Secret value, nothing else.
 """
     },
@@ -189,7 +189,7 @@ Return ONLY the App Secret value, nothing else.
         "key": "LINKEDIN_CLIENT_ID",
         "task": """
 Go to https://www.linkedin.com/developers/apps/.
-Click on the Social Optimize app. Go to the Auth tab.
+Click on the Social Money app. Go to the Auth tab.
 Return ONLY the Client ID value, nothing else.
 """
     },
@@ -197,7 +197,7 @@ Return ONLY the Client ID value, nothing else.
         "key": "LINKEDIN_CLIENT_SECRET",
         "task": """
 Go to https://www.linkedin.com/developers/apps/.
-Click on the Social Optimize app. Go to the Auth tab.
+Click on the Social Money app. Go to the Auth tab.
 Find the Primary Client Secret.
 Return ONLY the Client Secret value, nothing else.
 """
@@ -224,7 +224,7 @@ Return ONLY the Client Secret value, nothing else.
         "key": "TWITCH_CLIENT_ID",
         "task": """
 Go to https://dev.twitch.tv/console/apps.
-Click on the Social Optimize app.
+Click on the Social Money app.
 Return ONLY the Client ID value, nothing else.
 """
     },
@@ -232,7 +232,7 @@ Return ONLY the Client ID value, nothing else.
         "key": "TWITCH_CLIENT_SECRET",
         "task": """
 Go to https://dev.twitch.tv/console/apps.
-Click on the Social Optimize app.
+Click on the Social Money app.
 Click 'New Secret' if no secret exists, then copy it.
 Return ONLY the Client Secret value, nothing else.
 """
@@ -241,7 +241,7 @@ Return ONLY the Client Secret value, nothing else.
         "key": "SNAP_CLIENT_ID",
         "task": """
 Go to https://kit.snapchat.com/manage.
-Click on the Social Optimize app > Credentials.
+Click on the Social Money app > Credentials.
 Return ONLY the Client ID value, nothing else.
 """
     },
@@ -249,7 +249,7 @@ Return ONLY the Client ID value, nothing else.
         "key": "SNAP_CLIENT_SECRET",
         "task": """
 Go to https://kit.snapchat.com/manage.
-Click on the Social Optimize app > Credentials.
+Click on the Social Money app > Credentials.
 Find the Client Secret.
 Return ONLY the Client Secret value, nothing else.
 """
@@ -298,7 +298,7 @@ Return ONLY the token value, nothing else.
         "key": "SMTP_PASS",
         "task": """
 Go to https://myaccount.google.com/apppasswords.
-Create a new App Password: App = Mail, Device = Social Optimize.
+Create a new App Password: App = Mail, Device = Social Money.
 Return ONLY the 16-character app password (no spaces), nothing else.
 """
     },
@@ -392,7 +392,7 @@ async def run():
 
     remaining = len([t for t in TASKS if not collected.get(t["key"])])
     print("=" * 60)
-    print("  HERMES AUTO AGENT — Social Optimize")
+    print("  HERMES AUTO AGENT — Social Money")
     print(f"  Connected to your open Chrome browser")
     print(f"  {remaining} tasks remaining")
     print("=" * 60)

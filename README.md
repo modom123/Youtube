@@ -1,4 +1,4 @@
-# Social Optimize Machine
+# Social Money
 
 Turn any topic into a complete, publish-ready content package in minutes.
 

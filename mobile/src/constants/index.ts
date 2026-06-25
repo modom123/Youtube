@@ -1,4 +1,4 @@
-export const APP_URL = 'https://social-optimize-machine.onrender.com';
+export const APP_URL = 'https://social-money.onrender.com';
 
 export const COLORS = {
   background: '#0a0a0a',

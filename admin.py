@@ -160,7 +160,7 @@ def admin_provision():
         html = f"""
         <html><body style="font-family:sans-serif;background:#111;color:#eee;padding:32px;">
         <div style="max-width:560px;margin:0 auto;">
-          <h1 style="color:#d4a017;font-size:28px;margin-bottom:8px;">Social Optimize Machine</h1>
+          <h1 style="color:#d4a017;font-size:28px;margin-bottom:8px;">Social Money</h1>
           <p style="color:#ccc;font-size:16px;">Hi {name or email},</p>
           <p style="color:#ccc;">Your account has been created on the <strong style="color:#fff;">{tier.title()}</strong> plan.</p>
           <table style="background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:20px;margin:20px 0;width:100%;">
@@ -173,8 +173,8 @@ def admin_provision():
             Log In Now
           </a>
         </div></body></html>"""
-        text = f"Social Optimize Machine\n\nYour account:\nEmail: {email}\nTemp Password: {temp_pw}\nPlan: {tier.title()}\n\nLog in: {login_url}"
-        email_sent = _send_email(email, "Your Social Optimize Machine account is ready", html, text)
+        text = f"Social Money\n\nYour account:\nEmail: {email}\nTemp Password: {temp_pw}\nPlan: {tier.title()}\n\nLog in: {login_url}"
+        email_sent = _send_email(email, "Your Social Money account is ready", html, text)
 
     return jsonify({
         "ok": True,

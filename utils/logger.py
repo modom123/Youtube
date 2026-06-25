@@ -1,4 +1,4 @@
-"""Rich-powered logging for the Social Optimize Machine."""
+"""Rich-powered logging for the Social Money."""
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.panel import Panel

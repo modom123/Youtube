@@ -1,13 +1,13 @@
 {
-  "name": "social-optimize-machine",
+  "name": "social-money",
   "version": "1.0.0",
-  "description": "Social Optimize Machine — Desktop App (macOS, Windows, Linux)",
+  "description": "Social Money — Desktop App (macOS, Windows, Linux)",
   "main": "main.js",
   "author": {
-    "name": "Social Optimize Machine",
+    "name": "Social Money",
     "email": "support@socialoptimize.app"
   },
-  "homepage": "https://social-optimize-machine.onrender.com",
+  "homepage": "https://social-money.onrender.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/modom123/youtube"
@@ -31,9 +31,9 @@
     "electron-builder": "^25.0.0"
   },
   "build": {
-    "appId": "com.socialoptimize.machine",
-    "productName": "Social Optimize Machine",
-    "copyright": "Copyright © 2025 Social Optimize Machine",
+    "appId": "com.socialmoney.app",
+    "productName": "Social Money",
+    "copyright": "Copyright © 2025 Social Money",
     "directories": {
       "output": "dist",
       "buildResources": "assets"

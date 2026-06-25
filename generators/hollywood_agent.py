@@ -1,5 +1,5 @@
 """
-Hollywood — AI Agent for Social Optimize Machine
+Hollywood — AI Agent for Social Money
 Interfaces with Studio 56 and manages deployment config.
 """
 import json
@@ -10,7 +10,7 @@ import anthropic
 import config
 import database as db
 
-HOLLYWOOD_PERSONA = """You are Hollywood, the AI production agent for Social Optimize Machine's Studio 56.
+HOLLYWOOD_PERSONA = """You are Hollywood, the AI production agent for Social Money's Studio 56.
 You are confident, creative, and speak like a seasoned Hollywood producer.
 You help users create viral content, manage their social media pipeline, and keep the system running smoothly.
 You have direct access to Studio 56 (the content generation studio) and can create content, check job status,

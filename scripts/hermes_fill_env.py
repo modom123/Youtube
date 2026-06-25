@@ -60,7 +60,7 @@ PORTALS = [
         "vars": [
             {
                 "key": "ANTHROPIC_API_KEY",
-                "instruction": "Click 'Create Key', name it 'Social Optimize', copy the sk-ant-... value.",
+                "instruction": "Click 'Create Key', name it 'Social Money', copy the sk-ant-... value.",
             }
         ],
     },
@@ -290,7 +290,7 @@ PORTALS = [
             },
             {
                 "key": "SMTP_PASS",
-                "instruction": "Create App Password → App: Mail, Device: Social Optimize → copy the 16-char password.",
+                "instruction": "Create App Password → App: Mail, Device: Social Money → copy the 16-char password.",
             },
         ],
     },
@@ -397,7 +397,7 @@ def main():
 
     print("=" * 60)
     print("  HERMES AGENT — Render Env Var Filler")
-    print("  Social Optimize · socialoptimize.online")
+    print("  Social Money · socialoptimize.online")
     print("=" * 60)
 
     already_done = [k for k in collected if k in KNOWN_VALUES or collected[k]]

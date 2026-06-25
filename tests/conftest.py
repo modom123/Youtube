@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for the Social Optimize Machine test suite."""
+"""Shared pytest fixtures for the Social Money test suite."""
 import os
 import sys
 import tempfile

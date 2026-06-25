@@ -159,7 +159,7 @@ def create_video(
 
     # Branding bar
     try:
-        brand_arr = _make_text_image("Social Optimize", width, font_size=22,
+        brand_arr = _make_text_image("Social Money", width, font_size=22,
                                      color=(200, 200, 200), bg=(0, 0, 0, 120))
         brand_clip = (
             ImageClip(brand_arr)

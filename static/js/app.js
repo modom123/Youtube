@@ -1,4 +1,4 @@
-/* Social Optimize Machine — Global JS */
+/* Social Money — Global JS */
 
 // ── Toast Notifications ───────────────────────────────────────────────────────
 function toast(type, title, msg = '') {

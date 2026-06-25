@@ -1,4 +1,4 @@
-/* Social Optimize Machine — Service Worker */
+/* Social Money — Service Worker */
 const CACHE_NAME = 'som-v1';
 const STATIC_ASSETS = [
   '/static/css/style.css',
