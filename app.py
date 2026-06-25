@@ -83,6 +83,11 @@ def push_event(job_id: int, data: dict):
 
 def _run_job_thread(job_id: int, params: dict, user_id: int = None):
     import social_optimize
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
+    if user_id:
+        _tok = _get_user_higgsfield_token(user_id)
+        _avg._session_token.value = _tok
+        _hmcp._session_token.value = _tok
     steps = [
         (10, "Generating script with Claude AI..."),
         (25, "Creating voiceover audio..."),
@@ -641,10 +646,15 @@ def get_thumbnail(job_id):
 def accounts_page():
     accounts = db.get_accounts(user_id=current_user.id)
     connected = {a["platform"] for a in accounts if a.get("is_active", True)}
+    higgsfield_connected = any(
+        a.get("platform") == "higgsfield" and a.get("is_active") and a.get("access_token")
+        for a in accounts
+    )
     return render_template(
         "accounts.html",
         accounts=accounts,
         connected=connected,
+        higgsfield_connected=higgsfield_connected,
         youtube_configured=bool(config.YOUTUBE_CLIENT_ID),
         tiktok_configured=bool(config.TIKTOK_CLIENT_KEY),
         meta_configured=bool(config.FACEBOOK_APP_ID),
@@ -1186,6 +1196,122 @@ def oauth_snapchat_callback():
     return redirect(url_for("accounts_page"))
 
 
+# ── Higgsfield OAuth (MCP PKCE — no client_secret) ───────────────────────────
+
+_HIGGSFIELD_MCP_BASE = "https://mcp.higgsfield.ai"
+_hf_pkce_store: dict = {}  # state -> {code_verifier, user_id}
+
+
+def _hf_discover() -> dict:
+    """Fetch OAuth server metadata from Higgsfield MCP discovery endpoint."""
+    import hashlib, base64
+    try:
+        r = requests.get(f"{_HIGGSFIELD_MCP_BASE}/.well-known/oauth-authorization-server", timeout=6)
+        if r.ok:
+            return r.json()
+    except Exception:
+        pass
+    return {
+        "authorization_endpoint": f"{_HIGGSFIELD_MCP_BASE}/oauth/authorize",
+        "token_endpoint": f"{_HIGGSFIELD_MCP_BASE}/oauth/token",
+    }
+
+
+@app.route("/oauth/higgsfield/start")
+@login_required
+def oauth_higgsfield_start():
+    import hashlib, base64, secrets as _sec
+    disc = _hf_discover()
+    auth_ep = disc.get("authorization_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/authorize")
+
+    # PKCE — no client_secret required
+    verifier = _sec.token_urlsafe(64)
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode()).digest()
+    ).rstrip(b"=").decode()
+    state = _sec.token_urlsafe(16)
+
+    _hf_pkce_store[state] = {
+        "code_verifier": verifier,
+        "token_endpoint": disc.get("token_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/token"),
+        "user_id": current_user.id,
+    }
+
+    callback_uri = config.APP_BASE_URL + "/oauth/higgsfield/callback"
+    from urllib.parse import urlencode
+    qs = urlencode({
+        "response_type": "code",
+        "client_id": "social-optimize-machine",
+        "redirect_uri": callback_uri,
+        "scope": "openid profile",
+        "state": state,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+    })
+    return redirect(f"{auth_ep}?{qs}")
+
+
+@app.route("/oauth/higgsfield/callback")
+@login_required
+def oauth_higgsfield_callback():
+    code = request.args.get("code")
+    state = request.args.get("state")
+    error = request.args.get("error")
+
+    if error or not code:
+        return redirect(url_for("accounts_page") + "?error=higgsfield_auth_failed")
+
+    pkce = _hf_pkce_store.pop(state, None)
+    if not pkce:
+        return redirect(url_for("accounts_page") + "?error=higgsfield_state_mismatch")
+
+    callback_uri = config.APP_BASE_URL + "/oauth/higgsfield/callback"
+    try:
+        resp = requests.post(
+            pkce["token_endpoint"],
+            json={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": callback_uri,
+                "client_id": "social-optimize-machine",
+                "code_verifier": pkce["code_verifier"],
+            },
+            headers={"Content-Type": "application/json"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        tokens = resp.json()
+        access_token = tokens.get("access_token", "")
+    except Exception as e:
+        return redirect(url_for("accounts_page") + f"?error=higgsfield_token_failed")
+
+    if not access_token:
+        return redirect(url_for("accounts_page") + "?error=higgsfield_no_token")
+
+    db.upsert_account(
+        user_id=pkce["user_id"],
+        platform="higgsfield",
+        platform_user_id=pkce["user_id"],
+        username="higgsfield",
+        display_name="Social Optimize AI",
+        access_token=access_token,
+        refresh_token=tokens.get("refresh_token", ""),
+        is_active=True,
+    )
+    return redirect(url_for("accounts_page") + "?connected=higgsfield")
+
+
+def _get_user_higgsfield_token(user_id: int) -> str:
+    """Return this user's Higgsfield OAuth token (DB first, env var fallback)."""
+    accounts = db.get_accounts(user_id=user_id)
+    for acc in accounts:
+        if acc.get("platform") == "higgsfield" and acc.get("is_active"):
+            tok = acc.get("access_token", "")
+            if tok:
+                return tok
+    return config.HIGGSFIELD_MCP_TOKEN  # global fallback
+
+
 # ── Contacts ─────────────────────────────────────────────────────────────────
 
 @app.route("/contacts")
@@ -1716,7 +1842,12 @@ def _push_studio_event(job_id: str, data: dict):
 
 
 def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
     from generators.production_engine import ProductionStudioEngine
+    if user_id:
+        _tok = _get_user_higgsfield_token(user_id)
+        _avg._session_token.value = _tok
+        _hmcp._session_token.value = _tok
     def _cb(msg: str, pct: int):
         with _studio_lock:
             if studio_job_id in _studio_jobs:
@@ -2674,6 +2805,10 @@ def _push_commercial(job_id: str, data: dict):
 def _run_commercial_thread(job_id: str, params: dict, user_id: int):
     import anthropic as _ant
     import base64
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
+    _tok = _get_user_higgsfield_token(user_id)
+    _avg._session_token.value = _tok
+    _hmcp._session_token.value = _tok
 
     def step(msg, pct):
         _push_commercial(job_id, {"status": "running", "step": msg, "progress": pct})

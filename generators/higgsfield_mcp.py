@@ -8,20 +8,23 @@ Authentication uses HIGGSFIELD_MCP_TOKEN.
 import json
 import re
 import time
+import threading
 import requests
 from pathlib import Path
 from typing import Optional
 import config
 
+# Per-thread Higgsfield token override (set by app.py thread functions)
+_session_token: threading.local = threading.local()
 
 MCP_URL = config.HIGGSFIELD_MCP_URL
 _PROTO_VERSION = "2024-11-05"
 
 
 def _token() -> str:
-    tok = config.HIGGSFIELD_MCP_TOKEN
+    tok = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN
     if not tok:
-        raise RuntimeError("Set HIGGSFIELD_MCP_TOKEN in .env")
+        raise RuntimeError("Higgsfield not connected — authenticate via Accounts page")
     return tok
 
 

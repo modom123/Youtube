@@ -56,6 +56,7 @@ def _build_prompt(
             "Do NOT make up numbers. If you have the data, state the exact stat (e.g., '91 goals in a single calendar year'). "
             "Make each entry ~20–30 seconds of narration. The sections array must have one section per ranked entry plus intro/outro."
         ),
+        "bumper": (
             "Create a 6-SECOND BUMPER AD script. This is a YouTube bumper ad — unskippable, 6 seconds maximum. "
             "Structure: One single punchy message + brand/product name. No fluff. Every word must earn its place. "
             "The narration should be 10–15 words maximum. One unforgettable visual moment."
