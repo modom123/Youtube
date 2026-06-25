@@ -11,6 +11,7 @@ from moviepy import (
     ImageClip,
     CompositeVideoClip,
     ColorClip,
+    concatenate_videoclips,
 )
 from moviepy.video.fx import FadeIn, FadeOut
 
