@@ -1,6 +1,8 @@
 """Script generation using Claude AI (default), DeepSeek (fast/cheap), or Gemini Flash (batch/budget)."""
 import json
 import re
+import queue
+import threading
 from dataclasses import dataclass, field
 from typing import Optional
 import anthropic
@@ -170,6 +172,12 @@ def generate_script(
     ai_model: "claude" (default, premium quality) or "gemini" (fast & budget for batch).
     subscription_tier: routes free-tier users to cheaper models automatically.
     """
+    if ai_model == "parallel":
+        return generate_script_parallel(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context, subscription_tier=subscription_tier,
+        )
     if ai_model == "deepseek" and getattr(config, "DEEPSEEK_API_KEY", ""):
         script = _generate_script_deepseek(
             topic=topic,
@@ -220,6 +228,66 @@ def generate_script(
     # Attach NLP SEO data regardless of which model was used
     _attach_seo_data(script)
     return script
+
+
+def generate_script_parallel(
+    topic: str,
+    content_type: str = "short",
+    target_duration: int = 60,
+    audience: str = "general public",
+    custom_instructions: Optional[str] = None,
+    research_context: str = "",
+    models: list | None = None,
+    subscription_tier: str = "starter",
+) -> "ContentScript":
+    """
+    Fire multiple models in parallel and return the first valid result.
+    Falls back to sequential if only one model is available.
+    models: list of model names to race, e.g. ["deepseek", "groq", "claude"].
+            If None, picks 2-3 best available models automatically.
+    """
+    if not models:
+        from generators.ai_router import _available_models, _TYPE_PREFERENCE
+        available = _available_models()
+        candidates = _TYPE_PREFERENCE.get(content_type, ["claude", "deepseek", "gemini"])
+        models = [m for m in candidates if m in available][:3]
+    if len(models) <= 1:
+        return generate_script(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context, ai_model=models[0] if models else "claude",
+            subscription_tier=subscription_tier,
+        )
+
+    result_queue: queue.Queue = queue.Queue()
+
+    def _try_model(model_name: str) -> None:
+        try:
+            script = generate_script(
+                topic=topic, content_type=content_type, target_duration=target_duration,
+                audience=audience, custom_instructions=custom_instructions,
+                research_context=research_context, ai_model=model_name,
+                subscription_tier=subscription_tier,
+            )
+            result_queue.put((model_name, script))
+            print(f"[parallel] {model_name} finished first")
+        except Exception as e:
+            print(f"[parallel] {model_name} failed: {e}")
+            result_queue.put((model_name, None))
+
+    threads = [threading.Thread(target=_try_model, args=(m,), daemon=True) for m in models]
+    for t in threads:
+        t.start()
+
+    # Collect results; return first non-None
+    errors = 0
+    for _ in models:
+        model_name, script = result_queue.get()
+        if script is not None:
+            return script
+        errors += 1
+
+    raise RuntimeError(f"All {len(models)} parallel script models failed")
 
 
 def _generate_script_claude(

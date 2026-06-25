@@ -71,6 +71,10 @@ def route(
     """
     available = _available_models()
 
+    # Parallel mode bypasses single-model routing
+    if user_preference == "parallel":
+        return "parallel"
+
     if user_preference == "auto":
         # Free tier always gets cheapest model
         if subscription_tier == "free":
@@ -105,6 +109,13 @@ def get_model_info() -> list[dict]:
             "desc": "AI picks the best model for your content type",
             "badge": "smart",
             "available": True,
+        },
+        {
+            "id": "parallel",
+            "name": "Parallel Race",
+            "desc": "Fires 2-3 models simultaneously — fastest valid result wins",
+            "badge": "turbo",
+            "available": len(_available_models()) >= 2,
         },
         {
             "id": "claude",

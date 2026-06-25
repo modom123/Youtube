@@ -159,7 +159,7 @@
                 <span style="font-size:11px;color:var(--muted);display:block;margin-top:1px;">{{ m.desc }}</span>
               </span>
             </span>
-            <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:{% if m.badge == 'smart' %}#d4a01722{% elif m.badge == 'quality' %}#3b82f622{% elif m.badge == 'fast' %}#22c55e22{% elif m.badge == 'ultra-fast' %}#06b6d422{% elif m.badge == 'multilingual' %}#a855f722{% else %}#64748b22{% endif %};color:{% if m.badge == 'smart' %}var(--gold){% elif m.badge == 'quality' %}#60a5fa{% elif m.badge == 'fast' %}#4ade80{% elif m.badge == 'ultra-fast' %}#22d3ee{% elif m.badge == 'multilingual' %}#c084fc{% else %}var(--muted){% endif %};">
+            <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:{% if m.badge == 'smart' %}#d4a01722{% elif m.badge == 'turbo' %}#f97316aa{% elif m.badge == 'quality' %}#3b82f622{% elif m.badge == 'fast' %}#22c55e22{% elif m.badge == 'ultra-fast' %}#06b6d422{% elif m.badge == 'multilingual' %}#a855f722{% else %}#64748b22{% endif %};color:{% if m.badge == 'smart' %}var(--gold){% elif m.badge == 'turbo' %}#fb923c{% elif m.badge == 'quality' %}#60a5fa{% elif m.badge == 'fast' %}#4ade80{% elif m.badge == 'ultra-fast' %}#22d3ee{% elif m.badge == 'multilingual' %}#c084fc{% else %}var(--muted){% endif %};">
               {{ m.badge }}{% if not m.available %} · no key{% endif %}
             </span>
           </label>
