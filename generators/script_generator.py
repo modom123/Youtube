@@ -42,7 +42,20 @@ def _build_prompt(
             "Each chapter must have a distinct focus. Sections must reflect these chapters exactly."
         ),
         "reel": f"Create an Instagram REEL script (~{target_duration} seconds). Visually driven, trend-aware, highly shareable.",
-        "commercial_6": (
+        "countdown": (
+            f"Create a COUNTDOWN / RANKED LIST video script (~{target_duration} seconds / {target_duration//60} minutes). "
+            "This is a YouTube-style 'Top N' countdown video. Structure:\n"
+            "1) HOOK (0–10s): Tease the #1 spot to create suspense. Example: 'Who scored more goals than any player in history? Stay till the end to find out.'\n"
+            "2) INTRO (10–30s): Brief context — why this list matters, what criteria were used.\n"
+            "3) COUNTDOWN ENTRIES: Cover EVERY ranked entry from the lowest rank to #1. "
+            "For each entry, narrate: the rank number, the name, the key stat/achievement, and one fascinating fact. "
+            "Use transitional phrases: 'Coming in at number X...', 'Next up at number Y...', 'But wait — at number Z...'\n"
+            "4) #1 REVEAL (last 30s): Build tension before revealing. Make it feel earned.\n"
+            "5) OUTRO (15s): Recap the top 3, invite comments ('Comment who you think was robbed'), subscribe CTA.\n\n"
+            "CRITICAL: Use REAL names and REAL verified statistics from the research data or your training knowledge. "
+            "Do NOT make up numbers. If you have the data, state the exact stat (e.g., '91 goals in a single calendar year'). "
+            "Make each entry ~20–30 seconds of narration. The sections array must have one section per ranked entry plus intro/outro."
+        ),
             "Create a 6-SECOND BUMPER AD script. This is a YouTube bumper ad — unskippable, 6 seconds maximum. "
             "Structure: One single punchy message + brand/product name. No fluff. Every word must earn its place. "
             "The narration should be 10–15 words maximum. One unforgettable visual moment."

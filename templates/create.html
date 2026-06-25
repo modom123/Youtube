@@ -54,6 +54,11 @@
           <div class="format-desc">Conversational audio+visual · 10 min</div>
           <span class="format-badge badge-green">16:9 Landscape</span>
         </div>
+        <div class="format-card" data-format="countdown" onclick="selectFormat(this,'countdown')" style="border-color:#a855f755;">
+          <div class="format-name" style="color:#a855f7;">🏆 Countdown / Top N</div>
+          <div class="format-desc">Ranked list video · 5–15 min</div>
+          <span class="format-badge" style="background:rgba(168,85,247,.15);color:#a855f7;">16:9 Landscape</span>
+        </div>
         <div class="format-card" data-format="commercial" onclick="selectFormat(this,'commercial')" style="border-color:#f59e0b55;">
           <div class="format-name" style="color:#f59e0b;">📺 Commercial</div>
           <div class="format-desc">Brand ad · 6 / 15 / 30 / 60 sec</div>
@@ -541,7 +546,9 @@ async function startCreate() {
     guest_name: document.getElementById('guest_name').value || '',
     target_duration: _format === 'commercial'
       ? parseInt(document.getElementById('ad_duration').value) || 30
-      : parseInt(document.getElementById('podcast_duration').value) || 1800,
+      : _format === 'countdown'
+        ? 720
+        : parseInt(document.getElementById('podcast_duration').value) || 1800,
     // Commercial-specific fields
     ad_format: _format === 'commercial' ? document.getElementById('ad_format').value : null,
     ad_brand: document.getElementById('ad_brand').value || '',

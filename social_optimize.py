@@ -63,6 +63,15 @@ CONTENT_PROFILES = {
         "is_short": False,
         "content_type": "commercial_30",  # overridden at runtime
     },
+    "countdown": {
+        "label": "Countdown / Top N Ranked List",
+        "duration": 720,  # 12 minutes default — enough for top 25
+        "width": config.VIDEO_WIDTH,
+        "height": config.VIDEO_HEIGHT,
+        "is_portrait": False,
+        "is_short": False,
+        "content_type": "countdown",
+    },
 }
 
 
