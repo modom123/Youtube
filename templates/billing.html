@@ -91,7 +91,7 @@
       {% if credits_limit > 0 %}
       <div class="usage-row">
         <div class="usage-label">
-          <span class="lbl">Higgsfield credits</span>
+          <span class="lbl">Social Optimize Credits</span>
           <span class="val">{{ credits_used }} / {{ credits_limit }}</span>
         </div>
         {% set cpct = [(credits_used / credits_limit * 100)|round|int, 100]|min %}
@@ -120,7 +120,7 @@
             <div class="plan-row-name">{{ tier.label }}</div>
             <div class="plan-row-desc">
               {% if tier.videos_per_month == -1 %}Unlimited videos{% else %}{{ tier.videos_per_month }} videos{% endif %}
-              · {{ tier.higgsfield_credits }} AI credits/mo
+              · {{ tier.higgsfield_credits }} Social Optimize Credits/mo
             </div>
           </div>
           <div class="plan-row-price">${{ tier.price_monthly }}<span style="font-size:12px;font-weight:500;color:var(--muted)">/mo</span></div>
@@ -162,7 +162,7 @@
     <div class="bcard">
       <h2>Need More?</h2>
       <p style="font-size:13px;color:var(--muted);line-height:1.6;">
-        If you're running a content agency or producing at scale, the Agency plan gives you unlimited videos and 2,000 Higgsfield AI credits per month.
+        If you're running a content agency or producing at scale, the Agency plan gives you unlimited videos and 2,000 Social Optimize Credits per month.
       </p>
       {% if current_tier != 'agency' and stripe_pub %}
       <a href="{{ url_for('billing.checkout', tier_name='agency') }}" class="btn btn-secondary" style="width:100%;margin-top:14px;text-align:center;">
