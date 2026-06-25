@@ -147,20 +147,25 @@
         </select>
         <div class="form-hint">{% if google_api_key %}Google Cloud Neural2 HD voices active{% else %}Using Microsoft Edge TTS — set GOOGLE_API_KEY for Neural2 HD{% endif %}</div>
       </div>
-      {% if google_api_key %}
       <div class="form-group">
         <label>Script Engine</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="radio" name="ai_model" value="claude" checked /> Claude (premium)
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;">
+            <input type="radio" name="ai_model" value="claude" checked /> Claude (quality)
           </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="radio" name="ai_model" value="gemini" /> Gemini Flash (fast)
+          {% if deepseek_api_key %}
+          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;">
+            <input type="radio" name="ai_model" value="deepseek" /> DeepSeek (fast)
           </label>
+          {% endif %}
+          {% if google_api_key %}
+          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;">
+            <input type="radio" name="ai_model" value="gemini" /> Gemini (batch)
+          </label>
+          {% endif %}
         </div>
-        <div class="form-hint">Gemini Flash is faster and cheaper — ideal for bulk generation</div>
+        <div class="form-hint">DeepSeek is 3-5× faster for long-form scripts. Claude is highest quality.</div>
       </div>
-      {% endif %}
       <div class="form-group">
         <label>Thumbnail Style</label>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="style-grid">
@@ -406,7 +411,10 @@
       <div class="card-title mb-12" id="prog-title">Generating Content...</div>
       <div class="flex-between mb-8">
         <span class="text-dim text-sm" id="prog-step">Starting...</span>
-        <span class="pill pill-running" id="prog-status">Running</span>
+        <span style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:14px;font-weight:700;color:var(--gold);" id="prog-pct">0%</span>
+          <span class="pill pill-running" id="prog-status">Running</span>
+        </span>
       </div>
       <div class="progress-track">
         <div class="progress-bar" id="prog-bar" style="width:0%"></div>
@@ -612,7 +620,10 @@ async function launchJob(payload) {
 
     function onMessage(e) {
       const d = JSON.parse(e.data);
-      if (d.progress !== undefined) document.getElementById('prog-bar').style.width = d.progress + '%';
+      if (d.progress !== undefined) {
+        document.getElementById('prog-bar').style.width = d.progress + '%';
+        document.getElementById('prog-pct').textContent = d.progress + '%';
+      }
       if (d.step) document.getElementById('prog-step').textContent = d.step;
       if (d.log) {
         const span = document.createElement('span');
@@ -655,6 +666,7 @@ async function launchJob(payload) {
 function resetProgress() {
   document.getElementById('prog-bar').style.width = '0%';
   document.getElementById('prog-bar').className = 'progress-bar';
+  document.getElementById('prog-pct').textContent = '0%';
   document.getElementById('prog-step').textContent = 'Starting...';
   document.getElementById('prog-status').className = 'pill pill-running';
   document.getElementById('prog-status').textContent = 'Running';

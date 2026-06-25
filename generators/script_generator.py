@@ -1,4 +1,4 @@
-"""Script generation using Claude AI (default) or Gemini Flash (batch/budget)."""
+"""Script generation using Claude AI (default), DeepSeek (fast/cheap), or Gemini Flash (batch/budget)."""
 import json
 import re
 from dataclasses import dataclass, field
@@ -170,7 +170,16 @@ def generate_script(
     ai_model: "claude" (default, premium quality) or "gemini" (fast & budget for batch).
     subscription_tier: routes free-tier users to cheaper models automatically.
     """
-    if ai_model == "gemini" and getattr(config, "GOOGLE_API_KEY", ""):
+    if ai_model == "deepseek" and getattr(config, "DEEPSEEK_API_KEY", ""):
+        script = _generate_script_deepseek(
+            topic=topic,
+            content_type=content_type,
+            target_duration=target_duration,
+            audience=audience,
+            custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    elif ai_model == "gemini" and getattr(config, "GOOGLE_API_KEY", ""):
         script = generate_script_gemini(
             topic=topic,
             content_type=content_type,
@@ -225,6 +234,50 @@ def _generate_script_claude(
     if not raw:
         raise RuntimeError(f"Claude returned empty response (stop_reason={message.stop_reason})")
     return _parse_script_json(raw, content_type, target_duration, topic)
+
+
+def _generate_script_deepseek(
+    topic: str,
+    content_type: str = "short",
+    target_duration: int = 60,
+    audience: str = "general public",
+    custom_instructions: Optional[str] = None,
+    research_context: str = "",
+) -> "ContentScript":
+    """Generate script using DeepSeek-V3 (fast, cheap, OpenAI-compatible API).
+    Falls back to Claude if DEEPSEEK_API_KEY not set."""
+    api_key = getattr(config, "DEEPSEEK_API_KEY", "")
+    if not api_key:
+        return _generate_script_claude(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com", timeout=120.0)
+
+        prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
+        if custom_instructions:
+            prompt += f"\n\nAdditional instructions: {custom_instructions}"
+
+        _long_formats = {"countdown", "long", "podcast", "commercial_60"}
+        max_tok = 8192 if content_type in _long_formats else 4096
+        response = client.chat.completions.create(
+            model="deepseek-chat",
+            max_tokens=max_tok,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.choices[0].message.content.strip()
+        print(f"[script] DeepSeek-V3 generated script for: {topic}")
+        return _parse_script_json(raw, content_type, target_duration, topic)
+    except Exception as e:
+        print(f"[script] DeepSeek generation failed ({e}) — falling back to Claude")
+        return _generate_script_claude(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
 
 
 def generate_script_gemini(

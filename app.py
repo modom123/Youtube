@@ -407,6 +407,7 @@ def create_page():
         voices=config.AVAILABLE_VOICES,
         google_tts_voices=config.GOOGLE_TTS_VOICES,
         google_api_key=bool(config.GOOGLE_API_KEY),
+        deepseek_api_key=bool(config.DEEPSEEK_API_KEY),
     )
 
 

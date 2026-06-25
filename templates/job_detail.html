@@ -38,11 +38,14 @@
         </span>
       </div>
       {% if job.status == 'running' %}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div class="text-sm text-dim" id="detail-step">{{ job.current_step or 'Processing...' }}</div>
+        <div style="font-size:16px;font-weight:800;color:var(--gold);" id="detail-pct">{{ job.progress or 0 }}%</div>
+      </div>
       <div class="progress-track mb-8">
         <div class="progress-bar" id="detail-bar" style="width:{{ job.progress or 0 }}%"></div>
       </div>
-      <div class="text-sm text-dim" id="detail-step">{{ job.current_step or 'Processing...' }}</div>
-      <div class="text-xs text-dim mt-8" style="color:var(--yellow);">
+      <div class="text-xs text-dim" style="color:var(--yellow);">
         If stuck for &gt;5 min, use the Force Reset button above, then retry.
       </div>
       {% endif %}
@@ -281,8 +284,10 @@
       const pct = j.progress + '%';
       const bar = document.getElementById('detail-bar');
       const rbar = document.getElementById('right-bar');
+      const dpct = document.getElementById('detail-pct');
       if (bar) bar.style.width = pct;
       if (rbar) rbar.style.width = pct;
+      if (dpct) dpct.textContent = pct;
     }
     if (j.current_step) {
       const s = document.getElementById('detail-step');
