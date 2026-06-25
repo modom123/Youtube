@@ -8,6 +8,14 @@
 
 {% block content %}
 
+<!-- ── Content Template Picker ─────────────────────────────────────────────── -->
+<div class="section-header mb-16">
+  <div class="section-title">Quick <span class="accent">Templates</span></div>
+  <span class="text-dim text-sm">Pick a template to pre-fill the form</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:28px;" id="template-grid">
+</div>
+
 <div class="grid-2" style="align-items:start;">
 
   <!-- ── Left: Configuration ──────────────────────────── -->
@@ -23,6 +31,29 @@
       <div class="form-group">
         <label>Target Audience</label>
         <input type="text" id="audience" value="general public" placeholder="e.g. beginner investors aged 25-40">
+      </div>
+      <div class="form-group">
+        <label>Tone &amp; Voice</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px;" id="tone-grid">
+          {% for t_id, t_label, t_emoji in [
+            ('engaging','Engaging','🔥'),('educational','Educational','📚'),
+            ('humorous','Humorous','😂'),('professional','Professional','💼'),
+            ('inspirational','Inspirational','✨'),('casual','Casual','😊')
+          ] %}
+          <div class="format-card {% if t_id == 'engaging' %}selected{% endif %}"
+               data-tone="{{ t_id }}"
+               onclick="selectTone(this,'{{ t_id }}')"
+               style="padding:8px 6px;text-align:center;cursor:pointer;border-radius:8px;">
+            <div style="font-size:16px;">{{ t_emoji }}</div>
+            <div style="font-size:11px;font-weight:600;margin-top:2px;">{{ t_label }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        <input type="hidden" id="tone" value="engaging">
+      </div>
+      <div class="form-group">
+        <label>SEO Keywords <span class="text-dim text-xs">(optional — comma separated)</span></label>
+        <input type="text" id="keywords" placeholder="e.g. soccer stadiums, FIFA, world cup, largest arena">
       </div>
       <div class="form-group">
         <label>Extra Instructions <span class="text-dim text-xs">(optional)</span></label>
@@ -384,7 +415,53 @@
 <script>
 let _format = 'short';
 let _style = 'fire';
+let _tone = 'engaging';
 let _researchDebounce = null;
+
+// ── Content Templates ─────────────────────────────────────────────────────────
+const CONTENT_TEMPLATES = [
+  { emoji:'🔥', label:'Viral Hook',      topic:'',    format:'short',    tone:'engaging',     audience:'general public',      instructions:'Hook in first 2 seconds. Use pattern interrupts. End with controversy or cliffhanger.',  placeholder:'e.g. 5 facts about soccer that will blow your mind' },
+  { emoji:'🏆', label:'Top 10 List',     topic:'',    format:'countdown', tone:'engaging',    audience:'general public',      instructions:'Build suspense. Reveal #1 last. Use real stats and names.',                              placeholder:'e.g. Top 10 largest soccer stadiums in the world' },
+  { emoji:'📚', label:'Tutorial',        topic:'',    format:'long',      tone:'educational', audience:'beginners',           instructions:'Step-by-step structure. Use simple language. Include tips and common mistakes.',          placeholder:'e.g. How to start investing with $100' },
+  { emoji:'💡', label:'Explainer',       topic:'',    format:'long',      tone:'educational', audience:'curious learners',    instructions:'Why does it work? Include history, science, and real examples.',                          placeholder:'e.g. Why do planes leave white trails in the sky' },
+  { emoji:'📰', label:'News Take',       topic:'',    format:'short',     tone:'professional','audience':'news-following adults', instructions:'Objective opening, then your unique angle. Be concise.',                             placeholder:'e.g. What the Fed rate decision means for your money' },
+  { emoji:'💼', label:'Business Tips',   topic:'',    format:'long',      tone:'professional','audience':'entrepreneurs and professionals', instructions:'Data-driven. Include case studies and actionable takeaways.',              placeholder:'e.g. 7 habits of the most productive CEOs' },
+  { emoji:'😂', label:'Comedy Short',    topic:'',    format:'short',     tone:'humorous',    audience:'general public',      instructions:'Subvert expectations. Timing is everything. End with a punchline.',                       placeholder:'e.g. Things that make no sense about modern life' },
+  { emoji:'✨', label:'Motivational',    topic:'',    format:'reel',      tone:'inspirational','audience':'people wanting growth', instructions:'Personal story arc. Emotional build-up. Powerful CTA at end.',                    placeholder:'e.g. The mindset shift that changed everything for me' },
+  { emoji:'🎙️', label:'Podcast Ep',     topic:'',    format:'podcast',   tone:'casual',      audience:'general public',      instructions:'Conversational tone. Three key chapters. Strong listener CTA at end.',                   placeholder:'e.g. The untold story of how Nike almost went bankrupt' },
+  { emoji:'🛍️', label:'Product Review', topic:'',    format:'short',     tone:'casual',      audience:'buyers researching products', instructions:'Pros and cons. Personal experience. Would you buy it again?',                  placeholder:'e.g. Honest review: Tesla Model 3 after 2 years' },
+  { emoji:'📊', label:'Finance/Stats',   topic:'',    format:'long',      tone:'educational', audience:'investors aged 25-45', instructions:'Use real data and charts. Be honest about risks.',                                   placeholder:'e.g. Why 90% of traders lose money' },
+  { emoji:'🌍', label:'Documentary',     topic:'',    format:'long',      tone:'professional','audience':'curious adults',     instructions:'Storytelling structure. Build narrative arc. Use vivid scene descriptions.',           placeholder:'e.g. The rise and fall of Blockbuster Video' },
+];
+
+function renderTemplates() {
+  const grid = document.getElementById('template-grid');
+  grid.innerHTML = CONTENT_TEMPLATES.map((t, i) => `
+    <div onclick="applyTemplate(${i})" style="
+      background:var(--card);border:1px solid var(--border);border-radius:12px;
+      padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .2s,transform .1s;
+    " onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'"
+       onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
+      <div style="font-size:22px;margin-bottom:6px;">${t.emoji}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);">${t.label}</div>
+    </div>
+  `).join('');
+}
+
+function applyTemplate(idx) {
+  const t = CONTENT_TEMPLATES[idx];
+  if (t.placeholder) document.getElementById('topic').placeholder = t.placeholder;
+  if (t.audience) document.getElementById('audience').value = t.audience;
+  if (t.instructions) document.getElementById('instructions').value = t.instructions;
+  // Select format
+  const fmtEl = document.querySelector(`.format-card[data-format="${t.format}"]`);
+  if (fmtEl) { selectFormat(fmtEl, t.format); }
+  // Select tone
+  const toneEl = document.querySelector(`#tone-grid .format-card[data-tone="${t.tone}"]`);
+  if (toneEl) { selectTone(toneEl, t.tone); }
+  toast('info', t.emoji + ' ' + t.label, 'Template applied — add your topic and hit Generate!');
+  document.getElementById('topic').focus();
+}
 
 function selectFormat(el, fmt) {
   document.querySelectorAll('.format-card[data-format]').forEach(c => c.classList.remove('selected'));
@@ -392,6 +469,13 @@ function selectFormat(el, fmt) {
   _format = fmt;
   document.getElementById('podcastPanel').style.display = (fmt === 'podcast') ? '' : 'none';
   document.getElementById('commercialPanel').style.display = (fmt === 'commercial') ? '' : 'none';
+}
+
+function selectTone(el, t) {
+  document.querySelectorAll('#tone-grid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _tone = t;
+  document.getElementById('tone').value = t;
 }
 
 function selectAdLen(el, adFmt, seconds) {
@@ -415,6 +499,7 @@ function selectStyle(el, s) {
 
 // ── Live research preview ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  renderTemplates();
   const topicEl = document.getElementById('topic');
   if (!topicEl) return;
   topicEl.addEventListener('input', () => {
@@ -485,6 +570,8 @@ async function startCreate() {
     style: _style,
     privacy: 'private',
     instructions: document.getElementById('instructions').value || null,
+    tone: _tone,
+    keywords: document.getElementById('keywords').value || '',
     dry_run: false,
     skip_research: document.getElementById('skip_research').checked,
     ai_model: _aiModelEl ? _aiModelEl.value : 'claude',

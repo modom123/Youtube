@@ -105,6 +105,8 @@ def run(
     target_duration: int = None,
     ai_model: str = "claude",
     subscription_tier: str = "starter",
+    tone: str = "",
+    keywords: list = None,
     progress_cb=None,
     build_log: BuildLog = None,
 ) -> dict:
@@ -260,6 +262,8 @@ def run(
         custom_instructions=custom_instructions,
         research_context=research_context,
         subscription_tier=subscription_tier,
+        tone=tone or "",
+        keywords=keywords or [],
     )
 
     def _run_script_with_timeout(model: str):

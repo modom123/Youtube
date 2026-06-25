@@ -29,6 +29,8 @@ def _build_prompt(
     target_duration: int,
     audience: str,
     research_context: str = "",
+    tone: str = "",
+    keywords: list = None,
 ) -> str:
     type_instructions = {
         "short": f"Create a punchy, viral SHORT video script (~{target_duration} seconds). Hook in first 3 seconds. Fast-paced, engaging.",
@@ -98,11 +100,17 @@ VERIFIED RESEARCH DATA (use these REAL facts in the script — do NOT make up or
 IMPORTANT: Base the narration on the verified facts above. Include specific names, numbers, and data points from the research. The audience expects accurate, real information.
 """
 
+    tone_block = f"\nTone & Style: {tone}" if tone else ""
+    keywords_block = (
+        f"\nSEO Keywords to weave naturally into the script: {', '.join(keywords)}"
+        if keywords else ""
+    )
+
     return f"""You are a professional social media content creator and scriptwriter with expertise in making factual content highly engaging.
 
 Topic: {topic}
 Content Type: {type_instructions.get(content_type, type_instructions["short"])}
-Target Audience: {audience}
+Target Audience: {audience}{tone_block}{keywords_block}
 {research_block}
 Generate a complete content package. Return ONLY valid JSON in this exact structure:
 
@@ -165,6 +173,8 @@ def generate_script(
     research_context: str = "",
     ai_model: str = "claude",
     subscription_tier: str = "starter",
+    tone: str = "",
+    keywords: list = None,
 ) -> "ContentScript":
     """
     Generate a complete content script.
@@ -172,6 +182,17 @@ def generate_script(
     ai_model: "claude" (default, premium quality) or "gemini" (fast & budget for batch).
     subscription_tier: routes free-tier users to cheaper models automatically.
     """
+    keywords = keywords or []
+    # Inject tone and keywords into custom_instructions so all model branches pick them up
+    extra_parts = []
+    if tone:
+        extra_parts.append(f"Tone/voice: {tone}.")
+    if keywords:
+        extra_parts.append(f"Naturally weave these SEO keywords into the script: {', '.join(keywords)}.")
+    if extra_parts:
+        extra = " ".join(extra_parts)
+        custom_instructions = (custom_instructions + "\n" + extra) if custom_instructions else extra
+
     if ai_model == "parallel":
         return generate_script_parallel(
             topic=topic, content_type=content_type, target_duration=target_duration,

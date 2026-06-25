@@ -557,6 +557,8 @@ def api_create():
         "ad_platforms": data.get("ad_platforms") or [],
         "ai_model": data.get("ai_model", "auto"),
         "subscription_tier": db.get_user_by_id(current_user.id).get("subscription_tier", "starter"),
+        "tone": (data.get("tone") or "").strip(),
+        "keywords": [k.strip() for k in (data.get("keywords") or "").split(",") if k.strip()],
     }
     t = threading.Thread(target=_run_job_thread, args=(job_id, params, current_user.id), daemon=True)
     t.start()
