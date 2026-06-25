@@ -90,22 +90,40 @@ def _run_job_thread(job_id: int, params: dict, user_id: int = None):
         _orig_step = ul.step
         _orig_success = ul.success
         _orig_warn = ul.warn
+        _orig_error = ul.error
         def _hook_step(icon, msg):
-            _orig_step(icon, msg)
+            try:
+                _orig_step(icon, msg)
+            except Exception:
+                pass
             hook.advance(msg)
         def _hook_success(msg):
-            _orig_success(msg)
+            try:
+                _orig_success(msg)
+            except Exception:
+                pass
             push_event(job_id, {"log": f"✓ {msg}", "status": "running"})
         def _hook_warn(msg):
-            _orig_warn(msg)
+            try:
+                _orig_warn(msg)
+            except Exception:
+                pass
             push_event(job_id, {"log": f"⚠ {msg}", "status": "running"})
+        def _hook_error(msg):
+            try:
+                _orig_error(msg)
+            except Exception:
+                pass
+            push_event(job_id, {"log": f"✗ {msg}", "status": "running"})
         ul.step = _hook_step
         ul.success = _hook_success
         ul.warn = _hook_warn
+        ul.error = _hook_error
         manifest = social_optimize.run(**params)
         ul.step = _orig_step
         ul.success = _orig_success
         ul.warn = _orig_warn
+        ul.error = _orig_error
         job_title = manifest.get("title")
         db.update_job(
             job_id, status="done", progress=100, current_step="Complete!",
@@ -132,6 +150,13 @@ def _run_job_thread(job_id: int, params: dict, user_id: int = None):
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
+        try:
+            ul.step = _orig_step
+            ul.success = _orig_success
+            ul.warn = _orig_warn
+            ul.error = _orig_error
+        except Exception:
+            pass
         db.update_job(job_id, status="error", error_msg=str(e), current_step="Failed")
         push_event(job_id, {"progress": 0, "step": f"Error: {e}", "status": "error", "traceback": tb})
         if user_id:
@@ -641,7 +666,7 @@ def api_settings_check():
         "anthropic":   bool(config.ANTHROPIC_API_KEY),
         "pexels":      bool(config.PEXELS_API_KEY),
         "google_flow": bool(config.GOOGLE_API_KEY),
-        "higgsville":  bool(config.HIGGSFIELD_API_KEY),
+        "higgsville":  bool(config.HIGGSFIELD_MCP_TOKEN),
         "youtube":     bool(config.YOUTUBE_CLIENT_ID),
         "tiktok":      bool(config.TIKTOK_CLIENT_KEY),
         "instagram":   bool(config.INSTAGRAM_ACCESS_TOKEN),

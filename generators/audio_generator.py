@@ -250,7 +250,16 @@ def generate_audio(
 
     # 2. Try edge-tts
     try:
-        asyncio.run(_generate_speech(clean_text, output_path, voice, rate, pitch))
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    pool.submit(asyncio.run, _generate_speech(clean_text, output_path, voice, rate, pitch)).result()
+            else:
+                loop.run_until_complete(_generate_speech(clean_text, output_path, voice, rate, pitch))
+        except RuntimeError:
+            asyncio.run(_generate_speech(clean_text, output_path, voice, rate, pitch))
     except Exception as e:
         print(f"[audio] edge-tts failed ({e}) — using fallback TTS")
         _tts_fallback(clean_text, output_path)

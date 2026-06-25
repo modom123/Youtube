@@ -203,6 +203,20 @@ class ProductionStudioEngine:
         except Exception as e:
             errors.append(f"Audio generation failed: {e}")
             duration = target_duration
+            if not audio_path.exists():
+                errors.append("No audio file produced — cannot assemble video")
+                self.cb("Saving manifest…", 94)
+                manifest = {
+                    "niche": niche, "title": seo.title_final if seo else niche,
+                    "errors": errors, "files": {},
+                }
+                file_manager.save_manifest(job_dir, manifest)
+                return ProductionResult(
+                    niche=niche, blueprint=blueprint, script=script,
+                    asset_plan=asset_plan, seo=seo,
+                    pipeline_cost_credits=asset_plan.total_credit_cost if asset_plan else 0,
+                    status="failed", errors=errors,
+                )
 
         # ── Fetch / generate assets ───────────────────────────────────────────
         self.cb("Fetching and generating visual assets…", 65)
@@ -216,7 +230,11 @@ class ProductionStudioEngine:
 
         # Stock media from Pexels
         pexels_keywords = list({kw for a in pexels_assets for kw in a.prompt.split()[:3]})
-        pexels_keywords = pexels_keywords or script.sections[0].b_roll_keywords[:3] if script.sections else ["abstract background"]
+        if not pexels_keywords:
+            if script.sections:
+                pexels_keywords = script.sections[0].b_roll_keywords[:3]
+            else:
+                pexels_keywords = ["abstract background"]
 
         video_clips: list[Path] = []
         image_clips: list[Path] = []

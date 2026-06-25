@@ -118,20 +118,23 @@ def create_video(
     """Assemble the final video from audio and visual assets."""
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    audio_path = Path(audio_path)
+
+    if not audio_path.exists():
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
     audio = AudioFileClip(str(audio_path))
     total_duration = audio.duration
 
-    video_clips = video_clips or []
-    image_clips = image_clips or []
+    video_clips = [Path(p) for p in (video_clips or []) if p]
+    image_clips = [Path(p) for p in (image_clips or []) if p]
     all_visuals = list(video_clips) + list(image_clips)
 
     if not all_visuals:
-        bg = ColorClip(size=(width, height), color=(20, 20, 40)).with_duration(total_duration)
-        visual_clips = [bg]
+        visual_sequence = [ColorClip(size=(width, height), color=(20, 20, 40)).with_duration(total_duration)]
     else:
         random.shuffle(all_visuals)
-        visual_clips = []
+        visual_sequence = []
         elapsed = 0.0
         i = 0
         while elapsed < total_duration:
@@ -147,16 +150,19 @@ def create_video(
                     clip = _load_video_clip(source, clip_duration, width, height, start_at=start)
                 else:
                     clip = _load_image_clip(source, clip_duration, width, height)
-                clip = clip.with_start(elapsed)
-                visual_clips.append(clip)
+                visual_sequence.append(clip)
                 elapsed += clip_duration
             except Exception as e:
                 print(f"[video] Skipping {source.name}: {e}")
 
-    if not visual_clips:
-        visual_clips = [ColorClip(size=(width, height), color=(20, 20, 40)).with_duration(total_duration)]
+    if not visual_sequence:
+        visual_sequence = [ColorClip(size=(width, height), color=(20, 20, 40)).with_duration(total_duration)]
 
-    composite_layers = list(visual_clips)
+    bg_video = concatenate_videoclips(visual_sequence, method="compose")
+    if bg_video.duration < total_duration:
+        bg_video = bg_video.with_duration(total_duration)
+
+    composite_layers = [bg_video]
 
     # Branding bar
     try:
@@ -181,8 +187,13 @@ def create_video(
         audio_codec="aac",
         preset="fast",
         threads=4,
-        logger=None,
+        logger="bar",
     )
+    for clip in visual_sequence:
+        try:
+            clip.close()
+        except Exception:
+            pass
     audio.close()
     return output_path
 
@@ -411,7 +422,7 @@ def create_podcast_video(
         audio_codec="aac",
         preset="fast",
         threads=4,
-        logger=None,
+        logger="bar",
     )
     audio.close()
     return output_path
