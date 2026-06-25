@@ -304,27 +304,42 @@ def _generate_script_claude(
     subscription_tier: str = "starter",
 ) -> "ContentScript":
     """Generate a complete content script using Claude AI."""
-    # max_retries=0: disable SDK-level retries — default is 2, which triples hang time.
-    # timeout=85: slightly under the 90s outer deadline in social_optimize.
-    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=85.0, max_retries=0)
+    api_key = config.ANTHROPIC_API_KEY
+    if not api_key or not api_key.startswith("sk-"):
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is missing or invalid (must start with 'sk-'). "
+            "Set it in your .env or Render environment variables."
+        )
+
+    import httpx
+    timeout = httpx.Timeout(55.0, connect=15.0)
+    client = anthropic.Anthropic(api_key=api_key, timeout=timeout, max_retries=0)
 
     prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
     if custom_instructions:
         prompt += f"\n\nAdditional instructions: {custom_instructions}"
 
     model = config.TIER_CLAUDE_MODEL.get(subscription_tier, "claude-sonnet-4-6")
-    # Long-form formats need more tokens to avoid truncated JSON
     _long_formats = {"countdown", "long", "podcast", "commercial_60"}
     max_tok = 8192 if content_type in _long_formats else 4096
-    message = client.messages.create(
-        model=model,
-        max_tokens=max_tok,
-        messages=[{"role": "user", "content": prompt}],
-    )
+    print(f"[script] Calling Claude ({model}) for: {topic[:60]}...")
+    try:
+        message = client.messages.create(
+            model=model,
+            max_tokens=max_tok,
+            messages=[{"role": "user", "content": prompt}],
+        )
+    except httpx.TimeoutException as e:
+        raise RuntimeError(f"Claude API timed out after 55s: {e}")
+    except anthropic.AuthenticationError as e:
+        raise RuntimeError(f"Claude API key rejected: {e}")
+    except anthropic.APIConnectionError as e:
+        raise RuntimeError(f"Cannot reach Claude API: {e}")
 
     raw = message.content[0].text.strip()
     if not raw:
         raise RuntimeError(f"Claude returned empty response (stop_reason={message.stop_reason})")
+    print(f"[script] Claude returned {len(raw)} chars, parsing JSON...")
     return _parse_script_json(raw, content_type, target_duration, topic)
 
 
@@ -336,15 +351,10 @@ def _generate_script_deepseek(
     custom_instructions: Optional[str] = None,
     research_context: str = "",
 ) -> "ContentScript":
-    """Generate script using DeepSeek-V3 (fast, cheap, OpenAI-compatible API).
-    Falls back to Claude if DEEPSEEK_API_KEY not set."""
+    """Generate script using DeepSeek-V3 (fast, cheap, OpenAI-compatible API)."""
     api_key = getattr(config, "DEEPSEEK_API_KEY", "")
     if not api_key:
-        return _generate_script_claude(
-            topic=topic, content_type=content_type, target_duration=target_duration,
-            audience=audience, custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
+        raise RuntimeError("DEEPSEEK_API_KEY not set")
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com", timeout=80.0, max_retries=0)
@@ -364,12 +374,8 @@ def _generate_script_deepseek(
         print(f"[script] DeepSeek-V3 generated script for: {topic}")
         return _parse_script_json(raw, content_type, target_duration, topic)
     except Exception as e:
-        print(f"[script] DeepSeek generation failed ({e}) — falling back to Claude")
-        return _generate_script_claude(
-            topic=topic, content_type=content_type, target_duration=target_duration,
-            audience=audience, custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
+        print(f"[script] DeepSeek generation failed ({e})")
+        raise RuntimeError(f"DeepSeek generation failed: {e}")
 
 
 def _generate_script_qwen(
@@ -380,14 +386,10 @@ def _generate_script_qwen(
     custom_instructions: Optional[str] = None,
     research_context: str = "",
 ) -> "ContentScript":
-    """Alibaba Qwen via DashScope OpenAI-compatible endpoint. Falls back to Claude."""
+    """Alibaba Qwen via DashScope OpenAI-compatible endpoint."""
     api_key = getattr(config, "QWEN_API_KEY", "")
     if not api_key:
-        return _generate_script_claude(
-            topic=topic, content_type=content_type, target_duration=target_duration,
-            audience=audience, custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
+        raise RuntimeError("QWEN_API_KEY not set")
     try:
         from openai import OpenAI
         client = OpenAI(
@@ -411,12 +413,8 @@ def _generate_script_qwen(
         print(f"[script] Qwen ({model}) generated script for: {topic}")
         return _parse_script_json(raw, content_type, target_duration, topic)
     except Exception as e:
-        print(f"[script] Qwen generation failed ({e}) — falling back to Claude")
-        return _generate_script_claude(
-            topic=topic, content_type=content_type, target_duration=target_duration,
-            audience=audience, custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
+        print(f"[script] Qwen generation failed ({e})")
+        raise RuntimeError(f"Qwen generation failed: {e}")
 
 
 def _generate_script_groq(
@@ -427,14 +425,10 @@ def _generate_script_groq(
     custom_instructions: Optional[str] = None,
     research_context: str = "",
 ) -> "ContentScript":
-    """Groq ultra-fast inference (Llama 3.3 70B). Falls back to DeepSeek or Claude."""
+    """Groq ultra-fast inference (Llama 3.3 70B)."""
     api_key = getattr(config, "GROQ_API_KEY", "")
     if not api_key:
-        return _generate_script_deepseek(
-            topic=topic, content_type=content_type, target_duration=target_duration,
-            audience=audience, custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
+        raise RuntimeError("GROQ_API_KEY not set")
     try:
         from openai import OpenAI
         client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1", timeout=60.0, max_retries=0)
@@ -455,12 +449,8 @@ def _generate_script_groq(
         print(f"[script] Groq ({model}) generated script for: {topic}")
         return _parse_script_json(raw, content_type, target_duration, topic)
     except Exception as e:
-        print(f"[script] Groq generation failed ({e}) — falling back to DeepSeek/Claude")
-        return _generate_script_deepseek(
-            topic=topic, content_type=content_type, target_duration=target_duration,
-            audience=audience, custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
+        print(f"[script] Groq generation failed ({e})")
+        raise RuntimeError(f"Groq generation failed: {e}")
 
 
 def generate_script_gemini(
@@ -473,44 +463,34 @@ def generate_script_gemini(
 ) -> "ContentScript":
     """
     Generate script using Gemini 2.0 Flash (cheaper, faster for batch jobs).
-    Falls back to Claude if GOOGLE_API_KEY not set.
     """
     api_key = getattr(config, "GOOGLE_API_KEY", "")
     if not api_key:
-        return _generate_script_claude(
-            topic=topic,
-            content_type=content_type,
-            target_duration=target_duration,
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
+        raise RuntimeError("GOOGLE_API_KEY not set")
 
     try:
         from google import genai
+        from google.genai import types as genai_types
         client = genai.Client(api_key=api_key)
 
         prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
         if custom_instructions:
             prompt += f"\n\nAdditional instructions: {custom_instructions}"
 
+        print(f"[script] Calling Gemini Flash for: {topic[:60]}...")
         response = client.models.generate_content(
             model="gemini-2.0-flash",
             contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                http_options=genai_types.HttpOptions(timeout=80_000),
+            ),
         )
         raw = response.text.strip()
         print(f"[script] Gemini 2.0 Flash generated script for: {topic}")
         return _parse_script_json(raw, content_type, target_duration, topic)
     except Exception as e:
-        print(f"[script] Gemini script generation failed ({e}) — falling back to Claude")
-        return _generate_script_claude(
-            topic=topic,
-            content_type=content_type,
-            target_duration=target_duration,
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
+        print(f"[script] Gemini script generation failed ({e}) — raising")
+        raise RuntimeError(f"Gemini generation failed: {e}")
 
 
 def generate_multi_platform_package(

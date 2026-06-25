@@ -45,7 +45,8 @@ _FREE_PREFERENCE = ["deepseek", "groq", "gemini", "claude"]
 def _available_models() -> set[str]:
     """Return set of models whose API key is configured."""
     available = set()
-    if getattr(config, "ANTHROPIC_API_KEY", ""):
+    ak = getattr(config, "ANTHROPIC_API_KEY", "")
+    if ak and ak.startswith("sk-"):
         available.add("claude")
     if getattr(config, "DEEPSEEK_API_KEY", ""):
         available.add("deepseek")
@@ -55,8 +56,9 @@ def _available_models() -> set[str]:
         available.add("gemini")
     if getattr(config, "GROQ_API_KEY", ""):
         available.add("groq")
-    # Always include claude as last resort (it's the base requirement)
-    available.add("claude")
+    if not available:
+        print("[router] WARNING: No valid API keys found! Set at least one in .env or Render env vars.")
+        available.add("claude")
     return available
 
 

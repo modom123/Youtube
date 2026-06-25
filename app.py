@@ -102,8 +102,24 @@ def _run_job_thread(job_id: int, params: dict, user_id: int = None):
         user_preference=raw_model,
     )
     params["ai_model"] = routed_model
+    params.setdefault("subscription_tier", tier)
     print(f"[router] Job #{job_id} format={params.get('format')} tier={tier} "
           f"requested={raw_model} → using={routed_model}")
+
+    # Hard watchdog: mark job as failed if thread runs longer than 10 minutes
+    _WATCHDOG_SECONDS = 600
+    def _watchdog():
+        import time as _t
+        _t.sleep(_WATCHDOG_SECONDS)
+        print(f"[watchdog] Job #{job_id} exceeded {_WATCHDOG_SECONDS}s — forcing error status")
+        try:
+            db.update_job(job_id, status="error", error_msg=f"Job timed out after {_WATCHDOG_SECONDS}s",
+                          current_step="Timed out")
+            push_event(job_id, {"progress": 0, "step": "Job timed out", "status": "error"})
+        except Exception:
+            pass
+    _wd = threading.Thread(target=_watchdog, daemon=True)
+    _wd.start()
 
     def progress_cb(pct: int, msg: str):
         db.update_job(job_id, progress=pct, current_step=msg, status="running")
@@ -169,7 +185,6 @@ def _run_job_thread(job_id: int, params: dict, user_id: int = None):
         import traceback
         tb = traceback.format_exc()
         try:
-            ul.step = _orig_step
             ul.success = _orig_success
             ul.warn = _orig_warn
             ul.error = _orig_error
@@ -627,6 +642,7 @@ def retry_job(job_id):
         "target_duration": None,
         "dry_run": False,
         "cleanup": False,
+        "subscription_tier": db.get_user_by_id(current_user.id).get("subscription_tier", "starter"),
     }
     threading.Thread(target=_run_job_thread, args=(job_id, params, current_user.id), daemon=True).start()
     return jsonify({"job_id": job_id})

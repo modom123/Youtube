@@ -226,7 +226,7 @@ def run(
     }
     model_label = _MODEL_LABELS.get(ai_model, "AI")
     _push_progress(18, f"Generating script with {model_label}...")
-    SCRIPT_TIMEOUT = 90  # seconds — fail fast; Anthropic SDK retries are disabled
+    SCRIPT_TIMEOUT = 60  # seconds — fail fast so fallbacks get a chance
     _script_kwargs = dict(
         topic=topic,
         content_type=profile["content_type"],
@@ -264,20 +264,28 @@ def run(
             last_err = e
             logger.warn(f"Script engine '{ai_model}' failed: {e}")
 
-        # Automatic fallback to Claude if primary model failed
-        if script is None and ai_model not in ("claude", "parallel"):
-            _push_progress(18, "Retrying script with Claude AI...")
-            try:
-                script = _run_script_with_timeout("claude")
-                logger.success("Script generated via Claude (fallback)")
-            except Exception as e:
-                last_err = e
-                logger.warn(f"Claude fallback also failed: {e}")
+        # Fallback chain: try every other available model
+        if script is None:
+            from generators.ai_router import _available_models
+            _fallback_order = ["gemini", "deepseek", "groq", "qwen", "claude"]
+            available = _available_models()
+            for fb_model in _fallback_order:
+                if fb_model == ai_model or fb_model not in available:
+                    continue
+                fb_label = _MODEL_LABELS.get(fb_model, fb_model)
+                _push_progress(18, f"Retrying script with {fb_label}...")
+                try:
+                    script = _run_script_with_timeout(fb_model)
+                    logger.success(f"Script generated via {fb_label} (fallback)")
+                    break
+                except Exception as e:
+                    last_err = e
+                    logger.warn(f"{fb_label} fallback also failed: {e}")
 
         if script is None:
             raise RuntimeError(
-                f"Script generation failed ({last_err}). "
-                "Verify ANTHROPIC_API_KEY is set on Render, then retry this job."
+                f"All script engines failed ({last_err}). "
+                "Check API keys (ANTHROPIC_API_KEY, GOOGLE_API_KEY, etc.) on Render."
             )
 
     script_path = job / "script.json"
