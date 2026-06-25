@@ -308,7 +308,7 @@ def _run_quickpost_thread(job_id: str, params: dict, user_id: int):
             "tiktok":    "TikTok: 100-150 chars, punchy hook first, 3-5 trending hashtags, very energetic",
             "facebook":  "Facebook: 200-400 chars, conversational, question at end drives comments, 3-5 hashtags",
             "twitter":   "X/Twitter: max 240 chars, witty or bold, 1-3 hashtags, no fluff",
-            "linkedin":  "LinkedIn: 300-500 chars, professional insight angle, 3-5 industry hashtags",
+            "twitch":    "Twitch: casual gaming/entertainment tone, 150-200 chars, hype the stream, 2-3 hashtags",
             "threads":   "Threads: casual and conversational, 200 chars max, 2-3 hashtags",
             "youtube":   "YouTube community post: engaging question, 200-300 chars",
             "snapchat":  "Snapchat: very short, fun, 50-80 chars, 1-2 emojis",
@@ -339,7 +339,7 @@ Format your response as JSON exactly like this:
     "tiktok": "...",
     "facebook": "...",
     "twitter": "...",
-    "linkedin": "...",
+    "twitch": "...",
     "threads": "...",
     "youtube": "...",
     "snapchat": "..."

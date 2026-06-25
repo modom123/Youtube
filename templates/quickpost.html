@@ -138,7 +138,7 @@
           {% for pid, icon, label in [
             ('instagram','📸','Instagram'),('tiktok','🎵','TikTok'),
             ('facebook','👍','Facebook'),('twitter','𝕏','X'),
-            ('linkedin','💼','LinkedIn'),('threads','🧵','Threads'),
+            ('twitch','🟣','Twitch'),('threads','🧵','Threads'),
             ('youtube','▶️','YouTube'),('snapchat','👻','Snapchat')
           ] %}
           <div class="platform-chip {% if pid in connected_platforms %}active{% endif %}" data-platform="{{ pid }}" onclick="this.classList.toggle('active')">
@@ -326,8 +326,8 @@ function showResults(d) {
   const panelsEl  = document.getElementById('captionPanels');
   tabsEl.innerHTML = ''; panelsEl.innerHTML = '';
 
-  const icons = {instagram:'📸',tiktok:'🎵',facebook:'👍',twitter:'𝕏',linkedin:'💼',threads:'🧵',youtube:'▶️',snapchat:'👻'};
-  const names = {instagram:'Instagram',tiktok:'TikTok',facebook:'Facebook',twitter:'X',linkedin:'LinkedIn',threads:'Threads',youtube:'YouTube',snapchat:'Snapchat'};
+  const icons = {instagram:'📸',tiktok:'🎵',facebook:'👍',twitter:'𝕏',twitch:'🟣',threads:'🧵',youtube:'▶️',snapchat:'👻'};
+  const names = {instagram:'Instagram',tiktok:'TikTok',facebook:'Facebook',twitter:'X',twitch:'Twitch',threads:'Threads',youtube:'YouTube',snapchat:'Snapchat'};
 
   let first = true;
   for (const [platform, caption] of Object.entries(captions)) {

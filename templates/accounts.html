@@ -96,22 +96,6 @@
     {% endif %}
   </div>
 
-  <!-- LinkedIn -->
-  <div class="platform-tile {% if 'linkedin' in connected %}connected{% endif %}">
-    <div class="pt-icon">💼</div>
-    <div class="pt-name">LinkedIn</div>
-    <div class="pt-desc">Share professional content and grow your network</div>
-    {% if 'linkedin' in connected %}
-      <span class="pt-status ok">✓ Connected</span>
-      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/linkedin/start'">Reconnect</button>
-    {% elif linkedin_configured %}
-      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/linkedin/start'">Connect LinkedIn</button>
-    {% else %}
-      <span class="pt-status cfg">Needs Setup</span>
-      <button class="btn btn-ghost btn-sm" onclick="showSetup('linkedin')">Setup Guide</button>
-    {% endif %}
-  </div>
-
   <!-- X / Twitter -->
   <div class="platform-tile {% if 'twitter' in connected %}connected{% endif %}">
     <div class="pt-icon">𝕏</div>
@@ -243,7 +227,7 @@
         <option value="tiktok">TikTok</option>
         <option value="instagram">Instagram</option>
         <option value="facebook">Facebook</option>
-        <option value="linkedin">LinkedIn</option>
+        <option value="twitch">Twitch</option>
         <option value="twitter">X / Twitter</option>
         <option value="pinterest">Pinterest</option>
         <option value="other">Other</option>
@@ -321,16 +305,6 @@ const SETUP_GUIDES = {
   <li>Add product: <strong style="color:var(--text)">Facebook Login</strong></li>
   <li>Set redirect URI: <code style="color:var(--accent)">${location.origin}/oauth/facebook/callback</code></li>
   <li>Copy App ID & Secret → Add to Render: <code style="color:var(--accent)">FACEBOOK_APP_ID</code> and <code style="color:var(--accent)">FACEBOOK_APP_SECRET</code></li>
-</ol>`
-  },
-  linkedin: {
-    title: '💼 LinkedIn Setup',
-    body: `<p class="text-sm text-dim mb-16">Create a LinkedIn app to enable one-click connection for clients.</p>
-<ol style="padding-left:20px;line-height:2;font-size:13px;color:var(--muted);">
-  <li>Go to <strong style="color:var(--text)">developer.linkedin.com</strong> → Create App</li>
-  <li>Request products: <strong style="color:var(--text)">Sign In with LinkedIn</strong> + <strong style="color:var(--text)">Share on LinkedIn</strong></li>
-  <li>Set redirect URI: <code style="color:var(--accent)">${location.origin}/oauth/linkedin/callback</code></li>
-  <li>Copy Client ID & Secret → Add to Render: <code style="color:var(--accent)">LINKEDIN_CLIENT_ID</code> and <code style="color:var(--accent)">LINKEDIN_CLIENT_SECRET</code></li>
 </ol>`
   },
   twitter: {
