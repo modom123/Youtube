@@ -9,12 +9,23 @@ import {
   SafeAreaView,
   BackHandler,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, Redirect } from 'expo-router';
 import { COLORS, APP_URL, NAV_ROUTES } from '../src/constants';
 
+// WebView is native-only; on web we redirect to the real app
+const WebView: any = Platform.OS !== 'web'
+  ? require('react-native-webview').WebView
+  : null;
+
 export default function MainScreen() {
+  // On web platform, redirect to the full web app
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined') {
+      window.location.replace(APP_URL + '/dashboard');
+    }
+    return null;
+  }
   const webViewRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
