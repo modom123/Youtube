@@ -1963,9 +1963,18 @@ def api_research_preview():
 
 @app.route("/api/settings/check")
 def api_settings_check():
-    tok = config.HIGGSFIELD_MCP_TOKEN
-    # If the user mistakenly pasted the endpoint URL as the token, flag it
+    tok = config.HIGGSFIELD_MCP_TOKEN or ""
     token_is_url = tok.startswith("http://") or tok.startswith("https://")
+
+    # Check user's connected social accounts (OAuth-based platforms)
+    user_platforms = set()
+    try:
+        if current_user.is_authenticated:
+            accounts = db.get_accounts(user_id=current_user.id)
+            user_platforms = {a["platform"] for a in accounts if a.get("is_active", True)}
+    except Exception:
+        pass
+
     return jsonify({
         "anthropic":        bool(config.ANTHROPIC_API_KEY),
         "pexels":           bool(config.PEXELS_API_KEY),
@@ -1974,9 +1983,9 @@ def api_settings_check():
         "google_flow":      bool(config.GOOGLE_API_KEY),
         "higgsville":       bool(tok) and not token_is_url,
         "higgsville_url_as_token": token_is_url,
-        "youtube":          bool(config.YOUTUBE_CLIENT_ID),
-        "tiktok":           bool(config.TIKTOK_CLIENT_KEY),
-        "instagram":        bool(config.INSTAGRAM_ACCESS_TOKEN),
+        "youtube":          bool(config.YOUTUBE_CLIENT_ID) or "youtube" in user_platforms,
+        "tiktok":           bool(config.TIKTOK_CLIENT_KEY) or "tiktok" in user_platforms,
+        "instagram":        bool(config.INSTAGRAM_ACCESS_TOKEN) or "instagram" in user_platforms,
     })
 
 

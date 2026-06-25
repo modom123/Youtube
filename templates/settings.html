@@ -172,22 +172,36 @@
   }
 
   const labels = {
-    anthropic:   ['🤖 Anthropic AI',        'Required for AI script generation'],
-    pexels:      ['🖼️ Pexels Media',         'Free stock footage & images'],
-    google_flow: ['🎬 Google Flow / Veo 3',  'AI-generated cinematic video clips'],
-    higgsville:  ['🎬 Social Optimize AI',   'Kling 3, Veo 3.1, Cinema Studio + 14 more models'],
-    youtube:     ['▶️ YouTube',              'Upload videos & Shorts'],
-    tiktok:      ['🎵 TikTok',              'Post videos to TikTok'],
-    instagram:   ['📸 Instagram',           'Publish Reels'],
+    anthropic:   ['🤖 Anthropic AI',        'Required — AI script generation',        true],
+    pexels:      ['🖼️ Pexels Media',         'Stock footage & images',                 true],
+    pixabay:     ['🖼️ Pixabay Media',        'Additional stock footage & images',      false],
+    elevenlabs:  ['🎙️ ElevenLabs',           'Premium AI voices (falls back to free)', false],
+    google_flow: ['🎬 Google Flow / Veo 3',  'AI-generated video clips',               false],
+    higgsville:  ['🎬 Social Optimize AI',   'Kling 3, Veo 3.1, Cinema Studio + more', false],
+    youtube:     ['▶️ YouTube',              'Upload videos & Shorts',                 false],
+    tiktok:      ['🎵 TikTok',              'Post videos to TikTok',                  false],
+    instagram:   ['📸 Instagram',           'Publish Reels',                          false],
   };
   const grid = document.getElementById('api-check-grid');
   grid.innerHTML = '';
+
+  // Count connected
+  let total = 0, connected = 0;
   for (const [key, ok] of Object.entries(data)) {
     if (key === 'higgsville_url_as_token') continue;
-    const [label, hint] = labels[key] || [key, ''];
+    total++;
+    if (ok) connected++;
+  }
+  grid.innerHTML += `<div class="text-sm text-dim" style="margin-bottom:4px;">${connected} of ${total} APIs configured</div>`;
+
+  for (const [key, ok] of Object.entries(data)) {
+    if (key === 'higgsville_url_as_token') continue;
+    const meta = labels[key] || [key, '', false];
+    const [label, hint, required] = meta;
     const urlMistake = key === 'higgsville' && data.higgsville_url_as_token;
-    const statusLabel = urlMistake ? '⚠ Wrong Value' : (ok ? '✓ Configured' : '✗ Missing');
-    const statusClass = urlMistake ? 'pill-error' : (ok ? 'pill-done' : 'pill-error');
+    const isOptional = !required && !ok;
+    const statusLabel = urlMistake ? '⚠ Wrong Value' : (ok ? '✓ Connected' : (isOptional ? '○ Optional' : '✗ Missing'));
+    const statusClass = urlMistake ? 'pill-error' : (ok ? 'pill-done' : (isOptional ? 'pill-pending' : 'pill-error'));
     grid.innerHTML += `
       <div class="flex-between" style="padding:10px;background:var(--bg-elevated);border-radius:8px;border:1px solid var(--border);">
         <div>
