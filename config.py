@@ -204,10 +204,10 @@ PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID", "")
 # Video settings
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en-US")
 DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "en-US-AriaNeural")
-VIDEO_WIDTH = int(os.getenv("DEFAULT_VIDEO_WIDTH", "1920"))
-VIDEO_HEIGHT = int(os.getenv("DEFAULT_VIDEO_HEIGHT", "1080"))
-SHORT_WIDTH = int(os.getenv("SHORT_VIDEO_WIDTH", "1080"))
-SHORT_HEIGHT = int(os.getenv("SHORT_VIDEO_HEIGHT", "1920"))
+VIDEO_WIDTH = int(os.getenv("DEFAULT_VIDEO_WIDTH", "1280"))
+VIDEO_HEIGHT = int(os.getenv("DEFAULT_VIDEO_HEIGHT", "720"))
+SHORT_WIDTH = int(os.getenv("SHORT_VIDEO_WIDTH", "720"))
+SHORT_HEIGHT = int(os.getenv("SHORT_VIDEO_HEIGHT", "1280"))
 
 # Content limits (seconds)
 SHORTS_MAX_DURATION = 60

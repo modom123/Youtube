@@ -132,12 +132,16 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
     print(f"[router] Job #{job_id} format={params.get('format')} tier={tier} "
           f"requested={raw_model} → using={routed_model}")
 
-    # Hard watchdog: mark job as failed if thread runs longer than 10 minutes
-    _WATCHDOG_SECONDS = 600
+    # Hard watchdog: mark job as failed if thread runs longer than 15 minutes
+    _WATCHDOG_SECONDS = 900
+    _job_cancelled = threading.Event()
     def _watchdog():
         import time as _t
         _t.sleep(_WATCHDOG_SECONDS)
+        if _job_cancelled.is_set():
+            return
         print(f"[watchdog] Job #{job_id} exceeded {_WATCHDOG_SECONDS}s — forcing error status")
+        _job_cancelled.set()
         try:
             db.update_job(job_id, status="error", error_msg=f"Job timed out after {_WATCHDOG_SECONDS}s",
                           current_step="Timed out")
@@ -181,6 +185,7 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
     try:
         params["progress_cb"] = progress_cb
         manifest = social_optimize.run(**params)
+        _job_cancelled.set()
         job_title = manifest.get("title")
         db.update_job(
             job_id, status="done", progress=100, current_step="Complete!",
