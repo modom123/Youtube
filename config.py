@@ -134,8 +134,11 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 # Google Flow / Veo 2
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
-# Higgsfield AI — single token used by both the CLI and MCP HTTP client
+# Higgsfield AI — bearer token for REST + MCP API calls
+# The endpoint URL is already hardcoded; only the TOKEN needs to be set in Render.
 HIGGSFIELD_MCP_TOKEN = os.getenv("HIGGSFIELD_MCP_TOKEN", "")
+# Optional override for the MCP endpoint URL (defaults to the Higgsfield cloud endpoint)
+HIGGSFIELD_MCP_URL = os.getenv("HIGGSFIELD_MCP_URL", "https://mcp.higgsfield.ai/mcp")
 
 # YouTube
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID", "")

@@ -1680,14 +1680,18 @@ def api_research_preview():
 
 @app.route("/api/settings/check")
 def api_settings_check():
+    tok = config.HIGGSFIELD_MCP_TOKEN
+    # If the user mistakenly pasted the endpoint URL as the token, flag it
+    token_is_url = tok.startswith("http://") or tok.startswith("https://")
     return jsonify({
-        "anthropic":   bool(config.ANTHROPIC_API_KEY),
-        "pexels":      bool(config.PEXELS_API_KEY),
-        "google_flow": bool(config.GOOGLE_API_KEY),
-        "higgsville":  bool(config.HIGGSFIELD_MCP_TOKEN),
-        "youtube":     bool(config.YOUTUBE_CLIENT_ID),
-        "tiktok":      bool(config.TIKTOK_CLIENT_KEY),
-        "instagram":   bool(config.INSTAGRAM_ACCESS_TOKEN),
+        "anthropic":        bool(config.ANTHROPIC_API_KEY),
+        "pexels":           bool(config.PEXELS_API_KEY),
+        "google_flow":      bool(config.GOOGLE_API_KEY),
+        "higgsville":       bool(tok) and not token_is_url,
+        "higgsville_url_as_token": token_is_url,
+        "youtube":          bool(config.YOUTUBE_CLIENT_ID),
+        "tiktok":           bool(config.TIKTOK_CLIENT_KEY),
+        "instagram":        bool(config.INSTAGRAM_ACCESS_TOKEN),
     })
 
 

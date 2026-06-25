@@ -14,7 +14,7 @@ from typing import Optional
 import config
 
 
-MCP_URL = "https://mcp.higgsfield.ai/mcp"
+MCP_URL = config.HIGGSFIELD_MCP_URL
 _PROTO_VERSION = "2024-11-05"
 
 
