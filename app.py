@@ -1805,7 +1805,7 @@ def api_studio_run():
         "voice": data.get("voice") or config.DEFAULT_VOICE,
         "thumbnail_style": data.get("thumbnail_style") or "fire",
         "privacy": data.get("privacy") or "private",
-        "dry_run": bool(data.get("dry_run", True)),
+        "dry_run": bool(data.get("dry_run", False)),
         "research_enabled": bool(data.get("research_enabled", True)),
         "competitor_titles": data.get("competitor_titles") or [],
         "platforms": data.get("platforms") or [],

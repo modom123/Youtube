@@ -225,7 +225,7 @@ def _tool_create_content(topic: str, format: str = "short", platforms: list = No
             "voice": config.DEFAULT_VOICE,
             "thumbnail_style": "fire",
             "privacy": "private",
-            "dry_run": True,
+            "dry_run": False,
             "research_enabled": True,
             "competitor_titles": [],
             "remaining_credits": 500,
