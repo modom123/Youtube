@@ -1,0 +1,50 @@
+{
+  "name": "Social Optimize Machine",
+  "short_name": "SOM",
+  "description": "AI-powered social media content creation and optimization platform",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "background_color": "#0a0a0a",
+  "theme_color": "#d4a017",
+  "orientation": "portrait-primary",
+  "lang": "en-US",
+  "categories": ["productivity", "social", "utilities"],
+  "icons": [
+    { "src": "/static/icons/icon-72.png",  "sizes": "72x72",   "type": "image/png" },
+    { "src": "/static/icons/icon-96.png",  "sizes": "96x96",   "type": "image/png" },
+    { "src": "/static/icons/icon-128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/static/icons/icon-144.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "/static/icons/icon-152.png", "sizes": "152x152", "type": "image/png" },
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icons/icon-384.png", "sizes": "384x384", "type": "image/png" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Create Video",
+      "short_name": "Create",
+      "url": "/create",
+      "description": "Create a new AI video",
+      "icons": [{ "src": "/static/icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/dashboard",
+      "description": "View your dashboard",
+      "icons": [{ "src": "/static/icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Jobs",
+      "short_name": "Jobs",
+      "url": "/jobs",
+      "description": "View running jobs",
+      "icons": [{ "src": "/static/icons/icon-96.png", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
