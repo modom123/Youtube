@@ -1,75 +1,68 @@
-"""Assemble final videos from audio, stock clips, and graphics using MoviePy 2.x."""
+"""Assemble final videos from audio, stock clips, and graphics — uses ffmpeg directly for speed."""
 import random
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Optional
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from moviepy import (
-    AudioFileClip,
-    VideoFileClip,
-    ImageClip,
-    CompositeVideoClip,
-    ColorClip,
-    concatenate_videoclips,
-)
-from moviepy.video.fx import FadeIn, FadeOut
-
 import config
 
 
-def _fit_clip(clip, target_w: int, target_h: int):
-    """Scale and crop a clip to fill target dimensions."""
-    iw, ih = clip.size
-    if iw <= 0 or ih <= 0:
-        return clip.resized((target_w, target_h))
-    scale = max(target_w / iw, target_h / ih)
-    clip = clip.resized(scale)
-    rw, rh = clip.size
-    crop_w = min(target_w, rw)
-    crop_h = min(target_h, rh)
-    clip = clip.cropped(
-        x_center=rw // 2,
-        y_center=rh // 2,
-        width=crop_w,
-        height=crop_h,
-    )
-    if crop_w != target_w or crop_h != target_h:
-        clip = clip.resized((target_w, target_h))
-    return clip
+def _get_ffmpeg():
+    import imageio_ffmpeg
+    return imageio_ffmpeg.get_ffmpeg_exe()
 
 
-def _load_image_clip(
-    image_path: Path,
-    duration: float,
-    target_w: int,
-    target_h: int,
-) -> ImageClip:
-    """Load image as a video clip."""
-    clip = ImageClip(str(image_path)).with_duration(duration)
-    clip = _fit_clip(clip, target_w, target_h)
-    clip = clip.with_effects([FadeIn(0.4), FadeOut(0.4)])
-    return clip
+def _get_duration(path: Path) -> float:
+    """Get media duration using ffprobe."""
+    ffmpeg = _get_ffmpeg()
+    ffprobe = ffmpeg.replace("ffmpeg", "ffprobe")
+    try:
+        r = subprocess.run(
+            [ffprobe, "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+            capture_output=True, text=True, timeout=10,
+        )
+        return float(r.stdout.strip())
+    except Exception:
+        from moviepy import AudioFileClip
+        clip = AudioFileClip(str(path))
+        d = clip.duration
+        clip.close()
+        return d
 
 
-def _load_video_clip(
-    video_path: Path,
-    duration: float,
-    target_w: int,
-    target_h: int,
-    start_at: float = 0,
-) -> VideoFileClip:
-    """Load and trim a stock video clip."""
-    clip = VideoFileClip(str(video_path), audio=False)
-    available = clip.duration - start_at
-    actual_duration = min(duration, max(available, 0.5))
-    if actual_duration < 0.5:
-        start_at = 0
-        actual_duration = min(duration, clip.duration)
-    clip = clip.subclipped(start_at, start_at + actual_duration)
-    clip = _fit_clip(clip, target_w, target_h)
-    clip = clip.with_effects([FadeIn(0.3), FadeOut(0.3)])
-    return clip
+def _get_video_duration(path: Path) -> float:
+    """Get video file duration."""
+    ffmpeg = _get_ffmpeg()
+    ffprobe = ffmpeg.replace("ffmpeg", "ffprobe")
+    try:
+        r = subprocess.run(
+            [ffprobe, "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+            capture_output=True, text=True, timeout=10,
+        )
+        return float(r.stdout.strip())
+    except Exception:
+        return 0
+
+
+def _make_gradient_image(width: int, height: int, c1: tuple, c2: tuple) -> Path:
+    """Create a gradient image and save to temp file."""
+    grad = np.zeros((height, width, 3), dtype=np.uint8)
+    for y in range(height):
+        t = y / max(height - 1, 1)
+        grad[y, :] = [
+            int(c1[0] + (c2[0] - c1[0]) * t),
+            int(c1[1] + (c2[1] - c1[1]) * t),
+            int(c1[2] + (c2[2] - c1[2]) * t),
+        ]
+    img = Image.fromarray(grad)
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    img.save(tmp.name)
+    return Path(tmp.name)
 
 
 def _make_text_image(
@@ -95,7 +88,6 @@ def _make_text_image(
     if not font:
         font = ImageFont.load_default()
 
-    # Measure text
     dummy = Image.new("RGBA", (1, 1))
     draw = ImageDraw.Draw(dummy)
     bbox = draw.textbbox((0, 0), text, font=font)
@@ -110,39 +102,58 @@ def _make_text_image(
     return np.array(img.convert("RGB"))
 
 
-def _make_fallback_visuals(width: int, height: int, total_duration: float, narration_text: str = "") -> list:
-    """Create gradient background slides with text when no stock media is available."""
-    gradients = [
-        ((15, 15, 40), (40, 20, 60)),
-        ((10, 25, 45), (20, 50, 70)),
-        ((30, 15, 35), (50, 25, 55)),
-        ((5, 20, 35), (15, 45, 60)),
-        ((25, 10, 30), (45, 20, 50)),
-    ]
-    clips = []
-    elapsed = 0.0
-    seg_idx = 0
-    while elapsed < total_duration:
-        seg_dur = min(random.uniform(5, 10), total_duration - elapsed)
-        if seg_dur < 0.5:
-            break
-        c1, c2 = gradients[seg_idx % len(gradients)]
-        grad = np.zeros((height, width, 3), dtype=np.uint8)
-        for y in range(height):
-            t = y / max(height - 1, 1)
-            grad[y, :] = [
-                int(c1[0] + (c2[0] - c1[0]) * t),
-                int(c1[1] + (c2[1] - c1[1]) * t),
-                int(c1[2] + (c2[2] - c1[2]) * t),
-            ]
-        clip = ImageClip(grad).with_duration(seg_dur)
-        clip = clip.with_effects([FadeIn(0.4), FadeOut(0.4)])
-        clips.append(clip)
-        elapsed += seg_dur
-        seg_idx += 1
-    if not clips:
-        clips = [ColorClip(size=(width, height), color=(15, 15, 40)).with_duration(total_duration)]
-    return clips
+def _prepare_clip_segment(source: Path, duration: float, width: int, height: int, tmpdir: Path, idx: int) -> Optional[Path]:
+    """Use ffmpeg to create a scaled/cropped segment from a source file."""
+    ffmpeg = _get_ffmpeg()
+    out = tmpdir / f"seg_{idx:04d}.mp4"
+
+    is_video = source.suffix.lower() in (".mp4", ".mov", ".avi", ".mkv")
+    is_image = source.suffix.lower() in (".jpg", ".jpeg", ".png", ".bmp", ".webp")
+
+    if is_video:
+        src_dur = _get_video_duration(source)
+        if src_dur <= 0:
+            return None
+        start = random.uniform(0, max(0, src_dur - duration - 0.5))
+        actual_dur = min(duration, src_dur - start)
+        if actual_dur < 0.5:
+            start = 0
+            actual_dur = min(duration, src_dur)
+        cmd = [
+            ffmpeg, "-y",
+            "-ss", f"{start:.2f}",
+            "-i", str(source),
+            "-t", f"{actual_dur:.2f}",
+            "-vf", f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},fade=in:0:6,fade=out:st={max(0, actual_dur-0.3):.2f}:d=0.3",
+            "-an",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+            "-pix_fmt", "yuv420p",
+            "-r", "12",
+            str(out),
+        ]
+    elif is_image:
+        cmd = [
+            ffmpeg, "-y",
+            "-loop", "1",
+            "-i", str(source),
+            "-t", f"{duration:.2f}",
+            "-vf", f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+            "-pix_fmt", "yuv420p",
+            "-r", "12",
+            str(out),
+        ]
+    else:
+        return None
+
+    try:
+        r = subprocess.run(cmd, capture_output=True, timeout=30)
+        if r.returncode == 0 and out.exists() and out.stat().st_size > 0:
+            return out
+        print(f"[video] ffmpeg segment failed for {source.name}: {r.stderr.decode('utf-8', errors='replace')[-200:]}")
+    except Exception as e:
+        print(f"[video] Segment creation failed for {source.name}: {e}")
+    return None
 
 
 def create_video(
@@ -157,7 +168,7 @@ def create_video(
     add_subtitles: bool = False,
     narration_text: str = "",
 ) -> Path:
-    """Assemble the final video from audio and visual assets."""
+    """Assemble the final video from audio and visual assets using ffmpeg directly."""
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     audio_path = Path(audio_path)
@@ -165,8 +176,8 @@ def create_video(
     if not audio_path.exists():
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
-    audio = AudioFileClip(str(audio_path))
-    total_duration = audio.duration
+    total_duration = _get_duration(audio_path)
+    ffmpeg = _get_ffmpeg()
 
     video_clips = [Path(p) for p in (video_clips or []) if p and Path(p).exists()]
     image_clips = [Path(p) for p in (image_clips or []) if p and Path(p).exists()]
@@ -174,73 +185,100 @@ def create_video(
 
     print(f"[video] Visuals available: {len(video_clips)} videos, {len(image_clips)} images, total_duration={total_duration:.1f}s")
 
-    if not all_visuals:
-        print("[video] WARNING: No visual assets found — using image-based backgrounds")
-        visual_sequence = _make_fallback_visuals(width, height, total_duration, narration_text)
-    else:
-        random.shuffle(all_visuals)
-        visual_sequence = []
-        elapsed = 0.0
-        i = 0
-        while elapsed < total_duration:
-            remaining = total_duration - elapsed
-            clip_duration = min(random.uniform(4, 8), remaining)
-            if clip_duration < 0.5:
-                break
-            source = all_visuals[i % len(all_visuals)]
-            i += 1
-            try:
-                if source.suffix.lower() in (".mp4", ".mov", ".avi", ".mkv"):
-                    start = random.uniform(0, 3)
-                    clip = _load_video_clip(source, clip_duration, width, height, start_at=start)
-                else:
-                    clip = _load_image_clip(source, clip_duration, width, height)
-                visual_sequence.append(clip)
-                elapsed += clip_duration
-            except Exception as e:
-                print(f"[video] Skipping {source.name}: {e}")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        segments = []
 
-    if not visual_sequence:
-        print("[video] WARNING: All clips failed to load — using fallback visuals")
-        visual_sequence = _make_fallback_visuals(width, height, total_duration, narration_text)
+        if all_visuals:
+            random.shuffle(all_visuals)
+            elapsed = 0.0
+            idx = 0
+            while elapsed < total_duration:
+                remaining = total_duration - elapsed
+                clip_duration = min(random.uniform(4, 8), remaining)
+                if clip_duration < 0.5:
+                    break
+                source = all_visuals[idx % len(all_visuals)]
+                seg = _prepare_clip_segment(source, clip_duration, width, height, tmpdir, idx)
+                if seg:
+                    segments.append(seg)
+                    elapsed += clip_duration
+                idx += 1
+                if idx > len(all_visuals) * 3 and not segments:
+                    break
 
-    bg_video = concatenate_videoclips(visual_sequence, method="compose")
-    if bg_video.duration < total_duration:
-        bg_video = bg_video.with_duration(total_duration)
+        if not segments:
+            print("[video] No visual segments — creating gradient backgrounds")
+            gradients = [
+                ((15, 15, 40), (40, 20, 60)),
+                ((10, 25, 45), (20, 50, 70)),
+                ((30, 15, 35), (50, 25, 55)),
+                ((5, 20, 35), (15, 45, 60)),
+            ]
+            elapsed = 0.0
+            idx = 0
+            while elapsed < total_duration:
+                seg_dur = min(random.uniform(5, 10), total_duration - elapsed)
+                if seg_dur < 0.5:
+                    break
+                c1, c2 = gradients[idx % len(gradients)]
+                grad_img = _make_gradient_image(width, height, c1, c2)
+                seg = _prepare_clip_segment(grad_img, seg_dur, width, height, tmpdir, idx + 1000)
+                if seg:
+                    segments.append(seg)
+                    elapsed += seg_dur
+                grad_img.unlink(missing_ok=True)
+                idx += 1
 
-    composite_layers = [bg_video]
+        if not segments:
+            # Last resort: single color frame
+            color_img = _make_gradient_image(width, height, (15, 15, 40), (15, 15, 40))
+            seg = _prepare_clip_segment(color_img, total_duration, width, height, tmpdir, 9999)
+            if seg:
+                segments.append(seg)
+            color_img.unlink(missing_ok=True)
 
-    # Branding bar
-    try:
-        brand_arr = _make_text_image("Social Optimize", width, font_size=22,
-                                     color=(200, 200, 200), bg=(0, 0, 0, 120))
-        brand_clip = (
-            ImageClip(brand_arr)
-            .with_duration(total_duration)
-            .with_position(("left", height - 50))
-        )
-        composite_layers.append(brand_clip)
-    except Exception:
-        pass
+        # Write concat list
+        concat_file = tmpdir / "concat.txt"
+        concat_file.write_text("\n".join(f"file '{seg}'" for seg in segments))
 
-    final = CompositeVideoClip(composite_layers, size=(width, height))
-    final = final.with_audio(audio).with_duration(total_duration)
+        # Concatenate all segments and add audio in one ffmpeg pass
+        print(f"[video] Concatenating {len(segments)} segments with audio...")
+        cmd = [
+            ffmpeg, "-y",
+            "-f", "concat", "-safe", "0", "-i", str(concat_file),
+            "-i", str(audio_path),
+            "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "128k",
+            "-shortest",
+            "-movflags", "+faststart",
+            str(output_path),
+        ]
+        r = subprocess.run(cmd, capture_output=True, timeout=300)
+        if r.returncode != 0:
+            stderr = r.stderr.decode("utf-8", errors="replace")[-500:]
+            print(f"[video] Concat failed, trying re-encode: {stderr}")
+            # Fallback: re-encode during concat
+            cmd = [
+                ffmpeg, "-y",
+                "-f", "concat", "-safe", "0", "-i", str(concat_file),
+                "-i", str(audio_path),
+                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "28",
+                "-c:a", "aac", "-b:a", "128k",
+                "-pix_fmt", "yuv420p",
+                "-r", "12",
+                "-shortest",
+                "-movflags", "+faststart",
+                str(output_path),
+            ]
+            r = subprocess.run(cmd, capture_output=True, timeout=600)
+            if r.returncode != 0:
+                raise RuntimeError(f"Video assembly failed: {r.stderr.decode('utf-8', errors='replace')[-300:]}")
 
-    final.write_videofile(
-        str(output_path),
-        fps=12,
-        codec="libx264",
-        audio_codec="aac",
-        preset="ultrafast",
-        threads=2,
-        logger="bar",
-    )
-    for clip in visual_sequence:
-        try:
-            clip.close()
-        except Exception:
-            pass
-    audio.close()
+    if not output_path.exists():
+        raise RuntimeError(f"Video output not found at {output_path}")
+
+    print(f"[video] Video assembled: {output_path.stat().st_size / 1024 / 1024:.1f} MB")
     return output_path
 
 
@@ -255,17 +293,60 @@ def create_podcast_video(
     title: str = "",
     sections: list[dict] = None,
 ) -> Path:
-    """
-    Create a dynamic podcast video with animated equalizer waveform,
-    chapter markers, episode info, and animated progress bar.
-    """
+    """Create a podcast video with a static visual overlay and audio."""
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    total_duration = _get_duration(audio_path)
+    ffmpeg = _get_ffmpeg()
+
+    # Build the podcast frame as a single image
+    frame = _build_podcast_frame(
+        width, height, thumbnail_path, channel_name,
+        episode_number, title, sections,
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        frame_path = Path(tmpdir) / "podcast_frame.png"
+        Image.fromarray(frame).save(str(frame_path))
+
+        # Use ffmpeg to loop the image + overlay audio — extremely fast
+        cmd = [
+            ffmpeg, "-y",
+            "-loop", "1",
+            "-i", str(frame_path),
+            "-i", str(audio_path),
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+            "-tune", "stillimage",
+            "-c:a", "aac", "-b:a", "128k",
+            "-pix_fmt", "yuv420p",
+            "-r", "1",
+            "-shortest",
+            "-movflags", "+faststart",
+            str(output_path),
+        ]
+        print(f"[video] Creating podcast video ({total_duration:.0f}s) with ffmpeg...")
+        r = subprocess.run(cmd, capture_output=True, timeout=300)
+        if r.returncode != 0:
+            raise RuntimeError(
+                f"Podcast video assembly failed: {r.stderr.decode('utf-8', errors='replace')[-300:]}"
+            )
+
+    print(f"[video] Podcast video: {output_path.stat().st_size / 1024 / 1024:.1f} MB")
+    return output_path
+
+
+def _build_podcast_frame(
+    width: int, height: int,
+    thumbnail_path: Optional[Path],
+    channel_name: str,
+    episode_number: int,
+    title: str,
+    sections: list[dict] = None,
+) -> np.ndarray:
+    """Build a single podcast frame image with all visual elements."""
     import math
 
-    audio = AudioFileClip(str(audio_path))
-    total_duration = audio.duration
-    sections = sections or []
-
-    # ── font helpers ──────────────────────────────────────────────────────────
     _FONTS = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
@@ -280,149 +361,86 @@ def create_podcast_video(
                 pass
         return ImageFont.load_default()
 
-    def _text_img(text: str, size: int, color, max_w: int, bg=(0, 0, 0, 0)) -> np.ndarray:
-        font = _font(size)
-        dummy = Image.new("RGBA", (1, 1))
-        bbox = ImageDraw.Draw(dummy).textbbox((0, 0), text, font=font)
-        tw = min(bbox[2] - bbox[0], max_w)
-        th = bbox[3] - bbox[1]
-        pad = 12
-        img = Image.new("RGBA", (tw + pad * 2, th + pad * 2), bg)
-        ImageDraw.Draw(img).text((pad, pad), text[:80], font=font, fill=color)
-        return np.array(img.convert("RGB"))
-
-    # ── background layer ──────────────────────────────────────────────────────
+    # Background
     if thumbnail_path and Path(thumbnail_path).exists():
         try:
             bg_img = Image.open(thumbnail_path).convert("RGB").resize((width, height), Image.LANCZOS)
-            # Dark overlay so text and waveform stand out
-            overlay = Image.new("RGB", (width, height), (0, 0, 0))
-            bg_img = Image.blend(bg_img, overlay, 0.65)
-            bg = ImageClip(np.array(bg_img)).with_duration(total_duration)
+            overlay_img = Image.new("RGB", (width, height), (0, 0, 0))
+            bg_img = Image.blend(bg_img, overlay_img, 0.65)
+            frame = np.array(bg_img)
         except Exception:
-            bg = ColorClip(size=(width, height), color=(12, 12, 25)).with_duration(total_duration)
+            frame = np.zeros((height, width, 3), dtype=np.uint8)
+            for y in range(height):
+                v = int(10 + 20 * (1 - y / height))
+                frame[y, :] = [v, v, v + 18]
     else:
-        # Gradient dark background
-        grad = np.zeros((height, width, 3), dtype=np.uint8)
+        frame = np.zeros((height, width, 3), dtype=np.uint8)
         for y in range(height):
             v = int(10 + 20 * (1 - y / height))
-            grad[y, :] = [v, v, v + 18]
-        bg = ImageClip(grad).with_duration(total_duration)
+            frame[y, :] = [v, v, v + 18]
 
-    layers = [bg]
+    img = Image.fromarray(frame)
+    draw = ImageDraw.Draw(img)
 
-    # ── header: podcast name + episode number ─────────────────────────────────
-    ep_label = f"EP. {episode_number:02d}"
+    # Header bar
     header_h = max(70, height // 11)
-    header = Image.new("RGB", (width, header_h), (20, 20, 40))
-    draw = ImageDraw.Draw(header)
-    # Left: podcast name
+    draw.rectangle([(0, 0), (width, header_h)], fill=(20, 20, 40))
     fn_l = _font(max(28, header_h // 2 - 4))
     draw.text((36, header_h // 2 - 16), channel_name[:50], font=fn_l, fill=(240, 180, 60))
-    # Right: episode number
+    ep_label = f"EP. {episode_number:02d}"
     fn_r = _font(max(22, header_h // 2 - 8))
     bb = draw.textbbox((0, 0), ep_label, font=fn_r)
     draw.text((width - (bb[2] - bb[0]) - 36, header_h // 2 - 14), ep_label, font=fn_r, fill=(160, 160, 180))
-    layers.append(ImageClip(np.array(header)).with_duration(total_duration).with_position((0, 0)))
+    draw.line([(0, header_h), (width, header_h)], fill=(60, 60, 100), width=2)
 
-    # Divider line under header
-    div = np.zeros((2, width, 3), dtype=np.uint8)
-    div[:] = [60, 60, 100]
-    layers.append(ImageClip(div).with_duration(total_duration).with_position((0, header_h)))
-
-    # ── episode title ─────────────────────────────────────────────────────────
+    # Title
     if title:
-        title_arr = _text_img(title[:80], max(30, height // 22), (240, 240, 240), width - 80)
+        fn_t = _font(max(30, height // 22))
         title_y = header_h + max(20, height // 16)
-        layers.append(
-            ImageClip(title_arr).with_duration(total_duration).with_position((40, title_y))
-        )
+        draw.text((40, title_y), title[:80], font=fn_t, fill=(240, 240, 240))
 
-    # ── static equalizer graphic ────────────────────────────────────────────
+    # Equalizer bars
     BARS = 48
     WV_H = height // 5
     WV_Y = height // 2 - WV_H // 2
     WV_W = width - 80
-
-    wv_frame = np.zeros((WV_H, WV_W, 3), dtype=np.uint8)
     bar_w = max(3, WV_W // (BARS * 2))
     spacing = WV_W // BARS
     max_h = int(WV_H * 0.88)
-    cy = WV_H // 2
+    cy = WV_Y + WV_H // 2
+
     for i in range(BARS):
         wave = 0.3 + 0.5 * abs(math.sin(i * 0.55))
         bh = max(6, int(max_h * wave))
-        x0 = i * spacing + (spacing - bar_w) // 2
+        x0 = 40 + i * spacing + (spacing - bar_w) // 2
         x1 = x0 + bar_w
         y0 = max(0, cy - bh // 2)
-        y1 = min(WV_H - 1, cy + bh // 2)
+        y1 = min(height - 1, cy + bh // 2)
         r = int(20 + 40 * wave)
         g = int(120 + 100 * wave)
         b = int(210 + 45 * wave)
-        wv_frame[y0:y1 + 1, x0:x1 + 1] = [r, g, b]
+        draw.rectangle([(x0, y0), (x1, y1)], fill=(r, g, b))
 
-    layers.append(
-        ImageClip(wv_frame).with_duration(total_duration).with_position((40, WV_Y))
-    )
-
-    # ── chapter title cards ───────────────────────────────────────────────────
+    # Chapter list
     ch_y = WV_Y + WV_H + max(18, height // 28)
+    fn_ch = _font(max(22, height // 30))
+    sections = sections or []
     if sections:
-        elapsed = 0.0
-        for sec in sections:
-            dur = float(sec.get("duration", 60))
+        for i, sec in enumerate(sections[:5]):
             name = sec.get("name", "")
-            if name and dur > 0:
-                ch_arr = _text_img(
-                    f"▶  {name}",
-                    max(22, height // 30),
-                    (180, 220, 255),
-                    width - 80,
-                    bg=(0, 0, 0, 0),
-                )
-                layers.append(
-                    ImageClip(ch_arr)
-                    .with_start(elapsed)
-                    .with_duration(dur)
-                    .with_position((40, ch_y))
-                )
-            elapsed += dur
+            if name:
+                draw.text((40, ch_y + i * 30), f"▶  {name[:60]}", font=fn_ch, fill=(180, 220, 255))
     else:
-        pod_arr = _text_img("🎙  Now Playing", max(22, height // 30), (180, 220, 255), width - 80)
-        layers.append(ImageClip(pod_arr).with_duration(total_duration).with_position((40, ch_y)))
+        draw.text((40, ch_y), "Now Playing", font=fn_ch, fill=(180, 220, 255))
 
-    # ── static progress track ─────────────────────────────────────────────────
+    # Progress track
     BAR_H = max(6, height // 90)
     BAR_Y = height - max(50, height // 14)
-    BAR_W = width - 80
+    draw.rectangle([(40, BAR_Y), (width - 40, BAR_Y + BAR_H)], fill=(40, 40, 70))
 
-    bar_frame = np.zeros((BAR_H + 40, BAR_W, 3), dtype=np.uint8)
-    bar_frame[:BAR_H, :] = [40, 40, 70]
-    total_s = int(total_duration)
-    ts = f"0:00 / {total_s//60}:{total_s%60:02d}"
-    try:
-        lbl_img = Image.new("RGB", (BAR_W, 26), (0, 0, 0))
-        lbl_draw = ImageDraw.Draw(lbl_img)
-        lbl_font = _font(18)
-        lbl_draw.text((0, 4), ts, font=lbl_font, fill=(140, 140, 180))
-        bar_frame[BAR_H + 8: BAR_H + 34, :] = np.array(lbl_img)
-    except Exception:
-        pass
-    layers.append(
-        ImageClip(bar_frame).with_duration(total_duration).with_position((40, BAR_Y))
-    )
+    return np.array(img)
 
-    # ── compose & render ──────────────────────────────────────────────────────
-    final = CompositeVideoClip(layers, size=(width, height))
-    final = final.with_audio(audio).with_duration(total_duration)
-    final.write_videofile(
-        str(output_path),
-        fps=12,
-        codec="libx264",
-        audio_codec="aac",
-        preset="ultrafast",
-        threads=2,
-        logger="bar",
-    )
-    audio.close()
-    return output_path
+
+def get_audio_duration(audio_path: Path) -> float:
+    """Get duration of audio file in seconds."""
+    return _get_duration(audio_path)
