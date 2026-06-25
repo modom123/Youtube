@@ -40,12 +40,12 @@ def _make_plan(assets):
 class TestCostEngineerRouting:
     """3-tier cost routing logic."""
 
-    def test_priority3_always_downgraded_to_pexels(self):
+    def test_priority3_always_downgraded_to_pixabay(self):
         engineer = CostEngineer()
         assets = [_make_asset(priority=3, credit_cost=10, model_key="kling3_0")]
         plan = _make_plan(assets)
         result = engineer.run(plan, remaining_credits=500, monthly_budget=500)
-        assert result.assets[0].source == "free_pexels_api"
+        assert result.assets[0].source == "free_pixabay_api"
         assert result.assets[0].credit_cost == 0
         assert len(result.swaps_made) == 1
 
@@ -88,10 +88,10 @@ class TestCostEngineerRouting:
         assert result.assets[0].source == "higgsfield_cinematic"
         assert result.assets[1].source == "chinese_open_source_api"
 
-    def test_low_complexity_goes_to_pexels(self):
+    def test_low_complexity_goes_to_pixabay(self):
         engineer = CostEngineer()
         assets = [_make_asset(
-            source="free_pexels_api",
+            source="free_pixabay_api",
             model_key=None,
             prompt="abstract background loop",
             credit_cost=0,
@@ -99,10 +99,10 @@ class TestCostEngineerRouting:
         )]
         plan = _make_plan(assets)
         result = engineer.run(plan, remaining_credits=500, monthly_budget=500)
-        assert result.assets[0].source == "free_pexels_api"
+        assert result.assets[0].source == "free_pixabay_api"
         assert result.total_credit_cost == 0
 
-    def test_dollar_budget_exhaustion_falls_to_pexels(self):
+    def test_dollar_budget_exhaustion_falls_to_pixabay(self):
         engineer = CostEngineer()
         assets = [
             _make_asset(section_id=i, priority=2, prompt="custom character scene",
@@ -112,9 +112,9 @@ class TestCostEngineerRouting:
         plan = _make_plan(assets)
         result = engineer.run(plan, remaining_credits=500, monthly_budget=500, dollar_budget=0.05)
         chinese_count = sum(1 for a in result.assets if a.source == "chinese_open_source_api")
-        pexels_count = sum(1 for a in result.assets if a.source == "free_pexels_api")
+        pixabay_count = sum(1 for a in result.assets if a.source == "free_pixabay_api")
         assert chinese_count >= 1
-        assert pexels_count >= 1
+        assert pixabay_count >= 1
 
     def test_character_prompt_picks_seedance(self):
         engineer = CostEngineer()
@@ -154,19 +154,19 @@ class TestCostEngineerRouting:
 
     def test_budget_state_healthy(self):
         engineer = CostEngineer()
-        plan = _make_plan([_make_asset(source="free_pexels_api", model_key=None, credit_cost=0)])
+        plan = _make_plan([_make_asset(source="free_pixabay_api", model_key=None, credit_cost=0)])
         result = engineer.run(plan, remaining_credits=400, monthly_budget=500)
         assert result.budget_state == "healthy"
 
     def test_budget_state_warning(self):
         engineer = CostEngineer()
-        plan = _make_plan([_make_asset(source="free_pexels_api", model_key=None, credit_cost=0)])
+        plan = _make_plan([_make_asset(source="free_pixabay_api", model_key=None, credit_cost=0)])
         result = engineer.run(plan, remaining_credits=200, monthly_budget=500)
         assert result.budget_state == "warning"
 
     def test_budget_state_critical(self):
         engineer = CostEngineer()
-        plan = _make_plan([_make_asset(source="free_pexels_api", model_key=None, credit_cost=0)])
+        plan = _make_plan([_make_asset(source="free_pixabay_api", model_key=None, credit_cost=0)])
         result = engineer.run(plan, remaining_credits=50, monthly_budget=500)
         assert result.budget_state == "critical_save"
 
@@ -179,7 +179,7 @@ class TestCostEngineerRouting:
                         visual_complexity="medium_custom", credit_cost=8),
             _make_asset(section_id=3, priority=3, prompt="generic landscape",
                         visual_complexity="low", credit_cost=5),
-            _make_asset(section_id=4, priority=2, source="free_pexels_api",
+            _make_asset(section_id=4, priority=2, source="free_pixabay_api",
                         model_key=None, prompt="abstract background",
                         visual_complexity="low", credit_cost=0),
         ]
@@ -188,8 +188,8 @@ class TestCostEngineerRouting:
 
         assert result.assets[0].source == "higgsfield_cinematic"
         assert result.assets[1].source == "chinese_open_source_api"
-        assert result.assets[2].source == "free_pexels_api"
-        assert result.assets[3].source == "free_pexels_api"
+        assert result.assets[2].source == "free_pixabay_api"
+        assert result.assets[3].source == "free_pixabay_api"
 
         assert result.total_credit_cost == 10
         assert result.total_dollar_cost > 0
@@ -207,14 +207,14 @@ class TestComplexityClassification:
 
     def test_character_detected_as_medium(self):
         engineer = CostEngineer()
-        asset = _make_asset(prompt="a person walking through a forest", source="free_pexels_api",
+        asset = _make_asset(prompt="a person walking through a forest", source="free_pixabay_api",
                             model_key=None, credit_cost=0)
         complexity = engineer._classify_complexity(asset)
         assert complexity == "medium_custom"
 
     def test_generic_broll_detected_as_low(self):
         engineer = CostEngineer()
-        asset = _make_asset(prompt="abstract gradient loop", source="free_pexels_api",
+        asset = _make_asset(prompt="abstract gradient loop", source="free_pixabay_api",
                             model_key=None, credit_cost=0)
         complexity = engineer._classify_complexity(asset)
         assert complexity == "low"

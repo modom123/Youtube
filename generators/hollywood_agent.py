@@ -335,8 +335,8 @@ def _tool_get_all_required_env_vars() -> dict:
             "current": "set" if config.ANTHROPIC_API_KEY else "missing",
             "description": "Claude AI API key — required for script generation and Hollywood agent"
         },
-        "PEXELS_API_KEY": {
-            "current": "set" if config.PEXELS_API_KEY else "missing",
+        "PIXABAY_API_KEY": {
+            "current": "set" if config.PIXABAY_API_KEY else "missing",
             "description": "Pexels stock media API key — required for fetching video clips and images"
         },
         "STRIPE_SECRET_KEY": {

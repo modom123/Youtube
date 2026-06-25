@@ -32,7 +32,7 @@ def _patch_config_dirs():
         "STRIPE_PRICE_CREATOR": "price_creator_test",
         "STRIPE_PRICE_AGENCY": "price_agency_test",
         "ANTHROPIC_API_KEY": "",
-        "PEXELS_API_KEY": "",
+        "PIXABAY_API_KEY": "",
         "GOOGLE_API_KEY": "",
     }):
         # Force re-evaluation of config paths

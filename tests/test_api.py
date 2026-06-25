@@ -36,7 +36,7 @@ class TestSettingsCheck:
         assert resp.status_code == 200
         data = resp.get_json()
         assert "anthropic" in data
-        assert "pexels" in data
+        assert "pixabay" in data
 
 
 class TestCreateVideo:

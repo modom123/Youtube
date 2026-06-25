@@ -48,7 +48,7 @@ class FullScript(BaseModel):
 
 # ── Agent 3: Asset Curator output ───────────────────────────────────────────
 
-AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pexels_api", "free_stock_internal"]
+AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pixabay_api", "free_stock_internal"]
 
 class AssetSpec(BaseModel):
     section_id: int

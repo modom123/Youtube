@@ -152,7 +152,7 @@ def run(
             is_portrait=profile.get("is_portrait", False),
             target_duration=profile.get("duration"),
             pixabay_key_set=bool(config.PIXABAY_API_KEY),
-            pexels_key_set=bool(config.PEXELS_API_KEY),
+            pixabay_key_set=bool(config.PIXABAY_API_KEY),
             higgsfield_token_set=bool(config.HIGGSFIELD_MCP_TOKEN),
             anthropic_key_set=bool(getattr(config, "ANTHROPIC_API_KEY", "")),
             google_key_set=bool(getattr(config, "GOOGLE_API_KEY", "")),

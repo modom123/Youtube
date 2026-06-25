@@ -219,7 +219,7 @@ def setup():
 
     checks = [
         ("ANTHROPIC_API_KEY", bool(config.ANTHROPIC_API_KEY), "Required for script generation"),
-        ("PEXELS_API_KEY", bool(config.PEXELS_API_KEY), "Required for stock media (optional)"),
+        ("PIXABAY_API_KEY", bool(config.PIXABAY_API_KEY), "Required for stock media (optional)"),
         ("YOUTUBE_CLIENT_ID", bool(config.YOUTUBE_CLIENT_ID), "Required for YouTube uploads"),
         ("TIKTOK_ACCESS_TOKEN", bool(config.TIKTOK_ACCESS_TOKEN), "Required for TikTok uploads"),
         ("INSTAGRAM_ACCESS_TOKEN", bool(config.INSTAGRAM_ACCESS_TOKEN), "Required for Instagram uploads"),

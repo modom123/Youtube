@@ -268,27 +268,27 @@ class ProductionStudioEngine:
 
         # Group assets by source
         higgsfield_assets = [a for a in asset_plan.assets if a.source.startswith("higgsfield_")]
-        pexels_assets = [a for a in asset_plan.assets if a.source == "free_pexels_api"]
+        pixabay_assets = [a for a in asset_plan.assets if a.source == "free_pixabay_api"]
 
-        # Stock media from Pexels
-        pexels_keywords = list({kw for a in pexels_assets for kw in a.prompt.split()[:3]})
-        if not pexels_keywords:
+        # Stock media from Pixabay
+        pixabay_keywords = list({kw for a in pixabay_assets for kw in a.prompt.split()[:3]})
+        if not pixabay_keywords:
             if script.sections:
-                pexels_keywords = script.sections[0].b_roll_keywords[:3]
+                pixabay_keywords = script.sections[0].b_roll_keywords[:3]
             else:
-                pexels_keywords = ["abstract background"]
+                pixabay_keywords = ["abstract background"]
 
         video_clips: list[Path] = []
         image_clips: list[Path] = []
         try:
             video_clips, image_clips = media_fetcher.fetch_media_for_topic(
-                keywords=pexels_keywords[:5],
+                keywords=pixabay_keywords[:5],
                 output_dir=stock_dir,
-                video_count=max(4, len(pexels_assets)),
+                video_count=max(4, len(pixabay_assets)),
                 is_portrait=is_portrait,
             )
         except Exception as e:
-            errors.append(f"Pexels fetch failed: {e}")
+            errors.append(f"Pixabay fetch failed: {e}")
 
         # Higgsfield AI clips via MCP
         ai_clips: list[Path] = []
