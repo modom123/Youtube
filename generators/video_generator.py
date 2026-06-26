@@ -16,22 +16,34 @@ def _get_ffmpeg():
 
 
 def _get_duration(path: Path) -> float:
-    """Get media duration using ffprobe."""
+    """Get media duration using ffprobe, with MoviePy fallback."""
     ffmpeg = _get_ffmpeg()
     ffprobe = ffmpeg.replace("ffmpeg", "ffprobe")
+    duration = 0.0
     try:
         r = subprocess.run(
             [ffprobe, "-v", "error", "-show_entries", "format=duration",
              "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
             capture_output=True, text=True, timeout=10,
         )
-        return float(r.stdout.strip())
+        val = r.stdout.strip()
+        if val:
+            duration = float(val)
     except Exception:
+        pass
+    if duration > 0:
+        return duration
+    # ffprobe failed or returned 0 — try MoviePy
+    try:
         from moviepy import AudioFileClip
         clip = AudioFileClip(str(path))
-        d = clip.duration
+        duration = clip.duration
         clip.close()
-        return d
+    except Exception:
+        pass
+    if duration <= 0:
+        raise RuntimeError(f"Could not determine duration of {path} (got {duration}s). File may be corrupt.")
+    return duration
 
 
 def _get_video_duration(path: Path) -> float:
@@ -354,35 +366,42 @@ def create_video(
                 segments.append(seg)
             card.unlink(missing_ok=True)
 
+        if not segments:
+            raise RuntimeError("No video segments could be created — all visual sources failed to encode")
+
         # Write concat list
         concat_file = tmpdir / "concat.txt"
         concat_file.write_text("\n".join(f"file '{seg}'" for seg in segments))
 
-        # Concatenate all segments and add audio in one ffmpeg pass
-        print(f"[video] Concatenating {len(segments)} segments with audio...")
+        # Concatenate all segments and add audio in one ffmpeg pass.
+        # Use -map to explicitly choose streams (avoids -shortest truncating to audio=0 when
+        # audio metadata is missing) and pad audio to match video length instead.
+        print(f"[video] Concatenating {len(segments)} segments ({total_duration:.1f}s audio) with audio...")
         cmd = [
             ffmpeg, "-y",
             "-f", "concat", "-safe", "0", "-i", str(concat_file),
             "-i", str(audio_path),
+            "-map", "0:v:0",
+            "-map", "1:a:0",
             "-c:v", "copy",
             "-c:a", "aac", "-b:a", "192k",
-            "-shortest",
             "-movflags", "+faststart",
             str(output_path),
         ]
         r = subprocess.run(cmd, capture_output=True, timeout=300)
         if r.returncode != 0:
             stderr = r.stderr.decode("utf-8", errors="replace")[-500:]
-            print(f"[video] Concat failed, trying re-encode: {stderr}")
+            print(f"[video] Concat failed, trying full re-encode: {stderr}")
             cmd = [
                 ffmpeg, "-y",
                 "-f", "concat", "-safe", "0", "-i", str(concat_file),
                 "-i", str(audio_path),
+                "-map", "0:v:0",
+                "-map", "1:a:0",
                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
                 "-c:a", "aac", "-b:a", "192k",
                 "-pix_fmt", "yuv420p",
                 "-r", "24",
-                "-shortest",
                 "-movflags", "+faststart",
                 str(output_path),
             ]
@@ -393,7 +412,14 @@ def create_video(
     if not output_path.exists():
         raise RuntimeError(f"Video output not found at {output_path}")
 
-    print(f"[video] Video assembled: {output_path.stat().st_size / 1024 / 1024:.1f} MB")
+    final_size = output_path.stat().st_size
+    if final_size < 50_000:  # less than 50 KB means something went wrong
+        raise RuntimeError(
+            f"Video assembly produced suspiciously small file ({final_size} bytes). "
+            "Likely the visual segments failed to encode. Check ffmpeg logs."
+        )
+
+    print(f"[video] Video assembled: {final_size / 1024 / 1024:.1f} MB")
     return output_path
 
 

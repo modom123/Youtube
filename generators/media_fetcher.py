@@ -107,14 +107,26 @@ MIXKIT_CLIPS = {
                     "https://assets.mixkit.co/videos/preview/mixkit-colleagues-working-in-an-office-4037-large.mp4"],
     "abstract":    ["https://assets.mixkit.co/videos/preview/mixkit-abstract-technology-blur-background-2588-large.mp4",
                     "https://assets.mixkit.co/videos/preview/mixkit-particle-explosion-1-large.mp4"],
+    "sports":      ["https://assets.mixkit.co/videos/preview/mixkit-football-player-kicking-the-ball-in-a-stadium-40390-large.mp4",
+                    "https://assets.mixkit.co/videos/preview/mixkit-soccer-stadium-with-a-full-crowd-40394-large.mp4",
+                    "https://assets.mixkit.co/videos/preview/mixkit-crowd-cheering-in-a-soccer-stadium-40396-large.mp4",
+                    "https://assets.mixkit.co/videos/preview/mixkit-aerial-view-of-a-soccer-field-42954-large.mp4"],
     "default":     ["https://assets.mixkit.co/videos/preview/mixkit-white-sand-beach-and-palm-trees-1564-large.mp4",
                     "https://assets.mixkit.co/videos/preview/mixkit-clouds-and-blue-sky-2408-large.mp4",
                     "https://assets.mixkit.co/videos/preview/mixkit-forest-stream-in-the-sunlight-529-large.mp4"],
 }
 
+_SPORTS_KEYWORDS = {
+    "soccer", "football", "basketball", "tennis", "baseball", "stadium", "arena", "sport",
+    "athlete", "game", "match", "team", "player", "league", "championship", "olympic",
+    "fifa", "nfl", "nba", "mlb", "nhl", "cricket", "rugby", "golf", "swimming",
+}
 
 def _mixkit_category(keywords: list[str]) -> str:
     kw_str = " ".join(keywords).lower()
+    kw_words = set(kw_str.split())
+    if kw_words & _SPORTS_KEYWORDS or any(w in kw_str for w in _SPORTS_KEYWORDS):
+        return "sports"
     for cat in ["nature", "city", "technology", "business", "abstract"]:
         if cat in kw_str or any(w in kw_str for w in {"tech", "digital", "ai", "code", "software"} if cat == "technology") or \
            any(w in kw_str for w in {"urban", "street", "downtown"} if cat == "city"):
