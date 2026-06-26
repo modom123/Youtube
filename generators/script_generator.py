@@ -226,6 +226,15 @@ def generate_script(
             custom_instructions=custom_instructions,
             research_context=research_context,
         )
+    elif ai_model == "openrouter" and getattr(config, "OPENROUTER_API_KEY", ""):
+        script = _generate_script_openrouter(
+            topic=topic,
+            content_type=content_type,
+            target_duration=target_duration,
+            audience=audience,
+            custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
     elif ai_model == "gemini" and getattr(config, "GOOGLE_API_KEY", ""):
         script = generate_script_gemini(
             topic=topic,
@@ -472,6 +481,48 @@ def _generate_script_groq(
     except Exception as e:
         print(f"[script] Groq generation failed ({e})")
         raise RuntimeError(f"Groq generation failed: {e}")
+
+
+def _generate_script_openrouter(
+    topic: str,
+    content_type: str = "short",
+    target_duration: int = 60,
+    audience: str = "general public",
+    custom_instructions: Optional[str] = None,
+    research_context: str = "",
+) -> "ContentScript":
+    """OpenRouter — routes to free models (Llama, Gemma, Mistral, etc.)."""
+    api_key = getattr(config, "OPENROUTER_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("OPENROUTER_API_KEY not set")
+    try:
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=api_key,
+            base_url="https://openrouter.ai/api/v1",
+            timeout=90.0,
+            max_retries=0,
+            default_headers={"HTTP-Referer": "https://socialoptimizemachine.com"},
+        )
+        prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
+        if custom_instructions:
+            prompt += f"\n\nAdditional instructions: {custom_instructions}"
+
+        _long_formats = {"countdown", "long", "podcast", "commercial_60"}
+        # Free models on OpenRouter (no billing required)
+        model = "meta-llama/llama-3.3-70b-instruct:free" if content_type in _long_formats else "meta-llama/llama-3.1-8b-instruct:free"
+        max_tok = 8000 if content_type in _long_formats else 4096
+        response = client.chat.completions.create(
+            model=model,
+            max_tokens=max_tok,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.choices[0].message.content.strip()
+        print(f"[script] OpenRouter ({model}) generated script for: {topic}")
+        return _parse_script_json(raw, content_type, target_duration, topic)
+    except Exception as e:
+        print(f"[script] OpenRouter generation failed ({e})")
+        raise RuntimeError(f"OpenRouter generation failed: {e}")
 
 
 def generate_script_gemini(

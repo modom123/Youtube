@@ -249,7 +249,8 @@ def run(
     _MODEL_LABELS = {
         "claude": "Claude AI", "deepseek": "DeepSeek-V3",
         "qwen": "Qwen (Alibaba)", "groq": "Groq/Llama",
-        "gemini": "Gemini Flash", "parallel": "Parallel Race", "auto": "AI",
+        "openrouter": "OpenRouter/Llama", "gemini": "Gemini Flash",
+        "parallel": "Parallel Race", "auto": "AI",
     }
     model_label = _MODEL_LABELS.get(ai_model, "AI")
     _push_progress(18, f"Generating script with {model_label}...")

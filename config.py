@@ -131,7 +131,8 @@ TIER_CLAUDE_MODEL = {
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 DEEPSEEK_API_KEY  = os.getenv("DEEPSEEK_API_KEY", "")
 QWEN_API_KEY      = os.getenv("QWEN_API_KEY", "")       # Alibaba DashScope
-GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")       # Groq (Llama 3.3 70B)
+GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")       # Groq (Llama 3.3 70B) — free tier
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "") # OpenRouter — free models available
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
 PEXELS_API_KEY = ""  # Removed — use Pixabay instead
 

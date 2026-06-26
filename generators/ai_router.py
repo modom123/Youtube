@@ -15,31 +15,32 @@ import config
 
 # Which model is best for each content type (quality-first order)
 _TYPE_PREFERENCE: dict[str, list[str]] = {
-    # Speed-critical short formats: cheapest + fastest first
-    "short":         ["deepseek", "groq", "gemini", "claude"],
-    "reel":          ["deepseek", "groq", "gemini", "claude"],
-    "bumper":        ["groq", "deepseek", "gemini", "claude"],
-    "commercial_15": ["deepseek", "groq", "claude", "gemini"],
-    # Quality-critical long formats: Claude first
-    "long":          ["claude", "deepseek", "qwen", "gemini"],
-    "podcast":       ["claude", "deepseek", "qwen", "gemini"],
-    "countdown":     ["claude", "deepseek", "qwen", "gemini"],
-    "commercial_30": ["claude", "deepseek", "gemini", "groq"],
-    "commercial_60": ["claude", "deepseek", "gemini", "groq"],
+    # Speed-critical short formats: free models first
+    "short":         ["groq", "openrouter", "deepseek", "gemini", "claude"],
+    "reel":          ["groq", "openrouter", "deepseek", "gemini", "claude"],
+    "bumper":        ["groq", "openrouter", "deepseek", "gemini", "claude"],
+    "commercial_15": ["groq", "openrouter", "deepseek", "claude", "gemini"],
+    # Quality-critical long formats: Claude first, free fallbacks
+    "long":          ["claude", "groq", "openrouter", "deepseek", "gemini"],
+    "podcast":       ["claude", "groq", "openrouter", "deepseek", "gemini"],
+    "countdown":     ["claude", "groq", "openrouter", "deepseek", "gemini"],
+    "commercial_30": ["claude", "groq", "openrouter", "deepseek", "gemini"],
+    "commercial_60": ["claude", "groq", "openrouter", "deepseek", "gemini"],
 }
 
 # Fallback chain when a specific model is chosen but fails / key missing
 _FALLBACK: dict[str, list[str]] = {
-    "claude":   ["deepseek", "gemini", "groq", "qwen"],
-    "deepseek": ["claude",   "gemini", "groq", "qwen"],
-    "qwen":     ["deepseek", "claude", "gemini", "groq"],
-    "gemini":   ["claude",   "deepseek", "groq",  "qwen"],
-    "groq":     ["deepseek", "claude",  "gemini", "qwen"],
-    "auto":     [],  # handled separately
+    "claude":      ["groq", "openrouter", "deepseek", "gemini", "qwen"],
+    "deepseek":    ["groq", "openrouter", "claude",   "gemini", "qwen"],
+    "qwen":        ["groq", "openrouter", "deepseek", "claude", "gemini"],
+    "gemini":      ["groq", "openrouter", "claude",   "deepseek", "qwen"],
+    "groq":        ["openrouter", "claude", "deepseek", "gemini", "qwen"],
+    "openrouter":  ["groq", "claude", "deepseek", "gemini", "qwen"],
+    "auto":        [],  # handled separately
 }
 
-# Free-tier always uses cheapest available to keep costs near zero
-_FREE_PREFERENCE = ["deepseek", "groq", "gemini", "claude"]
+# Free-tier always uses free models to keep costs at zero
+_FREE_PREFERENCE = ["groq", "openrouter", "deepseek", "gemini", "claude"]
 
 
 def _available_models() -> set[str]:
@@ -56,6 +57,8 @@ def _available_models() -> set[str]:
         available.add("gemini")
     if getattr(config, "GROQ_API_KEY", ""):
         available.add("groq")
+    if getattr(config, "OPENROUTER_API_KEY", ""):
+        available.add("openrouter")
     if not available:
         print("[router] WARNING: No valid API keys found! Set at least one in .env or Render env vars.")
         available.add("claude")
@@ -146,6 +149,13 @@ def get_model_info() -> list[dict]:
             "desc": "Ultra-fast inference — near-instant for short scripts",
             "badge": "ultra-fast",
             "available": "groq" in available,
+        },
+        {
+            "id": "openrouter",
+            "name": "OpenRouter (Free)",
+            "desc": "Free Llama 3.3 70B via OpenRouter — no cost, no billing",
+            "badge": "free",
+            "available": "openrouter" in available,
         },
         {
             "id": "gemini",
