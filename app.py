@@ -30,6 +30,11 @@ from admin import admin_bp
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
+# Trust Render's reverse-proxy headers so request.url_root returns the
+# correct public HTTPS URL instead of the internal http://service:10000 address.
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 login_manager = LoginManager(app)
 login_manager.login_view = "auth.login"
 login_manager.login_message = "Please sign in to continue."
@@ -1550,7 +1555,10 @@ def oauth_higgsfield_start():
         "user_id": current_user.id,
     }
 
-    callback_uri = config.APP_BASE_URL + "/oauth/higgsfield/callback"
+    # Build callback using the actual public host, not the internal APP_BASE_URL
+    # which may point to the internal Render address (social-optimize:10000)
+    base = request.url_root.rstrip("/")
+    callback_uri = base + "/oauth/higgsfield/callback"
     from urllib.parse import urlencode
     qs = urlencode({
         "response_type": "code",
@@ -1578,7 +1586,8 @@ def oauth_higgsfield_callback():
     if not pkce:
         return redirect(url_for("accounts_page") + "?error=higgsfield_state_mismatch")
 
-    callback_uri = config.APP_BASE_URL + "/oauth/higgsfield/callback"
+    base = request.url_root.rstrip("/")
+    callback_uri = base + "/oauth/higgsfield/callback"
     try:
         resp = requests.post(
             pkce["token_endpoint"],
