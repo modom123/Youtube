@@ -499,6 +499,7 @@ def run(
                     width=profile["width"],
                     height=profile["height"],
                     bg_images=image_clips[:8],
+                    format=format,
                 )
                 # Collect all graphic paths: title card first, then rank cards, then chart
                 if gfx.get("title_card"):
