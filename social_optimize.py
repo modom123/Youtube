@@ -288,23 +288,25 @@ def run(
     print(f"[pipeline] Starting script generation stage with {model_label}...")
     with logger.spinner(f"Generating script with {model_label}..."):
         script = None
-        last_err = None
+        all_errors: list[str] = []
         try:
             script = _run_script_with_timeout(ai_model)
             logger.success(f"Script generated via {model_label}")
             _blog("success", f"Script generated via {model_label}")
         except Exception as e:
-            last_err = e
+            all_errors.append(f"{model_label}: {e}")
             logger.warn(f"Script engine '{ai_model}' failed: {e}")
             _blog("warn", f"Script engine '{ai_model}' failed: {e}")
 
         # Fallback chain: try every other available model
         if script is None:
             from generators.ai_router import _available_models
-            _fallback_order = ["claude", "gemini", "deepseek", "groq", "qwen"]
+            _fallback_order = ["groq", "claude", "gemini", "deepseek", "qwen"]
             available = _available_models()
+            print(f"[pipeline] Available models for fallback: {available}")
             for fb_model in _fallback_order:
                 if fb_model == ai_model or fb_model not in available:
+                    print(f"[pipeline] Skipping {fb_model}: {'is primary' if fb_model == ai_model else 'key not set'}")
                     continue
                 fb_label = _MODEL_LABELS.get(fb_model, fb_model)
                 print(f"[pipeline] Trying fallback script engine: {fb_label}")
@@ -315,15 +317,15 @@ def run(
                     _blog("success", f"Script generated via {fb_label} (fallback)")
                     break
                 except Exception as e:
-                    last_err = e
+                    all_errors.append(f"{fb_label}: {e}")
                     logger.warn(f"{fb_label} fallback also failed: {e}")
                     _blog("warn", f"Fallback {fb_label} failed: {e}")
 
         if script is None:
-            _blog("error", f"ALL script engines failed", last_error=str(last_err))
+            err_summary = " | ".join(all_errors)
+            _blog("error", f"ALL script engines failed: {err_summary}", last_error=err_summary)
             raise RuntimeError(
-                f"All script engines failed ({last_err}). "
-                "Check API keys (ANTHROPIC_API_KEY, GOOGLE_API_KEY, etc.) on Render."
+                f"All script engines failed. Details: {err_summary}"
             )
 
     script_path = job / "script.json"
