@@ -21,6 +21,10 @@ STRIPE_PRICE_STARTER  = os.getenv("STRIPE_PRICE_STARTER", "")
 STRIPE_PRICE_CREATOR  = os.getenv("STRIPE_PRICE_CREATOR", "")
 STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 
+# ── Testing / bypass flags ───────────────────────────────────────────────────
+# Set BYPASS_USAGE_GATE=1 on Render while testing to skip video-count limits.
+BYPASS_USAGE_GATE = os.getenv("BYPASS_USAGE_GATE", "0") not in ("", "0", "false", "no")
+
 # ── Subscription tiers ───────────────────────────────────────────────────────
 TIERS = {
     "free": {

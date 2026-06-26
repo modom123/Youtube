@@ -268,6 +268,9 @@ def _price_to_tier(price_id: str) -> str:
 
 def check_usage_gate(user_id: int) -> tuple[bool, str]:
     """Returns (allowed, error_message). Call before starting any job."""
+    if config.BYPASS_USAGE_GATE:
+        return True, ""
+
     db.reset_usage_if_new_period(user_id)
     user = db.get_user_by_id(user_id)
     if not user:
