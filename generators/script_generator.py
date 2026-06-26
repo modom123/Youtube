@@ -491,38 +491,55 @@ def _generate_script_openrouter(
     custom_instructions: Optional[str] = None,
     research_context: str = "",
 ) -> "ContentScript":
-    """OpenRouter — routes to free models (Llama, Gemma, Mistral, etc.)."""
+    """OpenRouter — cycles through multiple free models, skips rate-limited ones."""
     api_key = getattr(config, "OPENROUTER_API_KEY", "")
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY not set")
-    try:
-        from openai import OpenAI
-        client = OpenAI(
-            api_key=api_key,
-            base_url="https://openrouter.ai/api/v1",
-            timeout=90.0,
-            max_retries=0,
-            default_headers={"HTTP-Referer": "https://socialoptimizemachine.com"},
-        )
-        prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
-        if custom_instructions:
-            prompt += f"\n\nAdditional instructions: {custom_instructions}"
 
-        _long_formats = {"countdown", "long", "podcast", "commercial_60"}
-        # Free models on OpenRouter (no billing required)
-        model = "meta-llama/llama-3.3-70b-instruct:free" if content_type in _long_formats else "meta-llama/llama-3.1-8b-instruct:free"
-        max_tok = 8000 if content_type in _long_formats else 4096
-        response = client.chat.completions.create(
-            model=model,
-            max_tokens=max_tok,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = response.choices[0].message.content.strip()
-        print(f"[script] OpenRouter ({model}) generated script for: {topic}")
-        return _parse_script_json(raw, content_type, target_duration, topic)
-    except Exception as e:
-        print(f"[script] OpenRouter generation failed ({e})")
-        raise RuntimeError(f"OpenRouter generation failed: {e}")
+    from openai import OpenAI
+    client = OpenAI(
+        api_key=api_key,
+        base_url="https://openrouter.ai/api/v1",
+        timeout=90.0,
+        max_retries=0,
+        default_headers={"HTTP-Referer": "https://socialoptimizemachine.com"},
+    )
+    prompt = _build_prompt(topic, content_type, target_duration, audience, research_context)
+    if custom_instructions:
+        prompt += f"\n\nAdditional instructions: {custom_instructions}"
+
+    _long_formats = {"countdown", "long", "podcast", "commercial_60"}
+    max_tok = 8000 if content_type in _long_formats else 4096
+
+    # Free models on OpenRouter — tried in order, skips rate-limited ones
+    free_models = [
+        "meta-llama/llama-3.1-8b-instruct:free",
+        "mistralai/mistral-7b-instruct:free",
+        "google/gemma-3-4b-it:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "deepseek/deepseek-r1-distill-llama-70b:free",
+    ]
+    last_err = None
+    for model in free_models:
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                max_tokens=max_tok,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            raw = response.choices[0].message.content.strip()
+            print(f"[script] OpenRouter ({model}) generated script for: {topic}")
+            return _parse_script_json(raw, content_type, target_duration, topic)
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "rate" in err_str.lower() or "rate-limited" in err_str.lower():
+                print(f"[script] OpenRouter {model} rate-limited, trying next free model...")
+                last_err = e
+                continue
+            # Non-rate-limit error — fail immediately
+            raise RuntimeError(f"OpenRouter generation failed: {e}")
+
+    raise RuntimeError(f"All OpenRouter free models rate-limited: {last_err}")
 
 
 def generate_script_gemini(
