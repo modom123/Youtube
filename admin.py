@@ -184,6 +184,25 @@ def admin_provision():
     })
 
 
+# ── API: Generate invite link ─────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/invite", methods=["POST"])
+@login_required
+def admin_create_invite():
+    """Generate a one-time invite link the admin can share with a tester."""
+    _require_admin()
+    from auth import _invite_store
+    data = request.json or {}
+    tier = (data.get("tier") or "free").strip()
+    if tier not in ("free", "starter", "creator", "agency"):
+        return jsonify({"ok": False, "error": "Invalid tier"}), 400
+    token = secrets.token_urlsafe(24)
+    expires = (datetime.utcnow() + timedelta(hours=48)).isoformat()
+    _invite_store[token] = {"tier": tier, "expires": expires}
+    link = f"{config.APP_BASE_URL}/auth/invite/{token}"
+    return jsonify({"ok": True, "link": link, "tier": tier, "expires_hours": 48})
+
+
 # ── API: Audit log ────────────────────────────────────────────────────────────
 
 @admin_bp.route("/api/admin/audit-log")

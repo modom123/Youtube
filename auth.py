@@ -199,6 +199,8 @@ class _UserObj:
     @property
     def videos_used(self): return self._d.get("videos_used") or 0
     @property
+    def videos_used_this_month(self): return self._d.get("videos_used") or 0
+    @property
     def credits_used(self): return self._d.get("credits_used") or 0
     @property
     def stripe_customer_id(self): return self._d.get("stripe_customer_id")
@@ -214,3 +216,58 @@ class _UserObj:
 
 def make_user(user_data: dict) -> _UserObj:
     return _UserObj(user_data)
+
+
+# ── Bootstrap: first-admin setup (only works when 0 users exist) ─────────────
+
+@auth_bp.route("/setup", methods=["GET", "POST"])
+def setup():
+    """Create the first admin account when the database is empty.
+    Disabled once any user exists."""
+    user_count = db.count_users()
+    if user_count > 0:
+        flash("Setup is disabled — accounts already exist.", "error")
+        return redirect(url_for("auth.login"))
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        pw    = request.form.get("password", "")
+        pw2   = request.form.get("password2", "")
+        name  = request.form.get("name", "").strip()
+
+        if not email or not pw:
+            flash("Email and password are required.", "error")
+            return render_template("auth/setup.html")
+        if pw != pw2:
+            flash("Passwords do not match.", "error")
+            return render_template("auth/setup.html")
+        if len(pw) < 8:
+            flash("Password must be at least 8 characters.", "error")
+            return render_template("auth/setup.html")
+
+        pw_hash = generate_password_hash(pw)
+        user_id = db.create_user(email=email, password_hash=pw_hash, name=name or email.split("@")[0])
+        db.update_user(user_id, is_admin=1, subscription_tier="agency", subscription_status="active")
+        user_data = db.get_user_by_id(user_id)
+        user = _UserObj(user_data)
+        login_user(user, remember=True)
+        flash("Admin account created. Welcome!", "success")
+        return redirect(url_for("dashboard"))
+
+    return render_template("auth/setup.html")
+
+
+# ── Invite links — admin generates, tester clicks to auto-register ────────────
+
+_invite_store: dict[str, dict] = {}  # token → {tier, expires}
+
+
+@auth_bp.route("/invite/<token>", methods=["GET"])
+def accept_invite(token):
+    """Pre-approved invite link. Redirects to register with tier pre-set."""
+    invite = _invite_store.get(token)
+    if not invite or datetime.utcnow().isoformat() > invite["expires"]:
+        flash("This invite link has expired or is invalid.", "error")
+        return redirect(url_for("auth.register"))
+    tier = invite.get("tier", "free")
+    return redirect(url_for("auth.register") + f"?plan={tier}")

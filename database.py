@@ -365,6 +365,12 @@ def get_user_by_email(email: str):
         return row_to_dict(conn.execute("SELECT * FROM users WHERE email=?", (email.lower().strip(),)).fetchone())
 
 
+def count_users() -> int:
+    with get_conn() as conn:
+        row = conn.execute("SELECT COUNT(*) FROM users").fetchone()
+        return row[0] if row else 0
+
+
 def update_user(user_id: int, **kwargs):
     if not kwargs:
         return

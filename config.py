@@ -5,12 +5,32 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── App ───────────────────────────────────────────────────────────────────────
-SECRET_KEY = os.getenv("SECRET_KEY", os.urandom(32).hex())
 APP_BASE_URL = os.getenv("APP_BASE_URL", "https://socialoptimize.online")
 
 # ── Persistent data directory ─────────────────────────────────────────────────
 # Locally this is the project root; on Render it's the mounted disk at /data
 DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).parent))
+
+# ── Secret key: stable across restarts ───────────────────────────────────────
+# Priority: SECRET_KEY env var > persisted key file > new random key (dev only)
+def _load_secret_key() -> str:
+    env_key = os.getenv("SECRET_KEY", "")
+    if env_key:
+        return env_key
+    key_file = DATA_DIR / ".secret_key"
+    try:
+        key_file.parent.mkdir(parents=True, exist_ok=True)
+        if key_file.exists():
+            stored = key_file.read_text().strip()
+            if len(stored) >= 32:
+                return stored
+        new_key = os.urandom(32).hex()
+        key_file.write_text(new_key)
+        return new_key
+    except Exception:
+        return os.urandom(32).hex()
+
+SECRET_KEY = _load_secret_key()
 
 # ── Stripe ────────────────────────────────────────────────────────────────────
 STRIPE_SECRET_KEY       = os.getenv("STRIPE_SECRET_KEY", "")
