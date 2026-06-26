@@ -2204,7 +2204,6 @@ def _load_platform_creds_from_db():
 @app.route("/api/settings/check")
 def api_settings_check():
     tok = config.HIGGSFIELD_MCP_TOKEN or ""
-    token_is_url = tok.startswith("http://") or tok.startswith("https://")
 
     # Check user's connected social accounts (OAuth-based platforms)
     user_platforms = set()
@@ -2222,8 +2221,7 @@ def api_settings_check():
         "pixabay":          bool(config.PIXABAY_API_KEY),
         "elevenlabs":       bool(getattr(config, "ELEVENLABS_API_KEY", "")),
         "google_flow":      bool(config.GOOGLE_API_KEY),
-        "higgsville":       bool(tok) and not token_is_url,
-        "higgsville_url_as_token": token_is_url,
+        "higgsville":       bool(tok),
         "youtube":          bool(config.YOUTUBE_CLIENT_ID) or "youtube" in user_platforms,
         "tiktok":           bool(config.TIKTOK_CLIENT_KEY) or "tiktok" in user_platforms,
         "instagram":        bool(config.INSTAGRAM_ACCESS_TOKEN) or "instagram" in user_platforms,
@@ -2237,6 +2235,25 @@ def api_settings_check():
             "qwen":        bool(getattr(config, "QWEN_API_KEY", "")),
         },
         "ai_available_models": sorted(_ai_available),
+    })
+
+
+@app.route("/api/debug/higgsville")
+def api_debug_higgsville():
+    """Diagnostic endpoint — shows which env var name supplied the Higgsfield token."""
+    import os
+    names = [
+        "HIGGSFIELD_MCP_TOKEN", "HIGGSFIELD_TOKEN",
+        "HIGGSVILLE_TOKEN", "HIGGSVILLE_MCP_TOKEN", "HIGGSFIELD_API_KEY",
+    ]
+    found = {n: bool(os.getenv(n)) for n in names}
+    tok = config.HIGGSFIELD_MCP_TOKEN or ""
+    return jsonify({
+        "token_set": bool(tok),
+        "token_length": len(tok),
+        "token_preview": tok[:8] + "..." if len(tok) > 8 else "(empty)",
+        "env_vars_checked": found,
+        "mcp_url": config.HIGGSFIELD_MCP_URL,
     })
 
 

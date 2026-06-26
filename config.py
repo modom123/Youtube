@@ -146,8 +146,20 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # "Adam" — deep male narrator
 
 # Higgsfield AI — bearer token for REST + MCP API calls
-# The endpoint URL is already hardcoded; only the TOKEN needs to be set in Render.
-HIGGSFIELD_MCP_TOKEN = os.getenv("HIGGSFIELD_MCP_TOKEN", "")
+# Accepts any of these Render env var names (first non-empty wins):
+#   HIGGSFIELD_MCP_TOKEN  (preferred)
+#   HIGGSFIELD_TOKEN
+#   HIGGSVILLE_TOKEN
+#   HIGGSVILLE_MCP_TOKEN
+#   HIGGSFIELD_API_KEY
+HIGGSFIELD_MCP_TOKEN = (
+    os.getenv("HIGGSFIELD_MCP_TOKEN")
+    or os.getenv("HIGGSFIELD_TOKEN")
+    or os.getenv("HIGGSVILLE_TOKEN")
+    or os.getenv("HIGGSVILLE_MCP_TOKEN")
+    or os.getenv("HIGGSFIELD_API_KEY")
+    or ""
+)
 # Optional override for the MCP endpoint URL (defaults to the Higgsfield cloud endpoint)
 HIGGSFIELD_MCP_URL = os.getenv("HIGGSFIELD_MCP_URL", "https://mcp.higgsfield.ai/mcp")
 
