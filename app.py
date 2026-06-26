@@ -2215,6 +2215,8 @@ def api_settings_check():
     except Exception:
         pass
 
+    from generators.ai_router import _available_models as _avm
+    _ai_available = _avm()
     return jsonify({
         "anthropic":        bool(config.ANTHROPIC_API_KEY),
         "pixabay":          bool(config.PIXABAY_API_KEY),
@@ -2225,6 +2227,16 @@ def api_settings_check():
         "youtube":          bool(config.YOUTUBE_CLIENT_ID) or "youtube" in user_platforms,
         "tiktok":           bool(config.TIKTOK_CLIENT_KEY) or "tiktok" in user_platforms,
         "instagram":        bool(config.INSTAGRAM_ACCESS_TOKEN) or "instagram" in user_platforms,
+        # AI script engine key status
+        "ai_keys": {
+            "claude":      bool(config.ANTHROPIC_API_KEY and config.ANTHROPIC_API_KEY.startswith("sk-")),
+            "groq":        bool(getattr(config, "GROQ_API_KEY", "")),
+            "openrouter":  bool(getattr(config, "OPENROUTER_API_KEY", "")),
+            "deepseek":    bool(getattr(config, "DEEPSEEK_API_KEY", "")),
+            "gemini":      bool(config.GOOGLE_API_KEY),
+            "qwen":        bool(getattr(config, "QWEN_API_KEY", "")),
+        },
+        "ai_available_models": sorted(_ai_available),
     })
 
 
