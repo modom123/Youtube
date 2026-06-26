@@ -2240,6 +2240,69 @@ def api_settings_check():
     })
 
 
+@app.route("/api/test-ai-keys")
+def api_test_ai_keys():
+    """Live-test every configured AI key with a minimal real API call."""
+    import time as _time
+    results = {}
+
+    def _test(name, fn):
+        t0 = _time.time()
+        try:
+            fn()
+            results[name] = {"ok": True, "ms": int((_time.time() - t0) * 1000)}
+        except Exception as e:
+            results[name] = {"ok": False, "error": str(e)[:200], "ms": int((_time.time() - t0) * 1000)}
+
+    # Claude
+    if config.ANTHROPIC_API_KEY:
+        def _claude():
+            import anthropic as _a
+            _a.Anthropic(api_key=config.ANTHROPIC_API_KEY).messages.create(
+                model="claude-haiku-4-5-20251001", max_tokens=5,
+                messages=[{"role": "user", "content": "Hi"}])
+        _test("claude", _claude)
+
+    # Groq
+    if getattr(config, "GROQ_API_KEY", ""):
+        def _groq():
+            from openai import OpenAI as _OAI
+            _OAI(api_key=config.GROQ_API_KEY, base_url="https://api.groq.com/openai/v1").chat.completions.create(
+                model="llama-3.1-8b-instant", max_tokens=5,
+                messages=[{"role": "user", "content": "Hi"}])
+        _test("groq", _groq)
+
+    # OpenRouter
+    if getattr(config, "OPENROUTER_API_KEY", ""):
+        def _openrouter():
+            from openai import OpenAI as _OAI
+            _OAI(api_key=config.OPENROUTER_API_KEY, base_url="https://openrouter.ai/api/v1").chat.completions.create(
+                model="meta-llama/llama-3.1-8b-instruct:free", max_tokens=5,
+                messages=[{"role": "user", "content": "Hi"}])
+        _test("openrouter", _openrouter)
+
+    # Gemini
+    if config.GOOGLE_API_KEY:
+        def _gemini():
+            from google import genai as _g
+            _g.Client(api_key=config.GOOGLE_API_KEY).models.generate_content(
+                model="gemini-2.0-flash", contents="Hi")
+        _test("gemini", _gemini)
+
+    # DeepSeek
+    if getattr(config, "DEEPSEEK_API_KEY", ""):
+        def _deepseek():
+            from openai import OpenAI as _OAI
+            _OAI(api_key=config.DEEPSEEK_API_KEY, base_url="https://api.deepseek.com").chat.completions.create(
+                model="deepseek-chat", max_tokens=5,
+                messages=[{"role": "user", "content": "Hi"}])
+        _test("deepseek", _deepseek)
+
+    working = [k for k, v in results.items() if v["ok"]]
+    return jsonify({"results": results, "working": working,
+                    "verdict": "OK" if working else "ALL KEYS BROKEN"})
+
+
 # ── Production Studio ─────────────────────────────────────────────────────────
 
 _studio_jobs: dict = {}
