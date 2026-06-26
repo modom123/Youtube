@@ -1520,6 +1520,31 @@ _HIGGSFIELD_MCP_BASE = "https://mcp.higgsfield.ai"
 _hf_pkce_store: dict = {}  # state -> {code_verifier, user_id}
 
 
+def _public_callback_base() -> str:
+    """
+    Return the correct public-facing base URL for OAuth callbacks.
+
+    Render only forwards X-Forwarded-Proto and X-Forwarded-For — NOT
+    X-Forwarded-Host — so request.url_root stays as the internal
+    http://social-optimize:10000 address even with ProxyFix.
+
+    Priority:
+      1. APP_BASE_URL env var (set this on Render to your public URL)
+      2. X-Forwarded-Host header if present
+      3. request.url_root as last resort
+    """
+    base = (config.APP_BASE_URL or "").rstrip("/")
+    # Reject internal Render addresses (contain a port but no real domain)
+    if base and ":" not in base.split("//")[-1]:
+        return base  # looks like a real domain with no port — use it
+    # Try X-Forwarded-Host (some proxies do send it)
+    fwd_host = request.headers.get("X-Forwarded-Host", "")
+    fwd_proto = request.headers.get("X-Forwarded-Proto", "https")
+    if fwd_host and ":" not in fwd_host:
+        return f"{fwd_proto}://{fwd_host}"
+    return request.url_root.rstrip("/")
+
+
 def _hf_discover() -> dict:
     """Fetch OAuth server metadata from Higgsfield MCP discovery endpoint."""
     import hashlib, base64
@@ -1555,10 +1580,7 @@ def oauth_higgsfield_start():
         "user_id": current_user.id,
     }
 
-    # Build callback using the actual public host, not the internal APP_BASE_URL
-    # which may point to the internal Render address (social-optimize:10000)
-    base = request.url_root.rstrip("/")
-    callback_uri = base + "/oauth/higgsfield/callback"
+    callback_uri = _public_callback_base() + "/oauth/higgsfield/callback"
     from urllib.parse import urlencode
     qs = urlencode({
         "response_type": "code",
@@ -1586,8 +1608,7 @@ def oauth_higgsfield_callback():
     if not pkce:
         return redirect(url_for("accounts_page") + "?error=higgsfield_state_mismatch")
 
-    base = request.url_root.rstrip("/")
-    callback_uri = base + "/oauth/higgsfield/callback"
+    callback_uri = _public_callback_base() + "/oauth/higgsfield/callback"
     try:
         resp = requests.post(
             pkce["token_endpoint"],
