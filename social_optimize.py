@@ -302,7 +302,7 @@ def run(
         # Fallback chain: try every other available model
         if script is None:
             from generators.ai_router import _available_models
-            _fallback_order = ["groq", "claude", "gemini", "deepseek", "qwen"]
+            _fallback_order = ["openrouter", "groq", "claude", "gemini", "deepseek", "qwen"]
             available = _available_models()
             print(f"[pipeline] Available models for fallback: {available}")
             for fb_model in _fallback_order:

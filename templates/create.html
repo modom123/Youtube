@@ -139,20 +139,18 @@
         </select>
         <div class="form-hint">{% if google_api_key %}Google Cloud Neural2 HD voices active{% else %}Using Microsoft Edge TTS — set GOOGLE_API_KEY for Neural2 HD{% endif %}</div>
       </div>
-      {% if google_api_key %}
       <div class="form-group">
         <label>Script Engine</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="radio" name="ai_model" value="claude" checked /> Claude (premium)
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="model-grid">
+          {% for m in ai_models %}{% if m.available %}
+          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;{% if m.id == 'auto' %}border-color:var(--accent);{% endif %}">
+            <input type="radio" name="ai_model" value="{{ m.id }}" {% if m.id == 'auto' %}checked{% endif %} />
+            <span>{{ m.name }}{% if m.badge == 'free' %} <span style="font-size:10px;background:#22c55e22;color:#22c55e;padding:1px 5px;border-radius:4px;">FREE</span>{% endif %}</span>
           </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="radio" name="ai_model" value="gemini" /> Gemini Flash (fast)
-          </label>
+          {% endif %}{% endfor %}
         </div>
-        <div class="form-hint">Gemini Flash is faster and cheaper — ideal for bulk generation</div>
+        <div class="form-hint">Auto picks the best available model. Free models cost nothing.</div>
       </div>
-      {% endif %}
       <div class="form-group">
         <label>Thumbnail Style</label>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="style-grid">
