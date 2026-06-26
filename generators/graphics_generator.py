@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
 def _safe_float(s: str, default: float = 0.0) -> float:
     try:
-        return float(s.replace(",", ""))
+        return float(str(s).replace(",", ""))
     except (ValueError, AttributeError):
         return default
 
@@ -67,23 +67,22 @@ def _text_h(draw, text, font):
 
 # ── Color palette ─────────────────────────────────────────────────────────────
 
-# Gold for #1, silver for #2, bronze for #3, then cycling colors
 RANK_COLORS = [
-    (255, 215,  0),   # #1  — Gold
+    (255, 215,   0),  # #1  — Gold
     (192, 192, 192),  # #2  — Silver
-    (205, 127, 50),   # #3  — Bronze
-    (59,  130, 246),  # #4  — Blue
-    (168, 85,  247),  # #5  — Purple
-    (249, 115, 22),   # #6  — Orange
-    (20,  184, 166),  # #7  — Teal
-    (236, 72,  153),  # #8  — Pink
-    (34,  197, 94),   # #9  — Green
-    (139, 92,  246),  # #10 — Violet
+    (205, 127,  50),  # #3  — Bronze
+    ( 59, 130, 246),  # #4  — Blue
+    (168,  85, 247),  # #5  — Purple
+    (249, 115,  22),  # #6  — Orange
+    ( 20, 184, 166),  # #7  — Teal
+    (236,  72, 153),  # #8  — Pink
+    ( 34, 197,  94),  # #9  — Green
+    (139,  92, 246),  # #10 — Violet
     (100, 116, 139),  # #11 — Slate
-    (251, 191, 36),   # #12 — Amber
-    (52,  211, 153),  # #13 — Emerald
+    (251, 191,  36),  # #12 — Amber
+    ( 52, 211, 153),  # #13 — Emerald
     (248, 113, 113),  # #14 — Rose
-    (96,  165, 250),  # #15 — Light Blue
+    ( 96, 165, 250),  # #15 — Light Blue
     (167, 243, 208),  # #16 — Mint
     (253, 164, 175),  # #17 — Light Rose
     (196, 181, 253),  # #18 — Lavender
@@ -94,6 +93,190 @@ RANK_COLORS = [
 
 def _rank_color(rank: int) -> tuple:
     return RANK_COLORS[(rank - 1) % len(RANK_COLORS)]
+
+
+# ── Extract ranked items from script (PRIMARY source) ────────────────────────
+
+def _extract_from_script(
+    sections: list,
+    narration: str,
+    total_expected: int = 20,
+) -> list[dict]:
+    """
+    Parse actual ranked entity names from script sections + narration.
+
+    Script sections for a countdown look like:
+      {"name": "#20 - MIT", ...}
+      {"name": "Number 20: Harvard", ...}
+      {"name": "20. Oxford University", ...}
+      {"name": "Rank 20 - Name", ...}
+
+    Narration contains sentences like:
+      "Coming in at number 20, we have Harvard University..."
+      "At number 19 is Stanford..."
+    """
+    items: dict[int, dict] = {}
+
+    # ── Phase 1: Section name patterns ───────────────────────────────────────
+    section_patterns = [
+        # "#20 - Name", "#20: Name", "#20 – Name"
+        r'^#(\d+)\s*[\-–—:\.]+\s*(.+)$',
+        # "#1 Reveal - MIT", "#1 Big Reveal: Cambridge" (word(s) before separator)
+        r'^#(\d+)\s+\w[\w\s]{0,25}[\-–—:]+\s*(.+)$',
+        # "20. Name", "20) Name", "20 - Name", "20: Name"
+        r'^(\d+)\s*[\.\)\-–—:]+\s*(.+)$',
+        # "Number 20: Name", "Number 20 - Name"
+        r'^(?:number|num\.?)\s+#?(\d+)\s*[\-–—:\.]*\s*(.+)$',
+        # "Rank 20 - Name", "Rank 20: Name"
+        r'^(?:rank|position|entry|place|no\.?)\s*#?(\d+)\s*[\-–—:\.]*\s*(.+)$',
+    ]
+
+    for sec in (sections or []):
+        raw_name = sec.get("name", "").strip()
+        if not raw_name:
+            continue
+        for pat in section_patterns:
+            m = re.match(pat, raw_name, re.IGNORECASE)
+            if m:
+                try:
+                    rank = int(m.group(1))
+                    name = m.group(2).strip().strip('.,;:-—').strip()
+                    # Skip obvious non-names when they stand alone
+                    skip_alone = {"hook", "intro", "introduction", "outro", "conclusion",
+                                  "recap", "cta", "opening", "ending", "title"}
+                    # If name starts with a stage word, try to split to get real entity name
+                    # e.g. "#1 Reveal - MIT" → "Reveal - MIT" → split → "MIT"
+                    stage_prefixes = ("reveal", "big reveal", "final", "ultimate", "champion",
+                                      "winner", "top", "best", "grand", "special", "the reveal",
+                                      "and the winner", "#1 reveal", "number one reveal")
+                    name_lower = name.lower()
+                    for stage in stage_prefixes:
+                        if name_lower.startswith(stage):
+                            for sep in (" - ", " – ", " — ", ": ", " | "):
+                                if sep in name:
+                                    name = name.split(sep, 1)[-1].strip()
+                                    break
+                            break
+                    if 1 <= rank <= 50 and len(name) >= 2 and name.lower() not in skip_alone:
+                        if rank not in items:
+                            items[rank] = {
+                                "rank": rank,
+                                "name": name,
+                                "visual_cue": sec.get("visual_cue", ""),
+                            }
+                except (ValueError, IndexError):
+                    pass
+                break
+
+    # ── Phase 2: Narration text patterns ─────────────────────────────────────
+    # Only run if we didn't get enough from sections.
+    # No re.IGNORECASE — [A-Z] must match uppercase only to capture proper nouns.
+    if len(items) < max(3, total_expected // 3) and narration:
+        narr_patterns = [
+            # "coming in at number 20, we have Harvard University with..."
+            # "at number 20 is Stanford..."
+            (
+                r'(?:coming in at |sitting at |landing at |at )?'
+                r'(?:[Nn]umber|#|[Nn]o\.?)\s*(\d+)[,.:!\s]+'
+                r'(?:(?:we have |is |are |it\'s |that\'s |stands? |comes? in )?)'
+                r'([A-Z][A-Za-z0-9\s\.\'\&\-\(\)]{2,60}?)'
+                r'(?=[\.,!?]|\s+(?:with|has|had|is|are|was|took|scored|earned|'
+                r'comes?|takes?|ranks?|came|finish|boast|feat|known|based|'
+                r'located|which|who|they|the\s+uni|this\s+uni|this\s+school|'
+                r'a\s+uni|an\s+uni|one\s+of|record|hold|claim|achiev))'
+            ),
+            # "Number 1: MIT" / "#1 – Harvard"
+            (
+                r'(?:[Nn]umber|#)\s*(\d+)\s*[:\-]\s*'
+                r'([A-Z][A-Za-z0-9\s\.\'\&\-]{2,50}?)'
+                r'(?=[\.,!?]|\s+(?:with|has|is|are|was|which|who|they))'
+            ),
+        ]
+        for pat in narr_patterns:
+            for m in re.finditer(pat, narration):
+                try:
+                    rank = int(m.group(1))
+                    name = m.group(2).strip().rstrip('.,;:- ')
+                    # Strip leading articles captured by the pattern
+                    for prefix in ("The ", "A ", "An "):
+                        if name.startswith(prefix):
+                            name = name[len(prefix):]
+                            break
+                    skip_alone = {"pick", "one", "two", "top", "list", "spot", "place",
+                                  "winner", "champion", "choice", "entry", "pick"}
+                    if (1 <= rank <= 50 and rank not in items
+                            and len(name) >= 3 and name.lower() not in skip_alone):
+                        items[rank] = {"rank": rank, "name": name, "visual_cue": ""}
+                except (ValueError, IndexError):
+                    pass
+
+    if not items:
+        return []
+
+    total = max(items.keys()) if items else total_expected
+    result = []
+    for rank, it in sorted(items.items()):
+        # Bar value: #1 = 100%, #n ≥ 48% (minimum so bars are wide enough for name)
+        bar_val = 48.0 + 52.0 * (total - rank) / max(total - 1, 1)
+        result.append({
+            "rank": rank,
+            "name": it["name"],
+            "value": bar_val,
+            "label": "",
+            "detail": it.get("visual_cue", ""),
+        })
+
+    return sorted(result, key=lambda x: x["rank"])
+
+
+# ── Fallback: parse ranked items from research text ───────────────────────────
+
+def _extract_from_research(topic: str, research_brief) -> list[dict]:
+    """
+    Fallback extraction from research text.
+    Only used when script data is unavailable or has too few entries.
+    Significantly more noise-prone than _extract_from_script().
+    """
+    all_text = "\n".join([
+        research_brief.summary or "",
+        "\n".join(research_brief.data_points),
+        "\n".join(research_brief.key_facts),
+        research_brief.raw_text or "",
+    ])
+
+    items = []
+    # Only match lines that start with a number followed by a dot/paren
+    pattern1 = re.findall(
+        r'(?:^|\n)\s*(\d+)[.)]\s+'
+        r'([A-Z][^(\n\d]{2,50})'
+        r'(?:[(\-–—:]?\s*([^)\n]{2,50}))?',
+        all_text, re.MULTILINE
+    )
+
+    for rank, name, detail in pattern1:
+        rank = int(rank)
+        name = name.strip().rstrip(',:;-–—').strip()
+        detail = (detail or "").strip()
+        if name and 3 <= len(name) <= 60 and rank <= 30:
+            nums = re.findall(r'\d[\d,.]*', detail)
+            val = _safe_float(nums[0]) if nums else (30 - rank + 1)
+            items.append({
+                "rank": rank,
+                "name": name,
+                "value": val,
+                "detail": detail,
+                "label": detail[:30] if detail else "",
+            })
+
+    seen: dict[str, dict] = {}
+    for it in sorted(items, key=lambda x: x["rank"]):
+        key = it["name"].lower()[:20]
+        if key not in seen:
+            seen[key] = it
+
+    result = list(seen.values())
+    result.sort(key=lambda x: x["rank"])
+    return result
 
 
 # ── Progressive Horizontal Bar Chart (Countdown reveal) ───────────────────────
@@ -110,9 +293,8 @@ def create_progressive_bar_chart(
     """
     Horizontal bar chart showing all revealed items so far.
 
-    Items are displayed rank-1 at TOP, highest rank at BOTTOM.
-    The newly revealed item (highlight_rank) pulses with a bright glow.
-    Bar LENGTH is proportional to rank score (rank 1 = longest bar).
+    Names are displayed INSIDE the bars so they are never truncated.
+    Rank #1 is at the TOP; newly revealed item has a glow + NEW badge.
     """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -125,147 +307,173 @@ def create_progressive_bar_chart(
     # Sort: rank 1 at top
     items = sorted(revealed_items, key=lambda x: x["rank"])
     n = len(items)
-    max_val = max(x.get("value", 1) for x in items) or 1
-    # Ensure rank-1 always has the biggest bar: normalize to rank-based score
+
+    # Ensure all bars have a value
     for it in items:
-        if it.get("value", 0) <= 0:
-            it["value"] = max(1, total_expected - it["rank"] + 1)
+        if not it.get("value") or it["value"] <= 0:
+            total = max(x["rank"] for x in items)
+            it["value"] = 48.0 + 52.0 * (total - it["rank"]) / max(total - 1, 1)
 
-    max_val = max(x.get("value", 1) for x in items) or 1
+    max_val = max(x["value"] for x in items) or 1.0
 
-    img = Image.new("RGB", (width, height), (8, 8, 14))
+    # ── Canvas ────────────────────────────────────────────────────────────────
+    img = Image.new("RGB", (width, height), (6, 6, 12))
     draw = ImageDraw.Draw(img)
 
-    # Background gradient (dark navy)
+    # Dark navy-to-charcoal gradient background
     for y in range(height):
         ratio = y / height
-        r = int(8 + 12 * ratio)
-        g = int(8 + 12 * ratio)
-        b = int(14 + 20 * ratio)
+        r = int(6 + 14 * ratio)
+        g = int(6 + 10 * ratio)
+        b = int(12 + 18 * ratio)
         draw.line([(0, y), (width, y)], fill=(r, g, b))
 
-    # Layout constants
-    margin_left = 280    # space for rank badge + name
-    margin_right = 100   # space for value label
-    margin_top = 90
-    margin_bottom = 50
-    bar_area_w = width - margin_left - margin_right
-    bar_area_h = height - margin_top - margin_bottom
+    # Subtle horizontal grid lines
+    for gx in range(0, width, 80):
+        draw.line([(gx, 0), (gx, height)], fill=(255, 255, 255, 8))
 
-    # Adaptive bar sizing
-    max_bars = max(n, 1)
-    row_h = min(52, bar_area_h // max_bars)
-    bar_h = max(18, int(row_h * 0.72))
-    gap = row_h - bar_h
+    # ── Layout ───────────────────────────────────────────────────────────────
+    rank_zone = 68       # left zone: rank badge only
+    right_pad = 14       # right edge padding
+    header_h = 78        # top header zone
+    footer_h = 36        # bottom status zone
 
+    bar_x0 = rank_zone
+    bar_x1 = width - right_pad
+    bar_area_w = bar_x1 - bar_x0
+
+    chart_top = header_h
+    chart_bot = height - footer_h
+    chart_h = chart_bot - chart_top
+
+    # Adaptive row height
+    row_h = max(24, min(56, chart_h // max(n, 1)))
+    bar_h = max(18, int(row_h * 0.76))
+    bar_pad = (row_h - bar_h) // 2
+
+    # ── Header ────────────────────────────────────────────────────────────────
     # Title
-    title_font = _font(38)
-    title_short = title[:60] + ("…" if len(title) > 60 else "")
-    _shadow_text(draw, title_short, (margin_left, 20), title_font,
+    title_font = _font(min(40, max(26, 1500 // max(len(title), 1))))
+    title_short = title[:70] + ("…" if len(title) > 70 else "")
+    _shadow_text(draw, title_short, (rank_zone, 14), title_font,
                  color=(255, 255, 255), shadow=(0, 0, 0), offset=2)
 
-    # "REVEALED SO FAR" counter
-    counter_font = _font(28, bold=False)
+    # Revealed counter (top-right)
+    counter_font = _font(22, bold=False)
     counter_text = f"{n} of {total_expected} revealed"
-    draw.text((width - margin_right - _text_w(draw, counter_text, counter_font) - 10, 28),
-              counter_text, font=counter_font, fill=(120, 120, 140))
+    ctw = _text_w(draw, counter_text, counter_font)
+    draw.text((width - ctw - 16, 22), counter_text, font=counter_font, fill=(100, 100, 130))
 
-    # Axis line
-    draw.line([(margin_left, margin_top), (margin_left, margin_top + bar_area_h)],
-              fill=(60, 60, 80), width=2)
+    # Thin separator line below header
+    draw.line([(0, header_h - 4), (width, header_h - 4)], fill=(40, 40, 60), width=1)
 
-    name_font = _font(max(16, min(26, bar_h - 4)))
-    rank_font = _font(max(14, min(22, bar_h - 2)))
-    val_font = _font(max(14, min(22, bar_h - 4)), bold=False)
+    # ── Fonts ─────────────────────────────────────────────────────────────────
+    rank_font_size = max(13, min(28, bar_h - 4))
+    name_font_size = max(11, min(22, bar_h - 6))
+    rank_font = _font(rank_font_size, bold=True)
+    name_font = _font(name_font_size, bold=True)
+    label_font = _font(max(10, name_font_size - 3), bold=False)
 
+    # ── Bars ──────────────────────────────────────────────────────────────────
     for i, item in enumerate(items):
         rank = item["rank"]
         color = _rank_color(rank)
         is_new = (rank == highlight_rank)
 
-        y_center = margin_top + i * row_h + row_h // 2
-        y_top = y_center - bar_h // 2
-        y_bot = y_center + bar_h // 2
+        y_top = chart_top + i * row_h + bar_pad
+        y_bot = y_top + bar_h
+        y_mid = (y_top + y_bot) // 2
 
-        val = item.get("value", max(1, total_expected - rank + 1))
-        bar_len = int((val / max_val) * bar_area_w)
-        bar_len = max(bar_len, 20)
+        bar_len = int((item["value"] / max_val) * bar_area_w)
+        bar_len = max(bar_len, 60)   # minimum visible bar
+        x_bar_end = bar_x0 + bar_len
 
-        x_bar_start = margin_left
-        x_bar_end = margin_left + bar_len
-
-        # Glow for newly revealed item
+        # ── Glow for newly revealed ───────────────────────────────────────
         if is_new:
-            for glow in range(8, 0, -2):
-                glow_color = (*color, max(0, 40 - glow * 5))
+            for glow_r in range(10, 0, -2):
+                rc, gc, bc = color
                 draw.rectangle(
-                    [x_bar_start - glow, y_top - glow, x_bar_end + glow, y_bot + glow],
-                    fill=(*color[:3], max(0, 30)),
+                    [bar_x0 - glow_r, y_top - glow_r, x_bar_end + glow_r, y_bot + glow_r],
+                    fill=(max(0, rc - 40), max(0, gc - 40), max(0, bc - 40)),
                 )
 
-        # Bar background (subtle)
-        draw.rectangle([x_bar_start, y_top, margin_left + bar_area_w, y_bot],
-                       fill=(20, 20, 30))
+        # Bar track (dark background)
+        draw.rectangle([bar_x0, y_top, bar_x1, y_bot], fill=(18, 18, 28))
 
-        # Bar fill with gradient
+        # Gradient bar fill (bright left → darker right)
         for px in range(bar_len):
-            ratio = px / max(bar_len, 1)
-            bright = 1.0 - ratio * 0.35
-            r = int(color[0] * bright)
-            g = int(color[1] * bright)
-            b = int(color[2] * bright)
-            draw.line([(x_bar_start + px, y_top), (x_bar_start + px, y_bot)], fill=(r, g, b))
+            ratio = px / max(bar_len - 1, 1)
+            bright = 1.0 - ratio * 0.40
+            r2 = int(color[0] * bright)
+            g2 = int(color[1] * bright)
+            b2 = int(color[2] * bright)
+            draw.line([(bar_x0 + px, y_top), (bar_x0 + px, y_bot)], fill=(r2, g2, b2))
 
-        # Bright leading edge
+        # Bright leading edge cap
         draw.rectangle([x_bar_end - 3, y_top, x_bar_end, y_bot], fill=color)
 
-        # NEW badge pulsing arrow for latest reveal
-        if is_new:
-            arrow_x = x_bar_end + 8
-            mid_y = y_center
-            draw.polygon([
-                (arrow_x, mid_y - 8),
-                (arrow_x + 14, mid_y),
-                (arrow_x, mid_y + 8),
-            ], fill=color)
-            new_font = _font(max(12, bar_h - 10))
-            draw.text((arrow_x + 18, mid_y - 9), "NEW", font=new_font, fill=color)
-
-        # Rank badge on the left
+        # ── Rank badge (left zone) ────────────────────────────────────────
         rank_str = f"#{rank}"
-        rw = _text_w(draw, rank_str, rank_font)
-        rh = _text_h(draw, rank_str, rank_font)
-        rx = margin_left - rw - 8
-        ry = y_center - rh // 2
-        col_bright = color if is_new else tuple(int(c * 0.75) for c in color)
-        draw.text((rx, ry), rank_str, font=rank_font, fill=col_bright)
+        rstw = _text_w(draw, rank_str, rank_font)
+        rsth = _text_h(draw, rank_str, rank_font)
+        rx = (rank_zone - rstw) // 2
+        ry = y_mid - rsth // 2
+        badge_color = color if is_new else tuple(int(c * 0.85) for c in color)
+        _shadow_text(draw, rank_str, (rx, ry), rank_font,
+                     color=badge_color, shadow=(0, 0, 0), offset=2)
 
-        # Name (left of axis)
+        # ── Name inside bar ───────────────────────────────────────────────
         name = item.get("name", "")
-        max_name_chars = max(8, (margin_left - 70) // max(8, (name_font.size if hasattr(name_font, "size") else 14) // 2))
-        name_display = name[:max_name_chars] + ("…" if len(name) > max_name_chars else "")
-        nw = _text_w(draw, name_display, name_font)
-        nh = _text_h(draw, name_display, name_font)
-        nx = margin_left - rw - nw - 16
-        ny = y_center - nh // 2
-        name_color = (255, 255, 255) if is_new else (200, 200, 200)
-        draw.text((nx, ny), name_display, font=name_font, fill=name_color)
+        # Fit as many chars as possible inside the bar
+        name_x = bar_x0 + 8
+        available_name_w = x_bar_end - name_x - 8
+        # Measure and trim if needed (prefer full name, trim only if truly too wide)
+        full_w = _text_w(draw, name, name_font)
+        if full_w <= available_name_w:
+            name_display = name
+        else:
+            # Trim character by character until it fits
+            trimmed = name
+            while len(trimmed) > 4 and _text_w(draw, trimmed + "…", name_font) > available_name_w:
+                trimmed = trimmed[:-1]
+            name_display = trimmed + "…" if trimmed != name else name
 
-        # Value label to the right of bar
-        label = item.get("label", "")
-        if label and label != "0":
-            lx = x_bar_end + (30 if is_new else 6)
-            lw = _text_w(draw, label, val_font)
-            if lx + lw < width - 10:
-                draw.text((lx, y_center - _text_h(draw, label, val_font) // 2),
-                          label, font=val_font, fill=color if is_new else (140, 140, 160))
+        # Shadow for contrast on colored bar
+        name_y = y_mid - _text_h(draw, name_display, name_font) // 2
+        _shadow_text(draw, name_display, (name_x, name_y), name_font,
+                     color=(255, 255, 255), shadow=(0, 0, 0), offset=2)
 
-    # Bottom axis line
-    draw.line([(margin_left, margin_top + bar_area_h),
-               (margin_left + bar_area_w, margin_top + bar_area_h)],
-              fill=(60, 60, 80), width=1)
+        # If name was trimmed and there's room to the right of the bar, show rest there
+        if name_display.endswith("…") and x_bar_end + 6 < bar_x1 - 20:
+            overflow_font = _font(max(10, name_font_size - 4), bold=False)
+            draw.text((x_bar_end + 6, y_mid - _text_h(draw, name, overflow_font) // 2),
+                      name[len(name_display) - 1:],
+                      font=overflow_font, fill=(180, 180, 180))
 
-    img.save(str(output_path), "JPEG", quality=92)
+        # ── NEW badge ─────────────────────────────────────────────────────
+        if is_new:
+            badge_x = x_bar_end + 8
+            badge_w, badge_h2 = 44, bar_h - 4
+            badge_y = y_mid - badge_h2 // 2
+            # Arrow triangle
+            draw.polygon([
+                (badge_x, y_mid - 7),
+                (badge_x + 10, y_mid),
+                (badge_x, y_mid + 7),
+            ], fill=color)
+            # "NEW" text
+            new_font = _font(max(9, bar_h - 10), bold=True)
+            draw.text((badge_x + 13, y_mid - _text_h(draw, "NEW", new_font) // 2),
+                      "NEW", font=new_font, fill=color)
+
+    # ── Footer status bar ────────────────────────────────────────────────────
+    draw.line([(0, chart_bot + 4), (width, chart_bot + 4)], fill=(40, 40, 60), width=1)
+    if highlight_rank:
+        status_font = _font(18, bold=False)
+        status = f"⬆  #{highlight_rank} just revealed!"
+        draw.text((rank_zone, chart_bot + 8), status, font=status_font, fill=(160, 160, 180))
+
+    img.save(str(output_path), "JPEG", quality=93)
     return output_path
 
 
@@ -310,7 +518,7 @@ def create_title_card(
         try:
             bg = Image.open(bg_image_path).convert("RGB").resize((width, height), Image.LANCZOS)
             bg = bg.filter(ImageFilter.GaussianBlur(radius=6))
-            bg = ImageEnhance.Brightness(bg).enhance(0.25)
+            bg = ImageEnhance.Brightness(bg).enhance(0.22)
             img.paste(bg)
             draw = ImageDraw.Draw(img)
         except Exception:
@@ -438,66 +646,11 @@ def create_rank_card(
     return img
 
 
-# ── Parse ranked list from research ──────────────────────────────────────────
+# ── Public alias (backward compat) ───────────────────────────────────────────
 
 def extract_ranked_items(topic: str, research_brief) -> list[dict]:
-    items = []
-    all_text = "\n".join([
-        research_brief.summary or "",
-        "\n".join(research_brief.data_points),
-        "\n".join(research_brief.key_facts),
-        research_brief.raw_text or "",
-    ])
-
-    pattern1 = re.findall(
-        r'(?:^|\n)\s*(\d+)[.)]\s+'
-        r'([A-Z][^(\n\d]{2,40})'
-        r'(?:[(\-–—:]?\s*([^)\n]{2,50}))?',
-        all_text, re.MULTILINE
-    )
-
-    for rank, name, detail in pattern1:
-        rank = int(rank)
-        name = name.strip().rstrip(',:;-–—').strip()
-        detail = detail.strip() if detail else ""
-        if name and 3 <= len(name) <= 60 and rank <= 30:
-            nums = re.findall(r'\d[\d,.]*', detail)
-            val = _safe_float(nums[0]) if nums else (30 - rank + 1)
-            items.append({
-                "rank": rank,
-                "name": name,
-                "value": val,
-                "detail": detail,
-                "label": detail[:30] if detail else "",
-            })
-
-    if not items:
-        pattern2 = re.findall(
-            r'([A-Z][a-zA-Z\s]{2,30})\s*[–\-:]\s*([^\n]{2,60})',
-            all_text
-        )
-        for i, (name, detail) in enumerate(pattern2[:15], 1):
-            name = name.strip()
-            detail = detail.strip()
-            nums = re.findall(r'\d[\d,.]*', detail)
-            val = _safe_float(nums[0]) if nums else (15 - i + 1)
-            items.append({
-                "rank": i,
-                "name": name,
-                "value": val,
-                "detail": detail,
-                "label": detail[:30] if detail else "",
-            })
-
-    seen = {}
-    for it in sorted(items, key=lambda x: x["rank"]):
-        key = it["name"].lower()[:20]
-        if key not in seen:
-            seen[key] = it
-
-    result = list(seen.values())
-    result.sort(key=lambda x: x["rank"])
-    return result
+    """Kept for backward compat — wraps _extract_from_research."""
+    return _extract_from_research(topic, research_brief)
 
 
 # ── Master: Generate All Graphics for a Job ───────────────────────────────────
@@ -508,14 +661,17 @@ def generate_content_graphics(
     output_dir: Path,
     width: int = 1280,
     height: int = 720,
-    bg_images: list[Path] = None,
+    bg_images: list = None,
     format: str = "short",
+    script_sections: list = None,
+    script_narration: str = "",
 ) -> dict:
     """
     Generate the full set of graphics for a topic.
 
-    For countdown format: produces a progressive bar chart series (one per rank revealed).
-    For other formats: produces a title card + individual rank cards + bar chart.
+    script_sections / script_narration: when provided (countdown mode), these are used
+    as the PRIMARY source for ranked item names so the graphics show real names from
+    the actual script instead of noise from raw research text.
 
     Returns dict of {"title_card": path, "rank_cards": [...], "bar_chart": path}
     """
@@ -532,7 +688,7 @@ def generate_content_graphics(
     title_path = output_dir / "title_card.jpg"
     create_title_card(
         title=topic,
-        subtitle=research_brief.summary[:120] if research_brief.summary else "",
+        subtitle=research_brief.summary[:120] if (research_brief and research_brief.summary) else "",
         output_path=title_path,
         width=width,
         height=height,
@@ -540,18 +696,34 @@ def generate_content_graphics(
     )
     results["title_card"] = title_path
 
-    # Extract ranked items from research
-    ranked = extract_ranked_items(topic, research_brief)
+    # ── Choose ranked item source ─────────────────────────────────────────────
+    # Priority: script data (accurate) → research text (noisy fallback)
+    ranked = []
+    if script_sections or script_narration:
+        ranked = _extract_from_script(
+            sections=script_sections or [],
+            narration=script_narration or "",
+            total_expected=20,
+        )
+        if ranked:
+            print(f"[graphics] Extracted {len(ranked)} ranked items from script")
+        else:
+            print("[graphics] Script extraction found 0 items — falling back to research text")
+
+    if not ranked and research_brief:
+        ranked = _extract_from_research(topic, research_brief)
+        if ranked:
+            print(f"[graphics] Extracted {len(ranked)} ranked items from research text (fallback)")
+
     if not ranked:
+        print("[graphics] No ranked items found — returning title card only")
         return results
 
     total = len(ranked)
 
     if is_countdown and not is_portrait:
         # ── Countdown mode: progressive bar chart series ──────────────────────
-        # The countdown goes from highest rank number down to #1.
-        # We reveal from the last-placed entry first, building the chart.
-        # revealed_so_far accumulates as we go through the countdown order.
+        # Reveal from highest rank number (e.g. #20) down to #1
         countdown_order = list(reversed(ranked))  # highest rank first
         revealed_so_far = []
 
@@ -569,11 +741,11 @@ def generate_content_graphics(
             )
             results["rank_cards"].append(chart_path)
 
-        # Final full leaderboard as the "bar_chart"
+        # Final full leaderboard
         final_path = output_dir / "final_leaderboard.jpg"
         create_final_leaderboard(
             items=ranked,
-            title=f"🏆 Final Rankings — {topic}",
+            title=f"Final Rankings — {topic}",
             output_path=final_path,
             width=width,
             height=height,
@@ -588,7 +760,7 @@ def generate_content_graphics(
             create_rank_card(
                 rank=item["rank"],
                 name=item["name"],
-                value=item["label"] or item.get("detail", "") or str(int(item["value"])),
+                value=item.get("label") or item.get("detail", "") or str(int(item["value"])),
                 sub_info=item.get("detail", ""),
                 output_path=card_path,
                 width=width if not is_portrait else 1080,
@@ -599,7 +771,6 @@ def generate_content_graphics(
             results["rank_cards"].append(card_path)
 
         if ranked and not is_portrait:
-            # Simple static bar chart for non-countdown formats
             chart_path = output_dir / "bar_chart.jpg"
             create_final_leaderboard(
                 items=ranked,

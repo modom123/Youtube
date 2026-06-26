@@ -500,6 +500,8 @@ def run(
                     height=profile["height"],
                     bg_images=image_clips[:8],
                     format=format,
+                    script_sections=script.sections,
+                    script_narration=script.narration,
                 )
                 # Collect all graphic paths: title card first, then rank cards, then chart
                 if gfx.get("title_card"):
