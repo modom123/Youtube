@@ -514,10 +514,11 @@ def _generate_script_openrouter(
     # Free models on OpenRouter — tried in order, skips rate-limited ones
     free_models = [
         "meta-llama/llama-3.1-8b-instruct:free",
-        "mistralai/mistral-7b-instruct:free",
-        "google/gemma-3-4b-it:free",
         "meta-llama/llama-3.3-70b-instruct:free",
-        "deepseek/deepseek-r1-distill-llama-70b:free",
+        "google/gemma-3-27b-it:free",
+        "mistralai/mistral-7b-instruct:free",
+        "microsoft/phi-4-reasoning-plus:free",
+        "deepseek/deepseek-r1:free",
     ]
     last_err = None
     for model in free_models:

@@ -9,6 +9,13 @@ from typing import Optional
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 
 
+def _safe_float(s: str, default: float = 0.0) -> float:
+    try:
+        return float(s.replace(",", ""))
+    except (ValueError, AttributeError):
+        return default
+
+
 # ── Font helpers ─────────────────────────────────────────────────────────────
 
 FONT_PATHS = [
@@ -380,9 +387,9 @@ def extract_ranked_items(topic: str, research_brief) -> list[dict]:
         name = name.strip().rstrip(',:;-–—').strip()
         detail = detail.strip() if detail else ""
         if name and 3 <= len(name) <= 60 and rank <= 30:
-            # Extract numeric value from detail if present
-            nums = re.findall(r'[\d,.]+', detail.replace(",", ""))
-            val = float(nums[0].replace(",", "")) if nums else rank
+            # Extract numeric value from detail if present (must start with digit)
+            nums = re.findall(r'\d[\d,.]*', detail)
+            val = _safe_float(nums[0]) if nums else rank
             items.append({
                 "rank": rank,
                 "name": name,
@@ -400,8 +407,8 @@ def extract_ranked_items(topic: str, research_brief) -> list[dict]:
         for i, (name, detail) in enumerate(pattern2[:15], 1):
             name = name.strip()
             detail = detail.strip()
-            nums = re.findall(r'[\d,.]+', detail)
-            val = float(nums[0].replace(",", "")) if nums else (15 - i + 1)
+            nums = re.findall(r'\d[\d,.]*', detail)
+            val = _safe_float(nums[0]) if nums else (15 - i + 1)
             items.append({
                 "rank": i,
                 "name": name,

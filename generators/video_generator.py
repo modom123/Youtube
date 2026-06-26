@@ -279,9 +279,9 @@ def _prepare_clip_segment(source: Path, duration: float, width: int, height: int
             "-i", str(source),
             "-t", f"{duration:.2f}",
             "-vf", f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+            "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
             "-pix_fmt", "yuv420p",
-            "-r", "24",
+            "-r", "8",  # 8fps is fine for static images — 3x faster to encode
             str(out),
         ]
     else:
@@ -388,7 +388,8 @@ def create_video(
             "-movflags", "+faststart",
             str(output_path),
         ]
-        r = subprocess.run(cmd, capture_output=True, timeout=300)
+        encode_timeout = max(600, int(total_duration * 4))  # scale with video length
+        r = subprocess.run(cmd, capture_output=True, timeout=encode_timeout)
         if r.returncode != 0:
             stderr = r.stderr.decode("utf-8", errors="replace")[-500:]
             print(f"[video] Concat failed, trying full re-encode: {stderr}")
@@ -398,14 +399,14 @@ def create_video(
                 "-i", str(audio_path),
                 "-map", "0:v:0",
                 "-map", "1:a:0",
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-                "-c:a", "aac", "-b:a", "192k",
+                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k",
                 "-pix_fmt", "yuv420p",
                 "-r", "24",
                 "-movflags", "+faststart",
                 str(output_path),
             ]
-            r = subprocess.run(cmd, capture_output=True, timeout=600)
+            r = subprocess.run(cmd, capture_output=True, timeout=encode_timeout * 2)
             if r.returncode != 0:
                 raise RuntimeError(f"Video assembly failed: {r.stderr.decode('utf-8', errors='replace')[-300:]}")
 
