@@ -22,9 +22,15 @@ _PROTO_VERSION = "2024-11-05"
 
 
 def _token() -> str:
-    tok = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN
+    tok = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN or ""
+    # Ignore accidental URL entries (user pasted the MCP endpoint URL instead of a token)
+    if tok.startswith("http://") or tok.startswith("https://"):
+        tok = ""
     if not tok:
-        raise RuntimeError("Higgsfield not connected — authenticate via Accounts page")
+        raise RuntimeError(
+            "Higgsfield not connected. Go to Accounts page and click 'Connect Higgsfield' "
+            "to authenticate via OAuth — no API key needed."
+        )
     return tok
 
 

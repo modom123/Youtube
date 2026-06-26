@@ -2203,16 +2203,27 @@ def _load_platform_creds_from_db():
 
 @app.route("/api/settings/check")
 def api_settings_check():
-    tok = config.HIGGSFIELD_MCP_TOKEN or ""
+    # Higgsfield is connected if: (a) env var token set, OR (b) user has OAuth'd via Accounts page
+    global_tok = config.HIGGSFIELD_MCP_TOKEN or ""
+    # Strip accidental URL entries (user pasted the MCP URL instead of a token)
+    if global_tok.startswith("http://") or global_tok.startswith("https://"):
+        global_tok = ""
 
+    user_hf_connected = False
     # Check user's connected social accounts (OAuth-based platforms)
     user_platforms = set()
     try:
         if current_user.is_authenticated:
             accounts = db.get_accounts(user_id=current_user.id)
             user_platforms = {a["platform"] for a in accounts if a.get("is_active", True)}
+            user_hf_connected = any(
+                a.get("platform") == "higgsfield" and a.get("is_active") and a.get("access_token")
+                for a in accounts
+            )
     except Exception:
         pass
+
+    higgsville_ok = bool(global_tok) or user_hf_connected
 
     from generators.ai_router import _available_models as _avm
     _ai_available = _avm()
@@ -2221,7 +2232,7 @@ def api_settings_check():
         "pixabay":          bool(config.PIXABAY_API_KEY),
         "elevenlabs":       bool(getattr(config, "ELEVENLABS_API_KEY", "")),
         "google_flow":      bool(config.GOOGLE_API_KEY),
-        "higgsville":       bool(tok),
+        "higgsville":       higgsville_ok,
         "youtube":          bool(config.YOUTUBE_CLIENT_ID) or "youtube" in user_platforms,
         "tiktok":           bool(config.TIKTOK_CLIENT_KEY) or "tiktok" in user_platforms,
         "instagram":        bool(config.INSTAGRAM_ACCESS_TOKEN) or "instagram" in user_platforms,
