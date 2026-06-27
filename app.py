@@ -225,6 +225,10 @@ def api_create():
         "ad_cta": (data.get("ad_cta") or "").strip(),
         "ad_style": data.get("ad_style") or "cinematic",
         "ad_platforms": data.get("ad_platforms") or [],
+        # Documentary params
+        "doc_style": data.get("doc_style") or "natgeo",
+        # Animation params
+        "animation_style": data.get("animation_style") or "lego",
         # ai_model: "claude" (premium) or "gemini" (budget/batch)
         "ai_model": data.get("ai_model", "claude"),
     }

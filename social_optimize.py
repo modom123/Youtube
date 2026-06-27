@@ -66,6 +66,24 @@ CONTENT_PROFILES = {
         "is_short": False,
         "content_type": "commercial_30",  # overridden at runtime
     },
+    "animation": {
+        "label": "Animation",
+        "duration": 120,
+        "width": config.VIDEO_WIDTH,
+        "height": config.VIDEO_HEIGHT,
+        "is_portrait": False,
+        "is_short": False,
+        "content_type": "animation",
+    },
+    "documentary": {
+        "label": "Documentary",
+        "duration": 900,
+        "width": config.VIDEO_WIDTH,
+        "height": config.VIDEO_HEIGHT,
+        "is_portrait": False,
+        "is_short": False,
+        "content_type": "documentary",
+    },
 }
 
 
@@ -86,6 +104,10 @@ def run(
     podcast_name: str = "",
     episode_number: int = 1,
     guest_name: str = "",
+    # Animation-specific params
+    animation_style: str = "lego",
+    # Documentary-specific params
+    doc_style: str = "natgeo",
     # Commercial-specific params
     ad_format: str = "",
     ad_brand: str = "",
@@ -102,7 +124,7 @@ def run(
 
     Args:
         topic:               What the content is about (can be anything — it will be researched)
-        format:              Content format: short | long | podcast | reel
+        format:              Content format: short | long | podcast | reel | commercial | documentary | animation
         platforms:           List of platforms: youtube, tiktok, instagram
         audience:            Target audience description
         voice:               edge-tts voice name
@@ -139,6 +161,32 @@ def run(
         # Use marketing_studio model for Higgsfield
         if ai_video_provider != "none":
             higgsfield_model = "marketing_studio_video"
+    elif format == "documentary":
+        doc_styles = {
+            "natgeo": "National Geographic nature/science documentary",
+            "espn30for30": "ESPN 30 for 30 sports documentary",
+            "vice": "VICE investigative documentary",
+            "hbo": "HBO premium cinematic documentary",
+            "true_crime": "True crime / mystery documentary",
+            "history": "History Channel historical documentary",
+        }
+        doc_label = doc_styles.get(doc_style, doc_style)
+        topic = f"[DOCUMENTARY STYLE: {doc_label}] {topic}"
+        if target_duration:
+            profile["duration"] = target_duration
+    elif format == "animation":
+        style_labels = {
+            "lego": "LEGO brick stop-motion",
+            "clay": "Claymation / stop-motion clay",
+            "anime": "Japanese anime",
+            "comic": "Comic book / graphic novel",
+            "pixel": "Pixel art / retro game",
+            "watercolor": "Watercolor painting",
+        }
+        style_label = style_labels.get(animation_style, animation_style)
+        topic = f"[ANIMATION STYLE: {style_label}] {topic}"
+        if target_duration:
+            profile["duration"] = target_duration
     elif target_duration and format == "podcast":
         profile["duration"] = target_duration
 

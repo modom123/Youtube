@@ -59,6 +59,16 @@
           <div class="format-desc">Brand ad · 6 / 15 / 30 / 60 sec</div>
           <span class="format-badge" style="background:rgba(245,158,11,.15);color:#f59e0b;">Any Ratio</span>
         </div>
+        <div class="format-card" data-format="documentary" onclick="selectFormat(this,'documentary')" style="border-color:#06b6d455;">
+          <div class="format-name" style="color:#06b6d4;">🎬 Documentary</div>
+          <div class="format-desc">NatGeo · ESPN 30/30 · HBO style</div>
+          <span class="format-badge" style="background:rgba(6,182,212,.15);color:#06b6d4;">16:9 Cinematic</span>
+        </div>
+        <div class="format-card" data-format="animation" onclick="selectFormat(this,'animation')" style="border-color:#e879f955;">
+          <div class="format-name" style="color:#e879f9;">🎨 Animation</div>
+          <div class="format-desc">LEGO · Clay · Anime · Comic · Pixel</div>
+          <span class="format-badge" style="background:rgba(232,121,249,.15);color:#e879f9;">16:9 Landscape</span>
+        </div>
       </div>
     </div>
 
@@ -295,6 +305,135 @@
       </div>
     </div>
 
+    <!-- Documentary Settings -->
+    <div class="card" id="documentaryPanel" style="display:none;border-color:#06b6d455;">
+      <div class="card-title mb-16">
+        <span style="color:#06b6d4;">🎬</span> Documentary Settings
+      </div>
+      <div class="form-group mb-16">
+        <label>Documentary Style</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;" id="docStyleGrid">
+          <div class="format-card selected" data-docstyle="natgeo" onclick="selectDocStyle(this,'natgeo')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🌍</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">NatGeo</div>
+            <div style="font-size:10px;color:var(--muted);">Nature / Science</div>
+          </div>
+          <div class="format-card" data-docstyle="espn30for30" onclick="selectDocStyle(this,'espn30for30')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🏆</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">ESPN 30/30</div>
+            <div style="font-size:10px;color:var(--muted);">Sports stories</div>
+          </div>
+          <div class="format-card" data-docstyle="vice" onclick="selectDocStyle(this,'vice')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🔎</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">VICE</div>
+            <div style="font-size:10px;color:var(--muted);">Investigative</div>
+          </div>
+          <div class="format-card" data-docstyle="hbo" onclick="selectDocStyle(this,'hbo')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🎥</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">HBO</div>
+            <div style="font-size:10px;color:var(--muted);">Premium cinematic</div>
+          </div>
+          <div class="format-card" data-docstyle="true_crime" onclick="selectDocStyle(this,'true_crime')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🕵️</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">True Crime</div>
+            <div style="font-size:10px;color:var(--muted);">Mystery / thriller</div>
+          </div>
+          <div class="format-card" data-docstyle="history" onclick="selectDocStyle(this,'history')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">📜</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">History</div>
+            <div style="font-size:10px;color:var(--muted);">Historical deep dive</div>
+          </div>
+        </div>
+        <input type="hidden" id="doc_style" value="natgeo">
+      </div>
+      <div class="form-group">
+        <label>Episode Length</label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;" id="docDurationGrid">
+          <div class="format-card" data-docdur="300" onclick="selectDocDur(this,300)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">5 min</div>
+            <div style="font-size:10px;color:var(--muted);">Mini-doc</div>
+          </div>
+          <div class="format-card selected" data-docdur="900" onclick="selectDocDur(this,900)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">15 min</div>
+            <div style="font-size:10px;color:var(--muted);">YouTube doc</div>
+          </div>
+          <div class="format-card" data-docdur="1800" onclick="selectDocDur(this,1800)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">30 min</div>
+            <div style="font-size:10px;color:var(--muted);">TV episode</div>
+          </div>
+          <div class="format-card" data-docdur="3600" onclick="selectDocDur(this,3600)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">60 min</div>
+            <div style="font-size:10px;color:var(--muted);">Feature length</div>
+          </div>
+        </div>
+        <input type="hidden" id="doc_duration" value="900">
+      </div>
+      <div class="text-dim text-xs mt-8">
+        Cinematic narration with dramatic pacing, archival-style research, and AI-generated footage. Best with Cinema Studio 3.0 or Veo 3.1.
+      </div>
+    </div>
+
+    <!-- Animation Settings -->
+    <div class="card" id="animationPanel" style="display:none;border-color:#e879f955;">
+      <div class="card-title mb-16">
+        <span style="color:#e879f9;">🎨</span> Animation Settings
+      </div>
+      <div class="form-group mb-16">
+        <label>Animation Style</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;" id="animStyleGrid">
+          <div class="format-card selected" data-animstyle="lego" onclick="selectAnimStyle(this,'lego')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🧱</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">LEGO</div>
+            <div style="font-size:10px;color:var(--muted);">Brick stop-motion</div>
+          </div>
+          <div class="format-card" data-animstyle="clay" onclick="selectAnimStyle(this,'clay')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🏺</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">Claymation</div>
+            <div style="font-size:10px;color:var(--muted);">Stop-motion clay</div>
+          </div>
+          <div class="format-card" data-animstyle="anime" onclick="selectAnimStyle(this,'anime')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">⛩️</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">Anime</div>
+            <div style="font-size:10px;color:var(--muted);">Japanese animation</div>
+          </div>
+          <div class="format-card" data-animstyle="comic" onclick="selectAnimStyle(this,'comic')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">💥</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">Comic Book</div>
+            <div style="font-size:10px;color:var(--muted);">Graphic novel panels</div>
+          </div>
+          <div class="format-card" data-animstyle="pixel" onclick="selectAnimStyle(this,'pixel')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">👾</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">Pixel Art</div>
+            <div style="font-size:10px;color:var(--muted);">Retro 8-bit style</div>
+          </div>
+          <div class="format-card" data-animstyle="watercolor" onclick="selectAnimStyle(this,'watercolor')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🖌️</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">Watercolor</div>
+            <div style="font-size:10px;color:var(--muted);">Painted animation</div>
+          </div>
+        </div>
+        <input type="hidden" id="animation_style" value="lego">
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <div class="format-card selected" data-animdur="60" onclick="selectAnimDur(this,60)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+          <div style="font-size:15px;font-weight:800;">1 min</div>
+          <div style="font-size:10px;color:var(--muted);">Quick clip</div>
+        </div>
+        <div class="format-card" data-animdur="120" onclick="selectAnimDur(this,120)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+          <div style="font-size:15px;font-weight:800;">2 min</div>
+          <div style="font-size:10px;color:var(--muted);">Standard</div>
+        </div>
+        <div class="format-card" data-animdur="300" onclick="selectAnimDur(this,300)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+          <div style="font-size:15px;font-weight:800;">5 min</div>
+          <div style="font-size:10px;color:var(--muted);">Deep story</div>
+        </div>
+      </div>
+      <input type="hidden" id="animation_duration" value="60">
+      <div class="text-dim text-xs mt-8">
+        AI generates every frame in your chosen animation style. Best results with Higgsfield Cinema Studio 3.0 or Veo 3.1.
+      </div>
+    </div>
+
     <!-- Research Preview -->
     <div class="card" id="researchPreview" style="display:none;">
       <div class="flex-between mb-12">
@@ -432,6 +571,8 @@ function selectFormat(el, fmt) {
   _format = fmt;
   document.getElementById('podcastPanel').style.display = (fmt === 'podcast') ? '' : 'none';
   document.getElementById('commercialPanel').style.display = (fmt === 'commercial') ? '' : 'none';
+  document.getElementById('documentaryPanel').style.display = (fmt === 'documentary') ? '' : 'none';
+  document.getElementById('animationPanel').style.display = (fmt === 'animation') ? '' : 'none';
 }
 
 function selectAdLen(el, adFmt, seconds) {
@@ -445,6 +586,30 @@ function selectPodcastDuration(el, seconds) {
   document.querySelectorAll('#podcastDurationGrid .format-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   document.getElementById('podcast_duration').value = seconds;
+}
+
+function selectDocStyle(el, style) {
+  document.querySelectorAll('#docStyleGrid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('doc_style').value = style;
+}
+
+function selectDocDur(el, seconds) {
+  document.querySelectorAll('#docDurationGrid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('doc_duration').value = seconds;
+}
+
+function selectAnimStyle(el, style) {
+  document.querySelectorAll('#animStyleGrid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('animation_style').value = style;
+}
+
+function selectAnimDur(el, seconds) {
+  document.querySelectorAll('#animationPanel .format-card[data-animdur]').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('animation_duration').value = seconds;
 }
 
 function selectStyle(el, s) {
@@ -541,6 +706,10 @@ async function startCreate() {
     guest_name: document.getElementById('guest_name').value || '',
     target_duration: _format === 'commercial'
       ? parseInt(document.getElementById('ad_duration').value) || 30
+      : _format === 'documentary'
+      ? parseInt(document.getElementById('doc_duration').value) || 900
+      : _format === 'animation'
+      ? parseInt(document.getElementById('animation_duration').value) || 60
       : parseInt(document.getElementById('podcast_duration').value) || 1800,
     // Commercial-specific fields
     ad_format: _format === 'commercial' ? document.getElementById('ad_format').value : null,
@@ -550,6 +719,10 @@ async function startCreate() {
     ad_cta: document.getElementById('ad_cta').value || '',
     ad_style: document.getElementById('ad_style').value || 'cinematic',
     ad_platforms: Array.from(document.querySelectorAll('input[name="ad_platform"]:checked')).map(c => c.value),
+    // Documentary-specific fields
+    doc_style: _format === 'documentary' ? document.getElementById('doc_style').value : null,
+    // Animation-specific fields
+    animation_style: _format === 'animation' ? document.getElementById('animation_style').value : null,
   };
 
   await launchJob(payload);
