@@ -729,6 +729,132 @@ input[type=range]::-webkit-slider-thumb {
   margin-bottom: 8px;
 }
 
+/* ── Beat Machine ────────────────────────────────────────────────────────────── */
+.bm-wrap { display:flex; flex-direction:column; height:100%; overflow:hidden; background:var(--c-bg); }
+.bm-transport {
+  display:flex; align-items:center; gap:8px; padding:8px 12px;
+  border-bottom:1px solid var(--c-border); flex-shrink:0; flex-wrap:wrap; background:var(--c-panel);
+}
+.bm-kit-sel {
+  background:var(--c-elevated); border:1px solid var(--c-border); border-radius:7px;
+  color:var(--c-text); padding:5px 8px; font-size:11px; font-weight:700; outline:none; min-width:140px;
+}
+.bm-kit-sel:focus { border-color:var(--c-purple); }
+.bm-label { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--c-muted); }
+.bm-bpm-input {
+  width:48px; background:var(--c-elevated); border:1px solid var(--c-border); border-radius:6px;
+  color:var(--c-text); padding:4px 6px; font-size:12px; font-weight:700; text-align:center; outline:none;
+}
+.bm-sel { background:var(--c-elevated); border:1px solid var(--c-border); border-radius:6px; color:var(--c-text); padding:4px 6px; font-size:11px; outline:none; }
+.bm-bank-row { display:flex; gap:3px; }
+.bm-bank { padding:4px 9px; border-radius:5px; border:1px solid var(--c-border); background:var(--c-elevated); color:var(--c-muted); font-size:10px; font-weight:800; cursor:pointer; transition:all .15s; }
+.bm-bank.active { background:var(--c-purple); border-color:var(--c-purple); color:#fff; }
+.bm-tbtn {
+  width:32px; height:32px; border-radius:8px; border:1px solid var(--c-border);
+  background:var(--c-elevated); color:var(--c-text); font-size:14px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all .15s;
+}
+.bm-tbtn:hover { border-color:var(--c-purple); color:var(--c-purple); }
+.bm-mode-btn { width:auto; padding:0 10px; font-size:10px; font-weight:800; letter-spacing:.06em; }
+.bm-mode-btn.active { background:var(--c-purple); border-color:var(--c-purple); color:#fff; }
+/* Lite mode hides editor + chop + seq; only pads + transport visible */
+.bm-wrap.bm-lite .bm-editor { display:none !important; }
+.bm-wrap.bm-lite .bm-seq { display:none !important; }
+.bm-wrap.bm-lite .bm-main { justify-content:center; }
+.bm-wrap.bm-lite .bm-pads { width:100%; max-width:480px; margin:auto; }
+.bm-tbtn.playing { background:var(--c-green); border-color:var(--c-green); color:#000; }
+.bm-tbtn.rec-active { background:var(--c-red); border-color:var(--c-red); color:#fff; animation:pulse-rec 1s ease-in-out infinite; }
+.bm-sep { width:1px; height:24px; background:var(--c-border); flex-shrink:0; }
+
+/* Main area */
+.bm-main { display:flex; flex:1; min-height:0; overflow:hidden; }
+
+/* 4×4 pad grid */
+.bm-pads {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:5px;
+  padding:10px; flex-shrink:0; width:220px; align-content:start;
+}
+.bm-pad {
+  aspect-ratio:1; border-radius:8px; cursor:pointer; position:relative;
+  display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-end;
+  padding:5px 6px; border:2px solid transparent;
+  transition:transform .06s, box-shadow .06s, border-color .15s;
+  user-select:none; overflow:hidden;
+}
+.bm-pad::before { content:""; position:absolute; inset:0; border-radius:6px; background:rgba(255,255,255,.08); opacity:0; transition:opacity .1s; }
+.bm-pad:hover::before { opacity:1; }
+.bm-pad.selected { border-color:rgba(255,255,255,.6) !important; }
+.bm-pad.hit { transform:scale(.93); box-shadow:0 0 18px var(--pad-color); }
+.bm-pad .pad-num { font-size:8px; color:rgba(255,255,255,.45); font-weight:700; position:absolute; top:5px; left:6px; }
+.bm-pad .pad-name { font-size:9px; color:rgba(255,255,255,.9); font-weight:700; line-height:1.2; text-shadow:0 1px 3px rgba(0,0,0,.5); }
+
+/* Pad editor */
+.bm-editor {
+  flex:1; min-width:0; padding:10px 14px; overflow-y:auto; border-left:1px solid var(--c-border);
+  display:flex; flex-direction:column; gap:10px;
+}
+.bm-editor-pad-title {
+  font-size:13px; font-weight:800; color:var(--c-text);
+  display:flex; align-items:center; gap:8px;
+}
+.bm-editor-pad-swatch { width:14px; height:14px; border-radius:3px; flex-shrink:0; }
+.bm-editor-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.bm-knob-row { display:flex; flex-direction:column; gap:3px; }
+.bm-knob-label { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:var(--c-muted); display:flex; justify-content:space-between; }
+.bm-knob-label span { color:var(--c-purple); }
+.bm-fx-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.bm-fx-chip {
+  display:flex; align-items:center; gap:5px; background:var(--c-elevated); border:1px solid var(--c-border);
+  border-radius:7px; padding:6px 8px; cursor:pointer; font-size:10px; font-weight:700; color:var(--c-muted);
+  transition:all .15s; user-select:none;
+}
+.bm-fx-chip input { display:none; }
+.bm-fx-chip:has(input:checked) { background:var(--c-glow); border-color:var(--c-purple); color:var(--c-purple); }
+.bm-chop-btn {
+  padding:7px 14px; background:var(--c-elevated); border:1px solid var(--c-border); border-radius:8px;
+  color:var(--c-text); font-size:11px; font-weight:700; cursor:pointer; transition:all .15s; text-align:center;
+}
+.bm-chop-btn:hover { border-color:var(--c-cyan); color:var(--c-cyan); }
+.bm-chop-zone {
+  border:2px dashed var(--c-border); border-radius:8px; padding:12px; text-align:center;
+  font-size:11px; color:var(--c-muted); position:relative; transition:all .2s; cursor:pointer;
+}
+.bm-chop-zone.drag-over { border-color:var(--c-cyan); background:rgba(6,182,212,.08); }
+.bm-chop-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.bm-chop-canvas { width:100%; height:40px; border-radius:5px; background:#020206; border:1px solid var(--c-border); cursor:crosshair; display:none; margin-top:6px; }
+.bm-chop-list { display:flex; flex-direction:column; gap:4px; margin-top:6px; max-height:80px; overflow-y:auto; }
+.bm-chop-item {
+  display:flex; align-items:center; gap:6px; font-size:10px; color:var(--c-text);
+  background:var(--c-elevated); border-radius:5px; padding:4px 8px;
+}
+.bm-chop-item .ci-name { flex:1; }
+.bm-chop-item .ci-pad { font-size:9px; color:var(--c-purple); }
+
+/* Step sequencer */
+.bm-seq {
+  border-top:1px solid var(--c-border); flex-shrink:0;
+  overflow-x:auto; overflow-y:auto; max-height:220px; background:var(--c-panel);
+}
+.bm-seq-row {
+  display:flex; align-items:center; min-width:max-content;
+  padding:1px 6px; border-bottom:1px solid rgba(255,255,255,.03);
+}
+.bm-seq-row:hover { background:rgba(255,255,255,.02); }
+.bm-seq-label {
+  width:62px; flex-shrink:0; font-size:9px; font-weight:700; text-transform:uppercase;
+  letter-spacing:.05em; color:var(--c-muted); padding:4px 0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.bm-seq-steps { display:flex; gap:2px; align-items:center; }
+.bm-seq-step {
+  width:20px; height:20px; border-radius:3px; cursor:pointer; border:1px solid rgba(255,255,255,.07);
+  background:var(--c-elevated); transition:background .1s, border-color .1s; flex-shrink:0;
+}
+.bm-seq-step:hover { border-color:rgba(255,255,255,.2); }
+.bm-seq-step.on { background:var(--pad-color,var(--c-purple)); border-color:var(--pad-color,var(--c-purple)); opacity:.9; }
+.bm-seq-step.playing { outline:2px solid #fff; outline-offset:1px; opacity:1 !important; }
+.bm-seq-div { width:3px; flex-shrink:0; }
+
 /* FX chip toggle */
 .fx-chip {
   display: flex;
@@ -909,7 +1035,113 @@ input[type=range]::-webkit-slider-thumb {
 
         <div class="field">
           <label>Inspired by (artist)</label>
-          <input type="text" id="refArtist" placeholder="e.g. Drake, Billie Eilish…" />
+          <input type="text" id="refArtist" list="refArtistList" placeholder="Search artist…" autocomplete="off" />
+          <datalist id="refArtistList">
+            <option value="Drake"></option>
+            <option value="Kendrick Lamar"></option>
+            <option value="J. Cole"></option>
+            <option value="Travis Scott"></option>
+            <option value="Future"></option>
+            <option value="Lil Baby"></option>
+            <option value="Gunna"></option>
+            <option value="21 Savage"></option>
+            <option value="Post Malone"></option>
+            <option value="Cardi B"></option>
+            <option value="Nicki Minaj"></option>
+            <option value="Megan Thee Stallion"></option>
+            <option value="Doja Cat"></option>
+            <option value="SZA"></option>
+            <option value="The Weeknd"></option>
+            <option value="Frank Ocean"></option>
+            <option value="Tyler, the Creator"></option>
+            <option value="Kid Cudi"></option>
+            <option value="Kanye West"></option>
+            <option value="Jay-Z"></option>
+            <option value="Nas"></option>
+            <option value="Eminem"></option>
+            <option value="Lil Wayne"></option>
+            <option value="A$AP Rocky"></option>
+            <option value="Childish Gambino"></option>
+            <option value="Anderson .Paak"></option>
+            <option value="Bruno Mars"></option>
+            <option value="Billie Eilish"></option>
+            <option value="Taylor Swift"></option>
+            <option value="Ariana Grande"></option>
+            <option value="Beyoncé"></option>
+            <option value="Rihanna"></option>
+            <option value="Lady Gaga"></option>
+            <option value="Olivia Rodrigo"></option>
+            <option value="Dua Lipa"></option>
+            <option value="Adele"></option>
+            <option value="Ed Sheeran"></option>
+            <option value="Harry Styles"></option>
+            <option value="Justin Bieber"></option>
+            <option value="The Jonas Brothers"></option>
+            <option value="Khalid"></option>
+            <option value="H.E.R."></option>
+            <option value="Jazmine Sullivan"></option>
+            <option value="Giveon"></option>
+            <option value="Lucky Daye"></option>
+            <option value="Brent Faiyaz"></option>
+            <option value="Daniel Caesar"></option>
+            <option value="Summer Walker"></option>
+            <option value="Jhené Aiko"></option>
+            <option value="Kehlani"></option>
+            <option value="Ari Lennox"></option>
+            <option value="Bryson Tiller"></option>
+            <option value="6LACK"></option>
+            <option value="Khalid"></option>
+            <option value="Normani"></option>
+            <option value="Lizzo"></option>
+            <option value="Latto"></option>
+            <option value="Ice Spice"></option>
+            <option value="GloRilla"></option>
+            <option value="Sexyy Red"></option>
+            <option value="Central Cee"></option>
+            <option value="Dave"></option>
+            <option value="Stormzy"></option>
+            <option value="Headie One"></option>
+            <option value="Burna Boy"></option>
+            <option value="Wizkid"></option>
+            <option value="Davido"></option>
+            <option value="Fireboy DML"></option>
+            <option value="Tems"></option>
+            <option value="Rema"></option>
+            <option value="Omah Lay"></option>
+            <option value="Afrobeats Mix"></option>
+            <option value="Bad Bunny"></option>
+            <option value="J Balvin"></option>
+            <option value="Ozuna"></option>
+            <option value="Maluma"></option>
+            <option value="Karol G"></option>
+            <option value="Rauw Alejandro"></option>
+            <option value="Myke Towers"></option>
+            <option value="Anuel AA"></option>
+            <option value="Peso Pluma"></option>
+            <option value="Fuerza Regida"></option>
+            <option value="Metro Boomin"></option>
+            <option value="Mike WiLL Made-It"></option>
+            <option value="Mustard"></option>
+            <option value="DJ Khaled"></option>
+            <option value="Pharrell Williams"></option>
+            <option value="Timbaland"></option>
+            <option value="Missy Elliott"></option>
+            <option value="Usher"></option>
+            <option value="Chris Brown"></option>
+            <option value="Ne-Yo"></option>
+            <option value="John Legend"></option>
+            <option value="Alicia Keys"></option>
+            <option value="Mary J. Blige"></option>
+            <option value="Janet Jackson"></option>
+            <option value="Michael Jackson"></option>
+            <option value="Prince"></option>
+            <option value="Rick James"></option>
+            <option value="Stevie Wonder"></option>
+            <option value="Marvin Gaye"></option>
+            <option value="Al Green"></option>
+            <option value="James Brown"></option>
+            <option value="Otis Redding"></option>
+          </datalist>
         </div>
 
         <div class="field">
@@ -1192,28 +1424,101 @@ input[type=range]::-webkit-slider-thumb {
         </div>
       </div><!-- /studio -->
 
-      <!-- ── BEAT MAKER TAB ─────────────────────────────────────────────── -->
+      <!-- ── BEAT MACHINE TAB ───────────────────────────────────────────── -->
       <div id="mpane-beat" class="ms-main-pane">
-        <div class="beat-wrap">
-          <div class="beat-header">
-            <h3>Beat Sequencer — 16 Steps</h3>
-            <div class="beat-ctrl-row">
-              <label>BPM</label>
-              <input type="number" id="beatBpm" value="120" min="60" max="200">
-              <button class="seq-btn active" id="beatPlayBtn" onclick="toggleBeat()">▶ Play</button>
-              <button class="seq-btn" onclick="clearBeat()">Clear</button>
-              <button class="seq-btn" onclick="randomBeat()">🎲</button>
+        <div class="bm-wrap">
+
+          <!-- Transport bar -->
+          <div class="bm-transport">
+            <select class="bm-kit-sel" id="bmKitSel" onchange="bmLoadKit(this.value)"></select>
+            <div class="bm-sep"></div>
+            <span class="bm-label">BPM</span>
+            <input type="number" class="bm-bpm-input" id="bmBpm" value="90" min="40" max="220">
+            <span class="bm-label">SWING</span>
+            <input type="range" id="bmSwing" min="0" max="80" value="0" step="1" style="width:55px"
+                   oninput="document.getElementById('bmSwingV').textContent=this.value+'%'">
+            <span style="font-size:10px;color:var(--c-purple);min-width:24px" id="bmSwingV">0%</span>
+            <div class="bm-sep"></div>
+            <span class="bm-label">STEPS</span>
+            <select class="bm-sel" id="bmStepCount" onchange="bmSetSteps(+this.value)">
+              <option value="16" selected>16</option>
+              <option value="32">32</option>
+            </select>
+            <span class="bm-label">BANK</span>
+            <div class="bm-bank-row">
+              <button class="bm-bank active" onclick="bmSelectBank(0,this)">A</button>
+              <button class="bm-bank" onclick="bmSelectBank(1,this)">B</button>
+              <button class="bm-bank" onclick="bmSelectBank(2,this)">C</button>
+              <button class="bm-bank" onclick="bmSelectBank(3,this)">D</button>
+            </div>
+            <div class="bm-sep"></div>
+            <button class="bm-tbtn" id="bmPlayBtn" onclick="bmTogglePlay()" title="Play/Pause">▶</button>
+            <button class="bm-tbtn" onclick="bmStop()" title="Stop">⏹</button>
+            <button class="bm-tbtn" id="bmRecBtn" onclick="bmToggleRec()" title="Record">⏺</button>
+            <button class="bm-tbtn" onclick="bmClear()" title="Clear pattern" style="font-size:11px">CLR</button>
+            <button class="bm-tbtn" onclick="bmRandom()" title="Random pattern">🎲</button>
+            <div class="bm-sep"></div>
+            <button class="bm-tbtn bm-mode-btn active" id="bmLiteBtn" onclick="bmSetMode('lite')" title="Lite mode">LITE</button>
+            <button class="bm-tbtn bm-mode-btn" id="bmAdvBtn" onclick="bmSetMode('adv')" title="Advanced mode">ADV</button>
+          </div>
+
+          <!-- Pads + Editor -->
+          <div class="bm-main">
+            <!-- 4×4 pad grid -->
+            <div class="bm-pads" id="bmPadGrid"></div>
+
+            <!-- Pad editor -->
+            <div class="bm-editor" id="bmEditor">
+              <div class="bm-editor-pad-title">
+                <div class="bm-editor-pad-swatch" id="bmEdSwatch"></div>
+                <span id="bmEdName">Select a pad</span>
+              </div>
+
+              <div class="bm-editor-grid">
+                <div class="bm-knob-row">
+                  <div class="bm-knob-label">Volume <span id="bmEdVolV">85%</span></div>
+                  <input type="range" id="bmEdVol" min="0" max="100" value="85" step="1" oninput="bmEdParam('vol',this.value/100);document.getElementById('bmEdVolV').textContent=this.value+'%'">
+                </div>
+                <div class="bm-knob-row">
+                  <div class="bm-knob-label">Tune <span id="bmEdTuneV">0st</span></div>
+                  <input type="range" id="bmEdTune" min="-24" max="24" value="0" step="1" oninput="bmEdParam('tune',+this.value);document.getElementById('bmEdTuneV').textContent=(this.value>0?'+':'')+this.value+'st'">
+                </div>
+                <div class="bm-knob-row">
+                  <div class="bm-knob-label">Decay <span id="bmEdDecV">—</span></div>
+                  <input type="range" id="bmEdDec" min="0.02" max="2.5" value="0.2" step="0.01" oninput="bmEdParam('decay',+this.value);document.getElementById('bmEdDecV').textContent=parseFloat(this.value).toFixed(2)+'s'">
+                </div>
+                <div class="bm-knob-row">
+                  <div class="bm-knob-label">Filter <span id="bmEdFltV">—</span></div>
+                  <input type="range" id="bmEdFlt" min="200" max="20000" value="20000" step="50" oninput="bmEdParam('filter',+this.value);document.getElementById('bmEdFltV').textContent=this.value>=10000?(this.value/1000).toFixed(0)+'k':this.value+'Hz'">
+                </div>
+              </div>
+
+              <div>
+                <div class="bm-knob-label" style="margin-bottom:6px">FX Sends</div>
+                <div class="bm-fx-grid">
+                  <label class="bm-fx-chip"><input type="checkbox" id="bmFxRev" onchange="bmEdParam('rev',this.checked)"><span>🌊 Reverb</span></label>
+                  <label class="bm-fx-chip"><input type="checkbox" id="bmFxDel" onchange="bmEdParam('del',this.checked)"><span>🔁 Delay</span></label>
+                  <label class="bm-fx-chip"><input type="checkbox" id="bmFxDist" onchange="bmEdParam('dist',this.checked)"><span>🔥 Distort</span></label>
+                  <label class="bm-fx-chip"><input type="checkbox" id="bmFxFilter" onchange="bmEdParam('flt',this.checked)"><span>〰 LP Filter</span></label>
+                </div>
+              </div>
+
+              <!-- Sample chop -->
+              <div>
+                <div class="bm-knob-label" style="margin-bottom:6px">Sample Chop</div>
+                <div class="bm-chop-zone" id="bmChopZone">
+                  <input type="file" id="bmChopFile" accept="audio/*" onchange="bmLoadChopSample(this.files[0])">
+                  Drop audio to chop · or click to browse
+                </div>
+                <canvas class="bm-chop-canvas" id="bmChopCanvas" title="Click to set chop point"></canvas>
+                <div class="bm-chop-list" id="bmChopList"></div>
+              </div>
             </div>
           </div>
 
-          <div class="beat-grid" id="beatGrid"></div>
+          <!-- Step sequencer -->
+          <div class="bm-seq" id="bmSeq"></div>
 
-          <div class="swing-row">
-            <label>Swing</label>
-            <input type="range" id="swingSlider" min="0" max="100" value="0" step="1"
-                   oninput="document.getElementById('swingVal').textContent=this.value+'%'">
-            <span class="swing-val" id="swingVal">0%</span>
-          </div>
         </div>
       </div><!-- /beat -->
 
@@ -1676,15 +1981,897 @@ function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quo
 
 renderLibrary();
 
-/* ═══════════════════════ BEAT SEQUENCER ════════════════════════════════════ */
-const TRACKS = [
-  { name: 'KICK',    color: '#8b5cf6' },
-  { name: 'SNARE',   color: '#06b6d4' },
-  { name: 'HI-HAT',  color: '#22c55e' },
-  { name: 'OPEN HH', color: '#f59e0b' },
-  { name: '808',     color: '#ef4444' },
-  { name: 'CLAP',    color: '#ec4899' },
+/* ═══════════════════════ BEAT MACHINE ══════════════════════════════════════ */
+
+// ── Kit library ───────────────────────────────────────────────────────────────
+// P(name, synthType, pitch_Hz, decay_s, filter_Hz, vol)
+const P = (n,t,p,d,f,v=0.82) => ({n,t,p,d,f,v});
+
+// 16 pad colors per kit category
+const PAD_COLORS = [
+  '#8b5cf6','#7c3aed','#6d28d9','#5b21b6',
+  '#06b6d4','#0891b2','#0e7490','#155e75',
+  '#22c55e','#16a34a','#15803d','#166534',
+  '#f59e0b','#d97706','#b45309','#92400e',
 ];
+
+const BM_KITS = [
+/* ── TRAP ──────────────────────────────────────────────────────────────── */
+{cat:"Trap",name:"Trap 808",pads:[
+  P("808 Kick","k808",55,0.55,18000,1.0),  P("Snare","sn",200,0.18,5000,0.9),
+  P("HH Cls","hh",8000,0.035,14000,0.72), P("HH Open","hho",6000,0.22,12000,0.65),
+  P("808 Sub","sub",40,0.85,18000,0.95),  P("Clap","clap",1200,0.14,8000,0.85),
+  P("Shaker","shk",7000,0.08,14000,0.6),  P("Crash","cym",4500,0.55,9000,0.65),
+  P("Tom Hi","tom",200,0.18,9000,0.8),    P("Tom Mid","tom",150,0.22,8000,0.8),
+  P("Tom Low","tom",90,0.28,7000,0.8),    P("Rimshot","rim",400,0.05,15000,0.7),
+  P("Tamb","shk",8000,0.12,16000,0.55),  P("Clap 2","clap",900,0.28,6000,0.7),
+  P("FX Hit","fx",300,0.25,8000,0.65),   P("Kick 2","k808",50,0.4,15000,0.88),
+]},
+{cat:"Trap",name:"Drill London",pads:[
+  P("Punchy Kick","kick",70,0.3,16000,1.0), P("Snare Roll","sn",250,0.12,7000,0.88),
+  P("HH 16th","hh",9000,0.025,16000,0.78), P("HH Open","hho",7000,0.18,14000,0.7),
+  P("808","sub",38,1.0,18000,1.0),          P("Clap","clap",1000,0.1,9000,0.9),
+  P("Perc Hi","shk",8000,0.06,18000,0.65), P("Ride","cym",5000,0.35,12000,0.6),
+  P("Tom 1","tom",220,0.15,10000,0.75),    P("Tom 2","tom",160,0.2,9000,0.75),
+  P("Tom 3","tom",100,0.25,8000,0.75),     P("Rim","rim",500,0.04,18000,0.72),
+  P("Tambourine","shk",9000,0.1,18000,0.5),P("Snap","rim",300,0.06,12000,0.8),
+  P("Sub Drop","sub",30,1.2,18000,0.9),    P("FX Riser","fx",400,0.4,10000,0.6),
+]},
+{cat:"Trap",name:"Memphis Heat",pads:[
+  P("Boom Kick","k808",45,0.7,16000,1.0),  P("Snare Crack","sn",180,0.22,4000,0.85),
+  P("Hat 1","hh",7000,0.04,12000,0.7),     P("Hat 2","hho",5000,0.3,10000,0.62),
+  P("Deep 808","sub",35,1.0,16000,1.0),    P("Clap","clap",800,0.2,7000,0.82),
+  P("Cowbell","cow",540,0.4,14000,0.5),    P("Cymbal","cym",3800,0.5,8000,0.6),
+  P("Melody Hi","sub",523,0.25,18000,0.7), P("Melody Mid","sub",392,0.25,18000,0.7),
+  P("Melody Low","sub",261,0.3,18000,0.72),P("Rim","rim",350,0.05,14000,0.68),
+  P("Snap","rim",250,0.07,10000,0.75),     P("Hi Perc","shk",9000,0.06,18000,0.55),
+  P("Clap 2","clap",600,0.35,6000,0.7),   P("808 2","sub",50,0.6,18000,0.88),
+]},
+{cat:"Trap",name:"Dark Trap",pads:[
+  P("Sinister Kick","k808",48,0.65,15000,1.0),P("Hard Snare","sn",190,0.2,4500,0.92),
+  P("HH Fast","hh",9500,0.02,18000,0.75),    P("HH Op","hho",7500,0.2,15000,0.65),
+  P("808 Dark","sub",36,0.9,14000,0.98),      P("Clap Dark","clap",700,0.18,6000,0.88),
+  P("Perc","fx",600,0.12,8000,0.6),           P("Crash","cym",4000,0.6,8000,0.58),
+  P("Tom Lo","tom",80,0.3,6000,0.8),          P("Tom Mid","tom",140,0.25,7000,0.8),
+  P("Rim","rim",320,0.05,12000,0.7),          P("Snap","rim",280,0.06,10000,0.72),
+  P("Woosh","fx",200,0.45,6000,0.6),          P("Shaker","shk",7000,0.09,14000,0.5),
+  P("Sub Note","sub",55,0.5,18000,0.85),      P("Kick 2","kick",65,0.28,14000,0.85),
+]},
+{cat:"Trap",name:"Melodic Trap",pads:[
+  P("Soft Kick","k808",60,0.4,18000,0.95),  P("Melodic Snare","sn",220,0.16,6000,0.85),
+  P("HH Pop","hh",8500,0.03,16000,0.68),    P("Open HH","hho",6500,0.2,13000,0.6),
+  P("808","sub",42,0.75,18000,0.95),         P("Clap","clap",1100,0.12,8000,0.82),
+  P("Bell Hi","sub",1047,0.35,18000,0.65),  P("Bell Mid","sub",659,0.35,18000,0.65),
+  P("Bell Low","sub",523,0.4,18000,0.68),   P("Pad Note","sub",392,0.5,14000,0.5),
+  P("Piano Hi","sub",880,0.3,18000,0.6),    P("Piano Lo","sub",440,0.4,18000,0.6),
+  P("Shaker","shk",7500,0.1,16000,0.5),     P("Perc","fx",500,0.1,10000,0.55),
+  P("Ride","cym",4500,0.4,10000,0.55),      P("Kick 2","k808",55,0.35,16000,0.88),
+]},
+{cat:"Trap",name:"Hi-Hat Lab",pads:[
+  P("Kick","k808",58,0.45,16000,1.0),       P("Snare","sn",210,0.16,5500,0.88),
+  P("HH 8th","hh",8200,0.04,15000,0.75),    P("HH 16th","hh",8800,0.025,16000,0.72),
+  P("HH 32nd","hh",9200,0.015,18000,0.7),   P("Open HH","hho",6800,0.2,13000,0.68),
+  P("HH Roll","hh",9000,0.018,18000,0.65),  P("Hat Accent","hho",7000,0.12,14000,0.72),
+  P("Ride","cym",5000,0.3,11000,0.6),       P("Crash","cym",4000,0.6,9000,0.58),
+  P("Clap","clap",1000,0.13,8000,0.85),     P("Sub","sub",42,0.65,16000,0.92),
+  P("Shaker Lo","shk",5000,0.1,10000,0.5),  P("Shaker Hi","shk",8000,0.08,16000,0.5),
+  P("Tamb 1","shk",9500,0.12,18000,0.52),   P("Tamb 2","shk",7500,0.15,14000,0.52),
+]},
+/* ── BOOM BAP ──────────────────────────────────────────────────────────── */
+{cat:"Boom Bap",name:"Classic Boom Bap",pads:[
+  P("Punchy Kick","kick",80,0.28,12000,1.0),  P("Snare Crack","sn",230,0.2,5000,0.92),
+  P("HH Closed","hh",7500,0.05,12000,0.72),   P("HH Open","hho",6000,0.25,10000,0.65),
+  P("Kick 2","kick",90,0.22,12000,0.85),       P("Clap","clap",1000,0.15,8000,0.82),
+  P("Ride","cym",4800,0.45,10000,0.6),         P("Crash","cym",4000,0.65,9000,0.58),
+  P("Tom 1","tom",250,0.2,10000,0.78),         P("Tom 2","tom",180,0.25,9000,0.78),
+  P("Tom 3","tom",120,0.3,8000,0.78),          P("Rim","rim",450,0.06,14000,0.72),
+  P("Shaker","shk",6500,0.12,12000,0.55),      P("Tamb","shk",8000,0.1,16000,0.52),
+  P("FX","fx",250,0.3,7000,0.6),               P("Sub Bass","sub",60,0.4,14000,0.88),
+]},
+{cat:"Boom Bap",name:"90s NYC",pads:[
+  P("NY Kick","kick",75,0.3,11000,1.0),       P("NY Snare","sn",240,0.22,4500,0.95),
+  P("HH","hh",7000,0.05,11000,0.7),            P("Open HH","hho",5500,0.28,10000,0.65),
+  P("Kick Lo","kick",85,0.25,10000,0.88),      P("Hand Clap","clap",900,0.18,7000,0.85),
+  P("Ride","cym",4500,0.5,10000,0.62),         P("Crash","cym",3800,0.7,9000,0.55),
+  P("Conga Hi","tom",300,0.15,10000,0.7),      P("Conga Lo","tom",220,0.2,9000,0.7),
+  P("Bongo","tom",350,0.1,12000,0.65),         P("Rim","rim",400,0.06,12000,0.7),
+  P("Shaker","shk",6000,0.14,11000,0.55),      P("Cowbell","cow",562,0.5,12000,0.45),
+  P("Scratch","fx",1000,0.2,8000,0.6),         P("Bass Hit","sub",55,0.35,12000,0.85),
+]},
+{cat:"Boom Bap",name:"Golden Era",pads:[
+  P("Boom Kick","kick",70,0.35,10000,1.0),    P("Fat Snare","sn",200,0.25,4000,0.95),
+  P("HH","hh",6800,0.06,10000,0.72),           P("Open HH","hho",5200,0.3,9000,0.65),
+  P("Sub Kick","k808",50,0.5,12000,0.9),       P("Clap","clap",850,0.2,6500,0.85),
+  P("Ride","cym",4200,0.55,9000,0.62),         P("Cymbal","cym",3500,0.75,8000,0.55),
+  P("Conga","tom",280,0.18,10000,0.72),        P("Conga 2","tom",200,0.22,9000,0.72),
+  P("Tom","tom",110,0.28,7000,0.75),            P("Rim","rim",380,0.07,12000,0.68),
+  P("Shaker","shk",5500,0.15,10000,0.55),      P("Maracas","shk",7000,0.1,14000,0.5),
+  P("Bass Note","sub",82,0.3,14000,0.82),       P("Scratch FX","fx",800,0.25,7000,0.6),
+]},
+/* ── HOUSE ──────────────────────────────────────────────────────────────── */
+{cat:"House",name:"Classic House",pads:[
+  P("4/4 Kick","kick",80,0.25,14000,1.0),     P("Snare","sn",220,0.18,6000,0.88),
+  P("HH Closed","hh",8000,0.04,15000,0.72),   P("HH Open","hho",6500,0.2,13000,0.65),
+  P("Kick 2","kick",85,0.22,13000,0.88),       P("Clap","clap",1000,0.12,9000,0.85),
+  P("Ride","cym",5200,0.4,12000,0.65),         P("Cymbal","cym",4200,0.6,10000,0.58),
+  P("Tom","tom",180,0.2,9000,0.78),            P("Tom 2","tom",130,0.25,8000,0.78),
+  P("Shaker","shk",7000,0.1,14000,0.58),       P("Tamb","shk",8500,0.12,18000,0.55),
+  P("Cowbell","cow",520,0.45,12000,0.5),        P("Rim","rim",400,0.06,14000,0.7),
+  P("Bass Drum 2","kick",72,0.28,12000,0.85),  P("Sub Bass","sub",62,0.35,16000,0.88),
+]},
+{cat:"House",name:"Deep House",pads:[
+  P("Deep Kick","k808",62,0.38,16000,1.0),    P("Soft Snare","sn",180,0.22,4500,0.82),
+  P("HH Groove","hh",7500,0.05,13000,0.68),   P("Open HH","hho",6000,0.3,11000,0.6),
+  P("Sub Kick","k808",50,0.55,14000,0.88),     P("Clap","clap",800,0.15,7000,0.82),
+  P("Ride","cym",5000,0.5,11000,0.62),         P("Percussion","tom",250,0.12,10000,0.65),
+  P("Shaker Hi","shk",8000,0.08,16000,0.55),  P("Shaker Lo","shk",5500,0.12,11000,0.52),
+  P("Bass Note A","sub",55,0.4,16000,0.85),   P("Bass Note B","sub",73,0.35,16000,0.82),
+  P("Tamb","shk",9000,0.1,18000,0.5),          P("Rim","rim",360,0.07,12000,0.68),
+  P("Vocal Chop","fx",800,0.18,9000,0.65),     P("FX Sweep","fx",300,0.5,8000,0.6),
+]},
+{cat:"House",name:"Afro House",pads:[
+  P("Afro Kick","kick",78,0.3,14000,1.0),     P("Snare","sn",240,0.18,5500,0.88),
+  P("HH 1","hh",8200,0.04,15000,0.72),         P("HH 2","hho",6800,0.18,13000,0.68),
+  P("Conga Hi","tom",340,0.12,12000,0.78),     P("Conga Lo","tom",240,0.16,11000,0.78),
+  P("Djembe","tom",180,0.18,10000,0.82),       P("Shekere","shk",6500,0.1,13000,0.65),
+  P("Kick 2","kick",82,0.22,13000,0.88),       P("Clap","clap",1100,0.12,9000,0.85),
+  P("Tamb","shk",9000,0.12,18000,0.55),        P("Maracas","shk",7500,0.08,15000,0.55),
+  P("Tom Low","tom",100,0.25,8000,0.75),        P("Perc","fx",500,0.1,10000,0.62),
+  P("Sub","sub",55,0.45,16000,0.88),            P("Ride","cym",4800,0.45,11000,0.62),
+]},
+/* ── R&B / SOUL ─────────────────────────────────────────────────────────── */
+{cat:"R&B",name:"Neo Soul",pads:[
+  P("Soft Kick","k808",65,0.4,14000,0.92),    P("Snare","sn",210,0.2,5000,0.85),
+  P("HH","hh",7500,0.05,12000,0.68),           P("Open HH","hho",6000,0.25,11000,0.62),
+  P("Kick 2","kick",72,0.28,12000,0.85),       P("Clap","clap",950,0.14,8000,0.82),
+  P("Ride","cym",4600,0.5,10000,0.62),         P("Hi Tom","tom",230,0.18,10000,0.75),
+  P("Mid Tom","tom",170,0.22,9000,0.75),       P("Low Tom","tom",110,0.28,8000,0.75),
+  P("Shaker","shk",6500,0.12,12000,0.58),      P("Tamb","shk",8200,0.1,16000,0.52),
+  P("Rim","rim",380,0.06,13000,0.68),           P("Cowbell","cow",500,0.4,11000,0.45),
+  P("Sub Bass","sub",58,0.45,14000,0.88),       P("FX Hit","fx",400,0.2,8000,0.6),
+]},
+{cat:"R&B",name:"New Jack Swing",pads:[
+  P("Kick","kick",80,0.28,13000,1.0),          P("Snare NJS","sn",260,0.16,6000,0.9),
+  P("HH","hh",8500,0.03,16000,0.75),           P("Open HH","hho",7000,0.18,14000,0.68),
+  P("Kick 2","kick",88,0.22,12000,0.88),       P("Clap","clap",1200,0.1,9000,0.88),
+  P("Shaker","shk",7500,0.08,15000,0.62),      P("Crash","cym",4000,0.65,9000,0.58),
+  P("Tom 1","tom",280,0.15,11000,0.78),        P("Tom 2","tom",200,0.2,10000,0.78),
+  P("Tom 3","tom",130,0.25,9000,0.78),         P("Rim","rim",420,0.05,15000,0.72),
+  P("Tamb","shk",9000,0.1,18000,0.52),         P("Cowbell","cow",540,0.45,12000,0.48),
+  P("Bass","sub",55,0.4,14000,0.88),            P("FX Stab","fx",350,0.2,8000,0.65),
+]},
+/* ── ELECTRONIC ─────────────────────────────────────────────────────────── */
+{cat:"Electronic",name:"Future Bass",pads:[
+  P("Kick","khard",75,0.25,18000,1.0),         P("Snare","sn",230,0.18,6000,0.9),
+  P("HH","hh",9000,0.03,18000,0.75),           P("Open HH","hho",7500,0.15,16000,0.68),
+  P("Sub Kick","k808",52,0.5,16000,0.95),      P("Clap","clap",1100,0.12,9000,0.88),
+  P("Perc","shk",8500,0.06,18000,0.65),        P("Crash","cym",5000,0.5,12000,0.62),
+  P("Synth Hit","sub",523,0.25,18000,0.78),    P("Synth 2","sub",659,0.22,18000,0.75),
+  P("Synth 3","sub",392,0.3,16000,0.75),       P("Synth 4","sub",329,0.3,14000,0.72),
+  P("FX Rise","fx",400,0.5,12000,0.65),        P("FX Fall","fx",200,0.45,10000,0.65),
+  P("Snare 2","sn",200,0.22,5000,0.85),        P("Bass Drop","sub",41,0.8,16000,0.95),
+]},
+{cat:"Electronic",name:"Drum & Bass",pads:[
+  P("Amen Break L","kick",90,0.2,12000,1.0),  P("Amen Break R","sn",220,0.14,5000,0.92),
+  P("HH","hh",8500,0.03,16000,0.78),           P("Open HH","hho",7000,0.16,14000,0.7),
+  P("Kick Hard","khard",80,0.18,16000,0.95),   P("Snare 2","sn",240,0.12,5500,0.88),
+  P("Perc","fx",600,0.08,12000,0.65),           P("Cymbal","cym",5500,0.35,12000,0.62),
+  P("Sub Bass","sub",45,0.35,16000,0.95),       P("Reese Bass","sub",62,0.3,14000,0.88),
+  P("Tom","tom",200,0.2,10000,0.78),            P("Rim","rim",500,0.05,16000,0.72),
+  P("HH Roll","hh",9000,0.02,18000,0.68),       P("Shaker","shk",7500,0.08,15000,0.55),
+  P("FX Noise","fx",300,0.3,8000,0.62),         P("Kick 3","khard",85,0.15,15000,0.9),
+]},
+{cat:"Electronic",name:"Techno",pads:[
+  P("Kick Techno","khard",72,0.22,16000,1.0),  P("Snare Clap","clap",1000,0.1,10000,0.88),
+  P("HH Closed","hh",9500,0.025,18000,0.75),   P("HH Open","hho",8000,0.12,16000,0.68),
+  P("Kick 2","khard",78,0.2,15000,0.92),        P("Clap","clap",800,0.14,8000,0.85),
+  P("Perc Hi","shk",10000,0.05,18000,0.65),    P("Crash","cym",5500,0.4,12000,0.58),
+  P("Tom Lo","tom",85,0.3,8000,0.78),           P("Tom Mid","tom",120,0.25,9000,0.75),
+  P("Rim","rim",550,0.04,18000,0.72),            P("Cowbell","cow",480,0.35,12000,0.48),
+  P("FX 1","fx",200,0.45,8000,0.65),            P("FX 2","fx",500,0.3,10000,0.62),
+  P("Sub Thud","sub",40,0.4,14000,0.9),          P("Bass Note","sub",82,0.25,16000,0.85),
+]},
+/* ── LO-FI ──────────────────────────────────────────────────────────────── */
+{cat:"Lo-Fi",name:"Lo-Fi Hip Hop",pads:[
+  P("Dusty Kick","kick",68,0.35,8000,0.88),    P("Warm Snare","sn",190,0.25,3500,0.85),
+  P("HH Vinyl","hh",6500,0.06,9000,0.68),      P("Open HH","hho",5000,0.3,8000,0.6),
+  P("Kick 2","kick",75,0.28,8000,0.82),         P("Hand Clap","clap",700,0.2,6000,0.78),
+  P("Shaker","shk",5500,0.14,9000,0.55),        P("Ride","cym",4000,0.6,8000,0.58),
+  P("Tom","tom",150,0.25,7000,0.72),            P("Tom 2","tom",110,0.3,7000,0.72),
+  P("Bongo Hi","tom",320,0.12,10000,0.65),      P("Bongo Lo","tom",250,0.15,9000,0.65),
+  P("Tamb","shk",7500,0.12,12000,0.5),          P("Maracas","shk",6500,0.1,11000,0.5),
+  P("Scratch","fx",700,0.2,7000,0.6),            P("Vinyl FX","fx",200,0.4,6000,0.55),
+]},
+{cat:"Lo-Fi",name:"Vinyl Crates",pads:[
+  P("Boom Kick","kick",65,0.4,7000,0.88),      P("Snare Fat","sn",180,0.28,3000,0.88),
+  P("HH","hh",6000,0.07,8000,0.65),             P("Open HH","hho",4800,0.35,7500,0.58),
+  P("Kick 2","kick",72,0.3,7000,0.82),          P("Clap","clap",650,0.22,5500,0.78),
+  P("Shaker","shk",5000,0.15,8500,0.52),        P("Cymbal","cym",3500,0.7,7000,0.55),
+  P("Conga","tom",260,0.15,8000,0.68),           P("Conga 2","tom",200,0.2,7500,0.68),
+  P("Tom","tom",110,0.28,6500,0.7),              P("Rim","rim",350,0.07,10000,0.65),
+  P("Tamb","shk",7000,0.12,11000,0.48),          P("Cowbell","cow",480,0.5,9000,0.42),
+  P("Scratch","fx",600,0.25,6500,0.62),           P("Vinyl Crackle","fx",150,0.6,4000,0.35),
+]},
+/* ── AFROBEATS ──────────────────────────────────────────────────────────── */
+{cat:"Afrobeats",name:"Afrobeats",pads:[
+  P("Kick Afro","kick",82,0.28,15000,1.0),     P("Snare","sn",220,0.18,5500,0.88),
+  P("HH","hh",8000,0.04,14000,0.72),            P("Open HH","hho",6500,0.2,12000,0.65),
+  P("Conga Hi","tom",350,0.12,12000,0.82),      P("Conga Lo","tom",260,0.16,11000,0.82),
+  P("Shekere","shk",7000,0.1,14000,0.68),       P("Cowbell","cow",550,0.4,12000,0.55),
+  P("Tom","tom",120,0.25,8000,0.78),             P("Clap","clap",1000,0.12,9000,0.85),
+  P("Kick 2","kick",88,0.22,14000,0.88),        P("Tamb","shk",8500,0.1,16000,0.55),
+  P("Maracas","shk",6500,0.08,13000,0.52),      P("Perc","fx",450,0.1,10000,0.62),
+  P("Sub","sub",55,0.45,16000,0.88),             P("Rim","rim",400,0.05,14000,0.7),
+]},
+{cat:"Afrobeats",name:"Amapiano",pads:[
+  P("Log Drum","tom",180,0.3,10000,1.0),        P("Log Drum 2","tom",240,0.25,11000,0.92),
+  P("Kick","kick",78,0.28,14000,0.92),           P("Snare","sn",210,0.2,5000,0.85),
+  P("HH","hh",7800,0.04,13000,0.7),              P("Open HH","hho",6200,0.22,11000,0.62),
+  P("Log Low","tom",100,0.4,8000,1.0),           P("Log Mid","tom",140,0.35,9000,0.95),
+  P("Conga","tom",300,0.14,12000,0.75),          P("Clap","clap",1000,0.12,9000,0.85),
+  P("Tamb","shk",8500,0.1,16000,0.55),           P("Shaker","shk",7000,0.09,14000,0.58),
+  P("Sub Bass","sub",45,0.55,16000,0.92),        P("Bass Note","sub",62,0.4,15000,0.85),
+  P("Perc Hi","fx",600,0.1,12000,0.65),          P("Crash","cym",4500,0.55,10000,0.6),
+]},
+/* ── JAZZ ───────────────────────────────────────────────────────────────── */
+{cat:"Jazz",name:"Jazz Brushes",pads:[
+  P("Kick Jazz","kick",75,0.25,9000,0.88),      P("Snare Brush","sn",180,0.3,3500,0.82),
+  P("HH Brush","hh",5500,0.08,8000,0.65),       P("Ride Cymbal","cym",4800,0.6,9000,0.65),
+  P("Kick 2","kick",80,0.22,9000,0.82),          P("Snare 2","sn",200,0.25,4000,0.78),
+  P("Hi-Hat","hho",5000,0.35,8500,0.62),         P("Crash","cym",3800,0.75,8500,0.6),
+  P("Tom Hi","tom",240,0.2,8000,0.72),           P("Tom Mid","tom",180,0.25,7500,0.72),
+  P("Tom Low","tom",120,0.3,7000,0.72),          P("Rim","rim",360,0.07,10000,0.65),
+  P("Bongo Hi","tom",330,0.12,10000,0.65),       P("Bongo Lo","tom",260,0.15,9500,0.65),
+  P("Cowbell","cow",500,0.5,10000,0.42),          P("Tamb","shk",7000,0.12,12000,0.48),
+]},
+/* ── LATIN ──────────────────────────────────────────────────────────────── */
+{cat:"Latin",name:"Reggaeton",pads:[
+  P("Dembow Kick","kick",80,0.28,14000,1.0),    P("Snare","sn",230,0.16,5500,0.9),
+  P("HH","hh",8200,0.035,15000,0.72),            P("Open HH","hho",6800,0.18,13000,0.65),
+  P("Sub Kick","k808",52,0.5,16000,0.92),        P("Clap","clap",1000,0.12,9000,0.88),
+  P("Congas Hi","tom",360,0.1,12000,0.82),       P("Congas Lo","tom",260,0.14,11000,0.82),
+  P("Timbales","tom",320,0.08,14000,0.78),       P("Cowbell","cow",540,0.35,12000,0.55),
+  P("Ride","cym",5000,0.4,11000,0.62),           P("Shaker","shk",7000,0.1,14000,0.58),
+  P("Tamb","shk",8500,0.1,16000,0.52),           P("Maracas","shk",6500,0.08,13000,0.5),
+  P("Bass Hit","sub",55,0.35,14000,0.88),        P("Perc","fx",400,0.1,10000,0.62),
+]},
+{cat:"Latin",name:"Salsa",pads:[
+  P("Clave Hi","rim",600,0.06,16000,1.0),        P("Clave Lo","rim",450,0.07,14000,0.92),
+  P("Conga Abierto","tom",340,0.2,12000,0.88),  P("Conga Muff","tom",280,0.15,10000,0.82),
+  P("Timbale Hi","tom",380,0.08,14000,0.88),    P("Timbale Lo","tom",300,0.12,12000,0.85),
+  P("Bongo Hi","tom",450,0.1,14000,0.82),        P("Bongo Lo","tom",350,0.12,13000,0.8),
+  P("Guiro","shk",3000,0.2,12000,0.78),          P("Maracas","shk",7000,0.08,14000,0.72),
+  P("Shekere","shk",5500,0.15,12000,0.7),        P("Cowbell","cow",520,0.4,12000,0.65),
+  P("Kick","kick",78,0.25,12000,0.88),           P("Snare","sn",220,0.18,5000,0.82),
+  P("Cymbal","cym",4000,0.6,9000,0.6),           P("Crash","cym",3500,0.8,8000,0.55),
+]},
+/* ── ROCK ───────────────────────────────────────────────────────────────── */
+{cat:"Rock",name:"Classic Rock",pads:[
+  P("Rock Kick","kick",82,0.3,13000,1.0),       P("Snare Rock","sn",250,0.22,5000,0.95),
+  P("HH Closed","hh",7500,0.05,12000,0.72),     P("HH Open","hho",6000,0.3,11000,0.68),
+  P("Kick 2","kick",88,0.25,12000,0.9),          P("Rimshot","rim",500,0.06,14000,0.75),
+  P("Ride","cym",5000,0.5,11000,0.68),           P("Crash","cym",4000,0.8,9000,0.65),
+  P("Tom Hi","tom",280,0.22,11000,0.82),         P("Tom Mid","tom",210,0.28,10000,0.82),
+  P("Tom Low","tom",140,0.35,9000,0.82),         P("Floor Tom","tom",100,0.4,8000,0.85),
+  P("Hi Cymbal","cym",5500,0.45,12000,0.6),      P("China","cym",6000,0.65,11000,0.62),
+  P("Cowbell","cow",500,0.4,12000,0.48),          P("Clap","clap",900,0.15,8000,0.78),
+]},
+{cat:"Rock",name:"Metal",pads:[
+  P("Metal Kick","khard",85,0.2,18000,1.0),     P("Metal Snare","sn",280,0.15,6000,0.95),
+  P("HH Speed","hh",10000,0.02,18000,0.75),      P("HH Open","hho",8500,0.12,16000,0.68),
+  P("Kick 2","khard",90,0.18,17000,0.92),        P("Snare 2","sn",300,0.12,7000,0.9),
+  P("Ride","cym",5500,0.45,13000,0.68),          P("Crash 1","cym",4500,0.9,10000,0.7),
+  P("Tom 1","tom",300,0.2,12000,0.85),           P("Tom 2","tom",240,0.25,11000,0.85),
+  P("Tom 3","tom",180,0.3,10000,0.85),           P("Floor Tom","tom",120,0.38,9000,0.88),
+  P("Crash 2","cym",5000,0.75,11000,0.65),       P("China","cym",6500,0.6,12000,0.65),
+  P("Splash","cym",6000,0.35,13000,0.6),          P("Bell","sub",880,0.2,18000,0.6),
+]},
+/* ── VINTAGE DRUM MACHINES ──────────────────────────────────────────────── */
+{cat:"Vintage",name:"TR-808 Classic",pads:[
+  P("808 Bass Drum","k808",55,0.5,18000,1.0),   P("808 Snare","sn",200,0.2,5000,0.9),
+  P("808 Low Tom","tom",90,0.28,8000,0.85),      P("808 Mid Tom","tom",130,0.22,9000,0.82),
+  P("808 Hi Tom","tom",185,0.18,10000,0.8),      P("808 Claves","rim",600,0.04,16000,0.85),
+  P("808 Maraca","shk",8000,0.06,18000,0.72),   P("808 Cowbell","cow",562,0.45,14000,0.6),
+  P("808 Cymbal","cym",4000,0.7,10000,0.7),      P("808 Open HH","hho",6500,0.25,14000,0.72),
+  P("808 Cls HH","hh",7500,0.04,15000,0.75),    P("808 Rim","rim",450,0.05,16000,0.75),
+  P("808 Clap","clap",1100,0.12,9000,0.88),      P("808 Sub","sub",41,0.85,18000,0.95),
+  P("808 Sub 2","sub",55,0.6,16000,0.88),        P("808 Sub 3","sub",73,0.5,15000,0.82),
+]},
+{cat:"Vintage",name:"TR-909 Style",pads:[
+  P("909 Kick","khard",80,0.2,18000,1.0),        P("909 Snare","sn",240,0.16,6000,0.92),
+  P("909 Low Tom","tom",95,0.25,9000,0.85),      P("909 Mid Tom","tom",140,0.2,10000,0.82),
+  P("909 Hi Tom","tom",200,0.15,11000,0.8),      P("909 Rim","rim",480,0.04,16000,0.82),
+  P("909 Clap","clap",1200,0.1,10000,0.88),      P("909 Cowbell","cow",580,0.4,14000,0.58),
+  P("909 Crash","cym",4500,0.65,10000,0.68),     P("909 Open HH","hho",7500,0.2,16000,0.75),
+  P("909 Cls HH","hh",8500,0.03,17000,0.78),    P("909 Ride","cym",5200,0.55,12000,0.65),
+  P("909 Kick 2","khard",75,0.18,16000,0.88),   P("909 Snap","rim",350,0.05,14000,0.75),
+  P("909 HH Roll","hh",9000,0.015,18000,0.7),   P("909 Sub","sub",45,0.45,16000,0.9),
+]},
+{cat:"Vintage",name:"LinnDrum Style",pads:[
+  P("Linn Kick","kick",78,0.28,11000,1.0),       P("Linn Snare","sn",220,0.2,5000,0.92),
+  P("Linn HH Cls","hh",7000,0.05,11000,0.75),   P("Linn HH Op","hho",5500,0.3,10000,0.68),
+  P("Linn Kick 2","kick",85,0.22,10000,0.88),   P("Linn Clap","clap",900,0.14,8000,0.85),
+  P("Linn Tamb","shk",8000,0.1,14000,0.65),     P("Linn Cymbal","cym",4200,0.65,9500,0.65),
+  P("Linn Tom Hi","tom",260,0.18,10000,0.8),    P("Linn Tom Mid","tom",190,0.22,9000,0.8),
+  P("Linn Tom Lo","tom",130,0.28,8000,0.8),     P("Linn Rim","rim",420,0.06,13000,0.72),
+  P("Linn Conga","tom",310,0.14,11000,0.72),    P("Linn Cowbell","cow",510,0.45,11000,0.5),
+  P("Linn Ride","cym",4800,0.5,10000,0.62),     P("Linn Crash","cym",4000,0.7,9000,0.6),
+]},
+{cat:"Vintage",name:"SP-1200 Style",pads:[
+  P("SP Kick","kick",72,0.32,9000,1.0),          P("SP Snare","sn",200,0.24,4000,0.9),
+  P("SP HH","hh",6500,0.06,9000,0.7),            P("SP Open HH","hho",5200,0.32,8500,0.62),
+  P("SP Kick 2","kick",80,0.26,9000,0.85),       P("SP Clap","clap",800,0.18,7000,0.82),
+  P("SP Conga","tom",280,0.15,10000,0.75),        P("SP Ride","cym",4000,0.6,9000,0.62),
+  P("SP Tom 1","tom",230,0.2,9000,0.78),         P("SP Tom 2","tom",170,0.25,8500,0.78),
+  P("SP Tom 3","tom",110,0.3,8000,0.78),         P("SP Rim","rim",380,0.07,11000,0.68),
+  P("SP Shaker","shk",6000,0.12,10000,0.55),     P("SP Tamb","shk",7500,0.1,12000,0.52),
+  P("SP Scratch","fx",700,0.22,7500,0.62),        P("SP Sub","sub",58,0.38,12000,0.85),
+]},
+/* ── SPECIAL ────────────────────────────────────────────────────────────── */
+{cat:"Special",name:"FX Machine",pads:[
+  P("Sub Thud","sub",30,0.6,16000,1.0),          P("Air Burst","fx",100,0.4,8000,0.9),
+  P("High Zap","fx",2000,0.1,18000,0.85),        P("Mid Zap","fx",800,0.15,14000,0.82),
+  P("Low Zap","fx",300,0.2,10000,0.82),           P("White Burst","fx",5000,0.3,18000,0.78),
+  P("Band Noise","fx",1500,0.25,12000,0.75),     P("Lo Noise","fx",150,0.35,6000,0.75),
+  P("Pitch Drop","k808",100,0.45,18000,0.88),    P("Sub Pulse","sub",55,0.3,18000,0.88),
+  P("Metal Hit","cow",300,0.5,14000,0.72),        P("Bell Hit","sub",1000,0.4,18000,0.7),
+  P("Deep Boom","sub",30,0.8,14000,0.95),         P("Tape Stop","fx",200,0.7,8000,0.75),
+  P("Vinyl Scratch","fx",600,0.3,10000,0.7),     P("Noise Gate","fx",400,0.15,12000,0.65),
+]},
+{cat:"Special",name:"World Perc",pads:[
+  P("Djembe Hi","tom",380,0.14,13000,1.0),       P("Djembe Bass","tom",120,0.3,10000,0.95),
+  P("Talking Drum","tom",350,0.25,11000,0.9),    P("Darbuka","tom",300,0.12,12000,0.88),
+  P("Tabla Hi","tom",420,0.1,14000,0.85),         P("Tabla Lo","tom",180,0.2,11000,0.88),
+  P("Cajon Hi","sn",260,0.16,9000,0.85),         P("Cajon Lo","kick",85,0.28,10000,0.9),
+  P("Pandeiro","shk",6500,0.12,13000,0.78),       P("Shekere","shk",5500,0.18,12000,0.75),
+  P("Caxixi","shk",8000,0.08,16000,0.72),         P("Agogo Hi","cow",650,0.3,14000,0.68),
+  P("Agogo Lo","cow",480,0.35,12000,0.68),        P("Bell Tree","cym",5000,0.5,14000,0.65),
+  P("Triangle","cym",6500,0.6,16000,0.65),        P("Wood Block","rim",550,0.06,16000,0.8),
+]},
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let bmActx = null;
+let bmKitIdx = 0;
+let bmSelectedPad = 0;
+let bmPlaying = false;
+let bmRecording = false;
+let bmStep = 0;
+let bmStepCount = 16;
+let bmBank = 0;
+// [bank][pad][step] = velocity (0 = off, 1..100 = velocity)
+let bmBanks = Array(4).fill(null).map(() =>
+  Array(16).fill(null).map(() => new Array(32).fill(0))
+);
+let bmTimer = null;
+let bmPadOverrides = Array(16).fill(null).map(() => ({}));
+let bmChopBuffer = null;
+let bmChopPoints = [];
+
+// Default trap pattern in bank A
+const DEFAULT_PAT = [
+  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],  // kick
+  [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],  // snare
+  [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1],  // hh
+  [0,0,0,0, 0,0,1,0, 0,0,0,0, 0,0,1,0],  // open hh
+];
+DEFAULT_PAT.forEach((row, pi) => { row.forEach((v, si) => { bmBanks[0][pi][si] = v ? 85 : 0; }); });
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function _bmInitCtx() {
+  if (bmActx) return;
+  bmActx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+// ── Kit loading ───────────────────────────────────────────────────────────────
+function bmPopulateKitList() {
+  const sel = document.getElementById('bmKitSel');
+  let lastCat = '';
+  BM_KITS.forEach((kit, i) => {
+    if (kit.cat !== lastCat) {
+      const og = document.createElement('optgroup');
+      og.label = '── ' + kit.cat + ' ──';
+      sel.appendChild(og);
+      lastCat = kit.cat;
+    }
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = kit.name;
+    sel.appendChild(opt);
+  });
+}
+
+function bmLoadKit(idx) {
+  bmKitIdx = parseInt(idx);
+  bmRebuildPads();
+  bmRebuildSeq();
+  bmSelectPad(bmSelectedPad);
+}
+
+function bmRebuildPads() {
+  const kit = BM_KITS[bmKitIdx];
+  const grid = document.getElementById('bmPadGrid');
+  grid.innerHTML = '';
+  // MPC layout: top row = pads 12-15, bottom = 0-3
+  const order = [12,13,14,15, 8,9,10,11, 4,5,6,7, 0,1,2,3];
+  order.forEach((pi, pos) => {
+    const pad = kit.pads[pi];
+    const col = PAD_COLORS[pi];
+    const el = document.createElement('div');
+    el.className = 'bm-pad';
+    el.id = 'bm-pad-' + pi;
+    el.style.background = `linear-gradient(135deg, ${col}cc, ${col}66)`;
+    el.style.setProperty('--pad-color', col);
+    el.innerHTML = `<span class="pad-num">${pi+1}</span><span class="pad-name">${pad.n}</span>`;
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      bmHitPad(pi, 85);
+      if (bmRecording && bmPlaying) {
+        bmBanks[bmBank][pi][bmStep] = 85;
+        bmRebuildSeq();
+      }
+      bmSelectPad(pi);
+    });
+    grid.appendChild(el);
+  });
+  bmSelectPad(bmSelectedPad);
+}
+
+function bmSelectPad(pi) {
+  bmSelectedPad = pi;
+  document.querySelectorAll('.bm-pad').forEach(el => el.classList.remove('selected'));
+  const padEl = document.getElementById('bm-pad-' + pi);
+  if (padEl) padEl.classList.add('selected');
+
+  const kit = BM_KITS[bmKitIdx];
+  const pad = kit.pads[pi];
+  const ov = bmPadOverrides[pi];
+  const col = PAD_COLORS[pi];
+
+  document.getElementById('bmEdSwatch').style.background = col;
+  document.getElementById('bmEdName').textContent = `Pad ${pi+1} — ${pad.n}`;
+  document.getElementById('bmEdVol').value  = Math.round((ov.vol  ?? pad.v) * 100);
+  document.getElementById('bmEdVolV').textContent = Math.round((ov.vol ?? pad.v) * 100) + '%';
+  document.getElementById('bmEdTune').value = ov.tune ?? 0;
+  document.getElementById('bmEdTuneV').textContent = (ov.tune > 0 ? '+' : '') + (ov.tune ?? 0) + 'st';
+  const dec = ov.decay ?? pad.d;
+  document.getElementById('bmEdDec').value  = dec;
+  document.getElementById('bmEdDecV').textContent = dec.toFixed(2) + 's';
+  const flt = ov.filter ?? pad.f;
+  document.getElementById('bmEdFlt').value  = flt;
+  document.getElementById('bmEdFltV').textContent = flt >= 10000 ? Math.round(flt/1000)+'k' : flt+'Hz';
+  document.getElementById('bmFxRev').checked  = !!ov.rev;
+  document.getElementById('bmFxDel').checked  = !!ov.del;
+  document.getElementById('bmFxDist').checked = !!ov.dist;
+  document.getElementById('bmFxFilter').checked = !!ov.flt;
+}
+
+function bmEdParam(key, val) {
+  bmPadOverrides[bmSelectedPad][key] = val;
+}
+
+// ── Sequencer ─────────────────────────────────────────────────────────────────
+function bmRebuildSeq() {
+  const kit  = BM_KITS[bmKitIdx];
+  const seq  = document.getElementById('bmSeq');
+  const steps = bmStepCount;
+  seq.innerHTML = '';
+  kit.pads.forEach((pad, pi) => {
+    const row = document.createElement('div');
+    row.className = 'bm-seq-row';
+    const lbl = document.createElement('div');
+    lbl.className = 'bm-seq-label';
+    lbl.textContent = pad.n;
+    lbl.title = pad.n;
+    row.appendChild(lbl);
+    const stepsDiv = document.createElement('div');
+    stepsDiv.className = 'bm-seq-steps';
+    for (let si = 0; si < steps; si++) {
+      if (si > 0 && si % 4 === 0) {
+        const dv = document.createElement('div');
+        dv.className = 'bm-seq-div';
+        stepsDiv.appendChild(dv);
+      }
+      const btn = document.createElement('div');
+      btn.className = 'bm-seq-step' + (bmBanks[bmBank][pi][si] ? ' on' : '');
+      btn.id = `bms-${pi}-${si}`;
+      btn.style.setProperty('--pad-color', PAD_COLORS[pi]);
+      btn.addEventListener('click', () => {
+        bmBanks[bmBank][pi][si] = bmBanks[bmBank][pi][si] ? 0 : 85;
+        btn.classList.toggle('on', !!bmBanks[bmBank][pi][si]);
+      });
+      stepsDiv.appendChild(btn);
+    }
+    row.appendChild(stepsDiv);
+    seq.appendChild(row);
+  });
+}
+
+function bmSetSteps(n) {
+  bmStepCount = n;
+  if (bmStep >= n) bmStep = 0;
+  bmRebuildSeq();
+}
+
+// ── Transport ─────────────────────────────────────────────────────────────────
+function bmTogglePlay() {
+  if (bmPlaying) { bmStop(); return; }
+  _bmInitCtx();
+  if (bmActx.state === 'suspended') bmActx.resume();
+  bmPlaying = true;
+  bmStep = 0;
+  document.getElementById('bmPlayBtn').textContent = '⏸';
+  document.getElementById('bmPlayBtn').classList.add('playing');
+  _bmTick();
+}
+
+function bmStop() {
+  bmPlaying = false;
+  bmRecording = false;
+  clearTimeout(bmTimer);
+  bmStep = 0;
+  document.getElementById('bmPlayBtn').textContent = '▶';
+  document.getElementById('bmPlayBtn').classList.remove('playing');
+  document.getElementById('bmRecBtn').classList.remove('rec-active');
+  document.querySelectorAll('.bm-seq-step.playing').forEach(b => b.classList.remove('playing'));
+}
+
+function bmToggleRec() {
+  bmRecording = !bmRecording;
+  document.getElementById('bmRecBtn').classList.toggle('rec-active', bmRecording);
+  if (bmRecording && !bmPlaying) bmTogglePlay();
+}
+
+function bmClear() {
+  bmBanks[bmBank].forEach(row => row.fill(0));
+  bmRebuildSeq();
+}
+
+function bmRandom() {
+  const kit = BM_KITS[bmKitIdx];
+  kit.pads.forEach((pad, pi) => {
+    bmBanks[bmBank][pi] = Array.from({length:32}, (_, si) => {
+      const t = pad.t;
+      if (t.includes('k8') || t === 'kick' || t === 'khard') return si%4===0 && Math.random()>.3 ? 85 : 0;
+      if (t === 'sn' || t === 'snrm') return (si===4||si===12) && Math.random()>.2 ? 85 : 0;
+      if (t === 'hh') return Math.random()>.38 ? 70 : 0;
+      if (t === 'clap') return (si===4||si===12) && Math.random()>.4 ? 80 : 0;
+      return Math.random() > .82 ? 75 : 0;
+    });
+  });
+  bmRebuildSeq();
+}
+
+function bmSelectBank(b, el) {
+  bmBank = b;
+  document.querySelectorAll('.bm-bank').forEach(x => x.classList.remove('active'));
+  el.classList.add('active');
+  bmRebuildSeq();
+}
+
+function bmSetMode(mode) {
+  const wrap = document.querySelector('.bm-wrap');
+  if (mode === 'lite') {
+    wrap.classList.add('bm-lite');
+    document.getElementById('bmLiteBtn').classList.add('active');
+    document.getElementById('bmAdvBtn').classList.remove('active');
+  } else {
+    wrap.classList.remove('bm-lite');
+    document.getElementById('bmAdvBtn').classList.add('active');
+    document.getElementById('bmLiteBtn').classList.remove('active');
+  }
+}
+
+function _bmTick() {
+  if (!bmPlaying) return;
+  const bpm   = parseInt(document.getElementById('bmBpm').value) || 90;
+  const stepMs = (60000 / bpm) / 4;
+  const swing  = parseInt(document.getElementById('bmSwing').value) / 100;
+  const swOff  = (bmStep % 2 === 1) ? stepMs * swing * 0.5 : 0;
+  const steps  = bmStepCount;
+
+  // Clear previous highlights
+  document.querySelectorAll('.bm-seq-step.playing').forEach(b => b.classList.remove('playing'));
+
+  // Highlight + trigger current step
+  BM_KITS[bmKitIdx].pads.forEach((_, pi) => {
+    const vel = bmBanks[bmBank][pi][bmStep];
+    const btn = document.getElementById(`bms-${pi}-${bmStep}`);
+    if (btn) btn.classList.add('playing');
+    if (vel > 0) bmHitPad(pi, vel);
+  });
+
+  bmStep = (bmStep + 1) % steps;
+  bmTimer = setTimeout(_bmTick, stepMs + swOff);
+}
+
+// ── Sound synthesis ───────────────────────────────────────────────────────────
+function bmHitPad(pi, vel = 85) {
+  _bmInitCtx();
+  if (bmActx.state === 'suspended') bmActx.resume();
+
+  // Visual flash
+  const padEl = document.getElementById('bm-pad-' + pi);
+  if (padEl) {
+    padEl.classList.add('hit');
+    setTimeout(() => padEl.classList.remove('hit'), 80);
+  }
+
+  const kit = BM_KITS[bmKitIdx];
+  const pad = kit.pads[pi];
+  const ov  = bmPadOverrides[pi];
+  const semitones = ov.tune ?? 0;
+  const pitch  = pad.p * Math.pow(2, semitones / 12);
+  const decay  = ov.decay  ?? pad.d;
+  const filter = ov.flt ? Math.min(ov.filter ?? pad.f, 2000) : (ov.filter ?? pad.f);
+  const vol    = (ov.vol ?? pad.v) * (vel / 100) * 0.85;
+
+  if (bmChopBuffer && ov._chopSlice != null) {
+    _bmPlayChop(ov._chopSlice, vol, decay, filter, ov.rev, ov.del);
+    return;
+  }
+  _bmSynth(pad.t, pitch, decay, filter, vol, ov.rev, ov.del, ov.dist);
+}
+
+function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
+  const ctx = bmActx;
+  const t   = ctx.currentTime;
+  const out = ctx.createGain();
+  out.gain.setValueAtTime(vol, t);
+  out.gain.exponentialRampToValueAtTime(0.0001, t + decay + 0.05);
+
+  const flt = ctx.createBiquadFilter();
+  flt.type = 'lowpass'; flt.frequency.value = filter;
+  out.connect(flt);
+
+  const dst = doDist ? (() => { const ws = ctx.createWaveShaper(); ws.curve = _makeDistCurve(60); out.connect(ws); return ws; })() : null;
+  const finalNode = dst || flt;
+
+  if (doRev && _reverbNode) finalNode.connect(_reverbNode);
+  if (doDel && _delayNode)  { finalNode.connect(_delayNode); }
+  finalNode.connect(ctx.destination);
+
+  switch (type) {
+    case 'k808': {
+      const o = ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(pitch * 3.5, t);
+      o.frequency.exponentialRampToValueAtTime(pitch, t + 0.065);
+      o.connect(out); o.start(t); o.stop(t + decay + 0.1);
+      const nb = _noiseBuffer(0.012); const ns = ctx.createBufferSource(); ns.buffer = nb;
+      const ng = ctx.createGain(); ng.gain.setValueAtTime(vol * 0.35, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.018);
+      ns.connect(ng); ng.connect(ctx.destination); ns.start(t); ns.stop(t + 0.02);
+      break;
+    }
+    case 'kick': {
+      const o = ctx.createOscillator();
+      o.frequency.setValueAtTime(pitch * 2.8, t);
+      o.frequency.exponentialRampToValueAtTime(pitch * 0.6, t + 0.045);
+      o.connect(out); o.start(t); o.stop(t + decay + 0.08);
+      break;
+    }
+    case 'khard': {
+      const o = ctx.createOscillator();
+      o.frequency.setValueAtTime(pitch * 4, t);
+      o.frequency.exponentialRampToValueAtTime(pitch * 0.45, t + 0.028);
+      const c = ctx.createDynamicsCompressor(); c.threshold.value = -2; c.ratio.value = 20;
+      o.connect(c); c.connect(out); o.start(t); o.stop(t + decay + 0.06);
+      break;
+    }
+    case 'sn': {
+      const nb = _noiseBuffer(decay + 0.05); const ns = ctx.createBufferSource(); ns.buffer = nb;
+      const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = pitch * 5; nf.Q.value = 0.7;
+      ns.connect(nf); nf.connect(out); ns.start(t); ns.stop(t + decay + 0.05);
+      const o = ctx.createOscillator(); o.frequency.value = pitch;
+      const tg = ctx.createGain(); tg.gain.setValueAtTime(vol * 0.45, t); tg.gain.exponentialRampToValueAtTime(0.0001, t + decay * 0.4);
+      o.connect(tg); tg.connect(ctx.destination); o.start(t); o.stop(t + decay * 0.4);
+      break;
+    }
+    case 'snrm': {
+      const nb = _noiseBuffer(decay); const ns = ctx.createBufferSource(); ns.buffer = nb;
+      const nf = ctx.createBiquadFilter(); nf.type = 'highpass'; nf.frequency.value = pitch * 4;
+      ns.connect(nf); nf.connect(out); ns.start(t); ns.stop(t + decay);
+      break;
+    }
+    case 'clap': {
+      [0, 0.011, 0.023].forEach((d, i) => {
+        const nb = _noiseBuffer(0.07); const ns = ctx.createBufferSource(); ns.buffer = nb;
+        const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = pitch; nf.Q.value = 0.5;
+        const ng = ctx.createGain(); ng.gain.setValueAtTime(vol * (1 - i*0.18), t+d); ng.gain.exponentialRampToValueAtTime(0.0001, t+d+decay);
+        ns.connect(nf); nf.connect(ng); ng.connect(ctx.destination); ns.start(t+d); ns.stop(t+d+decay+0.05);
+      });
+      return;
+    }
+    case 'hh': {
+      const nb = _noiseBuffer(0.12); const ns = ctx.createBufferSource(); ns.buffer = nb;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = pitch;
+      ns.connect(hp); hp.connect(out); ns.start(t); ns.stop(t + Math.min(decay, 0.12));
+      break;
+    }
+    case 'hho': {
+      const nb = _noiseBuffer(0.6); const ns = ctx.createBufferSource(); ns.buffer = nb;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = pitch;
+      const bp = ctx.createBiquadFilter(); bp.type = 'peaking'; bp.frequency.value = pitch*1.4; bp.gain.value = 5;
+      ns.connect(hp); hp.connect(bp); bp.connect(out); ns.start(t); ns.stop(t + decay + 0.05);
+      break;
+    }
+    case 'cym': {
+      const nb = _noiseBuffer(Math.max(decay, 0.35)); const ns = ctx.createBufferSource(); ns.buffer = nb;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = pitch * 0.55;
+      const bp = ctx.createBiquadFilter(); bp.type = 'peaking'; bp.frequency.value = pitch; bp.gain.value = 7;
+      ns.connect(hp); hp.connect(bp); bp.connect(out); ns.start(t); ns.stop(t + decay + 0.1);
+      break;
+    }
+    case 'tom': {
+      const o = ctx.createOscillator();
+      o.frequency.setValueAtTime(pitch * 1.6, t);
+      o.frequency.exponentialRampToValueAtTime(pitch * 0.65, t + decay * 0.3);
+      o.connect(out); o.start(t); o.stop(t + decay + 0.05);
+      const nb = _noiseBuffer(decay * 0.5); const ns = ctx.createBufferSource(); ns.buffer = nb;
+      const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = pitch * 2; nf.Q.value = 1.2;
+      const ng = ctx.createGain(); ng.gain.setValueAtTime(vol * 0.28, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + decay * 0.5);
+      ns.connect(nf); nf.connect(ng); ng.connect(ctx.destination); ns.start(t); ns.stop(t + decay * 0.5);
+      break;
+    }
+    case 'rim': {
+      const nb = _noiseBuffer(0.06); const ns = ctx.createBufferSource(); ns.buffer = nb;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1200;
+      ns.connect(hp); hp.connect(out); ns.start(t); ns.stop(t + 0.06);
+      const o = ctx.createOscillator(); o.frequency.value = pitch;
+      const og = ctx.createGain(); og.gain.setValueAtTime(vol * 0.5, t); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+      o.connect(og); og.connect(ctx.destination); o.start(t); o.stop(t + 0.03);
+      break;
+    }
+    case 'cow': {
+      [pitch, pitch * 1.475].forEach(f => {
+        const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = f;
+        const g = ctx.createGain(); g.gain.setValueAtTime(vol * 0.45, t); g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+        const bf = ctx.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = f; bf.Q.value = 2;
+        o.connect(bf); bf.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + decay + 0.05);
+      });
+      return;
+    }
+    case 'sub': {
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = pitch;
+      o.connect(out); o.start(t); o.stop(t + decay + 0.05);
+      break;
+    }
+    case 'shk': {
+      const nb = _noiseBuffer(decay + 0.02); const ns = ctx.createBufferSource(); ns.buffer = nb;
+      const buf = nb; const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] *= Math.sin(Math.PI * i / d.length);
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = pitch;
+      ns.connect(hp); hp.connect(out); ns.start(t); ns.stop(t + decay + 0.02);
+      break;
+    }
+    case 'fx': {
+      const nb = _noiseBuffer(decay + 0.05); const ns = ctx.createBufferSource(); ns.buffer = nb;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = pitch; bp.Q.value = 2.5;
+      ns.connect(bp); bp.connect(out); ns.start(t); ns.stop(t + decay + 0.05);
+      break;
+    }
+    default: {
+      const o = ctx.createOscillator(); o.frequency.value = pitch;
+      o.connect(out); o.start(t); o.stop(t + decay + 0.05);
+    }
+  }
+}
+
+function _noiseBuffer(dur) {
+  const ctx = bmActx;
+  const len = Math.ceil(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
+}
+
+// ── Sample chop ───────────────────────────────────────────────────────────────
+const _bmChopZone = document.getElementById('bmChopZone');
+_bmChopZone.addEventListener('dragover', e => { e.preventDefault(); _bmChopZone.classList.add('drag-over'); });
+_bmChopZone.addEventListener('dragleave', () => _bmChopZone.classList.remove('drag-over'));
+_bmChopZone.addEventListener('drop', e => {
+  e.preventDefault(); _bmChopZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) bmLoadChopSample(e.dataTransfer.files[0]);
+});
+
+async function bmLoadChopSample(file) {
+  if (!file) return;
+  _bmInitCtx();
+  const ab = await file.arrayBuffer();
+  bmChopBuffer = await bmActx.decodeAudioData(ab);
+  bmChopPoints = [0];
+  _bmDrawChopWave();
+  document.getElementById('bmChopZone').innerHTML = '✓ ' + file.name.replace(/\.[^.]+$/,'');
+}
+
+function _bmDrawChopWave() {
+  if (!bmChopBuffer) return;
+  const canvas = document.getElementById('bmChopCanvas');
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2; canvas.height = 80;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const data = bmChopBuffer.getChannelData(0);
+  const step = Math.ceil(data.length / canvas.width);
+  ctx.strokeStyle = '#8b5cf6'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i < canvas.width; i++) {
+    const v = data[i * step] || 0;
+    const y = (1 - v) * canvas.height / 2;
+    i === 0 ? ctx.moveTo(i, y) : ctx.lineTo(i, y);
+  }
+  ctx.stroke();
+  // Draw chop markers
+  bmChopPoints.forEach((pos, i) => {
+    const x = (pos / bmChopBuffer.duration) * canvas.width;
+    ctx.strokeStyle = '#06b6d4'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    ctx.fillStyle = '#06b6d4'; ctx.font = '16px sans-serif';
+    ctx.fillText(i+1, x+2, 16);
+  });
+  _bmRenderChopList();
+}
+
+document.getElementById('bmChopCanvas').addEventListener('click', e => {
+  if (!bmChopBuffer) return;
+  const canvas = e.currentTarget;
+  const rect = canvas.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  const pos = pct * bmChopBuffer.duration;
+  bmChopPoints.push(pos);
+  bmChopPoints.sort((a,b) => a-b);
+  _bmDrawChopWave();
+});
+
+function _bmRenderChopList() {
+  const list = document.getElementById('bmChopList');
+  list.innerHTML = bmChopPoints.map((pos, i) => {
+    const end = bmChopPoints[i+1] ?? bmChopBuffer.duration;
+    return `<div class="bm-chop-item">
+      <span class="ci-name">Chop ${i+1} (${pos.toFixed(2)}s–${end.toFixed(2)}s)</span>
+      <button class="ci-pad" onclick="bmAssignChop(${i})">→ Pad ${i+1}</button>
+    </div>`;
+  }).join('');
+}
+
+function bmAssignChop(chopIdx) {
+  if (chopIdx >= 16) return;
+  bmPadOverrides[chopIdx]._chopSlice = chopIdx;
+}
+
+function _bmPlayChop(sliceIdx, vol, decay, filter, doRev, doDel) {
+  if (!bmChopBuffer || sliceIdx == null) return;
+  const ctx = bmActx;
+  const t = ctx.currentTime;
+  const start = bmChopPoints[sliceIdx] ?? 0;
+  const end   = bmChopPoints[sliceIdx+1] ?? bmChopBuffer.duration;
+  const src = ctx.createBufferSource();
+  src.buffer = bmChopBuffer;
+  const g = ctx.createGain(); g.gain.value = vol;
+  const flt = ctx.createBiquadFilter(); flt.type='lowpass'; flt.frequency.value = filter;
+  src.connect(g); g.connect(flt); flt.connect(ctx.destination);
+  if (doRev && _reverbNode) flt.connect(_reverbNode);
+  if (doDel && _delayNode)  flt.connect(_delayNode);
+  src.start(t, start, end - start);
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+const BM_KEYS = {'q':0,'w':1,'e':2,'r':3,'a':4,'s':5,'d':6,'f':7,'z':8,'x':9,'c':10,'v':11,'1':12,'2':13,'3':14,'4':15};
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  const pi = BM_KEYS[e.key.toLowerCase()];
+  if (pi !== undefined && !e.repeat) {
+    bmHitPad(pi);
+    if (bmRecording && bmPlaying) { bmBanks[bmBank][pi][bmStep] = 85; bmRebuildSeq(); }
+  }
+  if (e.key === ' ') { e.preventDefault(); bmTogglePlay(); }
+});
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+bmPopulateKitList();
+bmLoadKit(0);
+
+/* ── (old simple BEAT SEQUENCER kept as spare — START) ─── */
 const STEPS = 16;
 let beatPattern = Array.from({length: TRACKS.length}, () => new Array(STEPS).fill(false));
 let beatPlaying = false;
