@@ -169,6 +169,7 @@ ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  
 SUNO_COOKIE = os.getenv("SUNO_COOKIE", "")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
 MUBERT_KEY = os.getenv("MUBERT_KEY", "")
+FREESOUND_API_KEY = os.getenv("FREESOUND_API_KEY", "")
 
 # Higgsfield AI — bearer token for REST + MCP API calls
 # Accepts any of these Render env var names (first non-empty wins):

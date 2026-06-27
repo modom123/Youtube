@@ -769,6 +769,135 @@
 .ms-toggle-icon { color: var(--music-muted); font-size: 12px; transition: transform .2s; }
 .ms-toggle-icon.open { transform: rotate(180deg); }
 
+/* ── Effects Chain ─────────────────────────────────────────────────────────── */
+.ms-fx-panel {
+  background: var(--music-card);
+  border: 1px solid var(--music-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.ms-fx-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--music-border);
+  cursor: pointer;
+  font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--music-cyan);
+}
+.ms-fx-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+.ms-fx-row { display: flex; align-items: center; gap: 14px; }
+.ms-fx-label { font-size: 11px; font-weight: 700; color: var(--music-muted); width: 56px; flex-shrink: 0; }
+.ms-fx-knobs { display: flex; gap: 10px; flex: 1; align-items: center; }
+.ms-fx-knob-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ms-fx-knob-label { font-size: 9px; color: var(--music-muted); letter-spacing: .06em; }
+.ms-fx-slider {
+  width: 80px; -webkit-appearance: none; appearance: none;
+  height: 3px; border-radius: 2px; outline: none; cursor: pointer;
+  background: linear-gradient(to right, var(--music-cyan) var(--pct,50%), #2d2d3a var(--pct,50%));
+}
+.ms-fx-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+  background: var(--music-cyan); cursor: grab;
+}
+.ms-fx-toggle {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 20px; border: 1px solid var(--music-border);
+  background: var(--music-elevated); cursor: pointer; font-size: 11px; font-weight: 700;
+  color: var(--music-muted); transition: all .15s;
+}
+.ms-fx-toggle.on {
+  background: rgba(6,182,212,.1); border-color: var(--music-cyan); color: var(--music-cyan);
+}
+.ms-fx-toggle .dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--music-muted); transition: background .15s;
+}
+.ms-fx-toggle.on .dot { background: var(--music-cyan); box-shadow: 0 0 6px var(--music-cyan); }
+
+/* ── Beat Sequencer ────────────────────────────────────────────────────────── */
+.ms-seq-panel {
+  background: var(--music-card);
+  border: 1px solid var(--music-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.ms-seq-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--music-border);
+}
+.ms-seq-title {
+  font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--music-purple); display: flex; align-items: center; gap: 8px;
+}
+.ms-seq-controls { display: flex; align-items: center; gap: 10px; }
+.ms-seq-play-btn {
+  padding: 6px 18px; border-radius: 20px; border: 1px solid var(--music-purple-border);
+  background: var(--music-purple-glow); color: var(--music-purple);
+  font-size: 12px; font-weight: 800; cursor: pointer; transition: all .15s; letter-spacing: .04em;
+}
+.ms-seq-play-btn:hover { background: rgba(139,92,246,.3); }
+.ms-seq-play-btn.playing { background: rgba(139,92,246,.35); box-shadow: 0 0 12px var(--music-purple-glow); }
+.ms-seq-swing {
+  display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--music-muted);
+}
+.ms-seq-swing input { width: 60px; }
+.ms-seq-body { padding: 16px 20px; overflow-x: auto; }
+.ms-seq-grid { min-width: 620px; display: flex; flex-direction: column; gap: 8px; }
+.ms-seq-row { display: flex; align-items: center; gap: 8px; }
+.ms-seq-track-name {
+  width: 72px; flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--music-muted);
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.ms-seq-steps { display: flex; gap: 4px; flex: 1; }
+.ms-seq-step {
+  width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--music-border);
+  background: var(--music-elevated); cursor: pointer; transition: all .1s; position: relative;
+}
+.ms-seq-step.on { background: var(--step-color, var(--music-purple)); border-color: var(--step-color, var(--music-purple)); box-shadow: 0 0 8px rgba(139,92,246,.3); }
+.ms-seq-step.playing-head { box-shadow: 0 0 0 2px var(--music-cyan) !important; }
+.ms-seq-step:nth-child(4n+1) { border-left: 2px solid rgba(255,255,255,.12); }
+.ms-seq-clear { padding: 4px 10px; font-size: 10px; font-weight: 700; border: 1px solid var(--music-border); border-radius: 6px; background: transparent; color: var(--music-muted); cursor: pointer; }
+.ms-seq-clear:hover { color: #ef4444; border-color: rgba(239,68,68,.4); }
+
+/* Loop browser */
+.ms-loop-panel {
+  background: var(--music-card);
+  border: 1px solid var(--music-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.ms-loop-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--music-border);
+  cursor: pointer;
+  font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  color: #f97316;
+}
+.ms-loop-body { padding: 16px 20px; }
+.ms-loop-search { display: flex; gap: 8px; margin-bottom: 14px; }
+.ms-loop-input { flex: 1; }
+.ms-loop-search-btn {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(249,115,22,.3);
+  background: rgba(249,115,22,.1); color: #f97316; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.ms-loop-grid { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; }
+.ms-loop-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  border-radius: 8px; background: var(--music-elevated); border: 1px solid var(--music-border);
+  transition: border-color .15s;
+}
+.ms-loop-item:hover { border-color: rgba(249,115,22,.3); }
+.ms-loop-play {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(249,115,22,.4);
+  background: rgba(249,115,22,.1); color: #f97316; font-size: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ms-loop-name { flex: 1; font-size: 12px; color: var(--music-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-loop-dur { font-size: 10px; color: var(--music-muted); flex-shrink: 0; }
+.ms-loop-add { padding: 4px 10px; font-size: 10px; font-weight: 700; border: 1px solid var(--music-border); border-radius: 6px; background: transparent; color: var(--music-muted); cursor: pointer; }
+.ms-loop-add:hover { color: var(--music-purple); border-color: var(--music-purple-border); }
+
 @media (max-width: 900px) {
   .ms-layout { flex-direction: column; height: auto; }
   .ms-left { width: 100%; }
@@ -934,6 +1063,41 @@
       </div>
     </div>
 
+    <!-- Mix Controls (left panel) -->
+    <div class="ms-section">
+      <div class="ms-section-label">Mix Controls</div>
+
+      <div class="ms-row">
+        <label class="ms-label">Bass <span id="ms-eq-bass-val" style="color:var(--music-cyan);">0dB</span></label>
+        <input type="range" class="ms-slider" id="ms-eq-bass" min="-12" max="12" value="0" step="1"
+               oninput="updateEqLabel('bass',this.value);applyEQ()"
+               style="--slider-pct:50%">
+      </div>
+      <div class="ms-row">
+        <label class="ms-label">Mid <span id="ms-eq-mid-val" style="color:var(--music-cyan);">0dB</span></label>
+        <input type="range" class="ms-slider" id="ms-eq-mid" min="-12" max="12" value="0" step="1"
+               oninput="updateEqLabel('mid',this.value);applyEQ()"
+               style="--slider-pct:50%">
+      </div>
+      <div class="ms-row">
+        <label class="ms-label">Treble <span id="ms-eq-treble-val" style="color:var(--music-cyan);">0dB</span></label>
+        <input type="range" class="ms-slider" id="ms-eq-treble" min="-12" max="12" value="0" step="1"
+               oninput="updateEqLabel('treble',this.value);applyEQ()"
+               style="--slider-pct:50%">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+        <button class="ms-fx-toggle" id="ms-fx-reverb" onclick="toggleFx('reverb')">
+          <span class="dot"></span> Reverb
+        </button>
+        <button class="ms-fx-toggle" id="ms-fx-delay" onclick="toggleFx('delay')">
+          <span class="dot"></span> Delay
+        </button>
+        <button class="ms-fx-toggle" id="ms-fx-compress" onclick="toggleFx('compress')">
+          <span class="dot"></span> Compress
+        </button>
+      </div>
+    </div>
+
     <div style="padding:16px 20px 20px;">
       <button class="ms-generate-btn pulsing" id="ms-gen-btn" onclick="generateSong()">
         🎵 Generate Song
@@ -1078,6 +1242,49 @@
       <div class="ms-library-header">📚 Song Library</div>
       <div class="ms-library-grid" id="ms-library-grid">
         <div class="ms-empty-library">No songs yet — generate your first track above</div>
+      </div>
+    </div>
+
+    <!-- Beat Sequencer -->
+    <div class="ms-seq-panel">
+      <div class="ms-seq-header">
+        <div class="ms-seq-title">🥁 Beat Sequencer</div>
+        <div class="ms-seq-controls">
+          <div class="ms-seq-swing">
+            Swing
+            <input type="range" class="ms-fx-slider" id="ms-swing" min="0" max="30" value="0"
+                   style="--pct:0%" oninput="this.style.setProperty('--pct',(this.value/30*100)+'%')">
+            <span id="ms-swing-val">0%</span>
+          </div>
+          <button class="ms-seq-play-btn" id="ms-seq-play-btn" onclick="toggleSequencer()">▶ Play</button>
+          <button class="ms-seq-clear" onclick="clearSequencer()">Clear</button>
+        </div>
+      </div>
+      <div class="ms-seq-body">
+        <div class="ms-seq-grid" id="ms-seq-grid">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Loop Browser -->
+    <div class="ms-loop-panel">
+      <div class="ms-loop-header" onclick="toggleLoopPanel()">
+        <span>🎛 Loop Browser <span style="font-size:9px;color:var(--music-muted);font-weight:400;margin-left:6px;">Search Freesound</span></span>
+        <span class="ms-toggle-icon" id="ms-loop-icon">▼</span>
+      </div>
+      <div class="ms-loop-body" id="ms-loop-body">
+        <div class="ms-loop-search">
+          <input type="text" class="ms-input ms-loop-input" id="ms-loop-query"
+                 placeholder="Search loops… e.g. 808 bass, trap hi hat, jazz piano"
+                 onkeydown="if(event.key==='Enter')searchLoops()">
+          <button class="ms-loop-search-btn" onclick="searchLoops()">Search</button>
+        </div>
+        <div class="ms-loop-grid" id="ms-loop-grid">
+          <div style="color:var(--music-muted);font-size:12px;text-align:center;padding:20px;">
+            Search for loops to preview and add to your track
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1644,8 +1851,372 @@ function showToast(msg, type) {
   setTimeout(function(){ t.remove(); }, 3000);
 }
 
+// ── WebAudio Effects Chain ────────────────────────────────────────────────────
+var _audioCtx = null;
+var _audioSrc = null;
+var _fxNodes = { bassEq: null, midEq: null, trebleEq: null, reverb: null, delay: null, compressor: null };
+var _fxState = { reverb: false, delay: false, compress: false };
+
+function _ensureAudioGraph() {
+  var audio = document.getElementById('ms-audio');
+  if (!audio.src) return;
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (_audioSrc) return; // already connected
+  _audioSrc = _audioCtx.createMediaElementSource(audio);
+
+  // EQ nodes
+  _fxNodes.bassEq = _audioCtx.createBiquadFilter();
+  _fxNodes.bassEq.type = 'lowshelf';
+  _fxNodes.bassEq.frequency.value = 120;
+
+  _fxNodes.midEq = _audioCtx.createBiquadFilter();
+  _fxNodes.midEq.type = 'peaking';
+  _fxNodes.midEq.frequency.value = 1000;
+  _fxNodes.midEq.Q.value = 1;
+
+  _fxNodes.trebleEq = _audioCtx.createBiquadFilter();
+  _fxNodes.trebleEq.type = 'highshelf';
+  _fxNodes.trebleEq.frequency.value = 8000;
+
+  // Compressor
+  _fxNodes.compressor = _audioCtx.createDynamicsCompressor();
+  _fxNodes.compressor.threshold.value = -18;
+  _fxNodes.compressor.knee.value = 6;
+  _fxNodes.compressor.ratio.value = 4;
+  _fxNodes.compressor.attack.value = 0.003;
+  _fxNodes.compressor.release.value = 0.25;
+
+  // Simple delay (echo)
+  _fxNodes.delay = _audioCtx.createDelay(1.0);
+  _fxNodes.delay.delayTime.value = 0.25;
+  var _delayFeedback = _audioCtx.createGain();
+  _delayFeedback.gain.value = 0.25;
+  _fxNodes.delay.connect(_delayFeedback);
+  _delayFeedback.connect(_fxNodes.delay);
+
+  // Simple reverb via convolver (impulse response approach)
+  _fxNodes.reverb = _audioCtx.createConvolver();
+  (function() {
+    var len = _audioCtx.sampleRate * 2;
+    var buf = _audioCtx.createBuffer(2, len, _audioCtx.sampleRate);
+    for (var c = 0; c < 2; c++) {
+      var d = buf.getChannelData(c);
+      for (var i = 0; i < len; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+      }
+    }
+    _fxNodes.reverb.buffer = buf;
+  })();
+
+  _rebuildChain();
+}
+
+function _rebuildChain() {
+  if (!_audioSrc) return;
+  // Disconnect all
+  try { _audioSrc.disconnect(); } catch(e) {}
+  try { _fxNodes.reverb.disconnect(); } catch(e) {}
+  try { _fxNodes.delay.disconnect(); } catch(e) {}
+
+  var chain = [_audioSrc, _fxNodes.bassEq, _fxNodes.midEq, _fxNodes.trebleEq];
+
+  if (_fxState.compress) chain.push(_fxNodes.compressor);
+
+  // Connect linear chain
+  for (var i = 0; i < chain.length - 1; i++) {
+    chain[i].connect(chain[i+1]);
+  }
+  var last = chain[chain.length - 1];
+
+  if (_fxState.reverb) {
+    last.connect(_fxNodes.reverb);
+    _fxNodes.reverb.connect(_audioCtx.destination);
+  }
+  if (_fxState.delay) {
+    last.connect(_fxNodes.delay);
+    _fxNodes.delay.connect(_audioCtx.destination);
+  }
+  last.connect(_audioCtx.destination);
+}
+
+function applyEQ() {
+  _ensureAudioGraph();
+  if (!_audioSrc) return;
+  var bass = parseInt(document.getElementById('ms-eq-bass').value);
+  var mid = parseInt(document.getElementById('ms-eq-mid').value);
+  var treble = parseInt(document.getElementById('ms-eq-treble').value);
+  _fxNodes.bassEq.gain.value = bass;
+  _fxNodes.midEq.gain.value = mid;
+  _fxNodes.trebleEq.gain.value = treble;
+  // Update slider fill
+  ['bass','mid','treble'].forEach(function(n){
+    var el = document.getElementById('ms-eq-'+n);
+    el.style.setProperty('--slider-pct', ((parseInt(el.value)+12)/24*100)+'%');
+  });
+}
+
+function toggleFx(name) {
+  _ensureAudioGraph();
+  _fxState[name] = !_fxState[name];
+  var btn = document.getElementById('ms-fx-'+name);
+  btn.classList.toggle('on', _fxState[name]);
+  _rebuildChain();
+}
+
+function updateEqLabel(band, val) {
+  document.getElementById('ms-eq-'+band+'-val').textContent = (val >= 0 ? '+' : '') + val + 'dB';
+}
+
+// Hook into existing play toggle to setup audio graph
+var _origTogglePlay = typeof togglePlay === 'function' ? togglePlay : null;
+document.getElementById('ms-audio').addEventListener('play', function(){
+  if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
+  _ensureAudioGraph();
+}, { once: false });
+
+
+// ── Beat Sequencer ────────────────────────────────────────────────────────────
+var _seqState = {
+  playing: false,
+  step: 0,
+  interval: null,
+  tracks: [
+    { name: 'KICK',    color: '#ef4444', pattern: new Array(16).fill(false) },
+    { name: 'SNARE',   color: '#f97316', pattern: new Array(16).fill(false) },
+    { name: 'HI-HAT',  color: '#eab308', pattern: new Array(16).fill(false) },
+    { name: 'OPEN HH', color: '#22c55e', pattern: new Array(16).fill(false) },
+    { name: '808',     color: '#8b5cf6', pattern: new Array(16).fill(false) },
+    { name: 'CLAP',    color: '#06b6d4', pattern: new Array(16).fill(false) },
+  ],
+  // Default patterns
+  defaults: {
+    KICK:    [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],
+    SNARE:   [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],
+    'HI-HAT':[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  }
+};
+
+// Pre-load default kick/snare/hihat pattern
+_seqState.tracks.forEach(function(t){
+  if (_seqState.defaults[t.name]) {
+    t.pattern = _seqState.defaults[t.name].map(Boolean);
+  }
+});
+
+function renderSequencer() {
+  var grid = document.getElementById('ms-seq-grid');
+  grid.innerHTML = _seqState.tracks.map(function(track, ti) {
+    var steps = track.pattern.map(function(on, si) {
+      return '<button class="ms-seq-step' + (on ? ' on' : '') + '" ' +
+        'style="' + (on ? '--step-color:' + track.color + ';' : '') + '" ' +
+        'id="ms-step-' + ti + '-' + si + '" ' +
+        'onclick="toggleStep(' + ti + ',' + si + ')"></button>';
+    }).join('');
+    return '<div class="ms-seq-row">' +
+      '<div class="ms-seq-track-name" style="color:' + track.color + '">' + track.name + '</div>' +
+      '<div class="ms-seq-steps">' + steps + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function toggleStep(trackIdx, stepIdx) {
+  var track = _seqState.tracks[trackIdx];
+  track.pattern[stepIdx] = !track.pattern[stepIdx];
+  var btn = document.getElementById('ms-step-' + trackIdx + '-' + stepIdx);
+  if (track.pattern[stepIdx]) {
+    btn.classList.add('on');
+    btn.style.setProperty('--step-color', track.color);
+  } else {
+    btn.classList.remove('on');
+    btn.style.removeProperty('--step-color');
+  }
+}
+
+function clearSequencer() {
+  _seqState.tracks.forEach(function(t){ t.pattern = new Array(16).fill(false); });
+  renderSequencer();
+}
+
+// Drum synthesis via WebAudio
+function _playDrum(type, color) {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  var ctx = _audioCtx;
+  var now = ctx.currentTime;
+
+  if (type === 'KICK') {
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+    gain.gain.setValueAtTime(1.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc.start(now); osc.stop(now + 0.3);
+
+  } else if (type === 'SNARE') {
+    var buf = ctx.createBuffer(1, ctx.sampleRate * 0.2, ctx.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    var src = ctx.createBufferSource();
+    src.buffer = buf;
+    var g = ctx.createGain();
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass'; filter.frequency.value = 1200; filter.Q.value = 0.5;
+    src.connect(filter); filter.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.8, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    src.start(now);
+
+  } else if (type === 'HI-HAT' || type === 'OPEN HH') {
+    var buf2 = ctx.createBuffer(1, ctx.sampleRate * (type === 'OPEN HH' ? 0.4 : 0.05), ctx.sampleRate);
+    var d2 = buf2.getChannelData(0);
+    for (var j = 0; j < d2.length; j++) d2[j] = Math.random() * 2 - 1;
+    var src2 = ctx.createBufferSource(); src2.buffer = buf2;
+    var g2 = ctx.createGain();
+    var hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = 7000;
+    src2.connect(hpf); hpf.connect(g2); g2.connect(ctx.destination);
+    g2.gain.setValueAtTime(0.4, now);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + (type === 'OPEN HH' ? 0.4 : 0.05));
+    src2.start(now);
+
+  } else if (type === '808') {
+    var osc2 = ctx.createOscillator();
+    var g3 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(80, now);
+    osc2.frequency.exponentialRampToValueAtTime(40, now + 0.4);
+    g3.gain.setValueAtTime(1.0, now);
+    g3.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc2.connect(g3); g3.connect(ctx.destination);
+    osc2.start(now); osc2.stop(now + 0.5);
+
+  } else if (type === 'CLAP') {
+    [0, 0.01, 0.02].forEach(function(offset) {
+      var buf3 = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
+      var d3 = buf3.getChannelData(0);
+      for (var k = 0; k < d3.length; k++) d3[k] = Math.random() * 2 - 1;
+      var src3 = ctx.createBufferSource(); src3.buffer = buf3;
+      var g4 = ctx.createGain();
+      var bpf = ctx.createBiquadFilter(); bpf.type = 'bandpass'; bpf.frequency.value = 900;
+      src3.connect(bpf); bpf.connect(g4); g4.connect(ctx.destination);
+      g4.gain.setValueAtTime(0.5, now + offset);
+      g4.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.15);
+      src3.start(now + offset);
+    });
+  }
+}
+
+function _seqTick() {
+  var bpm = parseInt(document.getElementById('ms-bpm-slider').value) || 120;
+  var swing = parseInt(document.getElementById('ms-swing').value) || 0;
+  document.getElementById('ms-swing-val').textContent = swing + '%';
+
+  // Remove previous head
+  document.querySelectorAll('.ms-seq-step.playing-head').forEach(function(el){
+    el.classList.remove('playing-head');
+  });
+
+  var step = _seqState.step;
+  // Highlight current column
+  for (var ti = 0; ti < _seqState.tracks.length; ti++) {
+    var el = document.getElementById('ms-step-' + ti + '-' + step);
+    if (el) el.classList.add('playing-head');
+    if (_seqState.tracks[ti].pattern[step]) {
+      _playDrum(_seqState.tracks[ti].name, _seqState.tracks[ti].color);
+    }
+  }
+
+  _seqState.step = (step + 1) % 16;
+
+  // Swing: odd steps get slightly longer interval
+  var baseDur = (60000 / bpm) / 4;
+  var swingOffset = (step % 2 === 1) ? baseDur * (swing / 100) : 0;
+  clearTimeout(_seqState.interval);
+  _seqState.interval = setTimeout(_seqTick, baseDur + swingOffset);
+}
+
+function toggleSequencer() {
+  _seqState.playing = !_seqState.playing;
+  var btn = document.getElementById('ms-seq-play-btn');
+  if (_seqState.playing) {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    btn.textContent = '⏹ Stop';
+    btn.classList.add('playing');
+    _seqState.step = 0;
+    _seqTick();
+  } else {
+    clearTimeout(_seqState.interval);
+    btn.textContent = '▶ Play';
+    btn.classList.remove('playing');
+    document.querySelectorAll('.ms-seq-step.playing-head').forEach(function(el){
+      el.classList.remove('playing-head');
+    });
+  }
+}
+
+// ── Loop Browser (Freesound API) ──────────────────────────────────────────────
+var _loopAudio = new Audio();
+var _loopPlaying = null;
+
+function toggleLoopPanel() {
+  var body = document.getElementById('ms-loop-body');
+  var icon = document.getElementById('ms-loop-icon');
+  var vis = body.style.display !== 'none';
+  body.style.display = vis ? 'none' : '';
+  icon.classList.toggle('open', !vis);
+}
+
+function searchLoops() {
+  var query = document.getElementById('ms-loop-query').value.trim();
+  if (!query) return;
+  var grid = document.getElementById('ms-loop-grid');
+  grid.innerHTML = '<div style="color:var(--music-muted);font-size:12px;text-align:center;padding:20px;">Searching…</div>';
+
+  // Use Freesound API (requires free API key; falls back to curated list)
+  fetch('/api/music/loops?q=' + encodeURIComponent(query))
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if (!data.results || !data.results.length) {
+        grid.innerHTML = '<div style="color:var(--music-muted);font-size:12px;text-align:center;padding:20px;">No loops found — try "trap beat", "piano loop", "808 bass"</div>';
+        return;
+      }
+      grid.innerHTML = data.results.map(function(loop){
+        return '<div class="ms-loop-item">' +
+          '<button class="ms-loop-play" onclick="previewLoop(\'' + loop.preview_url + '\',\'' + loop.id + '\',this)">▶</button>' +
+          '<div class="ms-loop-name">' + escHtml(loop.name) + '</div>' +
+          '<div class="ms-loop-dur">' + (loop.duration ? Math.round(loop.duration) + 's' : '') + '</div>' +
+          '<button class="ms-loop-add" onclick="showToast(\'Loop noted! Include in your next generation prompt.\',\'info\')">+ Add</button>' +
+        '</div>';
+      }).join('');
+    })
+    .catch(function(){
+      grid.innerHTML = '<div style="color:var(--music-muted);font-size:12px;text-align:center;padding:20px;">Search requires FREESOUND_API_KEY in Render settings.</div>';
+    });
+}
+
+function previewLoop(url, id, btn) {
+  if (_loopPlaying === id) {
+    _loopAudio.pause();
+    _loopPlaying = null;
+    btn.textContent = '▶';
+    return;
+  }
+  _loopAudio.pause();
+  document.querySelectorAll('.ms-loop-play').forEach(function(b){ b.textContent = '▶'; });
+  _loopAudio.src = url;
+  _loopAudio.play().then(function(){
+    _loopPlaying = id;
+    btn.textContent = '⏸';
+    _loopAudio.onended = function(){ btn.textContent = '▶'; _loopPlaying = null; };
+  }).catch(function(){ showToast('Preview unavailable', 'error'); });
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 updateBpm(120);
 renderLibrary();
+renderSequencer();
 </script>
 {% endblock %}

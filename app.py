@@ -2880,6 +2880,55 @@ def api_music_download(job_id):
     return send_file(audio_path, as_attachment=True, download_name="song.mp3")
 
 
+@app.route("/api/music/loops")
+@login_required
+def api_music_loops():
+    """Search Freesound for audio loops. Falls back to curated list if no API key."""
+    query = request.args.get("q", "").strip()
+    if not query:
+        return jsonify({"results": []})
+
+    if config.FREESOUND_API_KEY:
+        try:
+            import requests as _req
+            r = _req.get(
+                "https://freesound.org/apiv2/search/text/",
+                params={
+                    "query": query,
+                    "filter": "duration:[0.5 TO 30]",
+                    "fields": "id,name,duration,previews",
+                    "page_size": 12,
+                    "token": config.FREESOUND_API_KEY,
+                },
+                timeout=8,
+            )
+            if r.ok:
+                data = r.json()
+                results = [
+                    {
+                        "id": s["id"],
+                        "name": s["name"],
+                        "duration": s.get("duration"),
+                        "preview_url": (s.get("previews") or {}).get("preview-hq-mp3") or (s.get("previews") or {}).get("preview-lq-mp3", ""),
+                    }
+                    for s in data.get("results", [])
+                    if (s.get("previews") or {}).get("preview-hq-mp3") or (s.get("previews") or {}).get("preview-lq-mp3")
+                ]
+                return jsonify({"results": results})
+        except Exception as e:
+            print(f"[loops] Freesound error: {e}")
+
+    # Curated fallback loops (royalty-free, always available)
+    fallback = [
+        {"id": "f1", "name": "Trap Hi-Hat Loop",    "duration": 4, "preview_url": "https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0c6e1f879.mp3"},
+        {"id": "f2", "name": "Boom Bap Drum Loop",  "duration": 4, "preview_url": "https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3"},
+        {"id": "f3", "name": "Lo-Fi Hip Hop Beat",  "duration": 8, "preview_url": "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3"},
+        {"id": "f4", "name": "R&B Guitar Loop",     "duration": 4, "preview_url": "https://cdn.pixabay.com/download/audio/2021/11/25/audio_5fe43da10d.mp3"},
+        {"id": "f5", "name": "EDM Synth Lead",      "duration": 8, "preview_url": "https://cdn.pixabay.com/download/audio/2022/09/13/audio_678e2e91f4.mp3"},
+    ]
+    return jsonify({"results": fallback})
+
+
 # ── Feature 1: Analytics Dashboard ───────────────────────────────────────────
 
 @app.route("/analytics")
