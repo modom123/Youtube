@@ -1,5 +1,6 @@
 """Directly configure Stripe webhook from .env credentials."""
-import sys, os, json
+import sys
+import os
 sys.path.insert(0, '/home/user/Youtube')
 
 from pathlib import Path
@@ -8,7 +9,7 @@ for line in Path('/home/user/Youtube/.env').read_text().splitlines():
         k, v = line.split('=', 1)
         os.environ[k.strip()] = v.strip()
 
-import requests
+import requests  # noqa: E402
 
 STRIPE_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
 TARGET_URL = "https://socialoptimize.online/billing/webhook"
@@ -57,7 +58,7 @@ else:
     wh = resp2.json()
     existing_id = wh["id"]
     secret = wh.get("secret", "")
-    print(f"\n✅ WEBHOOK CREATED")
+    print("\n✅ WEBHOOK CREATED")
     print(f"   Webhook ID: {existing_id}")
     print(f"   Signing Secret: {secret}")
     print(f"\n⚡ Add to Render env: STRIPE_WEBHOOK_SECRET={secret}")
@@ -67,4 +68,4 @@ else:
     if 'STRIPE_WEBHOOK_SECRET' not in env_content:
         with open('/home/user/Youtube/.env', 'a') as f:
             f.write(f"\nSTRIPE_WEBHOOK_SECRET={secret}")
-        print(f"\n✅ Written to .env file")
+        print("\n✅ Written to .env file")

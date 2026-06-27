@@ -4,7 +4,6 @@ actual asset generation (audio + video assembly).
 """
 from __future__ import annotations
 import json
-import time
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -86,7 +85,7 @@ class ProductionStudioEngine:
         from generators import audio_generator, video_generator, media_fetcher, thumbnail_generator
         from generators.researcher import research_topic, brief_to_context
         from generators import higgsfield_mcp
-        from utils import file_manager, logger
+        from utils import file_manager
 
         # Auto-select Google Neural2 voice when API key is configured
         if config.GOOGLE_API_KEY:
@@ -241,10 +240,10 @@ class ProductionStudioEngine:
                 output_path=audio_path,
                 voice=voice,
             )
-            duration = audio_generator.get_audio_duration(audio_path)
+            _duration = audio_generator.get_audio_duration(audio_path)
         except Exception as e:
             errors.append(f"Audio generation failed: {e}")
-            duration = target_duration
+            _duration = target_duration
             if not audio_path.exists():
                 errors.append("No audio file produced — cannot assemble video")
                 self.cb("Saving manifest…", 94)

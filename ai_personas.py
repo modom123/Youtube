@@ -6,11 +6,9 @@ reusable characters that present videos. They integrate with Higgsfield
 (Seedance 2.0, Marketing Studio) for avatar video generation and with
 the existing TTS pipeline for voiceover.
 """
-import json
 import logging
 from typing import Optional
 
-import config
 import database as db
 
 log = logging.getLogger("ai_personas")
@@ -212,7 +210,7 @@ def build_avatar_prompt(persona: dict, scene_description: str,
     appearance = persona.get("appearance_desc", "professional looking person")
     gender = persona.get("gender", "person")
     age = persona.get("age_range", "adult")
-    style = persona.get("avatar_style", "professional")
+    _style = persona.get("avatar_style", "professional")
 
     gender_word = {"male": "man", "female": "woman"}.get(gender, "person")
 

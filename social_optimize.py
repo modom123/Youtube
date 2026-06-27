@@ -409,7 +409,7 @@ def run(
     if build_log:
         build_log.stage_start("Audio Generation", voice=voice)
     audio_path = job / "voiceover.mp3"
-    print(f"[pipeline] Starting audio generation stage...")
+    print("[pipeline] Starting audio generation stage...")
     with logger.spinner(f"Generating voiceover ({voice})..."):
         audio_generator.generate_audio(
             text=script.narration,
@@ -430,7 +430,7 @@ def run(
     _push_progress(50, "Fetching stock media...")
     if build_log:
         build_log.stage_start("Stock Media Fetch", keywords=script.keywords[:5])
-    print(f"[pipeline] Starting media fetch stage...")
+    print("[pipeline] Starting media fetch stage...")
     with logger.spinner("Fetching stock media..."):
         stock_dir = job / "stock"
         video_clips, image_clips = media_fetcher.fetch_media_for_topic(
@@ -580,7 +580,7 @@ def run(
         build_log.stage_start("Video Assembly", total_video_clips=len(all_video_clips),
                               total_image_sources=len(all_image_sources),
                               content_graphics=len(content_graphics))
-    print(f"[pipeline] Starting video assembly stage...")
+    print("[pipeline] Starting video assembly stage...")
     video_path = job / "video.mp4"
     with logger.spinner("Assembling video..."):
         if format == "podcast":

@@ -21,18 +21,21 @@ from flask import (
 )
 from flask_login import LoginManager, login_required, current_user
 from werkzeug.utils import secure_filename
+import requests
 import database as db
 import config
 from auth import auth_bp, make_user
 from billing import billing_bp, check_usage_gate
 from admin import admin_bp
+from notifications import send_notification
+from monetizer import monetizer_bp, init_monetizer_tables
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
 # Trust Render's reverse-proxy headers so request.url_root returns the
 # correct public HTTPS URL instead of the internal http://service:10000 address.
-from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 login_manager = LoginManager(app)
@@ -54,6 +57,7 @@ def load_user(user_id):
 app.register_blueprint(auth_bp)
 app.register_blueprint(billing_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(monetizer_bp)
 
 @app.errorhandler(500)
 def _handle_500(e):
@@ -1383,7 +1387,9 @@ def oauth_instagram_start():
 @app.route("/oauth/twitter/start")
 @login_required
 def oauth_twitter_start():
-    import secrets, hashlib, base64
+    import secrets
+    import hashlib
+    import base64
     if not config.TWITTER_CLIENT_ID:
         return redirect(url_for("accounts_page"))
     verifier = secrets.token_urlsafe(32)
@@ -1656,7 +1662,6 @@ def _public_callback_base() -> str:
 
 def _hf_discover() -> dict:
     """Fetch OAuth server metadata from Higgsfield MCP discovery endpoint."""
-    import hashlib, base64
     try:
         r = requests.get(f"{_HIGGSFIELD_MCP_BASE}/.well-known/oauth-authorization-server", timeout=6)
         if r.ok:
@@ -1672,7 +1677,9 @@ def _hf_discover() -> dict:
 @app.route("/oauth/higgsfield/start")
 @login_required
 def oauth_higgsfield_start():
-    import hashlib, base64, secrets as _sec
+    import hashlib
+    import base64
+    import secrets as _sec
     disc = _hf_discover()
     auth_ep = disc.get("authorization_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/authorize")
 
@@ -1734,8 +1741,8 @@ def oauth_higgsfield_callback():
         resp.raise_for_status()
         tokens = resp.json()
         access_token = tokens.get("access_token", "")
-    except Exception as e:
-        return redirect(url_for("accounts_page") + f"?error=higgsfield_token_failed")
+    except Exception:
+        return redirect(url_for("accounts_page") + "?error=higgsfield_token_failed")
 
     if not access_token:
         return redirect(url_for("accounts_page") + "?error=higgsfield_no_token")
@@ -1831,18 +1838,24 @@ def import_contacts_vcf():
     try:
         for vcard in vobject.readComponents(content):
             name = ""
-            try: name = str(vcard.fn.value)
+            try:
+                name = str(vcard.fn.value)
             except Exception:
                 try:
                     n = vcard.n.value
                     name = f"{n.given} {n.family}".strip()
-                except Exception: pass
+                except Exception:
+                    pass
             email = ""
-            try: email = str(vcard.email.value)
-            except Exception: pass
+            try:
+                email = str(vcard.email.value)
+            except Exception:
+                pass
             phone = ""
-            try: phone = str(vcard.tel.value)
-            except Exception: pass
+            try:
+                phone = str(vcard.tel.value)
+            except Exception:
+                pass
             if name:
                 contacts.append({"name": name, "handle": "", "email": email, "phone": phone,
                                   "platform": "phone", "avatar_url": "", "followers": 0, "tags": "[]"})
@@ -1859,7 +1872,8 @@ def import_contacts_manual():
     contacts = data.get("contacts", [])
     cleaned = []
     for c in contacts:
-        if not c.get("name"): continue
+        if not c.get("name"):
+            continue
         cleaned.append({
             "name": c.get("name", "").strip(), "handle": c.get("handle", "").strip(),
             "email": c.get("email", "").strip(), "phone": c.get("phone", "").strip(),
@@ -2243,7 +2257,7 @@ def api_research_preview():
     if not topic or len(topic) < 4:
         return jsonify({"facts": [], "sources": [], "data_points": []})
     try:
-        from generators.researcher import research_topic, brief_to_context
+        from generators.researcher import research_topic
         brief = research_topic(topic)
         return jsonify({
             "summary": brief.summary[:400] if brief.summary else "",
@@ -2491,7 +2505,6 @@ def _push_studio_event(job_id: str, data: dict):
 
 
 def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
-    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
     from generators.production_engine import ProductionStudioEngine
     niche = params["niche"]
 
@@ -2868,7 +2881,7 @@ def api_hollywood_reassemble():
     """Re-assemble video with edited script scenes."""
     data = request.json or {}
     db_job_id = data.get("db_job_id")
-    edited_scenes = data.get("scenes", [])  # [{section_id, narration}, ...]
+    _edited_scenes = data.get("scenes", [])  # [{section_id, narration}, ...]
     # For now, just note the edit was requested and return job URL
     return jsonify({"ok": True, "message": "Re-assembly queued", "job_id": db_job_id})
 
@@ -4234,7 +4247,7 @@ VIDEO_PROMPT: [Detailed cinematic prompt for AI video generation]"""
         step("Generating AI commercial video...", 50)
 
         # ── Step 3: Generate video with Higgsfield ───────────────────────────
-        from generators.ai_video_generator import generate_higgsville_clips, HIGGSVILLE_MODELS
+        from generators.ai_video_generator import generate_higgsville_clips
         out_dir = COMMERCIAL_UPLOADS / job_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -4355,7 +4368,7 @@ def commercial_broadcast_youtube(job_id):
         body = {
             "snippet": {
                 "title": title,
-                "description": description or f"Commercial generated by Social Money.",
+                "description": description or "Commercial generated by Social Money.",
                 "categoryId": "22",
                 "tags": ["commercial", "advertisement", "ai generated"],
             },
@@ -4644,11 +4657,12 @@ def start_background_threads():
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 db.init_db()
+init_monetizer_tables()
 _load_platform_creds_from_db()
 start_background_threads()
 
 # Start the job monitor agent (auto-resets stuck jobs every 5 min)
-from agents.job_monitor import start as _start_monitor
+from agents.job_monitor import start as _start_monitor  # noqa: E402
 _start_monitor()
 
 if __name__ == "__main__":

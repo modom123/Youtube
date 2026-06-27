@@ -372,7 +372,7 @@ def create_progressive_bar_chart(
     name_font_size = max(11, min(22, bar_h - 6))
     rank_font = _font(rank_font_size, bold=True)
     name_font = _font(name_font_size, bold=True)
-    label_font = _font(max(10, name_font_size - 3), bold=False)
+    _label_font = _font(max(10, name_font_size - 3), bold=False)
 
     # ── Bars ──────────────────────────────────────────────────────────────────
     for i, item in enumerate(items):
@@ -453,8 +453,8 @@ def create_progressive_bar_chart(
         # ── NEW badge ─────────────────────────────────────────────────────
         if is_new:
             badge_x = x_bar_end + 8
-            badge_w, badge_h2 = 44, bar_h - 4
-            badge_y = y_mid - badge_h2 // 2
+            _badge_w, badge_h2 = 44, bar_h - 4
+            _badge_y = y_mid - badge_h2 // 2
             # Arrow triangle
             draw.polygon([
                 (badge_x, y_mid - 7),

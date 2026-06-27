@@ -11,14 +11,14 @@ for line in env_file.read_text().splitlines():
         k, v = line.split('=', 1)
         os.environ[k.strip()] = v.strip()
 
-import importlib
-import config
+import importlib  # noqa: E402
+import config  # noqa: E402
 importlib.reload(config)
 
 stripe_set = bool(os.environ.get('STRIPE_SECRET_KEY', ''))
 print(f"Stripe key loaded: {stripe_set}")
 
-from generators.hollywood_agent import chat
+from generators.hollywood_agent import chat  # noqa: E402
 
 message = """Set up the Stripe webhook endpoint. Use the STRIPE_SECRET_KEY from os.environ (already loaded).
 

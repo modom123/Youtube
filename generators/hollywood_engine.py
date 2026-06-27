@@ -412,10 +412,10 @@ class HollywoodEngine:
                 output_path=audio_path,
                 voice=voice,
             )
-            duration = audio_generator.get_audio_duration(audio_path)
+            _duration = audio_generator.get_audio_duration(audio_path)
         except Exception as e:
             errors.append(f"Audio generation failed: {e}")
-            duration = target_duration
+            _duration = target_duration
 
         # ── Fetch/generate assets: Pixabay stock + Higgsfield AI ─────────────
         stock_dir = job_dir / "stock"
