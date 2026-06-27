@@ -48,7 +48,7 @@ class FullScript(BaseModel):
 
 # ── Agent 3: Asset Curator output ───────────────────────────────────────────
 
-AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pixabay_api", "free_stock_internal"]
+AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pixabay_api", "free_stock_internal", "chinese_open_source_api"]
 
 class AssetSpec(BaseModel):
     section_id: int
@@ -59,7 +59,9 @@ class AssetSpec(BaseModel):
     duration_seconds: Optional[int] = None
     aspect_ratio: Literal["16:9", "9:16", "1:1"] = "16:9"
     credit_cost: int = Field(ge=0, description="Estimated Higgsfield credits (0 for free sources)")
+    dollar_cost: float = Field(default=0.0, description="Dollar cost for Chinese open-source models")
     priority: int = Field(ge=1, le=3, description="1=must-have, 2=nice-to-have, 3=optional")
+    visual_complexity: str = Field(default="low", description="low, medium_custom, or high_agentic_physics")
 
 
 class AssetPlan(BaseModel):
@@ -77,8 +79,10 @@ BudgetState = Literal["healthy", "warning", "critical_save"]
 class OptimizedAssetPlan(BaseModel):
     assets: list[AssetSpec]
     total_credit_cost: int
+    total_dollar_cost: float = 0.0
     budget_state: BudgetState
     credits_remaining_after: int
+    dollars_remaining_after: float = 0.0
     swaps_made: list[str] = Field(description="Human-readable list of cost substitutions")
     quality_impact: str = Field(description="Assessment of quality after optimisations")
 

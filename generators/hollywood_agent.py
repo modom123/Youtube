@@ -4,11 +4,14 @@ Interfaces with Studio 56 and manages deployment config.
 """
 import json
 import os
+import re
 import secrets
+from pathlib import Path
 import requests
 import anthropic
 import config
 import database as db
+import generators.hollywood_browser
 
 HOLLYWOOD_PERSONA = """You are Hollywood, the AI production agent for Social Optimize's Studio 56.
 You are confident, creative, and speak like a seasoned Hollywood producer.
@@ -609,6 +612,404 @@ def _tool_test_stripe_webhook(stripe_api_key: str, webhook_id: str, event_type: 
         return {"error": str(e)}
 
 
+# ── Blueprint tool constants ───────────────────────────────────────────────────
+
+_BLUEPRINT_VALID_FIELDS = {
+    "title", "hook", "core_angle", "target_audience", "content_type",
+    "tone", "estimated_ctr", "trend_score", "keywords",
+    "thumbnail_concept", "rationale",
+}
+
+_BLUEPRINT_CONTENT_TYPES = {
+    "listicle", "educational", "tutorial", "review", "commentary",
+    "vlog", "documentary", "interview", "news", "entertainment",
+}
+
+_BLUEPRINT_TONES = {
+    "conversational", "dramatic", "inspiring", "urgent", "calm",
+    "humorous", "professional", "casual", "authoritative", "storytelling",
+}
+
+
+# ── Blueprint tool implementations ────────────────────────────────────────────
+
+def _load_blueprint(job_id):
+    """Load blueprint.json for a job. Returns (bp_data, bp_path) or (None, error_str)."""
+    try:
+        job = db.get_job(job_id)
+        if not job:
+            return None, f"Job {job_id} not found"
+        manifest_path = job.get("manifest_path")
+        if not manifest_path:
+            return None, f"Job {job_id} has no manifest_path"
+        bp_path = Path(manifest_path).parent / "blueprint.json"
+        if not bp_path.exists():
+            return None, f"blueprint.json not found for job {job_id}"
+        with open(bp_path) as f:
+            return json.load(f), bp_path
+    except Exception as e:
+        return None, str(e)
+
+
+def _tool_get_blueprint(job_id):
+    """Load and return a job's blueprint."""
+    bp_data, err_or_path = _load_blueprint(job_id)
+    if bp_data is None:
+        return {"error": err_or_path}
+    return {"blueprint": bp_data}
+
+
+def _tool_update_blueprint(job_id, updates_dict):
+    """Update specific fields in a job's blueprint."""
+    # Validate fields
+    invalid = set(updates_dict.keys()) - _BLUEPRINT_VALID_FIELDS
+    if invalid:
+        return {"error": f"Invalid fields: {', '.join(sorted(invalid))}"}
+
+    # Validate content_type
+    if "content_type" in updates_dict and updates_dict["content_type"] not in _BLUEPRINT_CONTENT_TYPES:
+        return {"error": f"Invalid content_type: {updates_dict['content_type']}"}
+
+    # Validate estimated_ctr
+    if "estimated_ctr" in updates_dict:
+        ctr = updates_dict["estimated_ctr"]
+        if not (0 <= ctr <= 1):
+            return {"error": f"estimated_ctr must be between 0 and 1, got {ctr}"}
+
+    bp_data, err_or_path = _load_blueprint(job_id)
+    if bp_data is None:
+        return {"error": err_or_path}
+
+    bp_data.update(updates_dict)
+    with open(err_or_path, "w") as f:
+        json.dump(bp_data, f, indent=2)
+
+    return {
+        "updated_fields": list(updates_dict.keys()),
+        "new_values": updates_dict,
+    }
+
+
+def _tool_create_blueprint(
+    title, hook, core_angle, target_audience, content_type, tone, keywords,
+    estimated_ctr=0.05, trend_score=5.0, thumbnail_concept="", rationale="",
+):
+    """Create a new job with a blueprint."""
+    if tone not in _BLUEPRINT_TONES:
+        return {"error": f"Invalid tone: {tone}"}
+
+    bp_data = {
+        "title": title,
+        "hook": hook,
+        "core_angle": core_angle,
+        "target_audience": target_audience,
+        "content_type": content_type,
+        "tone": tone,
+        "estimated_ctr": estimated_ctr,
+        "trend_score": trend_score,
+        "keywords": keywords,
+        "thumbnail_concept": thumbnail_concept,
+        "rationale": rationale,
+    }
+
+    try:
+        job_id = db.create_job(
+            topic=title,
+            format="short",
+            platforms=[],
+            audience=target_audience,
+            voice="alloy",
+            style="fire",
+            privacy="private",
+        )
+        import tempfile
+        job_dir = Path(tempfile.mkdtemp(prefix=f"blueprint_{job_id}_"))
+        bp_path = job_dir / "blueprint.json"
+        manifest_path = job_dir / "manifest.json"
+        with open(bp_path, "w") as f:
+            json.dump(bp_data, f, indent=2)
+        with open(manifest_path, "w") as f:
+            json.dump({"niche": title}, f, indent=2)
+        db.update_job(job_id, status="done", manifest_path=str(manifest_path))
+        return {"status": "created", "blueprint": bp_data, "job_id": job_id}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _tool_clone_blueprint(source_job_id, overrides=None):
+    """Clone a blueprint from an existing job to a new one."""
+    bp_data, err_or_path = _load_blueprint(source_job_id)
+    if bp_data is None:
+        return {"error": err_or_path}
+
+    new_bp = dict(bp_data)
+    if overrides:
+        new_bp.update(overrides)
+
+    try:
+        job_id = db.create_job(
+            topic=new_bp.get("title", "Cloned Blueprint"),
+            format="short",
+            platforms=[],
+            audience=new_bp.get("target_audience", "general"),
+            voice="alloy",
+            style="fire",
+            privacy="private",
+        )
+        import tempfile
+        job_dir = Path(tempfile.mkdtemp(prefix=f"blueprint_{job_id}_"))
+        bp_path = job_dir / "blueprint.json"
+        manifest_path = job_dir / "manifest.json"
+        with open(bp_path, "w") as f:
+            json.dump(new_bp, f, indent=2)
+        with open(manifest_path, "w") as f:
+            json.dump({"niche": new_bp.get("title", "")}, f, indent=2)
+        db.update_job(job_id, status="done", manifest_path=str(manifest_path))
+        return {"new_job_id": job_id, "blueprint": new_bp}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _tool_analyze_blueprint(job_id):
+    """Analyze blueprint quality and return strengths/weaknesses/suggestions/score."""
+    bp_data, err_or_path = _load_blueprint(job_id)
+    if bp_data is None:
+        return {"error": err_or_path}
+
+    strengths = []
+    weaknesses = []
+    suggestions = []
+    score = 5.0
+
+    title = bp_data.get("title", "")
+    hook = bp_data.get("hook", "")
+    core_angle = bp_data.get("core_angle", "")
+    keywords = bp_data.get("keywords", [])
+    ctr = bp_data.get("estimated_ctr", 0.05)
+    trend = bp_data.get("trend_score", 5.0)
+    thumbnail = bp_data.get("thumbnail_concept", "")
+    rationale = bp_data.get("rationale", "")
+
+    # Title analysis
+    if len(title) >= 20:
+        strengths.append("Title is descriptive and engaging")
+        score += 1.0
+    else:
+        weaknesses.append("Title is too short")
+        score -= 1.0
+        suggestions.append("Make the title more descriptive (20+ characters)")
+
+    # Hook analysis
+    if len(hook) >= 20:
+        strengths.append("Strong hook to capture attention")
+        score += 1.0
+    else:
+        weaknesses.append("Hook is weak or missing")
+        score -= 1.0
+        suggestions.append("Add a compelling hook (20+ characters)")
+
+    # Core angle
+    if len(core_angle) >= 10:
+        strengths.append("Clear core angle defined")
+        score += 0.5
+    else:
+        weaknesses.append("Core angle is missing or vague")
+        score -= 0.5
+        suggestions.append("Define a clear core angle")
+
+    # Keywords
+    if len(keywords) >= 3:
+        strengths.append("Good keyword coverage")
+        score += 0.5
+    else:
+        weaknesses.append("Too few keywords for SEO")
+        score -= 0.5
+        suggestions.append("Add at least 3 keywords")
+
+    # CTR
+    if 0.03 <= ctr <= 0.15:
+        strengths.append("CTR estimate is realistic")
+        score += 0.5
+    else:
+        weaknesses.append("CTR estimate seems unrealistic")
+        score -= 0.5
+
+    # Trend score
+    if trend >= 6.0:
+        strengths.append("High trend relevance")
+        score += 0.5
+    else:
+        weaknesses.append("Low trend score")
+        score -= 0.5
+        suggestions.append("Consider more trending topics")
+
+    # Thumbnail
+    if thumbnail:
+        strengths.append("Thumbnail concept defined")
+        score += 0.5
+
+    # Rationale
+    if rationale:
+        strengths.append("Strategic rationale provided")
+        score += 0.5
+
+    score = max(1.0, min(10.0, score))
+
+    return {
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "suggestions": suggestions,
+        "overall_score": score,
+    }
+
+
+def _tool_compare_blueprints(job_id_a, job_id_b):
+    """Compare two blueprints field by field."""
+    bp_a, err_a = _load_blueprint(job_id_a)
+    if bp_a is None:
+        return {"error": err_a}
+    bp_b, err_b = _load_blueprint(job_id_b)
+    if bp_b is None:
+        return {"error": err_b}
+
+    compare_fields = [
+        "title", "hook", "core_angle", "target_audience", "content_type",
+        "tone", "estimated_ctr", "trend_score", "keywords",
+        "thumbnail_concept", "rationale",
+    ]
+
+    fields = {}
+    different = 0
+    for field in compare_fields:
+        val_a = bp_a.get(field)
+        val_b = bp_b.get(field)
+        match = val_a == val_b
+        fields[field] = {"a": val_a, "b": val_b, "match": match}
+        if not match:
+            different += 1
+
+    total = len(compare_fields)
+    similarity = ((total - different) / total) * 100 if total else 100
+
+    return {
+        "fields": fields,
+        "different_fields": different,
+        "similarity_pct": round(similarity, 1),
+    }
+
+
+def _tool_list_blueprints(limit=10, user_id=None):
+    """List recent jobs that have blueprints."""
+    try:
+        jobs = db.get_jobs(limit=limit * 3, user_id=user_id, status="done")
+        results = []
+        for j in (jobs or []):
+            manifest_path = j.get("manifest_path")
+            if not manifest_path:
+                continue
+            bp_path = Path(manifest_path).parent / "blueprint.json"
+            if not bp_path.exists():
+                continue
+            try:
+                with open(bp_path) as f:
+                    bp = json.load(f)
+                results.append({
+                    "job_id": j.get("id"),
+                    "title": bp.get("title", ""),
+                    "content_type": bp.get("content_type", ""),
+                    "tone": bp.get("tone", ""),
+                    "trend_score": bp.get("trend_score", 0),
+                })
+            except Exception:
+                continue
+            if len(results) >= limit:
+                break
+        return {"blueprints": results}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _browser_call(**kwargs):
+    """Stub browser call — replaced by browser automation when available."""
+    return {"error": "Browser not available"}
+
+
+def _tool_get_render_blueprint_yaml():
+    """Read render.yaml from the project root."""
+    try:
+        project_root = Path(__file__).resolve().parent.parent
+        render_path = project_root / "render.yaml"
+        if not render_path.exists():
+            return {"error": f"render.yaml not found at {render_path}"}
+        content = render_path.read_text()
+        env_vars = re.findall(r"- key:\s*(\S+)", content)
+        return {
+            "content": content,
+            "env_vars": env_vars,
+            "total_env_vars": len(env_vars),
+            "path": str(render_path),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _tool_render_dashboard_navigate(page, service_id=None):
+    """Navigate to a Render dashboard page."""
+    page_map = {
+        "services": "https://dashboard.render.com/services",
+        "blueprint_new": "https://dashboard.render.com/blueprint/new",
+        "env_vars": f"https://dashboard.render.com/web/{service_id or ''}/env",
+    }
+    if page.startswith("https://"):
+        url = page
+    elif page in page_map:
+        url = page_map[page]
+    else:
+        return {"error": f"Unknown page: {page}"}
+    result = _browser_call(url=url)
+    if "error" in result:
+        return {"error": result["error"]}
+    return {"page": page, "url": url, **result}
+
+
+def _tool_deploy_render_blueprint(repo_url, blueprint_name=""):
+    """Navigate to blueprint/new and fill repo URL."""
+    nav = _tool_render_dashboard_navigate(page="blueprint_new")
+    if "error" in nav:
+        return {"error": nav["error"], "steps": ["navigate_to_blueprint_new"]}
+    try:
+        bp_page = generators.hollywood_browser.get_page()
+        repo_input = bp_page.query_selector('input[name="repo"]')
+        if repo_input:
+            repo_input.fill(repo_url)
+        if blueprint_name:
+            name_input = bp_page.query_selector('input[name="name"]')
+            if name_input:
+                name_input.fill(blueprint_name)
+        screenshot = _browser_call(screenshot=True)
+        return {"status": "filled", "repo_url": repo_url, "blueprint_name": blueprint_name, **screenshot}
+    except Exception as e:
+        return {"error": str(e), "steps": ["navigate_to_blueprint_new", "fill_form"]}
+
+
+def _tool_fill_render_env_vars(service_id="", env_vars=None):
+    """Navigate to env vars page and fill values."""
+    nav = _tool_render_dashboard_navigate(page="env_vars", service_id=service_id or "")
+    if "error" in nav:
+        return {"error": nav["error"]}
+    try:
+        page = generators.hollywood_browser.get_page()
+        filled = []
+        for key, value in (env_vars or {}).items():
+            page.fill('input[name="key"]', key)
+            page.fill('input[name="value"]', str(value))
+            page.click('button:has-text("Add")')
+            filled.append(key)
+        return {"status": "filled", "filled": filled, "service_id": service_id}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ── Tool dispatch ──────────────────────────────────────────────────────────────
 
 def _dispatch_tool(tool_name: str, tool_input: dict, user_id: int = None) -> str:
@@ -662,6 +1063,61 @@ def _dispatch_tool(tool_name: str, tool_input: dict, user_id: int = None) -> str
                 stripe_api_key=tool_input["stripe_api_key"],
                 webhook_id=tool_input["webhook_id"],
                 event_type=tool_input["event_type"]
+            )
+        elif tool_name == "get_blueprint":
+            result = _tool_get_blueprint(job_id=int(tool_input["job_id"]))
+        elif tool_name == "update_blueprint":
+            result = _tool_update_blueprint(
+                job_id=int(tool_input["job_id"]),
+                updates_dict=tool_input["updates"],
+            )
+        elif tool_name == "create_blueprint":
+            result = _tool_create_blueprint(
+                title=tool_input["title"],
+                hook=tool_input["hook"],
+                core_angle=tool_input["core_angle"],
+                target_audience=tool_input["target_audience"],
+                content_type=tool_input["content_type"],
+                tone=tool_input["tone"],
+                keywords=tool_input.get("keywords", []),
+                estimated_ctr=tool_input.get("estimated_ctr", 0.05),
+                trend_score=tool_input.get("trend_score", 5.0),
+                thumbnail_concept=tool_input.get("thumbnail_concept", ""),
+                rationale=tool_input.get("rationale", ""),
+            )
+        elif tool_name == "clone_blueprint":
+            result = _tool_clone_blueprint(
+                source_job_id=int(tool_input["source_job_id"]),
+                overrides=tool_input.get("overrides"),
+            )
+        elif tool_name == "analyze_blueprint":
+            result = _tool_analyze_blueprint(job_id=int(tool_input["job_id"]))
+        elif tool_name == "list_blueprints":
+            result = _tool_list_blueprints(
+                limit=int(tool_input.get("limit", 10)),
+                user_id=user_id,
+            )
+        elif tool_name == "compare_blueprints":
+            result = _tool_compare_blueprints(
+                job_id_a=int(tool_input["job_id_a"]),
+                job_id_b=int(tool_input["job_id_b"]),
+            )
+        elif tool_name == "get_render_blueprint_yaml":
+            result = _tool_get_render_blueprint_yaml()
+        elif tool_name == "render_dashboard_navigate":
+            result = _tool_render_dashboard_navigate(
+                page=tool_input.get("page", ""),
+                service_id=tool_input.get("service_id"),
+            )
+        elif tool_name == "deploy_render_blueprint":
+            result = _tool_deploy_render_blueprint(
+                repo_url=tool_input.get("repo_url", ""),
+                blueprint_name=tool_input.get("blueprint_name", ""),
+            )
+        elif tool_name == "fill_render_env_vars":
+            result = _tool_fill_render_env_vars(
+                service_id=tool_input.get("service_id", ""),
+                env_vars=tool_input.get("env_vars"),
             )
         else:
             result = {"error": f"Unknown tool: {tool_name}"}

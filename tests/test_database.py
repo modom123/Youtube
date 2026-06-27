@@ -85,7 +85,7 @@ class TestUsageTracking:
 
     def test_check_usage_allowed_admin_always(self, db_conn):
         uid = db_conn.create_user(email="admin@test.com", password_hash="h")
-        db_conn.update_user(uid, is_admin=1, videos_used_this_month=999)
+        db_conn.update_user(uid, is_admin=1, videos_used=999)
         result = db_conn.check_usage_allowed(uid)
         assert result["allowed"] is True
 

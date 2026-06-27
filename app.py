@@ -4654,6 +4654,351 @@ def start_background_threads():
     t3.start()
 
 
+# ── RSS Feeds ────────────────────────────────────────────────────────────────
+
+@app.route("/api/rss/feeds", methods=["GET"])
+@login_required
+def api_rss_feeds():
+    feeds = db.get_rss_feeds(current_user.id)
+    return jsonify(feeds)
+
+@app.route("/api/rss/feeds", methods=["POST"])
+@login_required
+def api_rss_add_feed():
+    data = request.json or {}
+    if not data.get("url"):
+        return jsonify({"error": "url required"}), 400
+    feed_id = db.add_rss_feed(current_user.id, data["url"], data.get("name", ""), data.get("category", ""))
+    return jsonify({"status": "added", "id": feed_id})
+
+@app.route("/api/rss/feeds/<int:feed_id>", methods=["DELETE"])
+@login_required
+def api_rss_delete_feed(feed_id):
+    db.delete_rss_feed(feed_id, current_user.id)
+    return jsonify({"status": "deleted"})
+
+
+# ── DM Templates ────────────────────────────────────────────────────────────
+
+@app.route("/api/dm/templates", methods=["GET"])
+@login_required
+def api_dm_templates():
+    return jsonify(db.get_dm_templates(current_user.id))
+
+@app.route("/api/dm/templates", methods=["POST"])
+@login_required
+def api_dm_add_template():
+    data = request.json or {}
+    if not data.get("name"):
+        return jsonify({"error": "name required"}), 400
+    tmpl_id = db.create_dm_template(
+        current_user.id, data["name"], data.get("message_template", ""),
+        platform=data.get("platform", ""), trigger_on=data.get("trigger_on", ""))
+    return jsonify({"status": "created", "id": tmpl_id})
+
+@app.route("/api/dm/templates/<int:tmpl_id>", methods=["DELETE"])
+@login_required
+def api_dm_delete_template(tmpl_id):
+    db.delete_dm_template(tmpl_id, current_user.id)
+    return jsonify({"status": "deleted"})
+
+@app.route("/api/dm/send", methods=["POST"])
+@login_required
+def api_dm_send():
+    data = request.json or {}
+    from generators.engagement_engine import send_dm
+    result = send_dm(current_user.id, data.get("platform", ""), data.get("target_username", ""),
+                     message=data.get("message"))
+    return jsonify(result)
+
+
+# ── Auto-Reply Rules ────────────────────────────────────────────────────────
+
+@app.route("/api/auto-reply/rules", methods=["GET"])
+@login_required
+def api_auto_reply_rules():
+    platform = request.args.get("platform")
+    return jsonify(db.get_auto_reply_rules(current_user.id, platform))
+
+@app.route("/api/auto-reply/rules", methods=["POST"])
+@login_required
+def api_auto_reply_add_rule():
+    data = request.json or {}
+    if not data.get("trigger_value") or not data.get("reply_template"):
+        return jsonify({"error": "trigger_value and reply_template required"}), 400
+    rule_id = db.create_auto_reply_rule(
+        current_user.id, data.get("platform", ""), data.get("trigger_type", "keyword"),
+        data["trigger_value"], data["reply_template"], data.get("uses_spintax", False))
+    return jsonify({"status": "created", "id": rule_id})
+
+@app.route("/api/auto-reply/rules/<int:rule_id>", methods=["DELETE"])
+@login_required
+def api_auto_reply_delete_rule(rule_id):
+    db.delete_auto_reply_rule(rule_id, current_user.id)
+    return jsonify({"status": "deleted"})
+
+
+# ── Follow Tracking ──────────────────────────────────────────────────────────
+
+@app.route("/api/follows", methods=["GET"])
+@login_required
+def api_follows():
+    return jsonify(db.get_follows(current_user.id))
+
+@app.route("/api/follows", methods=["POST"])
+@login_required
+def api_follow_track():
+    data = request.json or {}
+    if not data.get("target_username"):
+        return jsonify({"error": "target_username required"}), 400
+    fid = db.track_follow(current_user.id, data.get("platform", ""), data["target_username"])
+    return jsonify({"status": "tracked", "id": fid})
+
+@app.route("/api/follows/stale", methods=["GET"])
+@login_required
+def api_follows_stale():
+    days = int(request.args.get("days", 7))
+    return jsonify(db.get_stale_follows(current_user.id, days))
+
+@app.route("/api/follows/auto-unfollow", methods=["POST"])
+@login_required
+def api_auto_unfollow():
+    data = request.json or {}
+    from generators.engagement_engine import auto_unfollow_stale
+    results = auto_unfollow_stale(current_user.id, days_threshold=data.get("days", 7))
+    return jsonify({"unfollowed": results})
+
+
+# ── Growth Analytics ─────────────────────────────────────────────────────────
+
+@app.route("/api/growth/snapshot", methods=["POST"])
+@login_required
+def api_growth_snapshot():
+    data = request.json or {}
+    if not data.get("account_id") or not data.get("platform"):
+        return jsonify({"error": "account_id and platform required"}), 400
+    snap_id = db.add_growth_snapshot(
+        current_user.id, data["account_id"], data["platform"],
+        followers=data.get("followers", 0), following=data.get("following", 0),
+        posts=data.get("posts", 0), engagement_rate=data.get("engagement_rate", 0),
+        views_total=data.get("views_total", 0), likes_total=data.get("likes_total", 0))
+    return jsonify({"status": "recorded", "id": snap_id})
+
+@app.route("/api/growth/history", methods=["GET"])
+@login_required
+def api_growth_history():
+    account_id = request.args.get("account_id", type=int)
+    return jsonify(db.get_growth_history(current_user.id, account_id))
+
+@app.route("/api/growth/summary", methods=["GET"])
+@login_required
+def api_growth_summary():
+    return jsonify(db.get_growth_summary(current_user.id))
+
+
+# ── Hashtag Research ─────────────────────────────────────────────────────────
+
+@app.route("/api/hashtags/research", methods=["GET"])
+@login_required
+def api_hashtag_research():
+    topic = request.args.get("topic", "")
+    if not topic:
+        return jsonify({"error": "topic required"}), 400
+    hashtags = [f"#{topic.lower().replace(' ', '')}", f"#{topic.lower().replace(' ', '')}tips",
+                f"#{topic.lower().replace(' ', '')}2024", "#viral", "#trending"]
+    return jsonify({"hashtags": hashtags, "topic": topic})
+
+
+# ── Account Warmup ───────────────────────────────────────────────────────────
+
+@app.route("/api/warmup/status", methods=["GET"])
+@login_required
+def api_warmup_status():
+    account_created = request.args.get("account_created")
+    if not account_created:
+        return jsonify({"error": "account_created required"}), 400
+    from datetime import datetime
+    try:
+        created = datetime.fromisoformat(account_created.replace("Z", "+00:00"))
+    except Exception:
+        created = datetime.utcnow()
+    age_days = (datetime.utcnow() - created.replace(tzinfo=None)).days
+    if age_days < 7:
+        phase = "seedling"
+    elif age_days < 30:
+        phase = "growing"
+    elif age_days < 90:
+        phase = "established"
+    else:
+        phase = "mature"
+    return jsonify({"phase": phase, "age_days": age_days, "account_created": account_created})
+
+@app.route("/api/warmup/limits", methods=["GET"])
+@login_required
+def api_warmup_limits():
+    platform = request.args.get("platform", "")
+    account_created = request.args.get("account_created", "")
+    if not account_created:
+        return jsonify({"error": "account_created required"}), 400
+    limits = {"follows_per_day": 20, "likes_per_day": 50, "comments_per_day": 10, "dms_per_day": 5}
+    return jsonify({"limits": limits, "platform": platform})
+
+
+# ── Spintax Preview ──────────────────────────────────────────────────────────
+
+@app.route("/api/spintax/preview", methods=["POST"])
+@login_required
+def api_spintax_preview():
+    data = request.json or {}
+    text = data.get("text", "")
+    if not text:
+        return jsonify({"error": "text required"}), 400
+    from utils.spintax import validate, spin_batch, estimate_variations
+    ok, msg = validate(text)
+    if not ok:
+        return jsonify({"error": msg}), 400
+    count = data.get("count", 5)
+    variations = spin_batch(text, count)
+    return jsonify({"variations": variations, "total_possible": estimate_variations(text)})
+
+
+# ── User Scraper ─────────────────────────────────────────────────────────────
+
+@app.route("/api/scraper/run", methods=["POST"])
+@login_required
+def api_scraper_run():
+    data = request.json or {}
+    if not data.get("target"):
+        return jsonify({"error": "target required"}), 400
+    return jsonify({"status": "complete", "platform": data.get("platform", ""), "target": data["target"], "count": 0, "users": []})
+
+
+# ── Engagement Center ─────────────────────────────────────────────────────────
+
+@app.route("/engagement")
+@login_required
+def engagement_page():
+    stats = db.get_engagement_stats(current_user.id)
+    campaigns = db.get_engagement_campaigns(current_user.id)
+    return render_template("engagement.html", stats=stats, campaigns=campaigns)
+
+
+@app.route("/api/engagement/campaigns", methods=["GET"])
+@login_required
+def api_engagement_campaigns_list():
+    camps = db.get_engagement_campaigns(current_user.id)
+    return jsonify(camps)
+
+
+@app.route("/api/engagement/campaigns", methods=["POST"])
+@login_required
+def api_engagement_campaigns_create():
+    data = request.json or {}
+    if not data.get("name"):
+        return jsonify({"error": "name required"}), 400
+    if not data.get("platforms"):
+        return jsonify({"error": "platforms required"}), 400
+    camp_id = db.create_engagement_campaign(
+        user_id=current_user.id,
+        name=data["name"],
+        platforms=data.get("platforms"),
+        target_niche=data.get("target_niche", ""),
+        strategy=data.get("strategy", "growth"),
+        daily_limit=data.get("daily_limit", 50),
+    )
+    return jsonify({"status": "created", "campaign_id": camp_id})
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>", methods=["GET"])
+@login_required
+def api_engagement_campaign_get(campaign_id):
+    try:
+        campaign_id = int(campaign_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "not found"}), 404
+    camp = db.get_engagement_campaign(campaign_id, current_user.id)
+    if not camp:
+        return jsonify({"error": "not found"}), 404
+    stats = db.get_engagement_stats(current_user.id)
+    recent = db.get_engagement_actions(current_user.id, campaign_id=campaign_id, limit=10)
+    targets = db.get_engagement_targets(current_user.id, campaign_id)
+    return jsonify({"campaign": camp, "stats": stats, "recent_actions": recent, "targets": targets})
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>", methods=["PUT"])
+@login_required
+def api_engagement_campaign_update(campaign_id):
+    try:
+        campaign_id = int(campaign_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "not found"}), 404
+    data = request.json or {}
+    db.update_engagement_campaign(campaign_id, **data)
+    return jsonify({"status": "updated"})
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>", methods=["DELETE"])
+@login_required
+def api_engagement_campaign_delete(campaign_id):
+    try:
+        campaign_id = int(campaign_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "not found"}), 404
+    db.delete_engagement_campaign(campaign_id, current_user.id)
+    return jsonify({"status": "deleted"})
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>/targets", methods=["POST"])
+@login_required
+def api_engagement_targets_add(campaign_id):
+    try:
+        campaign_id = int(campaign_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "not found"}), 404
+    camp = db.get_engagement_campaign(campaign_id, current_user.id)
+    if not camp:
+        return jsonify({"error": "campaign not found"}), 404
+    data = request.json or {}
+    targets = data.get("targets", [])
+    if not targets:
+        return jsonify({"error": "targets list required"}), 400
+    added = 0
+    for t in targets:
+        db.add_engagement_target(
+            user_id=current_user.id,
+            campaign_id=campaign_id,
+            platform=t.get("platform", ""),
+            username=t.get("username", ""),
+            followers=t.get("followers", 0),
+        )
+        added += 1
+    return jsonify({"status": "added", "added": added})
+
+
+@app.route("/api/engagement/actions", methods=["POST"])
+@login_required
+def api_engagement_actions_create():
+    data = request.json or {}
+    if not data.get("platform") or not data.get("action_type") or not data.get("target_url"):
+        return jsonify({"error": "platform, action_type, and target_url required"}), 400
+    action_id = db.create_engagement_action(
+        user_id=current_user.id,
+        platform=data["platform"],
+        action_type=data["action_type"],
+        target_url=data.get("target_url", ""),
+        comment_text=data.get("comment_text", ""),
+        campaign_id=data.get("campaign_id"),
+    )
+    return jsonify({"status": "queued", "action_id": action_id})
+
+
+@app.route("/api/engagement/stats", methods=["GET"])
+@login_required
+def api_engagement_stats():
+    stats = db.get_engagement_stats(current_user.id)
+    return jsonify(stats)
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 db.init_db()
