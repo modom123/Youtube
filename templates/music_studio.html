@@ -716,28 +716,6 @@ input[type=range]::-webkit-slider-thumb {
 .monitor-btn.on { background: var(--c-green); border-color: var(--c-green); color: #000; }
 .monitor-btn.rec { background: var(--c-red); border-color: var(--c-red); color: #fff; }
 
-.meter-bar {
-  height: 10px;
-  background: var(--c-elevated);
-  border-radius: 5px;
-  overflow: hidden;
-  border: 1px solid var(--c-border);
-  margin-bottom: 6px;
-}
-.meter-fill {
-  height: 100%;
-  width: 0%;
-  border-radius: 5px;
-  background: linear-gradient(90deg, var(--c-green) 0%, #facc15 70%, var(--c-red) 90%);
-  transition: width .05s;
-}
-.meter-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9px;
-  color: var(--c-muted);
-  margin-bottom: 10px;
-}
 
 .input-select {
   width: 100%;
@@ -749,6 +727,47 @@ input[type=range]::-webkit-slider-thumb {
   font-size: 11px;
   outline: none;
   margin-bottom: 8px;
+}
+
+/* FX chip toggle */
+.fx-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--c-elevated);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-muted);
+  transition: all .15s;
+  user-select: none;
+}
+.fx-chip input { display: none; }
+.fx-chip:hover { border-color: var(--c-purple); color: var(--c-text); }
+.fx-chip:has(input:checked) {
+  background: var(--c-glow);
+  border-color: var(--c-purple);
+  color: var(--c-purple);
+}
+
+/* Compact meter */
+.meter-compact {
+  height: 6px;
+  background: var(--c-elevated);
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+  margin: 6px 0;
+}
+.meter-compact .meter-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--c-green) 0%, #facc15 70%, var(--c-red) 90%);
+  transition: width .05s;
 }
 
 /* ── Record tab ─────────────────────────────────────────────────────────────── */
@@ -961,67 +980,69 @@ input[type=range]::-webkit-slider-thumb {
       <!-- ── MIX & FX TAB ───────────────────────────────────────────────── -->
       <div id="lpane-mix" class="ms-left-pane">
 
-        <div class="sec-divider">EQ</div>
-        <div class="slider-row">
-          <label>Bass <span id="bassVal">0</span> dB</label>
-          <input type="range" id="slBass" min="-12" max="12" value="0" step="0.5"
-                 oninput="updateEq('bass',this.value)">
+        <!-- EQ: 3-band side-by-side -->
+        <div class="sec-divider">EQ — 3 Band</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <div style="flex:1;text-align:center">
+            <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--c-muted);margin-bottom:4px">Bass</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <span style="font-size:10px;color:var(--c-purple)" id="bassVal">0</span>
+              <input type="range" id="slBass" min="-12" max="12" value="0" step="0.5"
+                     oninput="updateEq('bass',this.value)" style="writing-mode:vertical-lr;direction:rtl;height:70px;width:auto">
+              <span style="font-size:9px;color:var(--c-muted)">120Hz</span>
+            </div>
+          </div>
+          <div style="flex:1;text-align:center">
+            <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--c-muted);margin-bottom:4px">Mid</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <span style="font-size:10px;color:var(--c-purple)" id="midVal">0</span>
+              <input type="range" id="slMid" min="-12" max="12" value="0" step="0.5"
+                     oninput="updateEq('mid',this.value)" style="writing-mode:vertical-lr;direction:rtl;height:70px;width:auto">
+              <span style="font-size:9px;color:var(--c-muted)">1kHz</span>
+            </div>
+          </div>
+          <div style="flex:1;text-align:center">
+            <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:var(--c-muted);margin-bottom:4px">Treble</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <span style="font-size:10px;color:var(--c-purple)" id="trebleVal">0</span>
+              <input type="range" id="slTreble" min="-12" max="12" value="0" step="0.5"
+                     oninput="updateEq('treble',this.value)" style="writing-mode:vertical-lr;direction:rtl;height:70px;width:auto">
+              <span style="font-size:9px;color:var(--c-muted)">8kHz</span>
+            </div>
+          </div>
         </div>
-        <div class="slider-row">
-          <label>Mid <span id="midVal">0</span> dB</label>
-          <input type="range" id="slMid" min="-12" max="12" value="0" step="0.5"
-                 oninput="updateEq('mid',this.value)">
-        </div>
-        <div class="slider-row">
-          <label>Treble <span id="trebleVal">0</span> dB</label>
-          <input type="range" id="slTreble" min="-12" max="12" value="0" step="0.5"
-                 oninput="updateEq('treble',this.value)">
-        </div>
+        <div style="text-align:center;font-size:9px;color:var(--c-muted);margin-bottom:10px">dB: −12 to +12</div>
 
+        <!-- Filter + Drive compact row -->
         <div class="sec-divider">Dynamics</div>
         <div class="slider-row">
-          <label>Filter Cutoff <span id="filterVal">20000</span> Hz</label>
+          <label>Filter Cutoff <span id="filterVal">20,000</span> Hz</label>
           <input type="range" id="slFilter" min="200" max="20000" value="20000" step="100"
                  oninput="updateFilter(this.value)">
         </div>
         <div class="slider-row">
-          <label>Distortion <span id="driveVal">0</span></label>
+          <label>Drive / Distortion <span id="driveVal">0</span></label>
           <input type="range" id="slDrive" min="0" max="100" value="0" step="1"
                  oninput="updateDrive(this.value)">
         </div>
         <div class="slider-row">
-          <label>Tremolo Rate <span id="tremoloVal">0</span> Hz</label>
+          <label>Tremolo Rate <span id="tremoloVal">0.0</span> Hz</label>
           <input type="range" id="slTremolo" min="0" max="20" value="0" step="0.5"
                  oninput="updateTremolo(this.value)">
         </div>
 
-        <div class="sec-divider">Effects</div>
-        <div class="toggle-row">
-          <span>Reverb</span>
-          <label class="toggle"><input type="checkbox" id="fxReverb" onchange="toggleFx('reverb',this.checked)"><span class="toggle-track"></span></label>
-        </div>
-        <div class="toggle-row">
-          <span>Delay / Echo</span>
-          <label class="toggle"><input type="checkbox" id="fxDelay" onchange="toggleFx('delay',this.checked)"><span class="toggle-track"></span></label>
-        </div>
-        <div class="toggle-row">
-          <span>Compressor</span>
-          <label class="toggle"><input type="checkbox" id="fxComp" checked onchange="toggleFx('comp',this.checked)"><span class="toggle-track"></span></label>
-        </div>
-        <div class="toggle-row">
-          <span>Limiter</span>
-          <label class="toggle"><input type="checkbox" id="fxLimit" checked onchange="toggleFx('limit',this.checked)"><span class="toggle-track"></span></label>
-        </div>
-        <div class="toggle-row">
-          <span>Phaser</span>
-          <label class="toggle"><input type="checkbox" id="fxPhaser" onchange="toggleFx('phaser',this.checked)"><span class="toggle-track"></span></label>
-        </div>
-        <div class="toggle-row">
-          <span>Bit Crusher</span>
-          <label class="toggle"><input type="checkbox" id="fxCrush" onchange="toggleFx('crush',this.checked)"><span class="toggle-track"></span></label>
+        <!-- FX toggles as a 2-col chip grid -->
+        <div class="sec-divider">Effects Chain</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">
+          <label class="fx-chip"><input type="checkbox" id="fxReverb" onchange="toggleFx('reverb',this.checked)"><span>🌊 Reverb</span></label>
+          <label class="fx-chip"><input type="checkbox" id="fxDelay"  onchange="toggleFx('delay',this.checked)"><span>🔁 Delay</span></label>
+          <label class="fx-chip"><input type="checkbox" id="fxComp" checked onchange="toggleFx('comp',this.checked)"><span>⬇ Compress</span></label>
+          <label class="fx-chip"><input type="checkbox" id="fxLimit" checked onchange="toggleFx('limit',this.checked)"><span>🧱 Limiter</span></label>
+          <label class="fx-chip"><input type="checkbox" id="fxPhaser" onchange="toggleFx('phaser',this.checked)"><span>〰 Phaser</span></label>
+          <label class="fx-chip"><input type="checkbox" id="fxCrush" onchange="toggleFx('crush',this.checked)"><span>💥 Crusher</span></label>
         </div>
 
-        <div class="sec-divider" style="margin-top:18px">Master Volume</div>
+        <div class="sec-divider">Master Volume</div>
         <div class="slider-row">
           <label>Volume <span id="volVal">100</span>%</label>
           <input type="range" id="slVol" min="0" max="150" value="100" step="1"
@@ -1045,8 +1066,11 @@ input[type=range]::-webkit-slider-thumb {
           <select class="input-select" id="audioInputSelect">
             <option value="">Default microphone / line in</option>
           </select>
-          <div class="meter-bar"><div class="meter-fill" id="meterFill"></div></div>
-          <div class="meter-labels"><span>-60dB</span><span>-24</span><span>-12</span><span>-6</span><span>0</span></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:9px;color:var(--c-muted);font-weight:700;text-transform:uppercase">Level</span>
+            <div class="meter-compact" style="flex:1"><div class="meter-fill" id="meterFill"></div></div>
+            <span style="font-size:9px;color:var(--c-muted)">0dB</span>
+          </div>
           <div style="display:flex;gap:8px;align-items:center">
             <label style="font-size:10px;color:var(--c-muted);font-weight:700;text-transform:uppercase">Input Gain</label>
             <input type="range" id="inputGainSlider" min="0" max="300" value="100" step="1"
@@ -1272,100 +1296,104 @@ function tapTempo() {
 }
 
 /* ═══════════════════════ AUDIO ENGINE ══════════════════════════════════════ */
+/* Fix: <audio> element MUST be wired into WebAudio via createMediaElementSource
+   so EQ/FX nodes actually process the playback signal.
+   We use a fixed always-connected chain + parallel send gains for reverb/delay. */
+const _audio = document.getElementById('mainAudio');
 let _actx = null;
-let _sourceNode = null;
-let _gainNode = null;
-let _compNode = null;
-let _limitNode = null;
-let _reverbNode = null;
-let _delayNode = null;
-let _delayFeedback = null;
-let _bassEq = null;
-let _midEq = null;
-let _trebleEq = null;
-let _filterNode = null;
-let _distNode = null;
-let _tremoloOsc = null;
-let _tremoloGain = null;
-let _masterGain = null;
-let _fxEnabled = { reverb: false, delay: false, comp: true, limit: true, phaser: false, crush: false };
+let _elemSrc = null;   // MediaElementAudioSourceNode — created once per audio element
+let _bassEq = null, _midEq = null, _trebleEq = null;
+let _filterNode = null, _distNode = null;
+let _compNode = null, _limitNode = null;
+let _reverbSend = null, _reverbNode = null;
+let _delaySend = null, _delayNode = null, _delayFb = null;
+let _volGain = null, _masterGain = null;
+let _tremoloOsc = null, _tremoloGain = null;
+let _playing = false;
 
 function _initAudio() {
   if (_actx) return;
   _actx = new (window.AudioContext || window.webkitAudioContext)();
-  _masterGain = _actx.createGain();
-  _masterGain.connect(_actx.destination);
 
-  // EQ
-  _bassEq = _actx.createBiquadFilter();
-  _bassEq.type = 'lowshelf';
-  _bassEq.frequency.value = 120;
-  _midEq = _actx.createBiquadFilter();
-  _midEq.type = 'peaking';
-  _midEq.frequency.value = 1000;
-  _midEq.Q.value = 0.8;
+  // ── Route the <audio> element into the WebAudio graph ────────────────────
+  _elemSrc = _actx.createMediaElementSource(_audio);
+
+  // ── EQ ───────────────────────────────────────────────────────────────────
+  _bassEq   = _actx.createBiquadFilter();
+  _bassEq.type = 'lowshelf';   _bassEq.frequency.value = 120;
+  _midEq    = _actx.createBiquadFilter();
+  _midEq.type = 'peaking';     _midEq.frequency.value = 1000; _midEq.Q.value = 0.8;
   _trebleEq = _actx.createBiquadFilter();
-  _trebleEq.type = 'highshelf';
-  _trebleEq.frequency.value = 8000;
-  _bassEq.connect(_midEq);
-  _midEq.connect(_trebleEq);
+  _trebleEq.type = 'highshelf'; _trebleEq.frequency.value = 8000;
 
-  // Filter
+  // ── Filter & Distortion ──────────────────────────────────────────────────
   _filterNode = _actx.createBiquadFilter();
-  _filterNode.type = 'lowpass';
-  _filterNode.frequency.value = 20000;
-  _trebleEq.connect(_filterNode);
-
-  // Distortion
+  _filterNode.type = 'lowpass'; _filterNode.frequency.value = 20000;
   _distNode = _actx.createWaveShaper();
   _distNode.curve = _makeDistCurve(0);
-  _filterNode.connect(_distNode);
+  _distNode.oversample = '4x';
 
-  // Compressor
+  // ── Compressor (always inline, bypassed by setting threshold to 0) ────────
   _compNode = _actx.createDynamicsCompressor();
-  _compNode.threshold.value = -18;
-  _compNode.knee.value = 10;
-  _compNode.ratio.value = 4;
-  _compNode.attack.value = 0.003;
-  _compNode.release.value = 0.15;
+  _compNode.threshold.value = -18; _compNode.knee.value = 10;
+  _compNode.ratio.value = 4; _compNode.attack.value = 0.003; _compNode.release.value = 0.15;
 
-  // Limiter
+  // ── Limiter (always inline) ───────────────────────────────────────────────
   _limitNode = _actx.createDynamicsCompressor();
-  _limitNode.threshold.value = -3;
-  _limitNode.knee.value = 0;
-  _limitNode.ratio.value = 20;
-  _limitNode.attack.value = 0.001;
-  _limitNode.release.value = 0.05;
+  _limitNode.threshold.value = -3; _limitNode.knee.value = 0;
+  _limitNode.ratio.value = 20; _limitNode.attack.value = 0.001; _limitNode.release.value = 0.05;
 
-  // Reverb
-  _reverbNode = _actx.createConvolver();
-  _reverbNode.buffer = _makeImpulse(2.5, 2);
+  // ── Reverb parallel send ──────────────────────────────────────────────────
+  _reverbSend = _actx.createGain(); _reverbSend.gain.value = 0;
+  _reverbNode = _actx.createConvolver(); _reverbNode.buffer = _makeImpulse(2.5, 2);
+  const rvReturn = _actx.createGain(); rvReturn.gain.value = 0.7;
 
-  // Delay
-  _delayNode = _actx.createDelay(2);
-  _delayNode.delayTime.value = 0.35;
-  _delayFeedback = _actx.createGain();
-  _delayFeedback.gain.value = 0.35;
-  _delayNode.connect(_delayFeedback);
-  _delayFeedback.connect(_delayNode);
+  // ── Delay parallel send ───────────────────────────────────────────────────
+  _delaySend = _actx.createGain(); _delaySend.gain.value = 0;
+  _delayNode = _actx.createDelay(2); _delayNode.delayTime.value = 0.35;
+  _delayFb   = _actx.createGain(); _delayFb.gain.value = 0.35;
+  _delayNode.connect(_delayFb); _delayFb.connect(_delayNode);
+  const dlReturn = _actx.createGain(); dlReturn.gain.value = 0.65;
 
-  // Tremolo
-  _tremoloGain = _actx.createGain();
-  _tremoloGain.gain.value = 1;
-  _tremoloOsc = _actx.createOscillator();
-  _tremoloOsc.frequency.value = 0;
-  _tremoloOsc.start();
+  // ── Tremolo ───────────────────────────────────────────────────────────────
+  _tremoloOsc  = _actx.createOscillator(); _tremoloOsc.frequency.value = 0; _tremoloOsc.start();
+  _tremoloGain = _actx.createGain(); _tremoloGain.gain.value = 1;
 
-  // Main gain (volume)
-  _gainNode = _actx.createGain();
-  _gainNode.gain.value = 1;
+  // ── Volume & master ───────────────────────────────────────────────────────
+  _volGain    = _actx.createGain(); _volGain.gain.value = 1;
+  _masterGain = _actx.createGain(); _masterGain.gain.value = 0.9;
 
-  _rebuildChain();
+  // ── Serial chain: elemSrc → EQ → filter → dist → comp → limit → vol → master → dest ──
+  _elemSrc.connect(_bassEq);
+  _bassEq.connect(_midEq);
+  _midEq.connect(_trebleEq);
+  _trebleEq.connect(_filterNode);
+  _filterNode.connect(_distNode);
+  _distNode.connect(_compNode);
+  _compNode.connect(_limitNode);
+  _limitNode.connect(_volGain);
+  _volGain.connect(_masterGain);
+  _masterGain.connect(_actx.destination);
+
+  // ── Reverb parallel ──────────────────────────────────────────────────────
+  _distNode.connect(_reverbSend);
+  _reverbSend.connect(_reverbNode);
+  _reverbNode.connect(rvReturn);
+  rvReturn.connect(_masterGain);
+
+  // ── Delay parallel ───────────────────────────────────────────────────────
+  _distNode.connect(_delaySend);
+  _delaySend.connect(_delayNode);
+  _delayNode.connect(dlReturn);
+  dlReturn.connect(_masterGain);
+
+  // Apply any slider values already set before audio was init'd
+  _applySliderValues();
 }
 
 function _makeDistCurve(amount) {
-  const n = 256, curve = new Float32Array(n);
-  const k = amount === 0 ? 0.001 : amount * 4;
+  const n = 512, curve = new Float32Array(n);
+  const k = amount < 1 ? 0.001 : amount * 5;
   for (let i = 0; i < n; i++) {
     const x = (i * 2) / n - 1;
     curve[i] = ((Math.PI + k) * x) / (Math.PI + k * Math.abs(x));
@@ -1378,36 +1406,31 @@ function _makeImpulse(duration, decay) {
   const buf = _actx.createBuffer(2, len, sr);
   for (let c = 0; c < 2; c++) {
     const d = buf.getChannelData(c);
-    for (let i = 0; i < len; i++) {
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
-    }
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
   }
   return buf;
 }
 
-function _rebuildChain() {
-  // distNode -> [effects] -> gainNode -> masterGain
-  let last = _distNode;
-  const connect = node => { last.connect(node); last = node; };
-
-  if (_fxEnabled.reverb)  connect(_reverbNode);
-  if (_fxEnabled.delay)   { last.connect(_delayNode); connect(_delayFeedback); }
-  if (_fxEnabled.comp)    connect(_compNode);
-  if (_fxEnabled.limit)   connect(_limitNode);
-  connect(_gainNode);
-  _gainNode.connect(_masterGain);
+function _applySliderValues() {
+  if (!_actx) return;
+  _bassEq.gain.value   = parseFloat(document.getElementById('slBass').value);
+  _midEq.gain.value    = parseFloat(document.getElementById('slMid').value);
+  _trebleEq.gain.value = parseFloat(document.getElementById('slTreble').value);
+  _filterNode.frequency.value = parseFloat(document.getElementById('slFilter').value);
+  _distNode.curve = _makeDistCurve(parseFloat(document.getElementById('slDrive').value));
+  _volGain.gain.value  = parseFloat(document.getElementById('slVol').value) / 100;
+  _tremoloOsc.frequency.value = parseFloat(document.getElementById('slTremolo').value);
 }
 
 function updateEq(band, val) {
   const v = parseFloat(val);
-  document.getElementById(band + 'Val').textContent = v > 0 ? '+' + v : v;
-  if (!_actx) return;
-  if (band === 'bass')   _bassEq.gain.value = v;
-  if (band === 'mid')    _midEq.gain.value = v;
-  if (band === 'treble') _trebleEq.gain.value = v;
+  document.getElementById(band + 'Val').textContent = (v > 0 ? '+' : '') + v;
+  if (band === 'bass'   && _bassEq)   _bassEq.gain.value   = v;
+  if (band === 'mid'    && _midEq)    _midEq.gain.value    = v;
+  if (band === 'treble' && _trebleEq) _trebleEq.gain.value = v;
 }
 function updateFilter(val) {
-  document.getElementById('filterVal').textContent = val;
+  document.getElementById('filterVal').textContent = parseInt(val).toLocaleString();
   if (_filterNode) _filterNode.frequency.value = parseFloat(val);
 }
 function updateDrive(val) {
@@ -1415,22 +1438,24 @@ function updateDrive(val) {
   if (_distNode) _distNode.curve = _makeDistCurve(parseFloat(val));
 }
 function updateTremolo(val) {
-  document.getElementById('tremoloVal').textContent = val;
+  document.getElementById('tremoloVal').textContent = parseFloat(val).toFixed(1);
   if (_tremoloOsc) _tremoloOsc.frequency.value = parseFloat(val);
 }
 function updateVolume(val) {
   document.getElementById('volVal').textContent = val;
-  if (_gainNode) _gainNode.gain.value = parseFloat(val) / 100;
+  if (_volGain) _volGain.gain.value = parseFloat(val) / 100;
 }
 function toggleFx(name, on) {
-  _fxEnabled[name] = on;
-  // chain rebuilt on next play
+  if (!_actx) return;
+  const t = _actx.currentTime;
+  if (name === 'reverb') _reverbSend.gain.setTargetAtTime(on ? 1 : 0, t, 0.02);
+  if (name === 'delay')  _delaySend.gain.setTargetAtTime(on ? 1 : 0, t, 0.02);
+  // comp/limiter: softly bypass by setting threshold to 0 (no gain reduction)
+  if (name === 'comp')  _compNode.threshold.value  = on ? -18 : 0;
+  if (name === 'limit') _limitNode.threshold.value = on ? -3  : 0;
 }
 
 /* ═══════════════════════ PLAYER ════════════════════════════════════════════ */
-const _audio = document.getElementById('mainAudio');
-let _playing = false;
-
 _audio.addEventListener('timeupdate', () => {
   if (!_audio.duration) return;
   const pct = (_audio.currentTime / _audio.duration) * 100;
@@ -1451,7 +1476,7 @@ function togglePlay() {
     _playing = false;
     document.getElementById('playPauseBtn').textContent = '▶';
   } else {
-    _audio.play();
+    _audio.play().catch(() => {});
     _playing = true;
     document.getElementById('playPauseBtn').textContent = '⏸';
   }
