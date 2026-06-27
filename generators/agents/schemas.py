@@ -38,8 +38,8 @@ class ScriptSection(BaseModel):
 class FullScript(BaseModel):
     title: str
     description: str = Field(description="YouTube description (first 125 chars are above fold)")
-    hashtags: list[str] = Field(min_length=3, max_length=15)
-    sections: list[ScriptSection] = Field(min_length=3)
+    hashtags: list[str] = Field(min_length=1, max_length=15)
+    sections: list[ScriptSection] = Field(min_length=1)
     total_duration_seconds: int
     narration_full: str = Field(description="Complete narration joined for TTS")
     thumbnail_prompt: str = Field(description="Detailed image-gen prompt for thumbnail")
