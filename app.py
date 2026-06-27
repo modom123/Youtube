@@ -2671,11 +2671,7 @@ def hollywood_page():
 @app.route("/api/hollywood/run", methods=["POST"])
 @login_required
 def api_hollywood_run():
-    # Admins and bypass-flag users skip the usage gate entirely
-    if not getattr(current_user, "is_admin", False):
-        allowed, err = check_usage_gate(current_user.id)
-        if not allowed:
-            return jsonify({"error": err, "upgrade": True}), 403
+    # Hollywood is a separate premium pipeline — not gated by standard video counter
     data = request.json or {}
     topic = (data.get("topic") or "").strip()
     if not topic:
