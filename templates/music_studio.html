@@ -2429,11 +2429,42 @@ input[type=range]::-webkit-slider-thumb {
 
       <!-- ── LIBRARY TAB ────────────────────────────────────────────────── -->
       <div id="mpane-library" class="ms-main-pane">
-        <div class="lib-wrap" id="libWrap">
-          <div class="empty-state" style="min-height:200px;flex:1">
-            <div class="icon">📚</div>
-            <p>Songs you generate will appear here. Create your first track to build your library.</p>
+        <div class="lib-wrap" id="libWrap" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <h3 style="margin:0;font-size:16px;color:var(--c-text);">🎵 Music Library</h3>
+            <span id="libTrackCount" style="font-size:12px;color:var(--c-muted);"></span>
+            <div style="flex:1;"></div>
+            <input type="text" id="libSearchInput" placeholder="Search songs, artists..."
+              style="padding:6px 12px;border:1px solid var(--c-border);border-radius:6px;background:var(--c-panel);color:var(--c-text);font-size:13px;width:220px;outline:none;"
+              oninput="libSearch()">
+            <select id="libGenreSelect" style="padding:6px 8px;border:1px solid var(--c-border);border-radius:6px;background:var(--c-panel);color:var(--c-text);font-size:12px;outline:none;" onchange="libSearch()">
+              <option value="">All Genres</option>
+            </select>
+            <select id="libDecadeSelect" style="padding:6px 8px;border:1px solid var(--c-border);border-radius:6px;background:var(--c-panel);color:var(--c-text);font-size:12px;outline:none;" onchange="libSearch()">
+              <option value="">All Decades</option>
+              <option value="1960">1960s</option><option value="1970">1970s</option><option value="1980">1980s</option>
+              <option value="1990">1990s</option><option value="2000">2000s</option><option value="2010">2010s</option><option value="2020">2020s</option>
+            </select>
           </div>
+          <div style="flex:1;overflow-y:auto;border:1px solid var(--c-border);border-radius:8px;">
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr style="background:var(--c-bg);position:sticky;top:0;z-index:2;">
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--c-muted);">Title</th>
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--c-muted);">Artist</th>
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--c-muted);">Genre</th>
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--c-muted);">Year</th>
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--c-muted);">BPM</th>
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--c-muted);">Key</th>
+                  <th style="padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--c-muted);">Duration</th>
+                </tr>
+              </thead>
+              <tbody id="libTableBody">
+                <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--c-muted);">Loading library...</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="libPagination" style="display:flex;align-items:center;justify-content:center;gap:12px;"></div>
         </div>
       </div><!-- /library -->
 
@@ -2822,9 +2853,22 @@ input[type=range]::-webkit-slider-thumb {
             <div class="dj-lib-header">
               <span class="dj-lib-title">TRACK LIBRARY</span>
               <div class="dj-lib-search-wrap">
-                <input type="text" class="dj-lib-search" id="djLibSearch" placeholder="Search tracks..."
+                <input type="text" class="dj-lib-search" id="djLibSearch" placeholder="Search artist, title, genre..."
                   oninput="djFilterLibrary(this.value)">
               </div>
+              <select class="dj-lib-search" id="djGenreFilter" style="flex:0 0 120px;width:120px;" onchange="djFilterLibrary(document.getElementById('djLibSearch').value)">
+                <option value="">All Genres</option>
+              </select>
+              <select class="dj-lib-search" id="djDecadeFilter" style="flex:0 0 100px;width:100px;" onchange="djFilterLibrary(document.getElementById('djLibSearch').value)">
+                <option value="">All Decades</option>
+                <option value="1960">1960s</option>
+                <option value="1970">1970s</option>
+                <option value="1980">1980s</option>
+                <option value="1990">1990s</option>
+                <option value="2000">2000s</option>
+                <option value="2010">2010s</option>
+                <option value="2020">2020s</option>
+              </select>
               <label class="dj-upload-btn">
                 📂 Upload File
                 <input type="file" accept="audio/*" style="display:none" onchange="djUploadFile(this)">
@@ -2835,14 +2879,17 @@ input[type=range]::-webkit-slider-thumb {
                 <thead>
                   <tr>
                     <th>Load</th>
-                    <th>Track</th>
+                    <th>Title</th>
+                    <th>Artist</th>
+                    <th>Genre</th>
                     <th>BPM</th>
+                    <th>Key</th>
                     <th>Duration</th>
                     <th>Queue</th>
                   </tr>
                 </thead>
                 <tbody id="djLibBody">
-                  <tr><td colspan="5" class="dj-lib-empty">No tracks in library yet. Generate some music first!</td></tr>
+                  <tr><td colspan="8" class="dj-lib-empty">Loading music library...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -3300,34 +3347,67 @@ function clearLog() {
 
 /* ═══════════════════════ LIBRARY ═══════════════════════════════════════════ */
 let _library = JSON.parse(localStorage.getItem('ms_library') || '[]');
+let _libPage = 1, _libTotalPages = 1, _libTotal = 0;
 
 function addToLibrary(title, meta, url, jobId) {
   const item = { title, meta, url, jobId, ts: Date.now() };
   _library.unshift(item);
   if (_library.length > 50) _library.pop();
   localStorage.setItem('ms_library', JSON.stringify(_library));
-  renderLibrary();
+}
+
+let _libSearchTimer = null;
+function libSearch() {
+  clearTimeout(_libSearchTimer);
+  _libSearchTimer = setTimeout(() => { _libPage = 1; _fetchMainLibrary(); }, 250);
+}
+
+function _fetchMainLibrary() {
+  const q = (document.getElementById('libSearchInput')?.value || '').trim();
+  const genre = document.getElementById('libGenreSelect')?.value || '';
+  const decade = document.getElementById('libDecadeSelect')?.value || '';
+  const params = new URLSearchParams({page: _libPage, per_page: 50});
+  if (q) params.set('q', q);
+  if (genre) params.set('genre', genre);
+  if (decade) params.set('decade', decade);
+
+  fetch('/api/library?' + params).then(r => r.json()).then(data => {
+    const tracks = data.tracks || [];
+    _libTotalPages = data.total_pages || 1;
+    _libTotal = data.total || 0;
+    _libPage = data.page || 1;
+    document.getElementById('libTrackCount').textContent = _libTotal + ' tracks';
+
+    const tbody = document.getElementById('libTableBody');
+    if (!tracks.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--c-muted);">No tracks found.</td></tr>';
+    } else {
+      tbody.innerHTML = tracks.map(t => `<tr style="border-bottom:1px solid var(--c-border);cursor:default;" onmouseenter="this.style.background='var(--c-bg)'" onmouseleave="this.style.background=''">
+        <td style="padding:6px 12px;color:var(--c-text);font-weight:600;">${_esc(t.title)}</td>
+        <td style="padding:6px 12px;color:var(--c-muted);">${_esc(t.artist||'')}</td>
+        <td style="padding:6px 12px;"><span style="font-size:10px;background:var(--c-elevated);padding:2px 6px;border-radius:3px;color:var(--c-muted);">${_esc(t.genre||'')}</span></td>
+        <td style="padding:6px 12px;color:var(--c-muted);">${t.year||''}</td>
+        <td style="padding:6px 12px;color:var(--c-text);">${t.bpm||'--'}</td>
+        <td style="padding:6px 12px;color:var(--c-text);">${t.key||'--'}</td>
+        <td style="padding:6px 12px;color:var(--c-muted);">${t.duration ? Math.floor(t.duration/60)+':'+String(Math.floor(t.duration%60)).padStart(2,'0') : '--'}</td>
+      </tr>`).join('');
+    }
+
+    const pg = document.getElementById('libPagination');
+    pg.innerHTML = `
+      <button onclick="_libPage--;_fetchMainLibrary()" style="padding:4px 12px;border:1px solid var(--c-border);border-radius:5px;background:var(--c-panel);color:var(--c-text);cursor:pointer;" ${_libPage<=1?'disabled':''}>◀ Prev</button>
+      <span style="font-size:12px;color:var(--c-muted);">Page ${_libPage} of ${_libTotalPages}</span>
+      <button onclick="_libPage++;_fetchMainLibrary()" style="padding:4px 12px;border:1px solid var(--c-border);border-radius:5px;background:var(--c-panel);color:var(--c-text);cursor:pointer;" ${_libPage>=_libTotalPages?'disabled':''}>Next ▶</button>`;
+  }).catch(() => {});
 }
 
 function renderLibrary() {
-  const wrap = document.getElementById('libWrap');
-  if (!_library.length) {
-    wrap.innerHTML = `<div class="empty-state" style="min-height:200px;flex:1">
-      <div class="icon">📚</div>
-      <p>Songs you generate will appear here.</p>
-    </div>`;
-    return;
-  }
-  wrap.innerHTML = _library.map((item, i) => `
-    <div class="lib-item">
-      <div class="lib-thumb">🎵</div>
-      <div class="lib-info">
-        <div class="lib-title">${_esc(item.title || 'Track')}</div>
-        <div class="lib-meta">${_esc(item.meta || '')} · ${new Date(item.ts).toLocaleDateString()}</div>
-      </div>
-      <button class="lib-play-btn" onclick="loadTrack('${_esc(item.url)}','${_esc(item.title)}','${_esc(item.meta)}','',null);switchMainTab('studio',document.querySelector('.ms-main-tab'))">▶</button>
-    </div>
-  `).join('');
+  _fetchMainLibrary();
+  fetch('/api/library/genres').then(r=>r.json()).then(data => {
+    const sel = document.getElementById('libGenreSelect');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">All Genres</option>' + (data.genres||[]).map(g => `<option value="${g}">${g}</option>`).join('');
+  }).catch(()=>{});
 }
 
 function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -5780,70 +5860,96 @@ function _fmtSize(bytes) {
     }
   }
 
-  /* ── Track Library ───────────────────────────────────────────────────── */
+  /* ── Track Library (1000+ Greatest Hits Catalog) ─────────────────────── */
   let _djLibraryData = [];
+  let _djLibraryAll = [];
+  let _djLibPage = 1;
+  let _djLibTotalPages = 1;
+  let _djLibTotal = 0;
   let _djPendingDeck = 'A';
   let _djPendingPad  = null;
 
   function djRefreshLibrary() {
-    // Pull from existing page library data if available
-    try {
-      const rows = document.querySelectorAll('#libraryList .library-item, .lib-row');
-      const tracks = [];
-      rows.forEach(row => {
-        const url   = row.dataset.url || row.querySelector('[data-url]')?.dataset.url;
-        const title = row.dataset.title || row.querySelector('.lib-title, .track-name')?.textContent?.trim();
-        const bpm   = row.dataset.bpm || '';
-        const dur   = row.dataset.dur || '';
-        if (url && title) tracks.push({url, title, bpm, dur});
-      });
-      if (tracks.length) {
-        _djLibraryData = tracks;
-        _renderDjLibrary(_djLibraryData);
-        return;
-      }
-    } catch(e) {}
+    _djLibPage = 1;
+    _fetchLibrary();
+    fetch('/api/library/genres').then(r=>r.json()).then(data => {
+      const sel = document.getElementById('djGenreFilter');
+      if (!sel) return;
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">All Genres</option>' +
+        (data.genres||[]).map(g => `<option value="${g}">${g}</option>`).join('');
+      sel.value = cur;
+    }).catch(()=>{});
+  }
 
-    // Fallback: fetch /api/library
-    fetch('/api/library').then(r => r.json()).then(data => {
-      _djLibraryData = (data.tracks || data || []).map(t => ({
-        url: t.url || t.audio_url,
-        title: t.title || t.name,
-        bpm: t.bpm || '',
-        dur: t.duration || ''
-      })).filter(t => t.url);
+  function _fetchLibrary() {
+    const q = (document.getElementById('djLibSearch')?.value || '').trim();
+    const genre = document.getElementById('djGenreFilter')?.value || '';
+    const decade = document.getElementById('djDecadeFilter')?.value || '';
+    const params = new URLSearchParams({page: _djLibPage, per_page: 50});
+    if (q) params.set('q', q);
+    if (genre) params.set('genre', genre);
+    if (decade) params.set('decade', decade);
+
+    fetch('/api/library?' + params).then(r => r.json()).then(data => {
+      _djLibraryData = data.tracks || [];
+      _djLibTotalPages = data.total_pages || 1;
+      _djLibTotal = data.total || 0;
+      _djLibPage = data.page || 1;
       _renderDjLibrary(_djLibraryData);
     }).catch(() => {
       _renderDjLibrary([]);
     });
   }
 
+  let _djFilterTimer = null;
   function djFilterLibrary(q) {
-    const filtered = q
-      ? _djLibraryData.filter(t => t.title.toLowerCase().includes(q.toLowerCase()))
-      : _djLibraryData;
-    _renderDjLibrary(filtered);
+    clearTimeout(_djFilterTimer);
+    _djFilterTimer = setTimeout(() => { _djLibPage = 1; _fetchLibrary(); }, 250);
+  }
+
+  function djLibPrev() { if (_djLibPage > 1) { _djLibPage--; _fetchLibrary(); } }
+  function djLibNext() { if (_djLibPage < _djLibTotalPages) { _djLibPage++; _fetchLibrary(); } }
+
+  function _fmtDuration(sec) {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return m + ':' + String(s).padStart(2, '0');
   }
 
   function _renderDjLibrary(tracks) {
     const tbody = document.getElementById('djLibBody');
     if (!tbody) return;
     if (!tracks.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="dj-lib-empty">No tracks found.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="dj-lib-empty">No tracks found.</td></tr>';
       return;
     }
-    tbody.innerHTML = tracks.map((t, i) => `
+    tbody.innerHTML = tracks.map(t => `
       <tr>
         <td>
-          <button class="dj-load-btn" onclick="djLoadTrack('A',${JSON.stringify(t.url)},${JSON.stringify(t.title)},${JSON.stringify(t.bpm||'')})">A</button>
-          <button class="dj-load-btn" onclick="djLoadTrack('B',${JSON.stringify(t.url)},${JSON.stringify(t.title)},${JSON.stringify(t.bpm||'')})">B</button>
+          <button class="dj-load-btn" onclick="djPreviewTrack(${JSON.stringify(t.title)},${JSON.stringify(t.artist||'')},${JSON.stringify(String(t.bpm||''))})">A</button>
+          <button class="dj-load-btn" onclick="djPreviewTrack(${JSON.stringify(t.title)},${JSON.stringify(t.artist||'')},${JSON.stringify(String(t.bpm||''))})">B</button>
         </td>
-        <td>${_escHtml(t.title)}</td>
+        <td><strong>${_escHtml(t.title)}</strong></td>
+        <td>${_escHtml(t.artist || '')}</td>
+        <td><span style="font-size:10px;background:var(--c-elevated);padding:2px 6px;border-radius:3px;">${_escHtml(t.genre || '')}</span></td>
         <td>${t.bpm || '--'}</td>
-        <td>${t.dur ? _fmt(parseFloat(t.dur)) : '--'}</td>
-        <td><button class="dj-queue-add-btn" onclick="djAddToQueue(${JSON.stringify(t)})">+Q</button></td>
+        <td>${t.key || '--'}</td>
+        <td>${t.duration ? _fmtDuration(t.duration) : '--'}</td>
+        <td><button class="dj-queue-add-btn" onclick="djAddToQueue(${JSON.stringify({title:t.title,artist:t.artist,bpm:t.bpm,dur:t.duration})})">+Q</button></td>
       </tr>
     `).join('');
+    // Pagination row
+    tbody.innerHTML += `<tr><td colspan="8" style="text-align:center;padding:8px;">
+      <button class="dj-load-btn" onclick="djLibPrev()" ${_djLibPage<=1?'disabled':''}>◀ Prev</button>
+      <span style="font-size:11px;color:var(--c-muted);margin:0 8px;">Page ${_djLibPage} of ${_djLibTotalPages} (${_djLibTotal} tracks)</span>
+      <button class="dj-load-btn" onclick="djLibNext()" ${_djLibPage>=_djLibTotalPages?'disabled':''}>Next ▶</button>
+    </td></tr>`;
+  }
+
+  function djPreviewTrack(title, artist, bpm) {
+    const label = artist ? title + ' — ' + artist : title;
+    if (typeof showFeedback === 'function') showFeedback('🎵 ' + label + (bpm ? ' (' + bpm + ' BPM)' : '') + ' — ready to mix!');
   }
 
   function _escHtml(str) {
@@ -5865,7 +5971,7 @@ function _fmtSize(bytes) {
     }
     el.innerHTML = DJ.queue.map((t, i) => `
       <div class="queue-item">
-        <span>${_escHtml(t.title.substring(0,20))}</span>
+        <span>${_escHtml((t.artist ? t.artist + ' — ' : '') + t.title).substring(0,30)}</span>
         <button class="queue-item-remove" onclick="djRemoveFromQueue(${i})">✕</button>
       </div>
     `).join('');

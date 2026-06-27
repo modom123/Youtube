@@ -3546,6 +3546,65 @@ def api_batch_stream(batch_id):
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+# ── Music Catalog Library ────────────────────────────────────────────────────
+
+_music_catalog = None
+
+def _load_music_catalog():
+    global _music_catalog
+    if _music_catalog is None:
+        catalog_path = Path(__file__).parent / "static" / "music_catalog.json"
+        if catalog_path.exists():
+            with open(catalog_path, "r") as f:
+                _music_catalog = json.load(f)
+        else:
+            _music_catalog = []
+    return _music_catalog
+
+
+@app.route("/api/library")
+@login_required
+def api_library():
+    catalog = _load_music_catalog()
+    q = request.args.get("q", "").strip().lower()
+    genre = request.args.get("genre", "").strip().lower()
+    decade = request.args.get("decade", "").strip()
+    page = int(request.args.get("page", 1))
+    per_page = int(request.args.get("per_page", 50))
+
+    filtered = catalog
+    if q:
+        filtered = [t for t in filtered if q in t.get("title", "").lower() or q in t.get("artist", "").lower()]
+    if genre:
+        filtered = [t for t in filtered if genre in t.get("genre", "").lower()]
+    if decade:
+        try:
+            dec = int(decade)
+            filtered = [t for t in filtered if dec <= t.get("year", 0) < dec + 10]
+        except ValueError:
+            pass
+
+    total = len(filtered)
+    start = (page - 1) * per_page
+    tracks = filtered[start:start + per_page]
+
+    return jsonify({
+        "tracks": tracks,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page,
+    })
+
+
+@app.route("/api/library/genres")
+@login_required
+def api_library_genres():
+    catalog = _load_music_catalog()
+    genres = sorted(set(t.get("genre", "") for t in catalog if t.get("genre")))
+    return jsonify({"genres": genres})
+
+
 # ── Feature 4: Template Library ──────────────────────────────────────────────
 
 @app.route("/templates-library")
