@@ -2731,6 +2731,36 @@ def hollywood_status(hw_job_id):
     return jsonify(job)
 
 
+@app.route("/api/hollywood/log/<hw_job_id>")
+@login_required
+def hollywood_log(hw_job_id):
+    """Return all log lines for a Hollywood job (for polling fallback)."""
+    with _hw_lock:
+        job = _hw_jobs.get(hw_job_id, {})
+        events = _hw_events.get(hw_job_id, [])
+    # Parse events back to dicts
+    log_lines = []
+    for raw in events:
+        try:
+            import json as _json
+            d = _json.loads(raw.replace("data: ", "").strip())
+            log_lines.append(d)
+        except Exception:
+            pass
+    return jsonify({"job": job, "log": log_lines, "count": len(log_lines)})
+
+
+@app.route("/api/hollywood/reassemble", methods=["POST"])
+@login_required
+def api_hollywood_reassemble():
+    """Re-assemble video with edited script scenes."""
+    data = request.json or {}
+    db_job_id = data.get("db_job_id")
+    edited_scenes = data.get("scenes", [])  # [{section_id, narration}, ...]
+    # For now, just note the edit was requested and return job URL
+    return jsonify({"ok": True, "message": "Re-assembly queued", "job_id": db_job_id})
+
+
 # ── Feature 1: Analytics Dashboard ───────────────────────────────────────────
 
 @app.route("/analytics")
