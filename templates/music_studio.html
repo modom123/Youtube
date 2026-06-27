@@ -1903,22 +1903,37 @@ function _streamJob(jobId, title, meta) {
     } catch(ex) {}
   };
   _evtSource.onerror = () => {
-    // Check status once more
-    fetch(`/api/music/status/${jobId}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.status === 'complete') {
-          const metaStr = [meta.genre, meta.mood, meta.bpm + ' BPM', meta.key].filter(Boolean).join(' · ');
-          loadTrack(d.audio_url, title, metaStr, d.lyrics, jobId);
-          log('ok', 'Track ready');
-          document.getElementById('progressArea').classList.remove('active');
-        } else {
-          log('err', 'Connection lost. Check status.');
-        }
-      })
-      .catch(() => log('err', 'Connection lost'));
     _evtSource.close();
-    _resetGenBtn();
+    // Poll status until done (handles Render proxy timeout mid-stream)
+    const pollStatus = () => {
+      fetch(`/api/music/status/${jobId}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.status === 'done') {
+            const audio_url = d.audio_url || `/api/music/download/${jobId}`;
+            const result = d.result || {};
+            const metaStr = [meta.genre, meta.mood, meta.bpm + ' BPM', meta.key].filter(Boolean).join(' · ');
+            if (result.lyrics) {
+              document.getElementById('lyricsSection').style.display = 'block';
+              document.getElementById('lyricsText').textContent = result.lyrics;
+            }
+            loadTrack(audio_url, title, metaStr, result.lyrics || '', jobId);
+            log('ok', 'Track ready: ' + (result.provider || 'AI'));
+            document.getElementById('progressArea').classList.remove('active');
+            _resetGenBtn();
+          } else if (d.status === 'error') {
+            log('err', d.step || 'Generation failed');
+            _resetGenBtn();
+            document.getElementById('progressArea').classList.remove('active');
+          } else {
+            // Still running — keep polling
+            if (d.step) log('info', d.step);
+            setTimeout(pollStatus, 2000);
+          }
+        })
+        .catch(() => { log('err', 'Connection lost'); _resetGenBtn(); });
+    };
+    pollStatus();
   };
 }
 

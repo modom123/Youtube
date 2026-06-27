@@ -2787,7 +2787,7 @@ def _run_music_thread(job_id: str, params: dict, user_id: int = None):
         with _music_lock:
             if job_id in _music_jobs:
                 _music_jobs[job_id].update({"progress": pct, "step": msg, "status": "running"})
-        _push_music_event(job_id, {"progress": pct, "step": msg, "status": "running"})
+        _push_music_event(job_id, {"type": "progress", "pct": pct, "message": msg, "status": "running"})
 
     with _music_lock:
         _music_jobs[job_id] = {"status": "running", "progress": 0, "step": "Starting…"}
@@ -2795,15 +2795,28 @@ def _run_music_thread(job_id: str, params: dict, user_id: int = None):
     try:
         engine = MusicEngine()
         result = engine.generate(job_dir=job_dir, progress_cb=cb, **params)
+
+        audio_url = f"/api/music/download/{job_id}" if result.get("audio_path") else None
+
+        # Emit lyrics event if we have them
+        if result.get("lyrics"):
+            _push_music_event(job_id, {"type": "lyrics", "lyrics": result["lyrics"]})
+
         with _music_lock:
-            _music_jobs[job_id].update({"status": "done", "progress": 100, "result": result})
-        _push_music_event(job_id, {"status": "done", "progress": 100, "result": result})
+            _music_jobs[job_id].update({"status": "done", "progress": 100, "result": result, "audio_url": audio_url})
+        _push_music_event(job_id, {
+            "type": "complete",
+            "audio_url": audio_url,
+            "provider": result.get("provider", "AI"),
+            "lyrics": result.get("lyrics", ""),
+            "title": result.get("title", ""),
+        })
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
         with _music_lock:
             _music_jobs[job_id].update({"status": "error", "step": str(e), "traceback": tb})
-        _push_music_event(job_id, {"status": "error", "step": str(e)})
+        _push_music_event(job_id, {"type": "error", "message": str(e)})
 
 
 @app.route("/music-studio")
@@ -2823,10 +2836,11 @@ def api_music_generate():
         "mood": data.get("mood") or "energetic",
         "bpm": int(data.get("bpm") or 120),
         "key": data.get("key") or "C Major",
-        "duration_seconds": int(data.get("duration_seconds") or 60),
-        "vocal_style": data.get("vocal_style") or "male",
+        # accept both field name variants from the frontend
+        "duration_seconds": int(data.get("duration_seconds") or data.get("duration") or 60),
+        "vocal_style": data.get("vocal_style") or data.get("vocals") or "male",
         "lyrics": (data.get("lyrics") or "").strip(),
-        "reference_artist": (data.get("reference_artist") or "").strip(),
+        "reference_artist": (data.get("reference_artist") or data.get("artist") or "").strip(),
     }
     t = threading.Thread(target=_run_music_thread, args=(job_id, params, current_user.id), daemon=True)
     t.start()
@@ -2838,6 +2852,7 @@ def api_music_generate():
 def api_music_stream(job_id):
     def generate():
         last_idx = 0
+        heartbeat_counter = 0
         while True:
             with _music_lock:
                 events = _music_events.get(job_id, [])
@@ -2847,10 +2862,12 @@ def api_music_stream(job_id):
             for e in new:
                 yield e
             if job.get("status") in ("done", "error"):
-                if not new:
-                    yield f"data: {json.dumps({'status': job.get('status'), 'progress': job.get('progress', 0)})}\n\n"
                 time.sleep(0.3)
                 break
+            # Send a keepalive comment every ~10 iterations (4s) to prevent proxy timeout
+            heartbeat_counter += 1
+            if heartbeat_counter % 10 == 0:
+                yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
             time.sleep(0.4)
     return Response(
         stream_with_context(generate()),
