@@ -3182,43 +3182,99 @@ function _playDrum(type, t) {
 
 /* ═══════════════════════ LOOPS BROWSER ════════════════════════════════════ */
 let _loopAudio = null;
+let _loopLooping = false;
 
 async function searchLoops() {
-  const q = document.getElementById('loopQuery').value.trim() || 'drums';
+  const q = document.getElementById('loopQuery').value.trim() || 'hip-hop';
   const list = document.getElementById('loopsList');
-  list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--c-muted);font-size:12px">Searching…</div>';
+  list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--c-muted);font-size:12px">Loading loops…</div>';
   try {
     const r = await fetch(`/api/music/loops?q=${encodeURIComponent(q)}`);
     const data = await r.json();
-    if (!data.sounds || !data.sounds.length) {
-      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--c-muted);font-size:12px">No results found. Try different keywords.</div>';
+    const results = data.results || data.sounds || [];
+    if (!results.length) {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--c-muted);font-size:12px">No results — try: hip-hop, trap, lo-fi, r&b, edm, afrobeats, reggaeton, jazz, rock, gospel</div>';
       return;
     }
-    list.innerHTML = data.sounds.map(s => `
-      <div class="loop-item">
-        <button class="loop-play-btn" onclick="previewLoop('${_esc(s.preview_url)}',this)">▶</button>
+    list.innerHTML = results.map((s,i) => {
+      const bpmTag = s.bpm ? `<span style="background:rgba(139,92,246,.15);color:#a78bfa;padding:1px 5px;border-radius:3px;font-size:9px;margin-right:4px;">${s.bpm} BPM</span>` : '';
+      const keyTag = s.key && s.key !== '—' ? `<span style="background:rgba(20,184,166,.15);color:#5eead4;padding:1px 5px;border-radius:3px;font-size:9px;margin-right:4px;">${s.key}</span>` : '';
+      const tags = (s.tags||[]).slice(0,4).join(' · ');
+      const dur = s.duration ? Math.round(s.duration) + 's' : '';
+      return `
+      <div class="loop-item" data-idx="${i}">
+        <button class="loop-play-btn" onclick="previewLoop('${s.preview_url.replace(/'/g,"\\'")}',this,${i})" title="Play / Pause">▶</button>
         <div class="loop-info">
           <div class="loop-name">${_esc(s.name)}</div>
-          <div class="loop-tags">${_esc((s.tags||[]).slice(0,5).join(', '))}</div>
+          <div class="loop-tags" style="display:flex;flex-wrap:wrap;align-items:center;gap:2px;margin-top:3px;">
+            ${bpmTag}${keyTag}<span style="color:var(--c-muted);font-size:10px;">${_esc(tags)}</span>
+          </div>
         </div>
-        <span class="loop-dur">${s.duration ? Math.round(s.duration) + 's' : ''}</span>
-      </div>
-    `).join('');
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+          <span class="loop-dur">${dur}</span>
+          <button onclick="useLoop(${i},'${_esc(s.name)}')" title="Use in song" style="font-size:9px;padding:2px 6px;background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.4);color:#c4b5fd;border-radius:4px;cursor:pointer;line-height:1.4;">Use</button>
+        </div>
+      </div>`;
+    }).join('');
+    // Store results for useLoop
+    window._loopResults = results;
   } catch(e) {
     list.innerHTML = `<div style="padding:20px;text-align:center;color:var(--c-red);font-size:12px">Error: ${e.message}</div>`;
   }
 }
 
-function previewLoop(url, btn) {
-  // Stop any currently playing loop
-  document.querySelectorAll('.loop-play-btn').forEach(b => b.textContent = '▶');
-  if (_loopAudio) { _loopAudio.pause(); _loopAudio = null; }
-  if (btn.textContent === '⏸') { btn.textContent = '▶'; return; }
+function previewLoop(url, btn, idx) {
+  document.querySelectorAll('.loop-play-btn').forEach(b => { b.textContent = '▶'; b.style.background = ''; });
+  if (_loopAudio) { _loopAudio.pause(); _loopAudio.src = ''; _loopAudio = null; }
+  if (btn.dataset.playing === '1') { btn.dataset.playing = '0'; return; }
+
+  btn.textContent = '⏳';
   _loopAudio = new Audio(url);
+  _loopAudio.loop = true;
+  _loopAudio.volume = 0.85;
   _loopAudio.play().then(() => {
     btn.textContent = '⏸';
-    _loopAudio.onended = () => btn.textContent = '▶';
-  }).catch(() => btn.textContent = '▶');
+    btn.dataset.playing = '1';
+    btn.style.background = 'var(--c-purple)';
+  }).catch(() => {
+    btn.textContent = '▶';
+    btn.dataset.playing = '0';
+    // Show inline error on the loop item
+    const item = btn.closest('.loop-item');
+    if (item) {
+      const errEl = document.createElement('div');
+      errEl.style.cssText = 'font-size:10px;color:#f87171;margin-top:4px;width:100%;text-align:center;';
+      errEl.textContent = 'Could not load — try another loop';
+      item.appendChild(errEl);
+      setTimeout(() => errEl.remove(), 4000);
+    }
+  });
+  _loopAudio.onended = () => { btn.textContent = '▶'; btn.dataset.playing = '0'; btn.style.background = ''; };
+}
+
+function useLoop(idx, name) {
+  // Set reference artist field to loop name as style hint and show toast
+  const refEl = document.getElementById('refArtist');
+  if (refEl && !refEl.value) refEl.value = name;
+  // Auto-fill BPM if we have it
+  const loop = (window._loopResults || [])[idx];
+  if (loop && loop.bpm) {
+    const bpmEl = document.getElementById('songBpm');
+    if (bpmEl) bpmEl.value = loop.bpm;
+  }
+  if (loop && loop.key && loop.key !== '—') {
+    const keyEl = document.getElementById('songKey');
+    if (keyEl) { for (const o of keyEl.options) if (o.value.startsWith(loop.key)) { keyEl.value = o.value; break; } }
+  }
+  // Play preview if not already
+  const btn = document.querySelector(`.loop-item[data-idx="${idx}"] .loop-play-btn`);
+  if (btn && btn.dataset.playing !== '1') btn.click();
+  // Show feedback
+  const fb = document.createElement('div');
+  fb.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#7c3aed;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.4)';
+  fb.textContent = `✓ "${name}" — BPM and key applied to song settings`;
+  document.body.appendChild(fb);
+  setTimeout(() => fb.remove(), 3000);
 }
 
 // Load default loops on page load
