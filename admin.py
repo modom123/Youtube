@@ -1,13 +1,11 @@
 """Admin Blueprint — client management, provisioning, audit log."""
-import os
 import secrets
 import smtplib
-import json
 from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, abort
+from flask import Blueprint, render_template, request, jsonify, abort
 from flask_login import login_required, current_user
 from werkzeug.security import generate_password_hash
 

@@ -393,7 +393,7 @@ async def run():
     remaining = len([t for t in TASKS if not collected.get(t["key"])])
     print("=" * 60)
     print("  HERMES AUTO AGENT — Social Money")
-    print(f"  Connected to your open Chrome browser")
+    print("  Connected to your open Chrome browser")
     print(f"  {remaining} tasks remaining")
     print("=" * 60)
 

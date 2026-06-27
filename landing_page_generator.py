@@ -3,11 +3,9 @@ Landing Page Generator -- creates high-converting HTML landing pages.
 Uses Claude AI to generate copy, then renders into responsive HTML templates.
 """
 import json
-import os
 import re
 import uuid
 import logging
-from pathlib import Path
 from datetime import datetime
 
 import anthropic

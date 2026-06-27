@@ -4,7 +4,6 @@ Credentials loaded from config (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_
 """
 from __future__ import annotations
 import logging
-from typing import Optional
 
 import config
 

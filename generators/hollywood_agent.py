@@ -343,7 +343,7 @@ def _tool_create_content(topic: str, format: str = "short", platforms: list = No
         platforms = []
     try:
         import threading
-        from app import _run_job_thread, push_event
+        from app import _run_job_thread
 
         job_id = db.create_job(
             topic=topic,

@@ -1,7 +1,7 @@
 """Billing Blueprint — Stripe checkout, portal, webhook."""
 import json
 import stripe
-from flask import Blueprint, request, redirect, render_template, url_for, jsonify, current_app
+from flask import Blueprint, request, redirect, render_template, url_for, jsonify
 from flask_login import login_required, current_user
 import config
 import database as db

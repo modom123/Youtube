@@ -5,8 +5,6 @@ Integrates with Facebook/Instagram Ads via the Marketing API.
 import os
 import json
 import logging
-from datetime import datetime, timedelta
-from typing import Optional
 import requests
 
 log = logging.getLogger("meta_ads")

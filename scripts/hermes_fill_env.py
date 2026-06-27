@@ -20,7 +20,6 @@ The script will:
 from __future__ import annotations
 import json
 import os
-import sys
 import time
 import requests
 from pathlib import Path
@@ -470,7 +469,7 @@ def main():
     skipped = [k for k, v in collected.items() if not v]
 
     print(f"\n{'='*60}")
-    print(f"  COLLECTION COMPLETE")
+    print("  COLLECTION COMPLETE")
     print(f"  Filled  : {len(filled)} vars")
     print(f"  Skipped : {len(skipped)} vars")
     if skipped:

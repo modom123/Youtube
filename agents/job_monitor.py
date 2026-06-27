@@ -9,7 +9,6 @@ Detects:
 """
 from __future__ import annotations
 import threading
-import time
 from datetime import datetime, timezone
 
 JOB_MONITOR_INTERVAL = 300       # check every 5 minutes

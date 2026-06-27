@@ -6,7 +6,6 @@ from video thumbnails and AI-generated copy.
 import os
 import uuid
 import logging
-from pathlib import Path
 from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont
