@@ -110,12 +110,12 @@
   <h1>Turn any idea into a<br><span class="red">published video</span><br><span class="dim">in minutes.</span></h1>
   <p class="hero-sub">AI researches your topic, writes the script, generates visuals, assembles the video, and publishes to YouTube, TikTok, Instagram, Facebook, X, Twitch, Pinterest, and Threads — automatically.</p>
   <div class="hero-ctas">
-    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start for Free — 2 Videos</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start for Free — 3 Videos</a>
     <a href="#pricing" class="btn btn-secondary">See Pricing</a>
   </div>
   <div class="hero-stats">
     <div class="hero-stat"><div class="val">5</div><div class="lbl">AI Agents</div></div>
-    <div class="hero-stat"><div class="val">17+</div><div class="lbl">Video Models</div></div>
+    <div class="hero-stat"><div class="val">15+</div><div class="lbl">Video Models</div></div>
     <div class="hero-stat"><div class="val">8</div><div class="lbl">Platforms</div></div>
     <div class="hero-stat"><div class="val">~5 min</div><div class="lbl">Avg. Production</div></div>
   </div>
@@ -145,7 +145,7 @@
     <div class="feature-card">
       <div class="feature-icon">🎬</div>
       <h3>AI Video Generation</h3>
-      <p>17+ Higgsfield models — Kling 3.0, Veo 3.1, Cinema Studio 3.0. Cinematic B-roll generated from your script prompts.</p>
+      <p>15+ Higgsfield models — Kling 3.0, Veo 3.1, Cinema Studio 3.0. Cinematic B-roll generated from your script prompts.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">📈</div>
@@ -181,6 +181,31 @@
       <div class="feature-icon">📊</div>
       <h3>Content Analytics</h3>
       <p>Track every job, review scripts, download videos, and monitor publishing results in one place.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📦</div>
+      <h3>Batch Generator</h3>
+      <p>Generate a full month of content in one click. Set your niche, pick formats, and let the pipeline run.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📅</div>
+      <h3>Content Calendar</h3>
+      <p>Schedule videos for automatic publishing. Drag-and-drop your content across days and weeks.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🕵️</div>
+      <h3>Competitor Tracker</h3>
+      <p>Monitor rival channels, steal winning topics, and get one-click inspiration for your next video.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📁</div>
+      <h3>Template Library</h3>
+      <p>Save and reuse your best pipeline configurations. One-click launch from proven setups.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🌐</div>
+      <h3>Multi-Language Translation</h3>
+      <p>Translate scripts into 15 languages including Spanish, Japanese, Arabic, and more via Google Cloud.</p>
     </div>
   </div>
 </section>
@@ -239,8 +264,8 @@
         {% if tier.price_monthly > 0 %}<span>/mo</span>{% endif %}
       </div>
       <div class="pricing-desc">
-        {% if tier_key == 'free' %}Try before you buy
-        {% elif tier_key == 'starter' %}Solo creators getting started
+        {% if tier_key == 'free' %}Experience the full pipeline free
+        {% elif tier_key == 'starter' %}Solo creators scaling up
         {% elif tier_key == 'creator' %}Full-time content creators
         {% else %}Agencies &amp; power users{% endif %}
       </div>

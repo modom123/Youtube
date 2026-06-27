@@ -24,12 +24,19 @@ STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 # ── Subscription tiers ───────────────────────────────────────────────────────
 TIERS = {
     "free": {
-        "label": "Free Trial",
+        "label": "Free",
         "price_monthly": 0,
-        "videos_per_month": 2,
-        "higgsfield_credits": 0,
+        "videos_per_month": 3,
+        "higgsfield_credits": 10,
         "stripe_price_id": None,
-        "features": ["2 videos/month", "Pexels stock media", "Basic scripts"],
+        "features": [
+            "3 videos/month",
+            "10 AI video credits",
+            "5-agent pipeline",
+            "YouTube publishing",
+            "Content Calendar",
+            "Pexels stock media",
+        ],
     },
     "starter": {
         "label": "Starter",
@@ -37,7 +44,14 @@ TIERS = {
         "videos_per_month": 15,
         "higgsfield_credits": 150,
         "stripe_price_id": STRIPE_PRICE_STARTER,
-        "features": ["15 videos/month", "150 AI video credits", "5-agent pipeline", "YouTube publishing"],
+        "features": [
+            "15 videos/month",
+            "150 AI video credits",
+            "3 platforms (YT / TikTok / IG)",
+            "Batch Generator",
+            "Template Library",
+            "6 thumbnail styles",
+        ],
     },
     "creator": {
         "label": "Creator",
@@ -45,15 +59,28 @@ TIERS = {
         "videos_per_month": 50,
         "higgsfield_credits": 500,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
-        "features": ["50 videos/month", "500 AI video credits", "All platforms", "Production Studio"],
+        "features": [
+            "50 videos/month",
+            "500 AI video credits",
+            "All 8 platforms",
+            "Production Studio",
+            "Competitor Tracker",
+            "Multi-language (15 languages)",
+        ],
     },
     "agency": {
         "label": "Agency",
         "price_monthly": 199,
-        "videos_per_month": -1,
+        "videos_per_month": 125,
         "higgsfield_credits": 2000,
         "stripe_price_id": STRIPE_PRICE_AGENCY,
-        "features": ["Unlimited videos", "2000 AI video credits", "Priority processing", "All features"],
+        "features": [
+            "125 videos/month",
+            "2000 AI video credits",
+            "Priority processing",
+            "Contacts / CRM",
+            "All features included",
+        ],
     },
 }
 
