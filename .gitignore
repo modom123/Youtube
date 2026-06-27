@@ -36,6 +36,7 @@ youtube_token.json
 # Render / deployment secrets
 *.pem
 *.key
+.secret_key
 
 # Claude Code agent worktrees
 .claude/worktrees/
