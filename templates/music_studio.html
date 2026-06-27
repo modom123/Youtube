@@ -1,0 +1,1651 @@
+{% extends "base.html" %}
+{% set active_page = "music" %}
+
+{% block title %}Music Studio — Social Optimize{% endblock %}
+
+{% block topbar_title %}Music Studio{% endblock %}
+{% block topbar_sub %}AI-powered song production · Suno · MusicGen · ElevenLabs{% endblock %}
+
+{% block topbar_actions %}
+<a href="/hollywood" class="btn btn-secondary" style="font-size:12px;">Hollywood Studio</a>
+<a href="/create" class="btn btn-secondary" style="font-size:12px;">Create Content</a>
+{% endblock %}
+
+{% block content %}
+<style>
+/* ── Music Studio — dark DAW aesthetic ─────────────────────────────────────── */
+:root {
+  --music-bg: #050508;
+  --music-purple: #8b5cf6;
+  --music-purple-dim: #6d3fd1;
+  --music-purple-glow: rgba(139,92,246,.18);
+  --music-purple-border: rgba(139,92,246,.3);
+  --music-cyan: #06b6d4;
+  --music-card: #0f0f14;
+  --music-elevated: #16161e;
+  --music-border: rgba(255,255,255,.07);
+  --music-text: #e2e8f0;
+  --music-muted: #64748b;
+}
+
+.ms-layout {
+  display: flex;
+  gap: 20px;
+  height: calc(100vh - 120px);
+  min-height: 600px;
+}
+
+/* ── LEFT PANEL ────────────────────────────────────────────────────────────── */
+.ms-left {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow-y: auto;
+  background: var(--music-card);
+  border: 1px solid var(--music-border);
+  border-radius: 16px;
+  padding: 0;
+}
+
+.ms-panel-header {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--music-border);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--music-purple);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ms-panel-header::before {
+  content: "";
+  width: 3px; height: 13px;
+  background: var(--music-purple);
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.ms-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--music-border);
+}
+.ms-section:last-child { border-bottom: none; }
+
+.ms-section-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--music-muted);
+  margin-bottom: 12px;
+}
+
+.ms-input {
+  width: 100%;
+  background: var(--music-elevated);
+  border: 1px solid var(--music-border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--music-text);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color .2s;
+  box-sizing: border-box;
+}
+.ms-input:focus {
+  outline: none;
+  border-color: var(--music-purple);
+  box-shadow: 0 0 0 3px var(--music-purple-glow);
+}
+.ms-input option { background: #1a1a24; }
+
+.ms-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--music-muted);
+  margin-bottom: 6px;
+}
+
+.ms-row { margin-bottom: 12px; }
+.ms-row:last-child { margin-bottom: 0; }
+
+/* BPM slider */
+.ms-bpm-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.ms-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--music-purple) var(--slider-pct, 50%), #2d2d3a var(--slider-pct, 50%));
+  outline: none;
+  cursor: pointer;
+}
+.ms-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--music-purple);
+  box-shadow: 0 0 8px var(--music-purple-glow);
+  cursor: grab;
+}
+.ms-bpm-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--music-cyan);
+  font-family: 'JetBrains Mono', monospace;
+  min-width: 44px;
+  text-align: right;
+}
+.ms-tap-btn {
+  padding: 5px 10px;
+  background: var(--music-elevated);
+  border: 1px solid var(--music-border);
+  border-radius: 6px;
+  color: var(--music-cyan);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: .05em;
+  transition: all .15s;
+}
+.ms-tap-btn:hover { background: rgba(6,182,212,.1); border-color: var(--music-cyan); }
+
+/* Key selector */
+.ms-key-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.ms-key-btn {
+  padding: 5px 9px;
+  background: var(--music-elevated);
+  border: 1px solid var(--music-border);
+  border-radius: 6px;
+  color: var(--music-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.ms-key-btn.active {
+  background: var(--music-purple-glow);
+  border-color: var(--music-purple);
+  color: var(--music-purple);
+}
+.ms-mode-row {
+  display: flex;
+  gap: 6px;
+}
+.ms-mode-btn {
+  flex: 1;
+  padding: 6px;
+  background: var(--music-elevated);
+  border: 1px solid var(--music-border);
+  border-radius: 6px;
+  color: var(--music-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all .15s;
+}
+.ms-mode-btn.active {
+  background: var(--music-purple-glow);
+  border-color: var(--music-purple);
+  color: var(--music-purple);
+}
+
+/* Mood chips */
+.ms-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ms-chip {
+  padding: 5px 11px;
+  background: var(--music-elevated);
+  border: 1px solid var(--music-border);
+  border-radius: 20px;
+  color: var(--music-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.ms-chip.active {
+  background: var(--music-purple-glow);
+  border-color: var(--music-purple);
+  color: var(--music-purple);
+}
+
+/* Pill buttons */
+.ms-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.ms-pill {
+  padding: 6px 14px;
+  background: var(--music-elevated);
+  border: 1px solid var(--music-border);
+  border-radius: 20px;
+  color: var(--music-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+}
+.ms-pill.active {
+  background: var(--music-purple-glow);
+  border-color: var(--music-purple);
+  color: var(--music-purple);
+}
+
+/* Lyrics toggle */
+.ms-lyrics-toggle {
+  display: flex;
+  background: var(--music-elevated);
+  border: 1px solid var(--music-border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.ms-lyrics-tab {
+  flex: 1;
+  padding: 8px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--music-muted);
+  transition: all .15s;
+  border: none;
+  background: none;
+}
+.ms-lyrics-tab.active {
+  background: var(--music-purple-glow);
+  color: var(--music-purple);
+}
+
+.ms-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--music-purple);
+  background: var(--music-purple-glow);
+  border: 1px solid var(--music-purple-border);
+  border-radius: 20px;
+  padding: 5px 12px;
+}
+
+/* Generate button */
+.ms-generate-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--music-purple) 0%, #6d28d9 100%);
+  border: none;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: .04em;
+  transition: all .2s;
+  position: relative;
+  overflow: hidden;
+}
+.ms-generate-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.1) 0%, transparent 100%);
+}
+.ms-generate-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(139,92,246,.5);
+}
+.ms-generate-btn:active { transform: translateY(0); }
+.ms-generate-btn.pulsing {
+  animation: pulse-glow 1.5s infinite;
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 12px rgba(139,92,246,.4); }
+  50% { box-shadow: 0 0 32px rgba(139,92,246,.8), 0 0 60px rgba(139,92,246,.3); }
+}
+.ms-generate-btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+  transform: none;
+  animation: none;
+}
+
+/* ── RIGHT / MAIN PANEL ─────────────────────────────────────────────────────── */
+.ms-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+/* Status bar */
+.ms-status-bar {
+  background: var(--music-card);
+  border: 1px solid var(--music-border);
+  border-radius: 12px;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.ms-status-step {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--music-text);
+}
+.ms-status-pct {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--music-purple);
+  font-family: 'JetBrains Mono', monospace;
+  min-width: 40px;
+  text-align: right;
+}
+.ms-progress-track {
+  width: 100%;
+  height: 3px;
+  background: #1a1a24;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.ms-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--music-purple), var(--music-cyan));
+  border-radius: 2px;
+  transition: width .5s ease;
+  width: 0%;
+}
+
+/* Waveform / player area */
+.ms-player-card {
+  background: var(--music-card);
+  border: 1px solid var(--music-border);
+  border-radius: 16px;
+  padding: 24px;
+  flex-shrink: 0;
+}
+
+/* Equalizer placeholder */
+.ms-eq-placeholder {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  height: 120px;
+  padding: 10px 0;
+}
+.ms-eq-bar {
+  width: 6px;
+  background: linear-gradient(to top, var(--music-purple), var(--music-cyan));
+  border-radius: 3px 3px 0 0;
+  opacity: .4;
+  animation: eq-idle 1.4s ease-in-out infinite;
+}
+.ms-eq-bar:nth-child(2n) { animation-delay: .2s; }
+.ms-eq-bar:nth-child(3n) { animation-delay: .4s; }
+.ms-eq-bar:nth-child(4n) { animation-delay: .6s; }
+.ms-eq-bar:nth-child(5n) { animation-delay: .8s; }
+@keyframes eq-idle {
+  0%, 100% { height: 20%; opacity: .25; }
+  50% { height: 60%; opacity: .5; }
+}
+.ms-eq-placeholder.playing .ms-eq-bar {
+  opacity: 1;
+  animation: eq-play 0.5s ease-in-out infinite;
+}
+.ms-eq-placeholder.playing .ms-eq-bar:nth-child(2n) { animation-delay: .05s; animation-duration: .45s; }
+.ms-eq-placeholder.playing .ms-eq-bar:nth-child(3n) { animation-delay: .1s; animation-duration: .55s; }
+.ms-eq-placeholder.playing .ms-eq-bar:nth-child(4n) { animation-delay: .15s; animation-duration: .4s; }
+.ms-eq-placeholder.playing .ms-eq-bar:nth-child(5n) { animation-delay: .2s; animation-duration: .6s; }
+@keyframes eq-play {
+  0%, 100% { height: 15%; }
+  50% { height: 90%; }
+}
+
+.ms-placeholder-text {
+  text-align: center;
+  color: var(--music-muted);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* Audio player */
+.ms-player-hidden { display: none; }
+.ms-track-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.ms-track-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--music-text);
+}
+.ms-genre-badge {
+  padding: 3px 10px;
+  background: var(--music-purple-glow);
+  border: 1px solid var(--music-purple-border);
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--music-purple);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.ms-waveform-canvas {
+  width: 100%;
+  height: 80px;
+  border-radius: 8px;
+  background: #0a0a10;
+  cursor: pointer;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.ms-seek-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.ms-seek-bar {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: #2d2d3a;
+  outline: none;
+  cursor: pointer;
+}
+.ms-seek-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--music-purple);
+  cursor: grab;
+}
+.ms-time {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--music-muted);
+  white-space: nowrap;
+}
+
+.ms-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.ms-ctrl-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--music-muted);
+  font-size: 18px;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all .15s;
+  line-height: 1;
+}
+.ms-ctrl-btn:hover { color: var(--music-text); background: var(--music-elevated); }
+.ms-play-btn {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--music-purple);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  color: #fff;
+  cursor: pointer;
+  border: none;
+  transition: all .2s;
+  box-shadow: 0 4px 16px rgba(139,92,246,.4);
+}
+.ms-play-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 24px rgba(139,92,246,.6);
+}
+.ms-vol-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.ms-vol-icon { font-size: 14px; }
+.ms-vol-slider {
+  width: 80px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  border-radius: 2px;
+  background: #2d2d3a;
+  outline: none;
+  cursor: pointer;
+}
+.ms-vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--music-purple);
+  cursor: grab;
+}
+
+.ms-action-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.ms-action-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all .15s;
+}
+.ms-action-primary {
+  background: linear-gradient(135deg, var(--music-purple), #6d28d9);
+  color: #fff;
+  border-color: transparent;
+}
+.ms-action-primary:hover { box-shadow: 0 4px 16px rgba(139,92,246,.4); }
+.ms-action-secondary {
+  background: var(--music-elevated);
+  color: var(--music-text);
+  border-color: var(--music-border);
+}
+.ms-action-secondary:hover { border-color: var(--music-purple); color: var(--music-purple); }
+
+.ms-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  border: 1px solid;
+}
+.ms-provider-suno { color: #f97316; background: rgba(249,115,22,.1); border-color: rgba(249,115,22,.3); }
+.ms-provider-replicate { color: #06b6d4; background: rgba(6,182,212,.1); border-color: rgba(6,182,212,.3); }
+.ms-provider-elevenlabs { color: #10b981; background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.3); }
+.ms-provider-none { color: var(--music-muted); background: transparent; border-color: var(--music-border); }
+
+/* Lyrics panel */
+.ms-lyrics-panel {
+  background: var(--music-card);
+  border: 1px solid var(--music-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.ms-lyrics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--music-border);
+  cursor: pointer;
+}
+.ms-lyrics-header-left {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--music-purple);
+  display: flex; align-items: center; gap: 8px;
+}
+.ms-lyrics-body {
+  padding: 20px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+.ms-lyric-section { margin-bottom: 18px; }
+.ms-lyric-section-title {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.ms-verse-title { color: #60a5fa; }
+.ms-chorus-title { color: var(--music-purple); }
+.ms-bridge-title { color: var(--music-cyan); }
+.ms-outro-title { color: #a78bfa; }
+.ms-lyric-text {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--music-text);
+  white-space: pre-line;
+}
+.ms-lyrics-copy {
+  padding: 6px 14px;
+  background: var(--music-elevated);
+  border: 1px solid var(--music-border);
+  border-radius: 6px;
+  color: var(--music-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ms-lyrics-copy:hover { color: var(--music-purple); border-color: var(--music-purple); }
+
+/* Terminal log */
+.ms-log-panel {
+  background: #050508;
+  border: 1px solid var(--music-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.ms-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--music-border);
+  cursor: pointer;
+}
+.ms-log-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #22c55e;
+  display: flex; align-items: center; gap: 8px;
+}
+.ms-log-body {
+  padding: 14px 20px;
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #86efac;
+}
+.ms-log-line { display: block; margin-bottom: 2px; }
+.ms-log-line.error { color: #f87171; }
+.ms-log-line.done { color: var(--music-purple); }
+
+/* Library */
+.ms-library {
+  background: var(--music-card);
+  border: 1px solid var(--music-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.ms-library-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--music-border);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--music-purple);
+  display: flex; align-items: center; gap: 8px;
+}
+.ms-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  padding: 16px 20px;
+}
+.ms-library-card {
+  background: var(--music-elevated);
+  border: 1px solid var(--music-border);
+  border-radius: 12px;
+  padding: 14px;
+  transition: border-color .15s;
+}
+.ms-library-card:hover { border-color: var(--music-purple-border); }
+.ms-library-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--music-text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ms-library-meta {
+  font-size: 11px;
+  color: var(--music-muted);
+  margin-bottom: 10px;
+}
+.ms-library-actions { display: flex; gap: 6px; }
+.ms-lib-btn {
+  flex: 1;
+  padding: 5px;
+  text-align: center;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all .15s;
+}
+.ms-lib-play { background: var(--music-purple-glow); border-color: var(--music-purple-border); color: var(--music-purple); }
+.ms-lib-dl { background: var(--music-card); border-color: var(--music-border); color: var(--music-muted); }
+.ms-lib-dl:hover { color: var(--music-text); border-color: var(--music-text); }
+
+.ms-empty-library {
+  padding: 30px 20px;
+  text-align: center;
+  color: var(--music-muted);
+  font-size: 13px;
+}
+
+/* Collapsible toggle icon */
+.ms-toggle-icon { color: var(--music-muted); font-size: 12px; transition: transform .2s; }
+.ms-toggle-icon.open { transform: rotate(180deg); }
+
+@media (max-width: 900px) {
+  .ms-layout { flex-direction: column; height: auto; }
+  .ms-left { width: 100%; }
+}
+</style>
+
+<div class="ms-layout">
+
+  <!-- ── LEFT: Song Builder ────────────────────────────────────────────────── -->
+  <div class="ms-left">
+    <div class="ms-panel-header">Song Builder</div>
+
+    <div class="ms-section">
+      <div class="ms-section-label">Track Info</div>
+
+      <div class="ms-row">
+        <label class="ms-label">Song Title</label>
+        <input id="ms-title" class="ms-input" type="text" placeholder="Enter song title…" value="My Song">
+      </div>
+
+      <div class="ms-row">
+        <label class="ms-label">Genre</label>
+        <select id="ms-genre" class="ms-input">
+          <option value="hip hop">Hip-Hop</option>
+          <option value="pop" selected>Pop</option>
+          <option value="r&b">R&amp;B</option>
+          <option value="trap">Trap</option>
+          <option value="edm">EDM</option>
+          <option value="house">House</option>
+          <option value="drill">Drill</option>
+          <option value="afrobeats">Afrobeats</option>
+          <option value="rock">Rock</option>
+          <option value="country">Country</option>
+          <option value="jazz">Jazz</option>
+          <option value="classical">Classical</option>
+          <option value="lo-fi">Lo-Fi</option>
+          <option value="reggaeton">Reggaeton</option>
+          <option value="gospel">Gospel</option>
+          <option value="soul">Soul</option>
+        </select>
+      </div>
+
+      <div class="ms-row">
+        <label class="ms-label">Reference Artist <span style="color:var(--music-muted);font-weight:400;">(optional)</span></label>
+        <select id="ms-artist" class="ms-input">
+          <option value="">None (original style)</option>
+          <option value="Drake">Drake</option>
+          <option value="Taylor Swift">Taylor Swift</option>
+          <option value="Kendrick Lamar">Kendrick Lamar</option>
+          <option value="Beyoncé">Beyoncé</option>
+          <option value="Post Malone">Post Malone</option>
+          <option value="Bad Bunny">Bad Bunny</option>
+          <option value="Ed Sheeran">Ed Sheeran</option>
+          <option value="The Weeknd">The Weeknd</option>
+          <option value="Billie Eilish">Billie Eilish</option>
+          <option value="Eminem">Eminem</option>
+          <option value="Jay-Z">Jay-Z</option>
+          <option value="Rihanna">Rihanna</option>
+          <option value="Travis Scott">Travis Scott</option>
+          <option value="SZA">SZA</option>
+          <option value="Tyler the Creator">Tyler the Creator</option>
+          <option value="J. Cole">J. Cole</option>
+          <option value="Dua Lipa">Dua Lipa</option>
+          <option value="Harry Styles">Harry Styles</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="ms-section">
+      <div class="ms-section-label">Music Settings</div>
+
+      <div class="ms-row">
+        <label class="ms-label">BPM <span id="ms-bpm-tap-hint" style="font-weight:400;color:var(--music-muted);">— Tap to detect</span></label>
+        <div class="ms-bpm-row">
+          <input id="ms-bpm-slider" class="ms-slider" type="range" min="60" max="200" value="120"
+                 style="--slider-pct:50%" oninput="updateBpm(this.value)">
+          <span class="ms-bpm-val" id="ms-bpm-display">120</span>
+          <button class="ms-tap-btn" id="ms-tap-btn" onclick="tapTempo()">TAP</button>
+        </div>
+      </div>
+
+      <div class="ms-row">
+        <label class="ms-label">Key</label>
+        <div class="ms-key-row" id="ms-key-row">
+          <button class="ms-key-btn active" data-key="C" onclick="selectKey(this)">C</button>
+          <button class="ms-key-btn" data-key="C#" onclick="selectKey(this)">C#</button>
+          <button class="ms-key-btn" data-key="D" onclick="selectKey(this)">D</button>
+          <button class="ms-key-btn" data-key="D#" onclick="selectKey(this)">D#</button>
+          <button class="ms-key-btn" data-key="E" onclick="selectKey(this)">E</button>
+          <button class="ms-key-btn" data-key="F" onclick="selectKey(this)">F</button>
+          <button class="ms-key-btn" data-key="F#" onclick="selectKey(this)">F#</button>
+          <button class="ms-key-btn" data-key="G" onclick="selectKey(this)">G</button>
+          <button class="ms-key-btn" data-key="G#" onclick="selectKey(this)">G#</button>
+          <button class="ms-key-btn" data-key="A" onclick="selectKey(this)">A</button>
+          <button class="ms-key-btn" data-key="A#" onclick="selectKey(this)">A#</button>
+          <button class="ms-key-btn" data-key="B" onclick="selectKey(this)">B</button>
+        </div>
+        <div class="ms-mode-row" id="ms-mode-row">
+          <button class="ms-mode-btn active" data-mode="Major" onclick="selectMode(this)">Major</button>
+          <button class="ms-mode-btn" data-mode="Minor" onclick="selectMode(this)">Minor</button>
+        </div>
+      </div>
+
+      <div class="ms-row">
+        <label class="ms-label">Mood</label>
+        <div class="ms-chips" id="ms-mood-chips">
+          <span class="ms-chip active" data-mood="Energetic" onclick="selectMood(this)">Energetic</span>
+          <span class="ms-chip" data-mood="Dark" onclick="selectMood(this)">Dark</span>
+          <span class="ms-chip" data-mood="Chill" onclick="selectMood(this)">Chill</span>
+          <span class="ms-chip" data-mood="Romantic" onclick="selectMood(this)">Romantic</span>
+          <span class="ms-chip" data-mood="Aggressive" onclick="selectMood(this)">Aggressive</span>
+          <span class="ms-chip" data-mood="Uplifting" onclick="selectMood(this)">Uplifting</span>
+          <span class="ms-chip" data-mood="Mysterious" onclick="selectMood(this)">Mysterious</span>
+          <span class="ms-chip" data-mood="Epic" onclick="selectMood(this)">Epic</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ms-section">
+      <div class="ms-section-label">Production</div>
+
+      <div class="ms-row">
+        <label class="ms-label">Duration</label>
+        <div class="ms-pills" id="ms-dur-pills">
+          <span class="ms-pill active" data-dur="30" onclick="selectDur(this)">30s</span>
+          <span class="ms-pill" data-dur="60" onclick="selectDur(this)">1 min</span>
+          <span class="ms-pill" data-dur="120" onclick="selectDur(this)">2 min</span>
+          <span class="ms-pill" data-dur="210" onclick="selectDur(this)">Full</span>
+        </div>
+      </div>
+
+      <div class="ms-row">
+        <label class="ms-label">Vocals</label>
+        <div class="ms-pills" id="ms-vocal-pills">
+          <span class="ms-pill active" data-vocal="male" onclick="selectVocal(this)">Male</span>
+          <span class="ms-pill" data-vocal="female" onclick="selectVocal(this)">Female</span>
+          <span class="ms-pill" data-vocal="instrumental" onclick="selectVocal(this)">Instrumental</span>
+          <span class="ms-pill" data-vocal="choir" onclick="selectVocal(this)">Choir</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ms-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;margin-bottom:10px;"
+           onclick="toggleLyricsSection()">
+        <div class="ms-section-label" style="margin-bottom:0">Lyrics</div>
+        <span id="ms-lyrics-toggle-icon" class="ms-toggle-icon open">▼</span>
+      </div>
+
+      <div id="ms-lyrics-section">
+        <div class="ms-lyrics-toggle" style="margin-bottom:10px;">
+          <button class="ms-lyrics-tab active" id="ms-tab-ai" onclick="setLyricsMode('ai')">✨ AI Generate</button>
+          <button class="ms-lyrics-tab" id="ms-tab-own" onclick="setLyricsMode('own')">✏️ Write My Own</button>
+        </div>
+        <div id="ms-ai-lyrics-hint">
+          <div class="ms-ai-badge">✨ AI will write original lyrics for you</div>
+        </div>
+        <div id="ms-own-lyrics-area" style="display:none;">
+          <textarea id="ms-lyrics-text" class="ms-input" rows="6"
+                    placeholder="Write your lyrics here…&#10;&#10;[Verse 1]&#10;…&#10;&#10;[Chorus]&#10;…"
+                    style="resize:vertical;line-height:1.6;font-size:12px;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:16px 20px 20px;">
+      <button class="ms-generate-btn pulsing" id="ms-gen-btn" onclick="generateSong()">
+        🎵 Generate Song
+      </button>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: Main Studio ─────────────────────────────────────────────────── -->
+  <div class="ms-main">
+
+    <!-- Status bar -->
+    <div class="ms-status-bar" id="ms-status-bar" style="display:none;">
+      <div style="flex:1">
+        <div class="ms-status-step" id="ms-status-step">Starting…</div>
+        <div class="ms-progress-track">
+          <div class="ms-progress-fill" id="ms-progress-fill"></div>
+        </div>
+      </div>
+      <div class="ms-status-pct" id="ms-status-pct">0%</div>
+    </div>
+
+    <!-- Player card -->
+    <div class="ms-player-card">
+
+      <!-- Placeholder (visible before generation) -->
+      <div id="ms-placeholder">
+        <div class="ms-placeholder-text" style="margin-bottom:12px;font-size:14px;font-weight:600;color:var(--music-muted);">
+          🎵 Your track will appear here
+        </div>
+        <div class="ms-eq-placeholder" id="ms-eq-placeholder">
+          <!-- 28 bars -->
+          <div class="ms-eq-bar" style="height:30%"></div>
+          <div class="ms-eq-bar" style="height:55%"></div>
+          <div class="ms-eq-bar" style="height:40%"></div>
+          <div class="ms-eq-bar" style="height:70%"></div>
+          <div class="ms-eq-bar" style="height:35%"></div>
+          <div class="ms-eq-bar" style="height:80%"></div>
+          <div class="ms-eq-bar" style="height:50%"></div>
+          <div class="ms-eq-bar" style="height:65%"></div>
+          <div class="ms-eq-bar" style="height:45%"></div>
+          <div class="ms-eq-bar" style="height:75%"></div>
+          <div class="ms-eq-bar" style="height:55%"></div>
+          <div class="ms-eq-bar" style="height:90%"></div>
+          <div class="ms-eq-bar" style="height:40%"></div>
+          <div class="ms-eq-bar" style="height:60%"></div>
+          <div class="ms-eq-bar" style="height:85%"></div>
+          <div class="ms-eq-bar" style="height:30%"></div>
+          <div class="ms-eq-bar" style="height:70%"></div>
+          <div class="ms-eq-bar" style="height:45%"></div>
+          <div class="ms-eq-bar" style="height:55%"></div>
+          <div class="ms-eq-bar" style="height:80%"></div>
+          <div class="ms-eq-bar" style="height:35%"></div>
+          <div class="ms-eq-bar" style="height:65%"></div>
+          <div class="ms-eq-bar" style="height:50%"></div>
+          <div class="ms-eq-bar" style="height:75%"></div>
+          <div class="ms-eq-bar" style="height:40%"></div>
+          <div class="ms-eq-bar" style="height:60%"></div>
+          <div class="ms-eq-bar" style="height:88%"></div>
+          <div class="ms-eq-bar" style="height:33%"></div>
+        </div>
+        <div class="ms-placeholder-text">
+          Configure your track in the Song Builder, then hit Generate
+        </div>
+      </div>
+
+      <!-- Player (hidden until done) -->
+      <div id="ms-player" class="ms-player-hidden">
+        <div class="ms-track-header">
+          <div class="ms-track-title" id="ms-player-title">My Song</div>
+          <span class="ms-genre-badge" id="ms-player-genre">Pop</span>
+        </div>
+
+        <!-- Waveform canvas -->
+        <canvas class="ms-waveform-canvas" id="ms-waveform" onclick="seekFromCanvas(event)"></canvas>
+
+        <!-- Seek -->
+        <div class="ms-seek-row">
+          <span class="ms-time" id="ms-time-cur">0:00</span>
+          <input type="range" class="ms-seek-bar" id="ms-seek" min="0" max="100" value="0"
+                 oninput="seekAudio(this.value)">
+          <span class="ms-time" id="ms-time-dur">0:00</span>
+        </div>
+
+        <!-- Controls -->
+        <div class="ms-controls">
+          <button class="ms-ctrl-btn" title="Loop" id="ms-loop-btn" onclick="toggleLoop()">🔁</button>
+          <button class="ms-ctrl-btn" title="Rewind" onclick="audioRewind()">⏮</button>
+          <button class="ms-play-btn" id="ms-play-btn" onclick="togglePlay()">▶</button>
+          <button class="ms-ctrl-btn" title="Skip" onclick="audioSkip()">⏭</button>
+          <div class="ms-vol-row">
+            <span class="ms-vol-icon">🔊</span>
+            <input type="range" class="ms-vol-slider" id="ms-vol" min="0" max="100" value="80"
+                   oninput="setVolume(this.value)">
+          </div>
+        </div>
+
+        <!-- Action buttons row 1 -->
+        <div class="ms-action-row">
+          <button class="ms-action-btn ms-action-primary" onclick="downloadSong()">⬇ Download MP3</button>
+          <button class="ms-action-btn ms-action-secondary" onclick="regenerateSong()">🔄 Regenerate</button>
+          <button class="ms-action-btn ms-action-secondary" onclick="addToVideo()">🎬 Add to Video</button>
+        </div>
+
+        <!-- Provider badge -->
+        <div style="margin-top:12px;">
+          <span class="ms-provider-badge" id="ms-provider-badge">⚡ AI Generated</span>
+        </div>
+      </div>
+
+    </div><!-- /player-card -->
+
+    <!-- Lyrics panel -->
+    <div class="ms-lyrics-panel" id="ms-lyrics-panel" style="display:none;">
+      <div class="ms-lyrics-header" onclick="toggleLyricsPanel()">
+        <div class="ms-lyrics-header-left">🎤 Lyrics</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="ms-lyrics-copy" onclick="event.stopPropagation();copyLyrics()">Copy</button>
+          <span class="ms-toggle-icon open" id="ms-lyrics-panel-icon">▼</span>
+        </div>
+      </div>
+      <div class="ms-lyrics-body" id="ms-lyrics-body">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Generation log -->
+    <div class="ms-log-panel" id="ms-log-panel">
+      <div class="ms-log-header" onclick="toggleLogPanel()">
+        <div class="ms-log-title">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;"></span>
+          Generation Log
+        </div>
+        <span class="ms-toggle-icon open" id="ms-log-icon">▼</span>
+      </div>
+      <div class="ms-log-body" id="ms-log-body">
+        <span class="ms-log-line" style="color:var(--music-muted);">Ready. Configure your track and hit Generate…</span>
+      </div>
+    </div>
+
+    <!-- Library -->
+    <div class="ms-library">
+      <div class="ms-library-header">📚 Song Library</div>
+      <div class="ms-library-grid" id="ms-library-grid">
+        <div class="ms-empty-library">No songs yet — generate your first track above</div>
+      </div>
+    </div>
+
+  </div><!-- /ms-main -->
+</div>
+
+<!-- Hidden audio element -->
+<audio id="ms-audio" preload="auto"></audio>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+var _msState = {
+  jobId: null,
+  isPlaying: false,
+  loopEnabled: false,
+  currentKey: 'C',
+  currentMode: 'Major',
+  lyricsMode: 'ai',
+  selectedMood: 'Energetic',
+  selectedDur: 30,
+  selectedVocal: 'male',
+  tapTimes: [],
+  library: [],
+};
+
+// ── BPM / Tap Tempo ───────────────────────────────────────────────────────────
+function updateBpm(val) {
+  var pct = ((val - 60) / 140) * 100;
+  var slider = document.getElementById('ms-bpm-slider');
+  slider.style.setProperty('--slider-pct', pct + '%');
+  document.getElementById('ms-bpm-display').textContent = val;
+}
+
+function tapTempo() {
+  var now = Date.now();
+  _msState.tapTimes.push(now);
+  if (_msState.tapTimes.length > 8) _msState.tapTimes.shift();
+  if (_msState.tapTimes.length >= 2) {
+    var intervals = [];
+    for (var i = 1; i < _msState.tapTimes.length; i++) {
+      intervals.push(_msState.tapTimes[i] - _msState.tapTimes[i-1]);
+    }
+    var avg = intervals.reduce(function(a,b){return a+b;},0) / intervals.length;
+    var bpm = Math.round(60000 / avg);
+    bpm = Math.max(60, Math.min(200, bpm));
+    document.getElementById('ms-bpm-slider').value = bpm;
+    updateBpm(bpm);
+  }
+  var btn = document.getElementById('ms-tap-btn');
+  btn.style.background = 'rgba(6,182,212,.2)';
+  btn.style.borderColor = '#06b6d4';
+  setTimeout(function(){ btn.style.background=''; btn.style.borderColor=''; }, 200);
+}
+
+// ── Key / Mode ────────────────────────────────────────────────────────────────
+function selectKey(btn) {
+  document.querySelectorAll('#ms-key-row .ms-key-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  _msState.currentKey = btn.dataset.key;
+}
+
+function selectMode(btn) {
+  document.querySelectorAll('#ms-mode-row .ms-mode-btn').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+  _msState.currentMode = btn.dataset.mode;
+}
+
+// ── Mood chips ────────────────────────────────────────────────────────────────
+function selectMood(chip) {
+  document.querySelectorAll('#ms-mood-chips .ms-chip').forEach(function(c){ c.classList.remove('active'); });
+  chip.classList.add('active');
+  _msState.selectedMood = chip.dataset.mood;
+}
+
+// ── Duration pills ────────────────────────────────────────────────────────────
+function selectDur(pill) {
+  document.querySelectorAll('#ms-dur-pills .ms-pill').forEach(function(p){ p.classList.remove('active'); });
+  pill.classList.add('active');
+  _msState.selectedDur = parseInt(pill.dataset.dur);
+}
+
+// ── Vocal pills ───────────────────────────────────────────────────────────────
+function selectVocal(pill) {
+  document.querySelectorAll('#ms-vocal-pills .ms-pill').forEach(function(p){ p.classList.remove('active'); });
+  pill.classList.add('active');
+  _msState.selectedVocal = pill.dataset.vocal;
+}
+
+// ── Lyrics toggle ─────────────────────────────────────────────────────────────
+function setLyricsMode(mode) {
+  _msState.lyricsMode = mode;
+  document.getElementById('ms-tab-ai').classList.toggle('active', mode === 'ai');
+  document.getElementById('ms-tab-own').classList.toggle('active', mode === 'own');
+  document.getElementById('ms-ai-lyrics-hint').style.display = mode === 'ai' ? '' : 'none';
+  document.getElementById('ms-own-lyrics-area').style.display = mode === 'own' ? '' : 'none';
+}
+
+function toggleLyricsSection() {
+  var sec = document.getElementById('ms-lyrics-section');
+  var icon = document.getElementById('ms-lyrics-toggle-icon');
+  var visible = sec.style.display !== 'none';
+  sec.style.display = visible ? 'none' : '';
+  icon.classList.toggle('open', !visible);
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+function generateSong() {
+  var btn = document.getElementById('ms-gen-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating…';
+  btn.classList.remove('pulsing');
+
+  // Show status bar, hide player
+  document.getElementById('ms-status-bar').style.display = 'flex';
+  document.getElementById('ms-player').classList.add('ms-player-hidden');
+  document.getElementById('ms-placeholder').style.display = '';
+  document.getElementById('ms-lyrics-panel').style.display = 'none';
+
+  updateStatus('Starting…', 0);
+  appendLog('Starting music generation…');
+
+  var params = {
+    title: document.getElementById('ms-title').value || 'My Song',
+    genre: document.getElementById('ms-genre').value,
+    mood: _msState.selectedMood,
+    bpm: parseInt(document.getElementById('ms-bpm-slider').value),
+    key: _msState.currentKey + ' ' + _msState.currentMode,
+    duration_seconds: _msState.selectedDur,
+    vocal_style: _msState.selectedVocal,
+    lyrics: _msState.lyricsMode === 'own' ? (document.getElementById('ms-lyrics-text').value || '') : '',
+    reference_artist: document.getElementById('ms-artist').value,
+  };
+
+  fetch('/api/music/generate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(params),
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    if (!data.job_id) throw new Error('No job_id returned');
+    _msState.jobId = data.job_id;
+    appendLog('Job created: ' + data.job_id.slice(0,8) + '…');
+    openSSE(data.job_id);
+  })
+  .catch(function(err){
+    appendLog('Error: ' + err.message, 'error');
+    resetGenBtn();
+  });
+}
+
+function openSSE(jobId) {
+  var src = new EventSource('/api/music/stream/' + jobId);
+  src.onmessage = function(e) {
+    try {
+      var d = JSON.parse(e.data);
+      if (d.step) appendLog(d.step);
+      if (d.progress !== undefined) updateStatus(d.step || '…', d.progress);
+      if (d.status === 'done') {
+        src.close();
+        onSongDone(d.result);
+      } else if (d.status === 'error') {
+        src.close();
+        appendLog('Error: ' + (d.step || 'Unknown'), 'error');
+        resetGenBtn();
+      }
+    } catch(ex) {}
+  };
+  src.onerror = function() {
+    src.close();
+    // Fall back to polling
+    pollJob(jobId);
+  };
+}
+
+function pollJob(jobId) {
+  var interval = setInterval(function(){
+    fetch('/api/music/status/' + jobId)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.step) appendLog(d.step);
+      if (d.progress !== undefined) updateStatus(d.step || '…', d.progress);
+      if (d.status === 'done') {
+        clearInterval(interval);
+        onSongDone(d.result);
+      } else if (d.status === 'error') {
+        clearInterval(interval);
+        appendLog('Error: ' + (d.step || 'Unknown'), 'error');
+        resetGenBtn();
+      }
+    })
+    .catch(function(){});
+  }, 2000);
+}
+
+function onSongDone(result) {
+  appendLog('Track complete!', 'done');
+  updateStatus('Complete!', 100);
+
+  // Populate player
+  document.getElementById('ms-player-title').textContent = result.title || 'My Song';
+  document.getElementById('ms-player-genre').textContent = (result.genre || 'Music').charAt(0).toUpperCase() + (result.genre || 'music').slice(1);
+
+  // Provider badge
+  var badge = document.getElementById('ms-provider-badge');
+  var prov = (result.provider || '').toLowerCase();
+  badge.className = 'ms-provider-badge';
+  if (prov.includes('suno')) {
+    badge.classList.add('ms-provider-suno');
+    badge.textContent = '🎵 Powered by Suno AI';
+  } else if (prov.includes('replicate') || prov.includes('musicgen')) {
+    badge.classList.add('ms-provider-replicate');
+    badge.textContent = '🎼 Powered by Replicate MusicGen';
+  } else if (prov.includes('elevenlabs')) {
+    badge.classList.add('ms-provider-elevenlabs');
+    badge.textContent = '🔊 Powered by ElevenLabs';
+  } else {
+    badge.classList.add('ms-provider-none');
+    badge.textContent = '⚡ AI Generated';
+  }
+
+  // Load audio
+  if (result.audio_path) {
+    var audio = document.getElementById('ms-audio');
+    audio.src = '/api/music/download/' + _msState.jobId;
+    audio.load();
+    audio.onloadedmetadata = function() {
+      document.getElementById('ms-time-dur').textContent = fmtTime(audio.duration);
+      document.getElementById('ms-seek').max = Math.floor(audio.duration);
+      drawWaveform();
+    };
+  }
+
+  // Show player, hide placeholder
+  document.getElementById('ms-placeholder').style.display = 'none';
+  document.getElementById('ms-player').classList.remove('ms-player-hidden');
+
+  // Lyrics
+  if (result.lyrics) {
+    populateLyrics(result);
+    document.getElementById('ms-lyrics-panel').style.display = '';
+  }
+
+  // Add to library
+  addToLibrary(result);
+
+  resetGenBtn();
+}
+
+// ── Audio player ──────────────────────────────────────────────────────────────
+var _audioInterval = null;
+
+function togglePlay() {
+  var audio = document.getElementById('ms-audio');
+  var btn = document.getElementById('ms-play-btn');
+  var eq = document.getElementById('ms-eq-placeholder');
+  if (audio.paused) {
+    audio.play();
+    _msState.isPlaying = true;
+    btn.textContent = '⏸';
+    eq.classList.add('playing');
+    startTimeUpdate();
+  } else {
+    audio.pause();
+    _msState.isPlaying = false;
+    btn.textContent = '▶';
+    eq.classList.remove('playing');
+    clearInterval(_audioInterval);
+  }
+}
+
+function startTimeUpdate() {
+  clearInterval(_audioInterval);
+  _audioInterval = setInterval(function(){
+    var audio = document.getElementById('ms-audio');
+    if (!audio.duration) return;
+    document.getElementById('ms-time-cur').textContent = fmtTime(audio.currentTime);
+    document.getElementById('ms-seek').value = Math.floor(audio.currentTime);
+    updateWaveformPos(audio.currentTime / audio.duration);
+  }, 500);
+}
+
+function seekAudio(val) {
+  var audio = document.getElementById('ms-audio');
+  audio.currentTime = parseInt(val);
+  document.getElementById('ms-time-cur').textContent = fmtTime(audio.currentTime);
+}
+
+function seekFromCanvas(e) {
+  var canvas = document.getElementById('ms-waveform');
+  var audio = document.getElementById('ms-audio');
+  if (!audio.duration) return;
+  var rect = canvas.getBoundingClientRect();
+  var pct = (e.clientX - rect.left) / rect.width;
+  audio.currentTime = pct * audio.duration;
+}
+
+function audioRewind() {
+  var audio = document.getElementById('ms-audio');
+  audio.currentTime = 0;
+}
+
+function audioSkip() {
+  var audio = document.getElementById('ms-audio');
+  audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
+}
+
+function toggleLoop() {
+  var audio = document.getElementById('ms-audio');
+  _msState.loopEnabled = !_msState.loopEnabled;
+  audio.loop = _msState.loopEnabled;
+  var btn = document.getElementById('ms-loop-btn');
+  btn.style.color = _msState.loopEnabled ? '#8b5cf6' : '';
+  btn.style.background = _msState.loopEnabled ? 'rgba(139,92,246,.15)' : '';
+}
+
+function setVolume(val) {
+  document.getElementById('ms-audio').volume = val / 100;
+}
+
+document.getElementById('ms-audio').addEventListener('ended', function(){
+  if (!_msState.loopEnabled) {
+    _msState.isPlaying = false;
+    document.getElementById('ms-play-btn').textContent = '▶';
+    document.getElementById('ms-eq-placeholder').classList.remove('playing');
+    clearInterval(_audioInterval);
+  }
+});
+
+// ── Waveform canvas ───────────────────────────────────────────────────────────
+var _waveData = [];
+
+function drawWaveform() {
+  var canvas = document.getElementById('ms-waveform');
+  var ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  var W = canvas.offsetWidth, H = canvas.offsetHeight;
+
+  // Generate fake-but-pretty waveform data
+  if (!_waveData.length) {
+    _waveData = [];
+    for (var i = 0; i < 120; i++) {
+      _waveData.push(0.2 + Math.random() * 0.7 * (0.5 + 0.5 * Math.sin(i * 0.3)));
+    }
+  }
+
+  ctx.clearRect(0, 0, W, H);
+  var barW = W / _waveData.length - 1;
+  var mid = H / 2;
+
+  for (var i = 0; i < _waveData.length; i++) {
+    var x = i * (barW + 1);
+    var h = _waveData[i] * mid * 0.9;
+    var alpha = 0.5 + _waveData[i] * 0.5;
+
+    var grad = ctx.createLinearGradient(x, mid - h, x, mid + h);
+    grad.addColorStop(0, 'rgba(139,92,246,' + alpha + ')');
+    grad.addColorStop(0.5, 'rgba(6,182,212,' + alpha + ')');
+    grad.addColorStop(1, 'rgba(139,92,246,' + alpha + ')');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect(x, mid - h, barW, h * 2, 2);
+    ctx.fill();
+  }
+}
+
+function updateWaveformPos(progress) {
+  var canvas = document.getElementById('ms-waveform');
+  var ctx = canvas.getContext('2d');
+  var W = canvas.offsetWidth, H = canvas.offsetHeight;
+  ctx.clearRect(0, 0, W * window.devicePixelRatio, H * window.devicePixelRatio);
+  ctx.save();
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  var barW = W / _waveData.length - 1;
+  var mid = H / 2;
+  var progressX = progress * W;
+
+  for (var i = 0; i < _waveData.length; i++) {
+    var x = i * (barW + 1);
+    var h = _waveData[i] * mid * 0.9;
+    var past = x < progressX;
+    var alpha = past ? (0.7 + _waveData[i] * 0.3) : (0.2 + _waveData[i] * 0.2);
+
+    if (past) {
+      var grad = ctx.createLinearGradient(x, mid - h, x, mid + h);
+      grad.addColorStop(0, 'rgba(139,92,246,' + alpha + ')');
+      grad.addColorStop(0.5, 'rgba(6,182,212,' + alpha + ')');
+      grad.addColorStop(1, 'rgba(139,92,246,' + alpha + ')');
+      ctx.fillStyle = grad;
+    } else {
+      ctx.fillStyle = 'rgba(139,92,246,' + alpha + ')';
+    }
+    ctx.beginPath();
+    ctx.roundRect(x, mid - h, barW, h * 2, 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── Actions ───────────────────────────────────────────────────────────────────
+function downloadSong() {
+  if (!_msState.jobId) return;
+  window.location.href = '/api/music/download/' + _msState.jobId;
+}
+
+function regenerateSong() {
+  generateSong();
+}
+
+function addToVideo() {
+  window.location.href = '/create';
+}
+
+// ── Lyrics panel ──────────────────────────────────────────────────────────────
+function populateLyrics(result) {
+  var body = document.getElementById('ms-lyrics-body');
+  var s = result.lyrics_structured;
+
+  if (s && (s.verse1 || s.chorus)) {
+    var html = '';
+    if (s.verse1) html += lyricsSection('Verse 1', s.verse1, 'ms-verse-title');
+    if (s.chorus) html += lyricsSection('Chorus', s.chorus, 'ms-chorus-title');
+    if (s.verse2) html += lyricsSection('Verse 2', s.verse2, 'ms-verse-title');
+    if (s.bridge) html += lyricsSection('Bridge', s.bridge, 'ms-bridge-title');
+    if (s.outro) html += lyricsSection('Outro', s.outro, 'ms-outro-title');
+    body.innerHTML = html;
+  } else {
+    body.innerHTML = '<div class="ms-lyric-text">' + escHtml(result.lyrics || '') + '</div>';
+  }
+}
+
+function lyricsSection(title, text, cls) {
+  return '<div class="ms-lyric-section">' +
+    '<div class="ms-lyric-section-title ' + cls + '">' + title + '</div>' +
+    '<div class="ms-lyric-text">' + escHtml(text) + '</div>' +
+    '</div>';
+}
+
+function toggleLyricsPanel() {
+  var body = document.getElementById('ms-lyrics-body');
+  var icon = document.getElementById('ms-lyrics-panel-icon');
+  var visible = body.style.display !== 'none';
+  body.style.display = visible ? 'none' : '';
+  icon.classList.toggle('open', !visible);
+}
+
+function copyLyrics() {
+  var body = document.getElementById('ms-lyrics-body');
+  var text = body.innerText || body.textContent;
+  navigator.clipboard.writeText(text).then(function(){
+    showToast('Lyrics copied!', 'success');
+  });
+}
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+function appendLog(msg, type) {
+  var body = document.getElementById('ms-log-body');
+  var line = document.createElement('span');
+  line.className = 'ms-log-line' + (type ? ' ' + type : '');
+  var now = new Date();
+  var ts = now.toTimeString().slice(0,8);
+  line.textContent = '[' + ts + '] ' + msg;
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+}
+
+function toggleLogPanel() {
+  var body = document.getElementById('ms-log-body');
+  var icon = document.getElementById('ms-log-icon');
+  var visible = body.style.display !== 'none';
+  body.style.display = visible ? 'none' : '';
+  icon.classList.toggle('open', !visible);
+}
+
+// ── Status bar ────────────────────────────────────────────────────────────────
+function updateStatus(msg, pct) {
+  document.getElementById('ms-status-step').textContent = msg;
+  document.getElementById('ms-progress-fill').style.width = pct + '%';
+  document.getElementById('ms-status-pct').textContent = pct + '%';
+}
+
+function resetGenBtn() {
+  var btn = document.getElementById('ms-gen-btn');
+  btn.disabled = false;
+  btn.textContent = '🎵 Generate Song';
+  btn.classList.add('pulsing');
+}
+
+// ── Library ───────────────────────────────────────────────────────────────────
+function addToLibrary(result) {
+  var entry = {
+    jobId: _msState.jobId,
+    title: result.title || 'Untitled',
+    genre: result.genre || '—',
+    duration: result.duration_seconds || 0,
+    provider: result.provider || '',
+    ts: Date.now(),
+  };
+  _msState.library.unshift(entry);
+  renderLibrary();
+}
+
+function renderLibrary() {
+  var grid = document.getElementById('ms-library-grid');
+  if (!_msState.library.length) {
+    grid.innerHTML = '<div class="ms-empty-library">No songs yet — generate your first track above</div>';
+    return;
+  }
+  grid.innerHTML = _msState.library.map(function(t){
+    var durStr = t.duration >= 60
+      ? Math.floor(t.duration/60) + 'm ' + (t.duration%60) + 's'
+      : t.duration + 's';
+    return '<div class="ms-library-card">' +
+      '<div class="ms-library-title">' + escHtml(t.title) + '</div>' +
+      '<div class="ms-library-meta">' + escHtml(t.genre) + ' &bull; ' + durStr + '</div>' +
+      '<div class="ms-library-actions">' +
+        '<button class="ms-lib-btn ms-lib-play" onclick="playFromLibrary(\'' + t.jobId + '\')">▶ Play</button>' +
+        '<a class="ms-lib-btn ms-lib-dl" href="/api/music/download/' + t.jobId + '" download>⬇ DL</a>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function playFromLibrary(jobId) {
+  var audio = document.getElementById('ms-audio');
+  audio.src = '/api/music/download/' + jobId;
+  audio.load();
+  _msState.jobId = jobId;
+  audio.onloadedmetadata = function(){
+    document.getElementById('ms-time-dur').textContent = fmtTime(audio.duration);
+    document.getElementById('ms-seek').max = Math.floor(audio.duration);
+    _waveData = [];
+    drawWaveform();
+    togglePlay();
+  };
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '0:00';
+  var m = Math.floor(s / 60);
+  var sec = Math.floor(s % 60);
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type) {
+  var c = document.getElementById('toastContainer');
+  if (!c) return;
+  var t = document.createElement('div');
+  t.className = 'toast toast-' + (type||'info');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 3000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateBpm(120);
+renderLibrary();
+</script>
+{% endblock %}

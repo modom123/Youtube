@@ -2764,6 +2764,122 @@ def api_hollywood_reassemble():
     return jsonify({"ok": True, "message": "Re-assembly queued", "job_id": db_job_id})
 
 
+# ── Music Studio ──────────────────────────────────────────────────────────────
+
+_music_jobs: dict = {}
+_music_events: dict = {}
+_music_lock = threading.Lock()
+
+
+def _push_music_event(job_id: str, data: dict):
+    payload = f"data: {json.dumps(data)}\n\n"
+    with _music_lock:
+        _music_events.setdefault(job_id, []).append(payload)
+
+
+def _run_music_thread(job_id: str, params: dict, user_id: int = None):
+    from generators.music_generator import MusicEngine
+    from utils import file_manager
+
+    job_dir = file_manager.job_dir(params.get("title", "song"), "music")
+
+    def cb(msg: str, pct: int):
+        with _music_lock:
+            if job_id in _music_jobs:
+                _music_jobs[job_id].update({"progress": pct, "step": msg, "status": "running"})
+        _push_music_event(job_id, {"progress": pct, "step": msg, "status": "running"})
+
+    with _music_lock:
+        _music_jobs[job_id] = {"status": "running", "progress": 0, "step": "Starting…"}
+
+    try:
+        engine = MusicEngine()
+        result = engine.generate(job_dir=job_dir, progress_cb=cb, **params)
+        with _music_lock:
+            _music_jobs[job_id].update({"status": "done", "progress": 100, "result": result})
+        _push_music_event(job_id, {"status": "done", "progress": 100, "result": result})
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        with _music_lock:
+            _music_jobs[job_id].update({"status": "error", "step": str(e), "traceback": tb})
+        _push_music_event(job_id, {"status": "error", "step": str(e)})
+
+
+@app.route("/music-studio")
+@login_required
+def music_studio_page():
+    return render_template("music_studio.html", active_page="music")
+
+
+@app.route("/api/music/generate", methods=["POST"])
+@login_required
+def api_music_generate():
+    data = request.json or {}
+    job_id = str(uuid.uuid4())
+    params = {
+        "title": (data.get("title") or "My Song").strip(),
+        "genre": data.get("genre") or "pop",
+        "mood": data.get("mood") or "energetic",
+        "bpm": int(data.get("bpm") or 120),
+        "key": data.get("key") or "C Major",
+        "duration_seconds": int(data.get("duration_seconds") or 60),
+        "vocal_style": data.get("vocal_style") or "male",
+        "lyrics": (data.get("lyrics") or "").strip(),
+        "reference_artist": (data.get("reference_artist") or "").strip(),
+    }
+    t = threading.Thread(target=_run_music_thread, args=(job_id, params, current_user.id), daemon=True)
+    t.start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/api/music/stream/<job_id>")
+@login_required
+def api_music_stream(job_id):
+    def generate():
+        last_idx = 0
+        while True:
+            with _music_lock:
+                events = _music_events.get(job_id, [])
+                new = events[last_idx:]
+                last_idx = len(events)
+                job = _music_jobs.get(job_id, {})
+            for e in new:
+                yield e
+            if job.get("status") in ("done", "error"):
+                if not new:
+                    yield f"data: {json.dumps({'status': job.get('status'), 'progress': job.get('progress', 0)})}\n\n"
+                time.sleep(0.3)
+                break
+            time.sleep(0.4)
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.route("/api/music/status/<job_id>")
+@login_required
+def api_music_status(job_id):
+    with _music_lock:
+        job = _music_jobs.get(job_id, {})
+    return jsonify(job)
+
+
+@app.route("/api/music/download/<job_id>")
+@login_required
+def api_music_download(job_id):
+    with _music_lock:
+        job = _music_jobs.get(job_id, {})
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Not ready"}), 404
+    audio_path = (job.get("result") or {}).get("audio_path", "")
+    if not audio_path or not Path(audio_path).exists():
+        return jsonify({"error": "File not found"}), 404
+    return send_file(audio_path, as_attachment=True, download_name="song.mp3")
+
+
 # ── Feature 1: Analytics Dashboard ───────────────────────────────────────────
 
 @app.route("/analytics")
