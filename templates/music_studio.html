@@ -1780,10 +1780,22 @@ function togglePlay() {
     _audio.pause();
     _playing = false;
     document.getElementById('playPauseBtn').textContent = '▶';
+    // Stop Beat Machine when song pauses
+    if (bmPlaying) bmStop();
   } else {
     _audio.play().catch(() => {});
     _playing = true;
     document.getElementById('playPauseBtn').textContent = '⏸';
+    // Auto-start Beat Machine if it has a pattern (blends with the song)
+    if (!bmPlaying && _hasBeatPattern()) {
+      _bmInitCtx();
+      bmConnectToMain();
+      if (bmActx.state === 'suspended') bmActx.resume();
+      bmPlaying = true;
+      bmStep = 0;
+      _bmTick();
+      document.getElementById('bmPlayBtn').textContent = '⏸';
+    }
   }
 }
 
@@ -1814,6 +1826,15 @@ function loadTrack(url, title, meta, lyrics, jobId) {
     document.getElementById('lyricsText').textContent = lyrics;
   }
   addToLibrary(title, meta, url, jobId);
+
+  // Sync Beat Machine BPM with the generated song, then connect it to main graph
+  const songBpm = parseInt(document.getElementById('songBpm')?.value) || 0;
+  if (songBpm) {
+    const bmBpmEl = document.getElementById('bmBpm');
+    if (bmBpmEl) bmBpmEl.value = songBpm;
+  }
+  _initAudio();
+  if (bmActx) bmConnectToMain();
 }
 
 /* ═══════════════════════ GENERATION ════════════════════════════════════════ */
@@ -1847,7 +1868,17 @@ function generateSong() {
   clearLog();
   log('info', `Starting generation: "${title}" · ${genre || 'any genre'} · ${bpm} BPM`);
 
-  const payload = { title, genre, artist, mood, bpm: parseInt(bpm), key, duration: parseInt(dur), vocals, lyrics };
+  // Collect Beat Machine metadata to guide AI music generation
+  const bmBpmVal = parseInt(document.getElementById('bmBpm')?.value) || 0;
+  const bmKitName = BM_KITS[bmKitIdx]?.name || '';
+  const activePads = BM_KITS[bmKitIdx]?.pads
+    .filter((_, pi) => bmBanks[bmBank][pi].some(v => v > 0))
+    .map(p => p.n) || [];
+  const beatMeta = _hasBeatPattern()
+    ? { beat_bpm: bmBpmVal, beat_kit: bmKitName, beat_pads: activePads.join(', ') }
+    : {};
+
+  const payload = { title, genre, artist, mood, bpm: parseInt(bpm), key, duration: parseInt(dur), vocals, lyrics, ...beatMeta };
 
   fetch('/api/music/generate', {
     method: 'POST',
@@ -2347,6 +2378,11 @@ const BM_KITS = [
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let bmActx = null;
+let bmMasterGain = null;   // master gain node in bmActx
+let bmStreamDest = null;   // MediaStreamDestination (beat → main graph bridge)
+let bmStreamSrc  = null;   // MediaStreamSource created in _actx
+let bmReverbNode = null;   // Beat Machine's own reverb
+let bmDelayNode  = null;   // Beat Machine's own delay
 let bmKitIdx = 0;
 let bmSelectedPad = 0;
 let bmPlaying = false;
@@ -2376,6 +2412,48 @@ DEFAULT_PAT.forEach((row, pi) => { row.forEach((v, si) => { bmBanks[0][pi][si] =
 function _bmInitCtx() {
   if (bmActx) return;
   bmActx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Master gain — all synth nodes route here
+  bmMasterGain = bmActx.createGain();
+  bmMasterGain.gain.value = 0.88;
+  bmMasterGain.connect(bmActx.destination);
+
+  // MediaStream bridge: lets the beat be injected into the main audio graph
+  bmStreamDest = bmActx.createMediaStreamDestination();
+  bmMasterGain.connect(bmStreamDest);
+
+  // Own reverb convolver (independent of main graph)
+  bmReverbNode = bmActx.createConvolver();
+  const rvLen = Math.ceil(bmActx.sampleRate * 1.5);
+  const rvBuf = bmActx.createBuffer(2, rvLen, bmActx.sampleRate);
+  for (let c = 0; c < 2; c++) {
+    const d = rvBuf.getChannelData(c);
+    for (let i = 0; i < rvLen; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/rvLen, 3);
+  }
+  bmReverbNode.buffer = rvBuf;
+  const bmRvRet = bmActx.createGain(); bmRvRet.gain.value = 0.35;
+  bmReverbNode.connect(bmRvRet); bmRvRet.connect(bmMasterGain);
+
+  // Own delay
+  bmDelayNode = bmActx.createDelay(1.0);
+  bmDelayNode.delayTime.value = 0.25;
+  const bmDlFb = bmActx.createGain(); bmDlFb.gain.value = 0.35;
+  bmDelayNode.connect(bmDlFb); bmDlFb.connect(bmDelayNode);
+  const bmDlRet = bmActx.createGain(); bmDlRet.gain.value = 0.45;
+  bmDelayNode.connect(bmDlRet); bmDlRet.connect(bmMasterGain);
+}
+
+// Route Beat Machine output into the main audio graph so it blends with the song
+function bmConnectToMain() {
+  if (!bmStreamDest || !_actx || bmStreamSrc) return;
+  try {
+    bmStreamSrc = _actx.createMediaStreamSource(bmStreamDest.stream);
+    bmStreamSrc.connect(_masterGain);
+  } catch(e) { /* cross-context bridge not supported in this browser */ }
+}
+
+function _hasBeatPattern() {
+  return bmBanks[bmBank].some(row => row.some(v => v > 0));
 }
 
 // ── Kit loading ───────────────────────────────────────────────────────────────
@@ -2642,9 +2720,9 @@ function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
   const dst = doDist ? (() => { const ws = ctx.createWaveShaper(); ws.curve = _makeDistCurve(60); out.connect(ws); return ws; })() : null;
   const finalNode = dst || flt;
 
-  if (doRev && _reverbNode) finalNode.connect(_reverbNode);
-  if (doDel && _delayNode)  { finalNode.connect(_delayNode); }
-  finalNode.connect(ctx.destination);
+  if (doRev && bmReverbNode) finalNode.connect(bmReverbNode);
+  if (doDel && bmDelayNode)  finalNode.connect(bmDelayNode);
+  finalNode.connect(bmMasterGain);
 
   switch (type) {
     case 'k808': {
@@ -2654,7 +2732,7 @@ function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
       o.connect(out); o.start(t); o.stop(t + decay + 0.1);
       const nb = _noiseBuffer(0.012); const ns = ctx.createBufferSource(); ns.buffer = nb;
       const ng = ctx.createGain(); ng.gain.setValueAtTime(vol * 0.35, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.018);
-      ns.connect(ng); ng.connect(ctx.destination); ns.start(t); ns.stop(t + 0.02);
+      ns.connect(ng); ng.connect(bmMasterGain); ns.start(t); ns.stop(t + 0.02);
       break;
     }
     case 'kick': {
@@ -2678,7 +2756,7 @@ function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
       ns.connect(nf); nf.connect(out); ns.start(t); ns.stop(t + decay + 0.05);
       const o = ctx.createOscillator(); o.frequency.value = pitch;
       const tg = ctx.createGain(); tg.gain.setValueAtTime(vol * 0.45, t); tg.gain.exponentialRampToValueAtTime(0.0001, t + decay * 0.4);
-      o.connect(tg); tg.connect(ctx.destination); o.start(t); o.stop(t + decay * 0.4);
+      o.connect(tg); tg.connect(bmMasterGain); o.start(t); o.stop(t + decay * 0.4);
       break;
     }
     case 'snrm': {
@@ -2692,7 +2770,7 @@ function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
         const nb = _noiseBuffer(0.07); const ns = ctx.createBufferSource(); ns.buffer = nb;
         const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = pitch; nf.Q.value = 0.5;
         const ng = ctx.createGain(); ng.gain.setValueAtTime(vol * (1 - i*0.18), t+d); ng.gain.exponentialRampToValueAtTime(0.0001, t+d+decay);
-        ns.connect(nf); nf.connect(ng); ng.connect(ctx.destination); ns.start(t+d); ns.stop(t+d+decay+0.05);
+        ns.connect(nf); nf.connect(ng); ng.connect(bmMasterGain); ns.start(t+d); ns.stop(t+d+decay+0.05);
       });
       return;
     }
@@ -2864,9 +2942,9 @@ function _bmPlayChop(sliceIdx, vol, decay, filter, doRev, doDel) {
   src.buffer = bmChopBuffer;
   const g = ctx.createGain(); g.gain.value = vol;
   const flt = ctx.createBiquadFilter(); flt.type='lowpass'; flt.frequency.value = filter;
-  src.connect(g); g.connect(flt); flt.connect(ctx.destination);
-  if (doRev && _reverbNode) flt.connect(_reverbNode);
-  if (doDel && _delayNode)  flt.connect(_delayNode);
+  src.connect(g); g.connect(flt); flt.connect(bmMasterGain);
+  if (doRev && bmReverbNode) flt.connect(bmReverbNode);
+  if (doDel && bmDelayNode)  flt.connect(bmDelayNode);
   src.start(t, start, end - start);
 }
 

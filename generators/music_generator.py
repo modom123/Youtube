@@ -219,6 +219,58 @@ def _try_replicate(
         return None
 
 
+def _try_elevenlabs_tts(lyrics: str, job_dir: Path) -> Optional[str]:
+    """Generate a vocal track from lyrics using ElevenLabs TTS."""
+    key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
+    if not key or not lyrics:
+        return None
+    # Use Rachel voice (default, no cloning needed)
+    voice_id = "21m00Tcm4TlvDq8ikWAM"
+    try:
+        r = requests.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+            headers={"xi-api-key": key, "Content-Type": "application/json"},
+            json={
+                "text": lyrics[:2000],
+                "model_id": "eleven_monolingual_v1",
+                "voice_settings": {"stability": 0.45, "similarity_boost": 0.80},
+            },
+            timeout=90,
+        )
+        r.raise_for_status()
+        dest = job_dir / "vocals_tts.mp3"
+        dest.write_bytes(r.content)
+        log.info("ElevenLabs TTS vocal: %s", dest)
+        return str(dest)
+    except Exception as exc:
+        log.warning("ElevenLabs TTS failed: %s", exc)
+        return None
+
+
+def _mix_vocal_instrumental(instrumental: str, vocal: str, job_dir: Path) -> str:
+    """Mix vocal + instrumental with ffmpeg. Returns path to mixed file."""
+    import subprocess
+    output = job_dir / "song_final.mp3"
+    try:
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", instrumental,
+            "-i", vocal,
+            "-filter_complex",
+            "[0:a]volume=0.70[inst];[1:a]volume=0.95[vox];[inst][vox]amix=inputs=2:duration=longest:dropout_transition=3",
+            "-c:a", "libmp3lame", "-q:a", "2",
+            str(output),
+        ]
+        result = subprocess.run(cmd, capture_output=True, timeout=120)
+        if result.returncode == 0 and output.exists():
+            log.info("Mixed vocal+instrumental → %s", output)
+            return str(output)
+        log.warning("ffmpeg mix failed: %s", result.stderr.decode()[:200])
+    except Exception as exc:
+        log.warning("Audio mixing failed: %s", exc)
+    return instrumental  # fall back to instrumental only
+
+
 def _try_elevenlabs(
     description: str,
     duration_seconds: int,
@@ -268,6 +320,9 @@ class MusicEngine:
         vocal_style: str,
         lyrics: str = "",
         reference_artist: str = "",
+        beat_kit: str = "",
+        beat_pads: str = "",
+        beat_bpm: int = 0,
         job_dir: Path = None,
         progress_cb: Callable = None,
     ) -> dict:
@@ -329,9 +384,14 @@ class MusicEngine:
             f"{'Instrumental only.' if vocal_style == 'instrumental' else f'{vocal_style.capitalize()} vocals.'} "
             f"Duration ~{duration_seconds} seconds."
         )
+        if beat_kit and beat_pads:
+            actual_bpm = beat_bpm or bpm
+            prompt += (
+                f" Built on a {beat_kit} beat at {actual_bpm} BPM featuring: {beat_pads}."
+                " The music should feel like it was made to match this drum pattern."
+            )
         if lyrics:
-            # Append a snippet of lyrics for style context
-            prompt += f" Lyrics excerpt: {lyrics[:300]}"
+            prompt += f" Lyrics:\n{lyrics}"
 
         cb("Trying Suno AI...", 35)
         audio_path = _try_suno(prompt, title, genre, duration_seconds, vocal_style, job_dir)
@@ -354,6 +414,19 @@ class MusicEngine:
         if not audio_path:
             provider = "none"
             log.warning("All music providers failed — no audio generated")
+
+        # Add ElevenLabs TTS vocal layer and mix with instrumental
+        if lyrics and vocal_style != "instrumental":
+            cb("Generating vocal layer...", 70)
+            vocal_path = _try_elevenlabs_tts(lyrics, job_dir)
+            if vocal_path:
+                if audio_path:
+                    cb("Mixing vocals with instrumental...", 80)
+                    audio_path = _mix_vocal_instrumental(audio_path, vocal_path, job_dir)
+                    provider = provider + " + ElevenLabs Vocals"
+                else:
+                    audio_path = vocal_path
+                    provider = "ElevenLabs Vocals"
 
         cb("Finalizing track...", 85)
 

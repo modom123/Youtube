@@ -2841,6 +2841,9 @@ def api_music_generate():
         "vocal_style": data.get("vocal_style") or data.get("vocals") or "male",
         "lyrics": (data.get("lyrics") or "").strip(),
         "reference_artist": (data.get("reference_artist") or data.get("artist") or "").strip(),
+        "beat_kit": (data.get("beat_kit") or "").strip(),
+        "beat_pads": (data.get("beat_pads") or "").strip(),
+        "beat_bpm": int(data.get("beat_bpm") or 0),
     }
     t = threading.Thread(target=_run_music_thread, args=(job_id, params, current_user.id), daemon=True)
     t.start()
