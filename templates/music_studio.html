@@ -1085,6 +1085,21 @@
                oninput="updateEqLabel('treble',this.value);applyEQ()"
                style="--slider-pct:50%">
       </div>
+      <div class="ms-row">
+        <label class="ms-label">Filter <span id="ms-filter-val" style="color:var(--music-cyan);">22kHz</span></label>
+        <input type="range" class="ms-slider" id="ms-filter-freq" min="200" max="22000" value="22000" step="100"
+               oninput="updateFilterLabel(this.value);applyFilter()" style="--slider-pct:100%">
+      </div>
+      <div class="ms-row">
+        <label class="ms-label">Distort <span id="ms-dist-val" style="color:var(--music-cyan);">0%</span></label>
+        <input type="range" class="ms-slider" id="ms-dist-amt" min="0" max="100" value="0" step="1"
+               oninput="updateDistLabel(this.value);applyDistortion()" style="--slider-pct:0%">
+      </div>
+      <div class="ms-row">
+        <label class="ms-label">Tremolo <span id="ms-trem-val" style="color:var(--music-cyan);">Off</span></label>
+        <input type="range" class="ms-slider" id="ms-trem-rate" min="0" max="20" value="0" step="0.5"
+               oninput="updateTremLabel(this.value);applyTremolo()" style="--slider-pct:0%">
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
         <button class="ms-fx-toggle" id="ms-fx-reverb" onclick="toggleFx('reverb')">
           <span class="dot"></span> Reverb
@@ -1095,7 +1110,34 @@
         <button class="ms-fx-toggle" id="ms-fx-compress" onclick="toggleFx('compress')">
           <span class="dot"></span> Compress
         </button>
+        <button class="ms-fx-toggle" id="ms-fx-phaser" onclick="toggleFx('phaser')">
+          <span class="dot"></span> Phaser
+        </button>
+        <button class="ms-fx-toggle" id="ms-fx-bitcrush" onclick="toggleFx('bitcrush')">
+          <span class="dot"></span> Degrade
+        </button>
+        <button class="ms-fx-toggle" id="ms-fx-limit" onclick="toggleFx('limit')">
+          <span class="dot"></span> Limiter
+        </button>
       </div>
+    </div>
+
+    <!-- Browser Recording -->
+    <div class="ms-section">
+      <div class="ms-section-label">Record Audio</div>
+      <div style="font-size:11px;color:var(--music-muted);margin-bottom:10px;">Record vocals, guitar, or any instrument from your mic</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <button class="ms-fx-toggle" id="ms-rec-btn" onclick="toggleRecording()" style="flex:1;justify-content:center;">
+          <span id="ms-rec-dot" class="dot" style="background:#ef4444;"></span>
+          <span id="ms-rec-label">Record</span>
+        </button>
+        <button class="ms-fx-toggle" id="ms-rec-play-btn" onclick="playRecording()" style="flex:1;justify-content:center;" disabled>
+          <span class="dot"></span> Play
+        </button>
+      </div>
+      <div id="ms-rec-timer" style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--music-cyan);display:none;">⏱ 0:00</div>
+      <div id="ms-rec-status" style="font-size:11px;color:var(--music-muted);margin-top:4px;">Click Record to start</div>
+      <audio id="ms-rec-audio" controls style="width:100%;margin-top:8px;display:none;height:32px;"></audio>
     </div>
 
     <div style="padding:16px 20px 20px;">
@@ -1854,8 +1896,9 @@ function showToast(msg, type) {
 // ── WebAudio Effects Chain ────────────────────────────────────────────────────
 var _audioCtx = null;
 var _audioSrc = null;
-var _fxNodes = { bassEq: null, midEq: null, trebleEq: null, reverb: null, delay: null, compressor: null };
-var _fxState = { reverb: false, delay: false, compress: false };
+var _fxNodes = { bassEq: null, midEq: null, trebleEq: null, reverb: null, delay: null, compressor: null,
+                 filter: null, distortion: null, phaser: null, bitcrush: null, limiter: null, tremoloGain: null, tremoloOsc: null };
+var _fxState = { reverb: false, delay: false, compress: false, phaser: false, bitcrush: false, limit: false };
 
 function _ensureAudioGraph() {
   var audio = document.getElementById('ms-audio');
@@ -1888,6 +1931,50 @@ function _ensureAudioGraph() {
   _fxNodes.compressor.attack.value = 0.003;
   _fxNodes.compressor.release.value = 0.25;
 
+  // Limiter (brick-wall, high ratio)
+  _fxNodes.limiter = _audioCtx.createDynamicsCompressor();
+  _fxNodes.limiter.threshold.value = -3;
+  _fxNodes.limiter.knee.value = 0;
+  _fxNodes.limiter.ratio.value = 20;
+  _fxNodes.limiter.attack.value = 0.001;
+  _fxNodes.limiter.release.value = 0.1;
+
+  // Lowpass filter
+  _fxNodes.filter = _audioCtx.createBiquadFilter();
+  _fxNodes.filter.type = 'lowpass';
+  _fxNodes.filter.frequency.value = 22000;
+
+  // Distortion (waveshaper)
+  _fxNodes.distortion = _audioCtx.createWaveShaper();
+  _fxNodes.distortion.curve = _makeDistortionCurve(0);
+  _fxNodes.distortion.oversample = '4x';
+
+  // Phaser (allpass chain)
+  _fxNodes.phaser = [];
+  for (var _p = 0; _p < 4; _p++) {
+    var _ap = _audioCtx.createBiquadFilter();
+    _ap.type = 'allpass';
+    _ap.frequency.value = 1000 + _p * 500;
+    _ap.Q.value = 10;
+    _fxNodes.phaser.push(_ap);
+  }
+
+  // Bitcrusher (script processor fallback → gain reduction simulation)
+  _fxNodes.bitcrush = _audioCtx.createWaveShaper();
+  _fxNodes.bitcrush.curve = _makeBitcrushCurve(8);
+
+  // Tremolo (LFO modulating a GainNode)
+  _fxNodes.tremoloGain = _audioCtx.createGain();
+  _fxNodes.tremoloGain.gain.value = 1;
+  _fxNodes.tremoloOsc = _audioCtx.createOscillator();
+  _fxNodes.tremoloOsc.type = 'sine';
+  _fxNodes.tremoloOsc.frequency.value = 0;
+  var _tremoloDepth = _audioCtx.createGain();
+  _tremoloDepth.gain.value = 0;
+  _fxNodes.tremoloOsc.connect(_tremoloDepth);
+  _tremoloDepth.connect(_fxNodes.tremoloGain.gain);
+  _fxNodes.tremoloOsc.start();
+
   // Simple delay (echo)
   _fxNodes.delay = _audioCtx.createDelay(1.0);
   _fxNodes.delay.delayTime.value = 0.25;
@@ -1913,31 +2000,49 @@ function _ensureAudioGraph() {
   _rebuildChain();
 }
 
+function _makeDistortionCurve(amount) {
+  var n = 256, curve = new Float32Array(n);
+  var k = amount * 4;
+  for (var i = 0; i < n; i++) {
+    var x = (i * 2) / n - 1;
+    curve[i] = k > 0 ? (Math.PI + k) * x / (Math.PI + k * Math.abs(x)) : x;
+  }
+  return curve;
+}
+function _makeBitcrushCurve(bits) {
+  var n = 256, curve = new Float32Array(n), step = Math.pow(2, 1 - bits);
+  for (var i = 0; i < n; i++) {
+    var x = (i * 2) / n - 1;
+    curve[i] = step * Math.round(x / step);
+  }
+  return curve;
+}
+
 function _rebuildChain() {
   if (!_audioSrc) return;
-  // Disconnect all
-  try { _audioSrc.disconnect(); } catch(e) {}
-  try { _fxNodes.reverb.disconnect(); } catch(e) {}
-  try { _fxNodes.delay.disconnect(); } catch(e) {}
+  // Disconnect everything safely
+  [_audioSrc, _fxNodes.bassEq, _fxNodes.midEq, _fxNodes.trebleEq,
+   _fxNodes.filter, _fxNodes.distortion, _fxNodes.compressor,
+   _fxNodes.limiter, _fxNodes.tremoloGain, _fxNodes.reverb, _fxNodes.delay, _fxNodes.bitcrush]
+    .concat(_fxNodes.phaser || [])
+    .forEach(function(n){ if(n) try { n.disconnect(); } catch(e){} });
 
-  var chain = [_audioSrc, _fxNodes.bassEq, _fxNodes.midEq, _fxNodes.trebleEq];
+  var chain = [_audioSrc, _fxNodes.filter, _fxNodes.distortion,
+               _fxNodes.bassEq, _fxNodes.midEq, _fxNodes.trebleEq];
 
-  if (_fxState.compress) chain.push(_fxNodes.compressor);
-
-  // Connect linear chain
-  for (var i = 0; i < chain.length - 1; i++) {
-    chain[i].connect(chain[i+1]);
+  if (_fxState.phaser) {
+    (_fxNodes.phaser || []).forEach(function(ap){ chain.push(ap); });
   }
+  if (_fxState.bitcrush) chain.push(_fxNodes.bitcrush);
+  if (_fxState.compress) chain.push(_fxNodes.compressor);
+  chain.push(_fxNodes.tremoloGain);
+  if (_fxState.limit) chain.push(_fxNodes.limiter);
+
+  for (var i = 0; i < chain.length - 1; i++) { chain[i].connect(chain[i+1]); }
   var last = chain[chain.length - 1];
 
-  if (_fxState.reverb) {
-    last.connect(_fxNodes.reverb);
-    _fxNodes.reverb.connect(_audioCtx.destination);
-  }
-  if (_fxState.delay) {
-    last.connect(_fxNodes.delay);
-    _fxNodes.delay.connect(_audioCtx.destination);
-  }
+  if (_fxState.reverb) { last.connect(_fxNodes.reverb); _fxNodes.reverb.connect(_audioCtx.destination); }
+  if (_fxState.delay)  { last.connect(_fxNodes.delay);  _fxNodes.delay.connect(_audioCtx.destination); }
   last.connect(_audioCtx.destination);
 }
 
@@ -1969,12 +2074,119 @@ function updateEqLabel(band, val) {
   document.getElementById('ms-eq-'+band+'-val').textContent = (val >= 0 ? '+' : '') + val + 'dB';
 }
 
+function applyFilter() {
+  _ensureAudioGraph();
+  if (!_fxNodes.filter) return;
+  var val = parseInt(document.getElementById('ms-filter-freq').value);
+  _fxNodes.filter.frequency.value = val;
+  document.getElementById('ms-filter-freq').style.setProperty('--slider-pct', ((val-200)/(22000-200)*100)+'%');
+}
+function updateFilterLabel(v) {
+  document.getElementById('ms-filter-val').textContent = v >= 10000 ? (v/1000).toFixed(1)+'kHz' : v+'Hz';
+}
+
+function applyDistortion() {
+  _ensureAudioGraph();
+  if (!_fxNodes.distortion) return;
+  var amt = parseInt(document.getElementById('ms-dist-amt').value);
+  _fxNodes.distortion.curve = _makeDistortionCurve(amt);
+  document.getElementById('ms-dist-amt').style.setProperty('--slider-pct', amt+'%');
+}
+function updateDistLabel(v) { document.getElementById('ms-dist-val').textContent = v+'%'; }
+
+function applyTremolo() {
+  _ensureAudioGraph();
+  if (!_fxNodes.tremoloOsc) return;
+  var rate = parseFloat(document.getElementById('ms-trem-rate').value);
+  _fxNodes.tremoloOsc.frequency.value = rate;
+  // Connect depth only if rate > 0
+  if (rate > 0 && _audioCtx) {
+    var depth = _audioCtx.createGain(); depth.gain.value = 0.5;
+    // Re-route tremolo modulation
+    try { _fxNodes.tremoloOsc.disconnect(); } catch(e){}
+    _fxNodes.tremoloOsc.connect(depth);
+    depth.connect(_fxNodes.tremoloGain.gain);
+  }
+  document.getElementById('ms-trem-rate').style.setProperty('--slider-pct', (rate/20*100)+'%');
+}
+function updateTremLabel(v) { document.getElementById('ms-trem-val').textContent = v > 0 ? v+'Hz' : 'Off'; }
+
 // Hook into existing play toggle to setup audio graph
 var _origTogglePlay = typeof togglePlay === 'function' ? togglePlay : null;
 document.getElementById('ms-audio').addEventListener('play', function(){
   if (_audioCtx && _audioCtx.state === 'suspended') _audioCtx.resume();
   _ensureAudioGraph();
 }, { once: false });
+
+// ── Browser Microphone Recording ──────────────────────────────────────────────
+var _recState = { mediaRecorder: null, chunks: [], recording: false, timer: null, elapsed: 0 };
+
+function toggleRecording() {
+  if (_recState.recording) { stopRecording(); return; }
+  startRecording();
+}
+
+function startRecording() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('Microphone not supported in this browser', 'error'); return;
+  }
+  navigator.mediaDevices.getUserMedia({ audio: true })
+    .then(function(stream) {
+      _recState.chunks = [];
+      _recState.mediaRecorder = new MediaRecorder(stream);
+      _recState.mediaRecorder.ondataavailable = function(e) {
+        if (e.data.size > 0) _recState.chunks.push(e.data);
+      };
+      _recState.mediaRecorder.onstop = function() {
+        var blob = new Blob(_recState.chunks, { type: 'audio/webm' });
+        var url = URL.createObjectURL(blob);
+        var recAudio = document.getElementById('ms-rec-audio');
+        recAudio.src = url;
+        recAudio.style.display = 'block';
+        document.getElementById('ms-rec-play-btn').disabled = false;
+        document.getElementById('ms-rec-status').textContent = 'Recording ready — play it back below';
+        stream.getTracks().forEach(function(t){ t.stop(); });
+        showToast('Recording saved!', 'info');
+      };
+      _recState.mediaRecorder.start(100);
+      _recState.recording = true;
+      _recState.elapsed = 0;
+
+      // Timer
+      var recBtn = document.getElementById('ms-rec-btn');
+      recBtn.classList.add('on');
+      document.getElementById('ms-rec-dot').style.animation = 'eq-play 0.5s ease-in-out infinite';
+      document.getElementById('ms-rec-label').textContent = 'Stop';
+      document.getElementById('ms-rec-timer').style.display = 'block';
+      document.getElementById('ms-rec-status').textContent = 'Recording…';
+      _recState.timer = setInterval(function(){
+        _recState.elapsed++;
+        var m = Math.floor(_recState.elapsed / 60), s = _recState.elapsed % 60;
+        document.getElementById('ms-rec-timer').textContent = '⏱ ' + m + ':' + (s<10?'0':'') + s;
+      }, 1000);
+    })
+    .catch(function(err) {
+      showToast('Microphone access denied: ' + err.message, 'error');
+    });
+}
+
+function stopRecording() {
+  if (_recState.mediaRecorder && _recState.recording) {
+    _recState.mediaRecorder.stop();
+    _recState.recording = false;
+    clearInterval(_recState.timer);
+    var recBtn = document.getElementById('ms-rec-btn');
+    recBtn.classList.remove('on');
+    document.getElementById('ms-rec-dot').style.animation = '';
+    document.getElementById('ms-rec-label').textContent = 'Record';
+    document.getElementById('ms-rec-timer').style.display = 'none';
+  }
+}
+
+function playRecording() {
+  var recAudio = document.getElementById('ms-rec-audio');
+  if (recAudio.src) recAudio.play();
+}
 
 
 // ── Beat Sequencer ────────────────────────────────────────────────────────────
