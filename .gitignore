@@ -36,6 +36,20 @@ youtube_token.json
 # Render / deployment secrets
 *.pem
 *.key
+.secret_key
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Desktop app build artifacts (keep source, ignore builds)
+desktop/node_modules/
+desktop/dist/
+
+# Mobile app build artifacts (keep source, ignore builds)
+mobile/node_modules/
+mobile/.expo/
+mobile/android/
+mobile/ios/
+mobile/dist/
+mobile/web-build/
+mobile/google-play-key.json

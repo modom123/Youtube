@@ -4,7 +4,6 @@ Notification module — email, webhook, and in-app notifications.
 import json
 import smtplib
 import threading
-import uuid
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -110,7 +109,7 @@ def _send_email_notification(user: dict, event_type: str, title: str, body: str,
 
     try:
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Social Optimize Machine: {title}"
+        msg["Subject"] = f"Social Optimize: {title}"
         msg["From"] = from_addr
         msg["To"] = recipient
 
@@ -121,7 +120,7 @@ def _send_email_notification(user: dict, event_type: str, title: str, body: str,
               <h2 style="color:#ff3b30;">{title}</h2>
               <p style="color:#ccc;">{body}</p>
               <a href="{config.APP_BASE_URL}" style="display:inline-block;margin-top:16px;padding:10px 20px;background:#ff3b30;color:#fff;text-decoration:none;border-radius:6px;">
-                Open Social Optimize Machine
+                Open Social Optimize
               </a>
             </div></body></html>""",
             "html",

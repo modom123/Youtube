@@ -36,15 +36,22 @@
     <p>AI-powered content creation studio</p>
   </div>
   <div class="auth-card">
-    <h2>Create your account</h2>
-    <p class="sub">Start with 2 free videos — no credit card required.</p>
-    <div class="trial-badge">✅ Free trial includes 2 AI-generated videos</div>
+    {% if plan and plan in ('starter','creator','agency') %}
+      <h2>Start your free trial</h2>
+      <p class="sub">14 days free — your card won't be charged until the trial ends.</p>
+      <div class="trial-badge">🎉 14-day free trial · Cancel anytime · Auto-renews after trial</div>
+    {% else %}
+      <h2>Create your account</h2>
+      <p class="sub">Start with 2 free videos — no credit card required.</p>
+      <div class="trial-badge">✅ Free forever · 2 AI videos per month included</div>
+    {% endif %}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for cat, msg in messages %}
         <div class="flash-msg">{{ msg }}</div>
       {% endfor %}
     {% endwith %}
     <form method="POST">
+      <input type="hidden" name="plan" value="{{ plan or '' }}">
       <div class="form-row">
         <label>Full Name</label>
         <input type="text" name="name" placeholder="Alex Johnson" />
@@ -61,7 +68,11 @@
         <label>Confirm Password</label>
         <input type="password" name="password2" required placeholder="Repeat password" />
       </div>
-      <button type="submit" class="btn btn-primary auth-btn">Create Account</button>
+      {% if plan and plan in ('starter','creator','agency') %}
+        <button type="submit" class="btn btn-primary auth-btn">Start Free Trial →</button>
+      {% else %}
+        <button type="submit" class="btn btn-primary auth-btn">Create Free Account →</button>
+      {% endif %}
     </form>
   </div>
   <div class="auth-footer">

@@ -38,8 +38,8 @@ class ScriptSection(BaseModel):
 class FullScript(BaseModel):
     title: str
     description: str = Field(description="YouTube description (first 125 chars are above fold)")
-    hashtags: list[str] = Field(min_length=3, max_length=15)
-    sections: list[ScriptSection] = Field(min_length=3)
+    hashtags: list[str] = Field(min_length=1, max_length=15)
+    sections: list[ScriptSection] = Field(min_length=1)
     total_duration_seconds: int
     narration_full: str = Field(description="Complete narration joined for TTS")
     thumbnail_prompt: str = Field(description="Detailed image-gen prompt for thumbnail")
@@ -48,7 +48,7 @@ class FullScript(BaseModel):
 
 # ── Agent 3: Asset Curator output ───────────────────────────────────────────
 
-AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pexels_api", "free_stock_internal"]
+AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pixabay_api", "free_stock_internal"]
 
 class AssetSpec(BaseModel):
     section_id: int
@@ -99,6 +99,31 @@ class SEOPackage(BaseModel):
 
 # ── Pipeline result ──────────────────────────────────────────────────────────
 
+# ── Community Engineer output ──────────────────────────────────────────────
+
+class EngagementAction(BaseModel):
+    platform: str
+    action_type: str
+    target_description: str = ""
+    target_username: str = ""
+    comment_text: str = ""
+    timing: str = ""
+    priority: int = Field(ge=1, le=5, default=3)
+    strategy_tier: str = ""
+    rationale: str = ""
+
+
+class EngagementPlan(BaseModel):
+    daily_actions: list[EngagementAction] = Field(default_factory=list)
+    total_actions: int = 0
+    platform_breakdown: dict[str, int] = Field(default_factory=dict)
+    estimated_reach: int = 0
+    key_focus: str = ""
+    notes: str = ""
+
+
+# ── Pipeline result ──────────────────────────────────────────────────────────
+
 class ProductionResult(BaseModel):
     niche: str
     blueprint: VideoBlueprint
@@ -108,3 +133,7 @@ class ProductionResult(BaseModel):
     pipeline_cost_credits: int
     status: Literal["success", "partial", "failed"]
     errors: list[str] = Field(default_factory=list)
+    video_path: str = ""
+    audio_path: str = ""
+    thumbnail_path: str = ""
+    manifest_path: str = ""

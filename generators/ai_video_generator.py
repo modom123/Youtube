@@ -6,13 +6,17 @@ Supports: Kling 3.0, Veo 3/3.1, Seedance 2.0, Cinema Studio 3.0,
 """
 import os
 import time
+import threading
 import requests
 from pathlib import Path
 from typing import Optional
 import config
 
+# Per-thread Higgsfield token override (set by app.py thread functions)
+_session_token: threading.local = threading.local()
 
-# ── Higgsville model catalog ──────────────────────────────────────────────────
+
+# ── Higgsville model catalog ───────────────────────────────────────────────────────────────────────────────
 # Keys match the Higgsville API model IDs
 HIGGSVILLE_MODELS = {
     # Kling
@@ -44,12 +48,12 @@ DEFAULT_HIGGSVILLE_MODEL = "kling3_0"
 HIGGSVILLE_API_BASE = "https://api.higgsfield.ai/v1"
 
 
-# ── Higgsville REST API client ────────────────────────────────────────────────
+# ── Higgsville REST API client ────────────────────────────────────────────────────────────────────────────
 
 def _higgsville_headers() -> dict:
-    key = config.HIGGSFIELD_MCP_TOKEN
+    key = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN
     if not key:
-        raise RuntimeError("HIGGSFIELD_MCP_TOKEN not set in .env")
+        raise RuntimeError("Higgsfield not connected — authenticate via Accounts page")
     return {
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
@@ -190,7 +194,7 @@ def _try_sdk_clip(
     """Attempt generation via higgsfield-client SDK. Returns path or None."""
     try:
         import higgsfield_client as hf
-        os.environ["HF_KEY"] = config.HIGGSFIELD_MCP_TOKEN
+        os.environ["HF_KEY"] = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN
 
         # Map new model IDs to SDK paths where known
         sdk_paths = {
@@ -229,7 +233,7 @@ def _try_sdk_clip(
         return None
 
 
-# ── Google Flow / Veo ─────────────────────────────────────────────────────────
+# ── Google Flow / Veo ────────────────────────────────────────────────────────────────────────────────
 
 def generate_veo_clips(
     prompts: list[str],
@@ -312,7 +316,7 @@ def _download_file(url: str, out_path: Path) -> None:
             f.write(chunk)
 
 
-# ── Prompt Builder ────────────────────────────────────────────────────────────
+# ── Prompt Builder ──────────────────────────────────────────────────────────────────────────────────
 
 def build_video_prompts(
     topic: str,
@@ -349,7 +353,7 @@ def build_video_prompts(
     return prompts[:8]
 
 
-# ── Unified interface ─────────────────────────────────────────────────────────
+# ── Unified interface ─────────────────────────────────────────────────────────────────────────────────
 
 def generate_ai_clips(
     topic: str,

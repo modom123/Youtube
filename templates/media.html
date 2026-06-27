@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% set active_page = "media" %}
+{% block title %}Media Library - Social Optimize{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Media Library</h1>
+  <p class="page-subtitle">Upload and manage photos, videos, music, and documents for your content.</p>
+</div>
+
+<!-- Stats Bar -->
+<div class="card" id="stats-bar" style="display:flex;gap:24px;flex-wrap:wrap;padding:16px 24px;">
+  <div><span class="dim">Total Files</span><br><strong id="stat-total">0</strong></div>
+  <div><span class="dim">Images</span><br><strong id="stat-image">0</strong></div>
+  <div><span class="dim">Videos</span><br><strong id="stat-video">0</strong></div>
+  <div><span class="dim">Audio</span><br><strong id="stat-audio">0</strong></div>
+  <div><span class="dim">Documents</span><br><strong id="stat-document">0</strong></div>
+  <div><span class="dim">Storage</span><br><strong id="stat-size">0 MB</strong></div>
+</div>
+
+<!-- Upload Area -->
+<div class="card" style="margin-top:16px;">
+  <div id="drop-zone" style="border:2px dashed var(--border);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;">
+    <div style="font-size:48px;margin-bottom:12px;">📁</div>
+    <p style="font-size:16px;font-weight:600;margin-bottom:8px;">Drop files here or tap to upload</p>
+    <p class="dim" style="font-size:13px;">Photos, videos, music, documents - up to 500 MB each</p>
+    <input type="file" id="file-input" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.rtf,.csv,.xls,.xlsx" style="display:none;">
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
+      <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">Choose Files</button>
+      <button class="btn btn-secondary" id="btn-camera" onclick="captureCamera()">Take Photo</button>
+    </div>
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none;">
+  </div>
+
+  <!-- Upload options -->
+  <div id="upload-options" style="display:none;margin-top:16px;padding:16px;background:var(--bg-secondary);border-radius:8px;">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+      <div>
+        <label class="dim" style="font-size:12px;">Category</label>
+        <select id="upload-category" class="input" style="width:auto;">
+          <option value="uncategorized">Uncategorized</option>
+          <option value="b-roll">B-Roll</option>
+          <option value="thumbnail">Thumbnails</option>
+          <option value="music">Background Music</option>
+          <option value="sfx">Sound Effects</option>
+          <option value="intro-outro">Intro/Outro</option>
+          <option value="overlay">Overlays</option>
+          <option value="reference">Reference</option>
+          <option value="brand">Brand Assets</option>
+        </select>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <label class="dim" style="font-size:12px;">Tags (comma-separated)</label>
+        <input id="upload-tags" class="input" placeholder="e.g. nature, cinematic, 4k">
+      </div>
+      <button class="btn btn-primary" id="btn-upload" onclick="uploadFiles()">Upload <span id="file-count"></span></button>
+      <button class="btn btn-secondary" onclick="cancelUpload()">Cancel</button>
+    </div>
+    <div id="upload-progress" style="display:none;margin-top:12px;">
+      <div style="background:var(--border);border-radius:4px;overflow:hidden;height:6px;">
+        <div id="progress-bar" style="height:100%;background:var(--gold);width:0%;transition:width .3s;"></div>
+      </div>
+      <p class="dim" style="font-size:12px;margin-top:4px;" id="progress-text">Uploading...</p>
+    </div>
+  </div>
+</div>
+
+<!-- Filters + Grid -->
+<div class="card" style="margin-top:16px;">
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+    <input id="search-input" class="input" placeholder="Search files..." style="flex:1;min-width:200px;" oninput="debounceLoad()">
+    <select id="filter-type" class="input" style="width:auto;" onchange="loadMedia()">
+      <option value="">All Types</option>
+      <option value="image">Images</option>
+      <option value="video">Videos</option>
+      <option value="audio">Audio</option>
+      <option value="document">Documents</option>
+    </select>
+    <select id="filter-category" class="input" style="width:auto;" onchange="loadMedia()">
+      <option value="">All Categories</option>
+      <option value="b-roll">B-Roll</option>
+      <option value="thumbnail">Thumbnails</option>
+      <option value="music">Background Music</option>
+      <option value="sfx">Sound Effects</option>
+      <option value="intro-outro">Intro/Outro</option>
+      <option value="overlay">Overlays</option>
+      <option value="reference">Reference</option>
+      <option value="brand">Brand Assets</option>
+    </select>
+  </div>
+
+  <div id="media-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;">
+  </div>
+
+  <div id="empty-state" style="display:none;text-align:center;padding:60px 20px;">
+    <div style="font-size:64px;margin-bottom:16px;">🖼️</div>
+    <p style="font-size:16px;font-weight:600;margin-bottom:4px;">No media yet</p>
+    <p class="dim">Upload photos, videos, music, or documents to get started.</p>
+  </div>
+
+  <div id="load-more" style="display:none;text-align:center;margin-top:16px;">
+    <button class="btn btn-secondary" onclick="loadMore()">Load More</button>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div id="media-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;overflow-y:auto;">
+  <div style="max-width:600px;margin:40px auto;padding:24px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 id="modal-name" style="margin:0;"></h3>
+      <button onclick="closeModal()" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;">&times;</button>
+    </div>
+    <div id="modal-preview" style="margin-bottom:16px;text-align:center;"></div>
+    <div style="display:grid;gap:12px;">
+      <div>
+        <label class="dim" style="font-size:12px;">Category</label>
+        <select id="modal-category" class="input" onchange="saveDetail()">
+          <option value="uncategorized">Uncategorized</option>
+          <option value="b-roll">B-Roll</option>
+          <option value="thumbnail">Thumbnails</option>
+          <option value="music">Background Music</option>
+          <option value="sfx">Sound Effects</option>
+          <option value="intro-outro">Intro/Outro</option>
+          <option value="overlay">Overlays</option>
+          <option value="reference">Reference</option>
+          <option value="brand">Brand Assets</option>
+        </select>
+      </div>
+      <div>
+        <label class="dim" style="font-size:12px;">Tags</label>
+        <input id="modal-tags" class="input" onchange="saveDetail()">
+      </div>
+      <div>
+        <label class="dim" style="font-size:12px;">Description</label>
+        <textarea id="modal-desc" class="input" rows="2" onchange="saveDetail()"></textarea>
+      </div>
+      <div class="dim" style="font-size:12px;" id="modal-meta"></div>
+      <div style="display:flex;gap:8px;">
+        <a id="modal-download" class="btn btn-primary" style="text-decoration:none;">Download</a>
+        <button class="btn btn-secondary" onclick="deleteMedia()" style="color:#e74c3c;">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let pendingFiles = [];
+let currentOffset = 0;
+let currentMediaId = null;
+let debounceTimer = null;
+const LIMIT = 50;
+
+const TYPE_ICONS = {image:'🖼️', video:'🎬', audio:'🎵', document:'📄', other:'📎'};
+
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  if (bytes < 1073741824) return (bytes/1048576).toFixed(1) + ' MB';
+  return (bytes/1073741824).toFixed(1) + ' GB';
+}
+
+// Drag and drop
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor='var(--gold)'; dz.style.background='rgba(212,175,55,.05)'; });
+dz.addEventListener('dragleave', () => { dz.style.borderColor='var(--border)'; dz.style.background=''; });
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.style.borderColor='var(--border)'; dz.style.background='';
+  handleFiles(e.dataTransfer.files);
+});
+document.getElementById('file-input').addEventListener('change', e => handleFiles(e.target.files));
+document.getElementById('camera-input').addEventListener('change', e => handleFiles(e.target.files));
+
+function captureCamera() {
+  document.getElementById('camera-input').click();
+}
+
+function handleFiles(fileList) {
+  pendingFiles = Array.from(fileList);
+  if (!pendingFiles.length) return;
+  document.getElementById('upload-options').style.display = 'block';
+  document.getElementById('file-count').textContent = '(' + pendingFiles.length + ' file' + (pendingFiles.length>1?'s':'') + ')';
+}
+
+function cancelUpload() {
+  pendingFiles = [];
+  document.getElementById('upload-options').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  document.getElementById('camera-input').value = '';
+}
+
+async function uploadFiles() {
+  if (!pendingFiles.length) return;
+  const progress = document.getElementById('upload-progress');
+  const bar = document.getElementById('progress-bar');
+  const text = document.getElementById('progress-text');
+  const category = document.getElementById('upload-category').value;
+  const tags = document.getElementById('upload-tags').value;
+
+  progress.style.display = 'block';
+  document.getElementById('btn-upload').disabled = true;
+
+  let uploaded = 0;
+  for (const file of pendingFiles) {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('category', category);
+    fd.append('tags', tags);
+    try {
+      const resp = await fetch('/api/media/upload', {method:'POST', body:fd});
+      if (!resp.ok) {
+        const err = await resp.json();
+        showToast(file.name + ': ' + (err.error||'Upload failed'), 'error');
+      }
+    } catch(e) {
+      showToast(file.name + ': Network error', 'error');
+    }
+    uploaded++;
+    bar.style.width = (uploaded/pendingFiles.length*100) + '%';
+    text.textContent = uploaded + '/' + pendingFiles.length + ' uploaded';
+  }
+
+  showToast(uploaded + ' file(s) uploaded', 'success');
+  cancelUpload();
+  progress.style.display = 'none';
+  bar.style.width = '0%';
+  document.getElementById('btn-upload').disabled = false;
+  currentOffset = 0;
+  loadMedia();
+}
+
+function debounceLoad() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => { currentOffset=0; loadMedia(); }, 300);
+}
+
+async function loadMedia() {
+  const type = document.getElementById('filter-type').value;
+  const category = document.getElementById('filter-category').value;
+  const search = document.getElementById('search-input').value;
+  const params = new URLSearchParams();
+  if (type) params.set('type', type);
+  if (category) params.set('category', category);
+  if (search) params.set('search', search);
+  params.set('limit', LIMIT);
+  params.set('offset', currentOffset);
+
+  const resp = await fetch('/api/media?' + params);
+  const data = await resp.json();
+
+  // Update stats
+  const s = data.stats;
+  document.getElementById('stat-total').textContent = s.total_files;
+  document.getElementById('stat-size').textContent = formatSize(s.total_size);
+  ['image','video','audio','document'].forEach(t => {
+    const el = document.getElementById('stat-'+t);
+    el.textContent = (s.by_type[t]||{}).count || 0;
+  });
+
+  const grid = document.getElementById('media-grid');
+  if (currentOffset === 0) grid.innerHTML = '';
+
+  if (!data.media.length && currentOffset === 0) {
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('load-more').style.display = 'none';
+    return;
+  }
+  document.getElementById('empty-state').style.display = 'none';
+
+  data.media.forEach(item => {
+    const el = document.createElement('div');
+    el.style.cssText = 'background:var(--bg-secondary);border-radius:8px;overflow:hidden;cursor:pointer;border:1px solid var(--border);transition:border-color .2s;';
+    el.onmouseenter = () => el.style.borderColor='var(--gold)';
+    el.onmouseleave = () => el.style.borderColor='var(--border)';
+    el.onclick = () => openModal(item.id);
+
+    let preview = '';
+    if (item.media_type === 'image') {
+      preview = '<div style="height:120px;display:flex;align-items:center;justify-content:center;background:var(--bg);font-size:48px;">🖼️</div>';
+    } else {
+      preview = '<div style="height:120px;display:flex;align-items:center;justify-content:center;background:var(--bg);font-size:48px;">'+(TYPE_ICONS[item.media_type]||'📎')+'</div>';
+    }
+
+    el.innerHTML = preview +
+      '<div style="padding:10px;">' +
+        '<div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+item.original_name+'">'+item.original_name+'</div>' +
+        '<div class="dim" style="font-size:11px;margin-top:2px;">'+item.media_type+' &middot; '+formatSize(item.file_size)+'</div>' +
+        (item.category !== 'uncategorized' ? '<div style="margin-top:4px;"><span style="font-size:10px;padding:2px 6px;background:var(--gold);color:#000;border-radius:4px;">'+item.category+'</span></div>' : '') +
+      '</div>';
+    grid.appendChild(el);
+  });
+
+  document.getElementById('load-more').style.display = data.media.length >= LIMIT ? 'block' : 'none';
+}
+
+function loadMore() {
+  currentOffset += LIMIT;
+  loadMedia();
+}
+
+async function openModal(id) {
+  currentMediaId = id;
+  const resp = await fetch('/api/media/'+id);
+  const item = await resp.json();
+
+  document.getElementById('modal-name').textContent = item.original_name;
+  document.getElementById('modal-category').value = item.category || 'uncategorized';
+  document.getElementById('modal-tags').value = (item.tags||[]).join(', ');
+  document.getElementById('modal-desc').value = item.description || '';
+  document.getElementById('modal-download').href = '/api/media/'+id+'/download';
+  document.getElementById('modal-meta').textContent =
+    item.media_type + ' | ' + formatSize(item.file_size) + ' | ' + (item.mime_type||'unknown') + ' | Uploaded ' + item.created_at;
+
+  let preview = '';
+  if (item.media_type === 'image') {
+    preview = '<div style="font-size:80px;">🖼️</div><p class="dim" style="font-size:12px;">Image preview available after download</p>';
+  } else if (item.media_type === 'video') {
+    preview = '<div style="font-size:80px;">🎬</div>';
+  } else if (item.media_type === 'audio') {
+    preview = '<div style="font-size:80px;">🎵</div><audio controls src="/api/media/'+id+'/download" style="width:100%;margin-top:8px;"></audio>';
+  } else {
+    preview = '<div style="font-size:80px;">'+(TYPE_ICONS[item.media_type]||'📎')+'</div>';
+  }
+  document.getElementById('modal-preview').innerHTML = preview;
+  document.getElementById('media-modal').style.display = 'block';
+}
+
+function closeModal() {
+  document.getElementById('media-modal').style.display = 'none';
+  currentMediaId = null;
+}
+
+async function saveDetail() {
+  if (!currentMediaId) return;
+  const tags = document.getElementById('modal-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  await fetch('/api/media/'+currentMediaId, {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      category: document.getElementById('modal-category').value,
+      tags: tags,
+      description: document.getElementById('modal-desc').value
+    })
+  });
+}
+
+async function deleteMedia() {
+  if (!currentMediaId || !confirm('Delete this file permanently?')) return;
+  await fetch('/api/media/'+currentMediaId, {method:'DELETE'});
+  closeModal();
+  currentOffset = 0;
+  loadMedia();
+  showToast('File deleted', 'success');
+}
+
+function showToast(msg, type) {
+  if (window.showToast) return window.showToast(msg, type);
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:8px;color:#fff;font-size:14px;z-index:9999;background:'+(type==='error'?'#e74c3c':'#2ecc71')+';';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+document.getElementById('media-modal').addEventListener('click', e => {
+  if (e.target.id === 'media-modal') closeModal();
+});
+
+loadMedia();
+</script>
+{% endblock %}

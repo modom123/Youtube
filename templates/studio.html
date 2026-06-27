@@ -421,6 +421,13 @@
         <div class="log-box" id="r-errors-box"></div>
       </div>
 
+      <div style="display:flex;gap:12px;margin-top:4px;">
+        <a id="studio-job-link" href="/jobs" class="btn btn-primary" style="display:none;">
+          View in Jobs →
+        </a>
+        <a href="/jobs" class="btn btn-ghost">Browse All Jobs</a>
+      </div>
+
     </div><!-- /studioResults -->
   </div>
 </div>
@@ -627,6 +634,15 @@ function renderResult(result) {
   document.getElementById('studioResults').classList.add('visible');
 }
 
+function showJobLink(dbJobId) {
+  if (!dbJobId) return;
+  const el = document.getElementById('studio-job-link');
+  if (el) {
+    el.href = '/jobs/' + dbJobId;
+    el.style.display = '';
+  }
+}
+
 function studioRun() {
   const niche = document.getElementById('s-niche').value.trim();
   if (!niche) { alert('Please enter a niche/topic.'); return; }
@@ -709,6 +725,7 @@ function listenStudio(jobId) {
       document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
       addLog('✓ Pipeline complete!', 'success');
       if (msg.result) renderResult(msg.result);
+      showJobLink(msg.db_job_id);
     } else if (msg.status === 'error') {
       studioES.close();
       document.getElementById('studioRunBtn').disabled = false;
@@ -738,6 +755,7 @@ function pollStatus(jobId) {
         document.getElementById('studioRunBtn').disabled = false;
         document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
         if (data.result) renderResult(data.result);
+        showJobLink(data.db_job_id);
       } else if (data.status === 'error') {
         document.getElementById('studioRunBtn').disabled = false;
         document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';

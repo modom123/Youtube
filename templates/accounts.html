@@ -1,87 +1,314 @@
 {% extends "base.html" %}
 {% set active_page = "accounts" %}
 
-{% block title %}Social Accounts — Social Optimize Machine{% endblock %}
+{% block title %}Social Accounts — Social Optimize{% endblock %}
 {% block topbar_title %}Social Accounts{% endblock %}
-{% block topbar_sub %}Connect and manage your publishing accounts{% endblock %}
+{% block topbar_sub %}Connect your platforms — one click per account{% endblock %}
 {% block topbar_actions %}
-<button class="btn btn-primary" onclick="openModal('manualModal')">+ Add Account</button>
+<button class="btn btn-secondary" onclick="openModal('manualModal')">+ Add Manually</button>
 {% endblock %}
 
 {% block content %}
+<style>
+  .platform-connect-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .platform-tile { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; transition: border-color .2s; }
+  .platform-tile:hover { border-color: var(--accent); }
+  .platform-tile.connected { border-color: var(--green); }
+  .platform-tile .pt-icon { font-size: 36px; line-height: 1; }
+  .platform-tile .pt-name { font-size: 14px; font-weight: 700; color: var(--text); }
+  .platform-tile .pt-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+  .platform-tile .pt-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .pt-status.ok  { background: rgba(34,197,94,.12); color: #4ade80; }
+  .pt-status.off { background: rgba(255,255,255,.06); color: var(--muted); }
+  .pt-status.cfg { background: rgba(212,160,23,.12); color: var(--accent); }
+  .connected-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+</style>
 
-<!-- Connect New Accounts -->
-<div class="card mb-24">
-  <div class="card-title mb-16"><span class="accent">🔌</span> Connect Accounts</div>
-  <div class="connect-platform-grid">
+<!-- Platform Connection Grid -->
+<div class="section-header mb-16">
+  <div class="section-title">Connect <span class="accent">Platforms</span></div>
+  <span class="text-dim text-sm">Click any platform to connect</span>
+</div>
 
-    <div class="connect-card" onclick="connectPlatform('youtube')">
-      <div class="connect-icon">▶️</div>
-      <div class="connect-name">YouTube</div>
-      <div class="connect-desc">Upload videos, Shorts &amp; manage channel</div>
-    </div>
+<div class="platform-connect-grid">
 
-    <div class="connect-card" onclick="connectPlatform('tiktok')">
-      <div class="connect-icon">🎵</div>
-      <div class="connect-name">TikTok</div>
-      <div class="connect-desc">Post videos and reach millions</div>
-    </div>
-
-    <div class="connect-card" onclick="openModal('instagramModal')">
-      <div class="connect-icon">📸</div>
-      <div class="connect-name">Instagram</div>
-      <div class="connect-desc">Publish Reels and posts</div>
-    </div>
-
+  <!-- YouTube -->
+  <div class="platform-tile {% if 'youtube' in connected %}connected{% endif %}">
+    <div class="pt-icon">▶️</div>
+    <div class="pt-name">YouTube</div>
+    <div class="pt-desc">Upload videos, Shorts & manage your channel</div>
+    {% if 'youtube' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/youtube/start'">Reconnect</button>
+    {% elif youtube_configured %}
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/youtube/start'">Connect YouTube</button>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('youtube')">Connect — Quick Setup</button>
+    {% endif %}
   </div>
+
+  <!-- TikTok -->
+  <div class="platform-tile {% if 'tiktok' in connected %}connected{% endif %}">
+    <div class="pt-icon">🎵</div>
+    <div class="pt-name">TikTok</div>
+    <div class="pt-desc">Post videos and reach millions of viewers</div>
+    {% if 'tiktok' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/tiktok/start'">Reconnect</button>
+    {% elif tiktok_configured %}
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/tiktok/start'">Connect TikTok</button>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('tiktok')">Connect — Quick Setup</button>
+    {% endif %}
+  </div>
+
+  <!-- Instagram -->
+  <div class="platform-tile {% if 'instagram' in connected %}connected{% endif %}">
+    <div class="pt-icon">📸</div>
+    <div class="pt-name">Instagram</div>
+    <div class="pt-desc">Publish Reels, Stories and feed posts</div>
+    {% if 'instagram' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/facebook/start'">Reconnect</button>
+    {% elif meta_configured %}
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/facebook/start'">Connect Instagram</button>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('instagram')">Connect — Quick Setup</button>
+    {% endif %}
+  </div>
+
+  <!-- Facebook -->
+  <div class="platform-tile {% if 'facebook' in connected %}connected{% endif %}">
+    <div class="pt-icon">👍</div>
+    <div class="pt-name">Facebook</div>
+    <div class="pt-desc">Post to Pages and reach your audience</div>
+    {% if 'facebook' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/facebook/start'">Reconnect</button>
+    {% elif meta_configured %}
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/facebook/start'">Connect Facebook</button>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('facebook')">Connect — Quick Setup</button>
+    {% endif %}
+  </div>
+
+  <!-- X / Twitter -->
+  <div class="platform-tile {% if 'twitter' in connected %}connected{% endif %}">
+    <div class="pt-icon">𝕏</div>
+    <div class="pt-name">X (Twitter)</div>
+    <div class="pt-desc">Post tweets and video clips to your X followers</div>
+    {% if 'twitter' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+    {% elif twitter_configured %}
+      <a href="/oauth/twitter/start" class="btn btn-primary btn-sm">Connect</a>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('twitter')">Connect — Quick Setup</button>
+    {% endif %}
+  </div>
+
+  <!-- Threads -->
+  <div class="platform-tile {% if 'threads' in connected %}connected{% endif %}">
+    <div class="pt-icon">🧵</div>
+    <div class="pt-name">Threads</div>
+    <div class="pt-desc">Publish posts and short videos to Meta Threads</div>
+    {% if 'threads' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+    {% elif threads_configured %}
+      <a href="/oauth/threads/start" class="btn btn-primary btn-sm">Connect</a>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('threads')">Connect — Quick Setup</button>
+    {% endif %}
+  </div>
+
+  <!-- Snapchat -->
+  <div class="platform-tile {% if 'snapchat' in connected %}connected{% endif %}">
+    <div class="pt-icon">👻</div>
+    <div class="pt-name">Snapchat</div>
+    <div class="pt-desc">Publish Spotlight and Stories to Snapchat</div>
+    {% if 'snapchat' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+    {% elif snapchat_configured %}
+      <a href="/oauth/snapchat/start" class="btn btn-primary btn-sm">Connect</a>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('snapchat')">Connect — Quick Setup</button>
+    {% endif %}
+  </div>
+
+  <!-- Twitch -->
+  <div class="platform-tile {% if 'twitch' in connected %}connected{% endif %}">
+    <div class="pt-icon">🟣</div>
+    <div class="pt-name">Twitch</div>
+    <div class="pt-desc">Upload VODs and clips to your Twitch channel</div>
+    {% if 'twitch' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+    {% elif twitch_configured %}
+      <a href="/oauth/twitch/start" class="btn btn-primary btn-sm">Connect</a>
+    {% else %}
+      <span class="pt-status cfg">Needs Setup</span>
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('twitch')">Connect — Quick Setup</button>
+    {% endif %}
+  </div>
+
+  <!-- Pinterest -->
+  <div class="platform-tile {% if 'pinterest' in connected %}connected{% endif %}">
+    <div class="pt-icon">📌</div>
+    <div class="pt-name">Pinterest</div>
+    <div class="pt-desc">Pin videos and drive traffic to your content</div>
+    {% if 'pinterest' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+    {% else %}
+      <span class="pt-status off">Coming Soon</span>
+    {% endif %}
+  </div>
+
+  <!-- Higgsfield AI (Social Optimize AI Video Engine) -->
+  <div class="platform-tile {% if higgsfield_connected %}connected{% endif %}" style="border-color:{% if higgsfield_connected %}var(--green){% else %}rgba(168,85,247,.4){% endif %};">
+    <div class="pt-icon">🎬</div>
+    <div class="pt-name" style="color:#a855f7;">Social Optimize AI</div>
+    <div class="pt-desc">AI video generation engine — connect your Higgsfield account to enable AI video creation</div>
+    {% if higgsfield_connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <a href="/oauth/higgsfield/start" class="btn btn-ghost btn-sm">Reconnect</a>
+    {% else %}
+      <a href="/oauth/higgsfield/start" class="btn btn-primary btn-sm" style="background:linear-gradient(135deg,#a855f7,#7c3aed);">Connect AI Engine</a>
+    {% endif %}
+  </div>
+
 </div>
 
 <!-- Connected Accounts -->
-<div class="section-header">
-  <div class="section-title">Connected <span class="accent">Accounts</span></div>
-  <span class="text-dim text-sm">{{ accounts|length }} connected</span>
-</div>
-
 {% if accounts %}
-<div class="accounts-grid" id="accountsGrid">
+<div class="section-header mb-16">
+  <div class="section-title">Connected <span class="accent">Accounts</span></div>
+  <span class="text-dim text-sm">{{ accounts|length }} linked</span>
+</div>
+<div class="connected-list">
   {% for acc in accounts %}
   <div class="account-card {{ acc.platform }}" id="acc-{{ acc.id }}">
     <div class="account-avatar">
       {% if acc.avatar_url %}
         <img src="{{ acc.avatar_url }}" alt="{{ acc.username }}">
       {% else %}
-        {{ {'youtube':'▶️','tiktok':'🎵','instagram':'📸'}.get(acc.platform,'🔗') }}
+        {{ {'youtube':'▶️','tiktok':'🎵','instagram':'📸','facebook':'👍','linkedin':'💼','twitter':'𝕏','threads':'🧵','snapchat':'👻','twitch':'🟣','pinterest':'📌','higgsfield':'🎬'}.get(acc.platform,'🔗') }}
       {% endif %}
     </div>
     <div class="account-name">{{ acc.display_name or acc.username }}</div>
     <div class="account-handle text-dim">@{{ acc.username }}</div>
     <div class="account-stats mt-8">
       <div>
-        <div class="account-stat-val">{{ "{:,}".format(acc.followers) }}</div>
+        <div class="account-stat-val">{{ "{:,}".format(acc.followers or 0) }}</div>
         <div class="account-stat-label text-xs text-dim">Followers</div>
       </div>
       <div>
         <span class="platform-tag {{ acc.platform }}">{{ acc.platform }}</span>
       </div>
     </div>
-    <div class="text-xs text-dim mt-4">Connected {{ acc.connected_at[:10] }}</div>
+    <div class="text-xs text-dim mt-4">Connected {{ (acc.connected_at or '')[:10] }}</div>
     <div class="flex gap-8 mt-12">
       <button class="btn btn-danger btn-sm" onclick="disconnectAccount({{ acc.id }})">Disconnect</button>
     </div>
   </div>
   {% endfor %}
 </div>
-{% else %}
-<div class="card">
-  <div class="empty-state">
-    <div class="empty-icon">🔗</div>
-    <div class="empty-title">No accounts connected yet</div>
-    <div class="empty-sub">Connect your first social media account above to start publishing</div>
-  </div>
-</div>
 {% endif %}
 
-<!-- ── Modals ─────────────────────────────────────────── -->
+<!-- Setup Wizard Modal -->
+<div class="modal-overlay" id="setupModal" style="display:none;" onclick="closeModalOutside(event,'setupModal')">
+  <div class="modal" style="max-width:560px;padding:0;overflow:hidden;">
+    <button class="modal-close" onclick="closeModal('setupModal')" style="z-index:10;">✕</button>
+
+    <!-- Progress bar -->
+    <div style="height:4px;background:var(--bg-elevated);">
+      <div id="wiz-progress" style="height:4px;background:var(--accent);transition:width .3s;width:33%;"></div>
+    </div>
+
+    <!-- Step 1: Why -->
+    <div id="wiz-step-1" style="padding:32px;">
+      <div id="wiz-icon" style="font-size:48px;text-align:center;margin-bottom:12px;"></div>
+      <div class="modal-title text-center" id="wiz-platform-name" style="margin-bottom:8px;"></div>
+      <p class="text-dim text-sm text-center mb-24" id="wiz-why"></p>
+
+      <div style="background:var(--bg-elevated);border-radius:12px;padding:20px;margin-bottom:24px;">
+        <div class="text-xs text-dim mb-8" style="text-transform:uppercase;letter-spacing:.05em;">What you'll need</div>
+        <div id="wiz-needs" style="font-size:13px;line-height:1.9;color:var(--text);"></div>
+      </div>
+
+      <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:14px;margin-bottom:24px;">
+        <div class="text-xs" style="color:#818cf8;margin-bottom:4px;">One-time setup — takes about 5 minutes</div>
+        <div class="text-xs text-dim">After this you'll click Connect once and your account links automatically.</div>
+      </div>
+
+      <button class="btn btn-primary btn-block" onclick="wizNext(2)">Let's set it up →</button>
+    </div>
+
+    <!-- Step 2: Get credentials -->
+    <div id="wiz-step-2" style="padding:32px;display:none;">
+      <div class="modal-title mb-8">Step 2 of 3 — Create your app</div>
+      <p class="text-dim text-sm mb-20" id="wiz-step2-intro"></p>
+
+      <!-- Developer portal link -->
+      <a id="wiz-dev-link" href="#" target="_blank" rel="noopener"
+         class="btn btn-primary btn-block mb-16" style="display:block;text-align:center;">
+        Open Developer Portal ↗
+      </a>
+
+      <!-- Callback URL copy box -->
+      <div class="form-group">
+        <label style="color:var(--accent);">Paste this as your Redirect / Callback URL</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="wiz-callback" readonly
+                 style="flex:1;background:var(--bg-elevated);font-family:monospace;font-size:12px;cursor:default;"
+                 onclick="this.select()">
+          <button class="btn btn-ghost btn-sm" onclick="copyCallback()" id="copy-btn" style="white-space:nowrap;">Copy</button>
+        </div>
+        <div class="text-xs text-dim mt-6">This tells the platform where to send users after they log in.</div>
+      </div>
+
+      <div style="background:var(--bg-elevated);border-radius:10px;padding:16px;margin-top:16px;">
+        <div class="text-xs text-dim mb-8" style="text-transform:uppercase;letter-spacing:.05em;">What to do in the portal</div>
+        <div id="wiz-portal-steps" style="font-size:12px;line-height:2;color:var(--muted);"></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:24px;">
+        <button class="btn btn-ghost" style="flex:1;" onclick="wizNext(1)">← Back</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="wizNext(3)">I've got my credentials →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Paste & save -->
+    <div id="wiz-step-3" style="padding:32px;display:none;">
+      <div class="modal-title mb-8">Step 3 of 3 — Paste your credentials</div>
+      <p class="text-dim text-sm mb-20">Paste the values from the developer portal. They're stored securely and never shared.</p>
+
+      <div class="form-group">
+        <label id="wiz-id-label">Client ID / App ID</label>
+        <input type="text" id="wiz-client-id" placeholder="Paste here…" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label id="wiz-secret-label">Client Secret / App Secret</label>
+        <input type="password" id="wiz-client-secret" placeholder="Paste here…" autocomplete="off">
+        <div class="text-xs text-dim mt-4">Stored encrypted — never shown again after saving.</div>
+      </div>
+
+      <div id="wiz-save-msg" style="display:none;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:14px;margin-bottom:16px;">
+        <div style="color:#4ade80;font-size:13px;font-weight:700;">Credentials saved!</div>
+        <div class="text-xs text-dim mt-4">Now click the Connect button that just appeared on your platform tile.</div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button class="btn btn-ghost" style="flex:1;" onclick="wizNext(2)">← Back</button>
+        <button class="btn btn-primary" style="flex:2;" id="wiz-save-btn" onclick="wizSave()">Save & Enable Connect</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Manual Account Modal -->
 <div class="modal-overlay" id="manualModal" style="display:none;" onclick="closeModalOutside(event,'manualModal')">
@@ -94,6 +321,10 @@
         <option value="youtube">YouTube</option>
         <option value="tiktok">TikTok</option>
         <option value="instagram">Instagram</option>
+        <option value="facebook">Facebook</option>
+        <option value="twitch">Twitch</option>
+        <option value="twitter">X / Twitter</option>
+        <option value="pinterest">Pinterest</option>
         <option value="other">Other</option>
       </select>
     </div>
@@ -121,59 +352,195 @@
   </div>
 </div>
 
-<!-- Instagram Token Modal -->
-<div class="modal-overlay" id="instagramModal" style="display:none;" onclick="closeModalOutside(event,'instagramModal')">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModal('instagramModal')">✕</button>
-    <div class="modal-title">Connect Instagram</div>
-    <div class="card mb-16" style="background:var(--yellow-dim);border-color:var(--yellow);">
-      <div class="text-sm">
-        <strong>Instagram requires a Business or Creator account</strong> with a connected Facebook page and a long-lived access token from Meta for Developers.
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Instagram Username</label>
-      <input type="text" id="ig-username" placeholder="@yourhandle">
-    </div>
-    <div class="form-group">
-      <label>Long-lived Access Token</label>
-      <input type="password" id="ig-token" placeholder="EAAxxxxxxxxx...">
-      <div class="form-hint">Get this from developers.facebook.com → Graph API Explorer</div>
-    </div>
-    <div class="form-group">
-      <label>Instagram Account ID</label>
-      <input type="text" id="ig-accountid" placeholder="17841xxxxxxxxx">
-      <div class="form-hint">Found in your Facebook Business Settings → Instagram Accounts</div>
-    </div>
-    <div class="form-group">
-      <label>Followers</label>
-      <input type="number" id="ig-followers" value="0" min="0">
-    </div>
-    <button class="btn btn-primary btn-block" onclick="saveInstagramAccount()">Connect Instagram</button>
-  </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-function connectPlatform(platform) {
-  if (platform === 'youtube') window.location.href = '/oauth/youtube/start';
-  else if (platform === 'tiktok') window.location.href = '/oauth/tiktok/start';
-  else openModal('instagramModal');
+// ── Platform wizard data ─────────────────────────────────────────────────────
+const PLATFORM_WIZARD = {
+  youtube: {
+    icon: '▶️', name: 'YouTube',
+    why: 'Enables automatic video uploads to your YouTube channel after every production.',
+    needs: '• A free Google account (you probably already have one)\n• 5 minutes to create a YouTube API app',
+    devUrl: 'https://console.cloud.google.com/apis/credentials/wizard?api=youtube.googleapis.com',
+    callback: '/oauth/youtube/callback',
+    step2: 'In Google Cloud Console, create OAuth 2.0 credentials for a Web Application. Copy the Client ID and Client Secret.',
+    portalSteps: '1. Select your project (or create one)\n2. Click "Create credentials" → OAuth client ID\n3. Application type: Web application\n4. Paste the Redirect URI above under "Authorized redirect URIs"\n5. Click Create — copy the Client ID and Secret',
+    idLabel: 'Google Client ID', secretLabel: 'Google Client Secret',
+  },
+  tiktok: {
+    icon: '🎵', name: 'TikTok',
+    why: 'Auto-posts your short videos directly to your TikTok account.',
+    needs: '• A TikTok Creator or Business account\n• 5 minutes on the TikTok developer portal',
+    devUrl: 'https://developers.tiktok.com/apps/',
+    callback: '/oauth/tiktok/callback',
+    step2: 'Create a new app on TikTok for Developers. Add the "Login Kit" and "Content Posting API" products.',
+    portalSteps: '1. Click "Create app"\n2. Add product: Login Kit\n3. Add product: Content Posting API\n4. Paste the Redirect URI above under redirect settings\n5. Copy the Client Key and Client Secret',
+    idLabel: 'Client Key', secretLabel: 'Client Secret',
+  },
+  instagram: {
+    icon: '📸', name: 'Instagram',
+    why: 'Auto-posts Reels and feed videos to your Instagram Business account.',
+    needs: '• An Instagram Business or Creator account\n• That account linked to a Facebook Page\n• 5 minutes on Meta for Developers',
+    devUrl: 'https://developers.facebook.com/apps/creation/',
+    callback: '/oauth/facebook/callback',
+    step2: 'Create a Meta Business app — this covers both Instagram and Facebook in one step.',
+    portalSteps: '1. Choose app type: Business\n2. Add product: Facebook Login\n3. Add product: Instagram Graph API\n4. Go to Facebook Login → Settings → paste the Redirect URI above\n5. Copy the App ID and App Secret from "Basic Settings"',
+    idLabel: 'Meta App ID', secretLabel: 'Meta App Secret',
+  },
+  facebook: {
+    icon: '👍', name: 'Facebook',
+    why: 'Posts videos to your Facebook Page automatically.',
+    needs: '• A Facebook Page (not a personal profile)\n• 5 minutes on Meta for Developers',
+    devUrl: 'https://developers.facebook.com/apps/creation/',
+    callback: '/oauth/facebook/callback',
+    step2: 'Create a Meta Business app. Facebook and Instagram share the same app — set up once, use for both.',
+    portalSteps: '1. Choose app type: Business\n2. Add product: Facebook Login\n3. Go to Facebook Login → Settings → paste the Redirect URI above\n4. Copy App ID and App Secret from "Basic Settings"',
+    idLabel: 'Meta App ID', secretLabel: 'Meta App Secret',
+  },
+  twitter: {
+    icon: '𝕏', name: 'X (Twitter)',
+    why: 'Tweets video clips and posts to your X / Twitter account automatically.',
+    needs: '• An X developer account (free tier works)\n• 5 minutes to create an app',
+    devUrl: 'https://developer.twitter.com/en/portal/projects-and-apps',
+    callback: '/oauth/twitter/callback',
+    step2: 'Create an X app with OAuth 2.0 enabled. Set App Type to "Web App".',
+    portalSteps: '1. Click "Create Project" then "Create App"\n2. Go to "User authentication settings"\n3. Enable OAuth 2.0, App type: Web App\n4. Paste the Redirect URI above as the Callback URL\n5. Save and copy the Client ID and Client Secret',
+    idLabel: 'Client ID', secretLabel: 'Client Secret',
+  },
+  threads: {
+    icon: '🧵', name: 'Threads',
+    why: 'Posts short videos and text to your Threads account.',
+    needs: '• A Threads account (Instagram required)\n• Same Meta app as Instagram — reuse if already set up',
+    devUrl: 'https://developers.facebook.com/apps/',
+    callback: '/oauth/threads/callback',
+    step2: 'In your Meta app, add the Threads API product. If you\'ve already set up Instagram, just add Threads to the same app.',
+    portalSteps: '1. Open your existing Meta app (or create one)\n2. Click "Add Product" → find "Threads API"\n3. Go to Threads API → Settings → paste the Redirect URI above\n4. Copy the App ID and App Secret from "Basic Settings"',
+    idLabel: 'Meta App ID', secretLabel: 'Meta App Secret',
+  },
+  twitch: {
+    icon: '🟣', name: 'Twitch',
+    why: 'Uploads VODs and video clips to your Twitch channel.',
+    needs: '• A Twitch account\n• 5 minutes on the Twitch developer console',
+    devUrl: 'https://dev.twitch.tv/console/apps',
+    callback: '/oauth/twitch/callback',
+    step2: 'Register a new application on the Twitch Developer Console.',
+    portalSteps: '1. Click "Register Your Application"\n2. Set Category: Content Management\n3. Paste the Redirect URI above as OAuth Redirect URL\n4. Click Create and copy the Client ID\n5. Click "New Secret" to generate and copy the Client Secret',
+    idLabel: 'Client ID', secretLabel: 'Client Secret',
+  },
+  snapchat: {
+    icon: '👻', name: 'Snapchat',
+    why: 'Publishes videos to Snapchat Spotlight and Stories.',
+    needs: '• A Snapchat Business account\n• 5 minutes on Snap Kit portal',
+    devUrl: 'https://kit.snapchat.com/manage',
+    callback: '/oauth/snapchat/callback',
+    step2: 'Create a Snap Kit app with Login Kit and Creative Kit enabled.',
+    portalSteps: '1. Click "Create App"\n2. Enable "Login Kit"\n3. Enable "Creative Kit"\n4. Paste the Redirect URI above under OAuth Redirect URLs\n5. Copy Client ID and Client Secret',
+    idLabel: 'Client ID', secretLabel: 'Client Secret',
+  },
+};
+
+let _wizPlatform = null;
+
+function showSetup(platform) {
+  const w = PLATFORM_WIZARD[platform];
+  if (!w) return;
+  _wizPlatform = platform;
+
+  // Populate step 1
+  document.getElementById('wiz-icon').textContent = w.icon;
+  document.getElementById('wiz-platform-name').textContent = w.name;
+  document.getElementById('wiz-why').textContent = w.why;
+  document.getElementById('wiz-needs').innerHTML = w.needs.split('\n').map(l =>
+    `<div style="display:flex;gap:8px;align-items:flex-start;">${l}</div>`
+  ).join('');
+
+  // Populate step 2
+  document.getElementById('wiz-dev-link').href = w.devUrl;
+  document.getElementById('wiz-dev-link').textContent = `Open ${w.name} Developer Portal ↗`;
+  document.getElementById('wiz-callback').value = location.origin + w.callback;
+  document.getElementById('wiz-step2-intro').textContent = w.step2;
+  document.getElementById('wiz-portal-steps').innerHTML = w.portalSteps.split('\n').map(l =>
+    `<div style="padding:2px 0;">${l}</div>`
+  ).join('');
+
+  // Populate step 3
+  document.getElementById('wiz-id-label').textContent = w.idLabel;
+  document.getElementById('wiz-secret-label').textContent = w.secretLabel;
+  document.getElementById('wiz-client-id').value = '';
+  document.getElementById('wiz-client-secret').value = '';
+  document.getElementById('wiz-save-msg').style.display = 'none';
+  document.getElementById('wiz-save-btn').disabled = false;
+  document.getElementById('wiz-save-btn').textContent = 'Save & Enable Connect';
+
+  wizNext(1);
+  openModal('setupModal');
+}
+
+function wizNext(step) {
+  [1, 2, 3].forEach(n => {
+    document.getElementById(`wiz-step-${n}`).style.display = n === step ? 'block' : 'none';
+  });
+  document.getElementById('wiz-progress').style.width = (step * 33.3) + '%';
+}
+
+function copyCallback() {
+  const val = document.getElementById('wiz-callback').value;
+  navigator.clipboard.writeText(val).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; }, 2000);
+  });
+}
+
+async function wizSave() {
+  const clientId = document.getElementById('wiz-client-id').value.trim();
+  const clientSecret = document.getElementById('wiz-client-secret').value.trim();
+  if (!clientId || !clientSecret) {
+    toast('error', 'Both fields required', 'Paste your Client ID and Client Secret.');
+    return;
+  }
+  const btn = document.getElementById('wiz-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const resp = await fetch('/api/settings/platform-creds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform: _wizPlatform, client_id: clientId, client_secret: clientSecret }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      toast('error', 'Save failed', data.error || 'Unknown error');
+      btn.disabled = false;
+      btn.textContent = 'Save & Enable Connect';
+      return;
+    }
+    document.getElementById('wiz-save-msg').style.display = 'block';
+    btn.textContent = 'Saved!';
+    toast('success', 'Credentials saved!', 'The Connect button is now active — close this and click Connect.');
+    setTimeout(() => {
+      closeModal('setupModal');
+      location.reload();
+    }, 2500);
+  } catch (e) {
+    toast('error', 'Network error', e.message);
+    btn.disabled = false;
+    btn.textContent = 'Save & Enable Connect';
+  }
 }
 
 async function saveManualAccount() {
   const platform = document.getElementById('m-platform').value;
   const username = document.getElementById('m-username').value.replace('@','').trim();
-  if (!username) { toast('error', 'Username required'); return; }
-
+  if (!username) { showToast('Username required', 'error'); return; }
   const resp = await fetch('/api/accounts/connect', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({
-      platform,
-      username,
+      platform, username,
       display_name: document.getElementById('m-displayname').value,
       followers: document.getElementById('m-followers').value,
       access_token: document.getElementById('m-token').value,
@@ -181,35 +548,11 @@ async function saveManualAccount() {
     }),
   });
   if (resp.ok) {
-    toast('success', 'Account Connected', `@${username} on ${platform}`);
+    showToast('Account connected', 'success');
     closeModal('manualModal');
     setTimeout(() => location.reload(), 1000);
   } else {
-    toast('error', 'Failed', 'Could not save account');
-  }
-}
-
-async function saveInstagramAccount() {
-  const username = document.getElementById('ig-username').value.replace('@','').trim();
-  const token = document.getElementById('ig-token').value.trim();
-  if (!username || !token) { toast('error', 'Missing fields'); return; }
-
-  const resp = await fetch('/api/accounts/connect', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({
-      platform: 'instagram',
-      username,
-      display_name: username,
-      access_token: token,
-      account_id: document.getElementById('ig-accountid').value,
-      followers: document.getElementById('ig-followers').value,
-    }),
-  });
-  if (resp.ok) {
-    toast('success', 'Instagram Connected', `@${username}`);
-    closeModal('instagramModal');
-    setTimeout(() => location.reload(), 1000);
+    showToast('Failed to save account', 'error');
   }
 }
 
@@ -218,16 +561,12 @@ async function disconnectAccount(id) {
   const resp = await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
   if (resp.ok) {
     document.getElementById(`acc-${id}`)?.remove();
-    toast('success', 'Account Disconnected');
+    showToast('Account disconnected', 'success');
   }
 }
 
-// Auto-open modal if redirected with ?modal=instagram
-if (new URLSearchParams(location.search).get('modal') === 'instagram') {
-  openModal('instagramModal');
-}
-if (new URLSearchParams(location.search).get('connected')) {
-  toast('success', 'Account Connected!', `${new URLSearchParams(location.search).get('connected')} is now linked.`);
-}
+const params = new URLSearchParams(location.search);
+if (params.get('connected')) showToast(params.get('connected') + ' connected!', 'success');
+if (params.get('error')) showToast('Connection failed: ' + params.get('error'), 'error');
 </script>
 {% endblock %}

@@ -14,12 +14,12 @@ import config
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# Map edge-tts voice names to Google Neural2 equivalents
-_EDGE_TO_NEURAL2 = {
-    "en-US-AriaNeural":    "en-US-Neural2-C",
-    "en-US-JennyNeural":   "en-US-Neural2-F",
-    "en-US-GuyNeural":     "en-US-Neural2-D",
-    "en-US-DavisNeural":   "en-US-Neural2-A",
+# Map edge-tts voice names to best Google TTS equivalents (Studio > Journey > Neural2)
+_EDGE_TO_GOOGLE = {
+    "en-US-AriaNeural":    "en-US-Studio-O",
+    "en-US-JennyNeural":   "en-US-Journey-F",
+    "en-US-GuyNeural":     "en-US-Studio-Q",
+    "en-US-DavisNeural":   "en-US-Journey-D",
     "en-GB-SoniaNeural":   "en-GB-Neural2-A",
     "en-AU-NatashaNeural": "en-AU-Neural2-A",
 }
@@ -71,25 +71,46 @@ def _split_into_chunks(text: str, max_bytes: int = _GOOGLE_TTS_CHUNK_SIZE) -> li
 
 
 def _resolve_google_voice(voice: str) -> str:
-    """Resolve an edge-tts voice name or Google Neural2 voice name to a Neural2 voice id."""
-    if "Neural2" in voice:
+    """Resolve an edge-tts voice name to the best Google TTS voice (Studio/Journey/Neural2)."""
+    if "Studio" in voice or "Journey" in voice or "Neural2" in voice:
         return voice
-    if voice in _EDGE_TO_NEURAL2:
-        return _EDGE_TO_NEURAL2[voice]
-    return getattr(config, "GOOGLE_TTS_VOICE", "en-US-Neural2-C")
+    if voice in _EDGE_TO_GOOGLE:
+        return _EDGE_TO_GOOGLE[voice]
+    return getattr(config, "GOOGLE_TTS_VOICE", "en-US-Studio-O")
 
 
 def _google_tts_chunk(text: str, voice: str, api_key: str) -> bytes:
-    """Call Google Cloud TTS REST API for a single chunk, return MP3 bytes."""
+    """Call Google Cloud TTS REST API for a single chunk, return high-quality MP3 bytes."""
     import requests as req
     language_code = "-".join(voice.split("-")[:2])
+
+    ssml = f'<speak><prosody rate="medium" pitch="+0st">{text}</prosody></speak>'
+
     payload = {
-        "input": {"text": text},
+        "input": {"ssml": ssml},
         "voice": {"languageCode": language_code, "name": voice},
-        "audioConfig": {"audioEncoding": "MP3"},
+        "audioConfig": {
+            "audioEncoding": "MP3",
+            "sampleRateHertz": 24000,
+            "speakingRate": 1.0,
+            "pitch": 0.0,
+            "effectsProfileId": ["headphone-class-device"],
+        },
     }
-    url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+
+    # Studio/Journey voices use v1beta1 endpoint
+    api_version = "v1beta1" if ("Studio" in voice or "Journey" in voice) else "v1"
+    url = f"https://texttospeech.googleapis.com/{api_version}/text:synthesize?key={api_key}"
     resp = req.post(url, json=payload, timeout=30)
+
+    if resp.status_code != 200 and api_version == "v1beta1":
+        # Fallback to Neural2 if Studio/Journey voice not available
+        fallback_voice = language_code + "-Neural2-D"
+        print(f"[audio] {voice} unavailable, falling back to {fallback_voice}")
+        payload["voice"]["name"] = fallback_voice
+        url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}"
+        resp = req.post(url, json=payload, timeout=30)
+
     resp.raise_for_status()
     audio_content = resp.json().get("audioContent", "")
     return base64.b64decode(audio_content)
@@ -122,6 +143,57 @@ def _stitch_mp3_chunks(mp3_chunks: list, output_path: Path) -> None:
         if result.returncode != 0:
             # Fallback: raw byte concatenation
             output_path.write_bytes(b"".join(mp3_chunks))
+
+
+def _elevenlabs_tts_chunk(text: str, voice_id: str, api_key: str) -> bytes:
+    """Call ElevenLabs TTS API for a single chunk, return MP3 bytes."""
+    import requests as req
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    headers = {
+        "xi-api-key": api_key,
+        "Content-Type": "application/json",
+        "Accept": "audio/mpeg",
+    }
+    payload = {
+        "text": text,
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {
+            "stability": 0.5,
+            "similarity_boost": 0.75,
+            "style": 0.3,
+            "use_speaker_boost": True,
+        },
+    }
+    resp = req.post(url, json=payload, headers=headers, timeout=30)
+    resp.raise_for_status()
+    return resp.content
+
+
+def _generate_elevenlabs_tts(text: str, output_path: Path) -> bool:
+    """Generate TTS using ElevenLabs API. Returns True on success."""
+    api_key = getattr(config, "ELEVENLABS_API_KEY", "")
+    if not api_key:
+        return False
+
+    voice_id = getattr(config, "ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")
+    try:
+        chunks = _split_into_chunks(text, max_bytes=4000)
+        mp3_chunks = []
+        for chunk in chunks:
+            if not chunk.strip():
+                continue
+            mp3_data = _elevenlabs_tts_chunk(chunk, voice_id, api_key)
+            mp3_chunks.append(mp3_data)
+
+        if not mp3_chunks:
+            return False
+
+        _stitch_mp3_chunks(mp3_chunks, output_path)
+        print(f"[audio] ElevenLabs TTS ({voice_id}) — {len(chunks)} chunk(s)")
+        return True
+    except Exception as e:
+        print(f"[audio] ElevenLabs TTS failed ({e}) — falling back")
+        return False
 
 
 def _generate_google_tts(text: str, output_path: Path, voice: str) -> bool:
@@ -158,6 +230,8 @@ def _generate_google_tts(text: str, output_path: Path, voice: str) -> bool:
 async def _generate_speech(text: str, output_path: Path, voice: str, rate: str, pitch: str) -> None:
     communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
     await communicate.save(str(output_path))
+    if not Path(output_path).exists() or Path(output_path).stat().st_size < 1000:
+        raise RuntimeError("edge-tts produced empty or invalid output")
 
 
 def _pyttsx3_fallback(text: str, output_path: Path) -> None:
@@ -186,26 +260,32 @@ def _pyttsx3_fallback(text: str, output_path: Path) -> None:
 
 
 def _espeak_fallback(text: str, output_path: Path) -> None:
-    """Linux TTS fallback using espeak-ng."""
+    """Linux TTS fallback using espeak-ng with enhanced audio quality."""
     import shutil
     import imageio_ffmpeg
 
     wav_path = output_path.with_suffix(".wav")
     espeak = shutil.which("espeak-ng") or "espeak-ng"
-    subprocess.run(
-        [espeak, "-v", "en-us+m3", "-s", "150", "-p", "45", text, "-w", str(wav_path)],
-        check=True, capture_output=True,
+    result = subprocess.run(
+        [espeak, "-v", "en-us", "-s", "160", "-p", "50", "-a", "180", "--stdin", "-w", str(wav_path)],
+        input=text, text=True, capture_output=True, timeout=120,
     )
+    if result.returncode != 0:
+        print(f"[audio] espeak-ng stderr: {result.stderr[:200]}")
+    if not wav_path.exists():
+        raise RuntimeError(f"espeak-ng produced no output: {result.stderr[:200]}")
     ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
     result = subprocess.run(
-        [ffmpeg_bin, "-y", "-i", str(wav_path), "-q:a", "3", str(output_path)],
-        capture_output=True,
+        [ffmpeg_bin, "-y", "-i", str(wav_path),
+         "-ar", "44100", "-ac", "2",
+         "-b:a", "192k",
+         str(output_path)],
+        capture_output=True, timeout=60,
     )
     wav_path.unlink(missing_ok=True)
     if result.returncode != 0 or not output_path.exists():
-        import shutil as sh
         if wav_path.exists():
-            sh.copy(str(wav_path), str(output_path))
+            shutil.copy(str(wav_path), str(output_path))
 
 
 def _tts_fallback(text: str, output_path: Path) -> None:
@@ -233,26 +313,50 @@ def generate_audio(
     """Convert text to speech and save as MP3.
 
     Priority:
-    1. Google Cloud TTS Neural2 (if GOOGLE_API_KEY set)
-    2. edge-tts
-    3. espeak-ng / pyttsx3 fallback
+    1. ElevenLabs (if ELEVENLABS_API_KEY set — highest quality)
+    2. Google Cloud TTS Studio/Journey (if GOOGLE_API_KEY set)
+    3. edge-tts (Microsoft neural voices — free, good quality)
+    4. espeak-ng / pyttsx3 fallback
     """
     voice = voice or config.DEFAULT_VOICE
     clean_text = clean_narration(text)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. Try Google Cloud TTS Neural2
-    if getattr(config, "GOOGLE_API_KEY", ""):
-        if _generate_google_tts(clean_text, output_path, voice):
-            if output_path.exists():
+    # 1. Try ElevenLabs (highest quality voices)
+    if getattr(config, "ELEVENLABS_API_KEY", ""):
+        if _generate_elevenlabs_tts(clean_text, output_path):
+            if output_path.exists() and output_path.stat().st_size > 1000:
                 return output_path
 
-    # 2. Try edge-tts
-    try:
-        asyncio.run(_generate_speech(clean_text, output_path, voice, rate, pitch))
-    except Exception as e:
-        print(f"[audio] edge-tts failed ({e}) — using fallback TTS")
+    # 2. Try Google Cloud TTS Studio/Journey
+    if getattr(config, "GOOGLE_API_KEY", ""):
+        if _generate_google_tts(clean_text, output_path, voice):
+            if output_path.exists() and output_path.stat().st_size > 1000:
+                return output_path
+
+    # 3. Try edge-tts (run in a fresh thread with its own event loop to avoid conflicts)
+    edge_voices = [voice, "en-US-AriaNeural", "en-US-GuyNeural", "en-US-JennyNeural"]
+    seen = set()
+    edge_voices = [v for v in edge_voices if not (v in seen or seen.add(v))]
+    edge_ok = False
+
+    for ev in edge_voices:
+        try:
+            import concurrent.futures
+            def _edge_tts_in_thread():
+                asyncio.run(_generate_speech(clean_text, output_path, ev, rate, pitch))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                pool.submit(_edge_tts_in_thread).result(timeout=30)
+            if output_path.exists() and output_path.stat().st_size > 1000:
+                print(f"[audio] edge-tts generated audio ({ev})")
+                edge_ok = True
+                break
+        except Exception as e:
+            print(f"[audio] edge-tts failed with voice {ev}: {e}")
+
+    if not edge_ok:
+        print("[audio] All edge-tts voices failed — using fallback TTS")
         _tts_fallback(clean_text, output_path)
 
     if not output_path.exists():

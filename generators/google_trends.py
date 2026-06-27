@@ -9,7 +9,7 @@ def get_trending_topics(niche: str, region: str = "US") -> dict:
     """
     try:
         from pytrends.request import TrendReq
-        import pandas as pd
+        import pandas as pd  # noqa: F401
 
         pytrends = TrendReq(hl="en-US", tz=360)
         pytrends.build_payload([niche], timeframe="now 7-d", geo=region)

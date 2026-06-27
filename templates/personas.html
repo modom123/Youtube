@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% set active_page = "personas" %}
+{% block title %}AI Personas & Avatars — Social Optimize Machine{% endblock %}
+{% block topbar_title %}AI Personas & Avatars{% endblock %}
+{% block topbar_sub %}Create virtual presenters with unique personalities, voices, and styles{% endblock %}
+{% block topbar_actions %}
+  <button class="btn btn-primary" onclick="showCreateModal()">+ Create Persona</button>
+{% endblock %}
+
+{% block content %}
+<style>
+  .p-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
+  .p-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:10px; transition:border-color .2s; }
+  .p-card:hover { border-color:var(--accent); }
+  .p-card.preset { border-left:3px solid var(--accent); }
+  .p-header { display:flex; align-items:center; gap:12px; }
+  .p-avatar { width:48px; height:48px; border-radius:50%; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
+  .p-name { font-size:16px; font-weight:700; }
+  .p-niche { font-size:11px; color:var(--accent); text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
+  .p-desc { font-size:13px; color:var(--muted); line-height:1.5; }
+  .p-tags { display:flex; flex-wrap:wrap; gap:6px; }
+  .p-tag { font-size:11px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:3px 8px; color:var(--muted); }
+  .p-meta { font-size:11px; color:var(--muted); display:flex; gap:12px; margin-top:auto; }
+  .p-actions { display:flex; gap:8px; }
+  .btn { padding:8px 14px; border-radius:8px; font-size:12px; font-weight:600; border:none; cursor:pointer; }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-ghost { background:transparent; border:1px solid var(--border); color:var(--text); }
+  .btn-danger { background:transparent; border:1px solid var(--border); color:#ff453a; }
+  .btn:hover { opacity:.85; }
+  .btn-sm { padding:5px 10px; font-size:11px; }
+  .section-label { font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin:24px 0 12px; }
+  .section-label:first-child { margin-top:0; }
+  .empty-state { text-align:center; padding:60px 20px; color:var(--muted); grid-column:1/-1; }
+  .empty-state .icon { font-size:48px; margin-bottom:12px; }
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; }
+  .modal h3 { font-size:18px; font-weight:800; margin:0 0 20px; }
+  .form-row { margin-bottom:14px; }
+  .form-row label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.06em; }
+  .form-row input, .form-row select, .form-row textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; box-sizing:border-box; }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline:none; border-color:var(--accent); }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+  .avatar-icons { display:flex; gap:4px; flex-wrap:wrap; }
+  .avatar-icons span { cursor:pointer; font-size:20px; padding:4px; border-radius:6px; border:2px solid transparent; }
+  .avatar-icons span.selected { border-color:var(--accent); background:var(--bg); }
+</style>
+
+<!-- Create / Edit Persona Modal -->
+<div class="modal-overlay" id="personaModal">
+  <div class="modal">
+    <h3 id="modal-title">Create Persona</h3>
+    <div class="form-row">
+      <label>Name *</label>
+      <input type="text" id="p-name" placeholder="e.g. Alex — The Tech Expert" />
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Gender</label>
+        <select id="p-gender">
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="neutral">Neutral</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Age Range</label>
+        <select id="p-age">
+          <option value="18-25">18-25</option>
+          <option value="25-35" selected>25-35</option>
+          <option value="35-45">35-45</option>
+          <option value="45-55">45-55</option>
+          <option value="55+">55+</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Appearance Description</label>
+      <textarea id="p-appearance" placeholder="Describe the look: attire, style, vibe..." style="min-height:60px;"></textarea>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label>Niche / Expertise</label>
+        <select id="p-niche">
+          <option value="general">General</option>
+          <option value="technology">Technology</option>
+          <option value="business">Business</option>
+          <option value="finance">Finance</option>
+          <option value="education">Education</option>
+          <option value="entertainment">Entertainment</option>
+          <option value="fitness">Fitness</option>
+          <option value="lifestyle">Lifestyle</option>
+          <option value="creative">Creative</option>
+          <option value="gaming">Gaming</option>
+          <option value="food">Food</option>
+          <option value="travel">Travel</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Style</label>
+        <select id="p-style">
+          <option value="professional">Professional</option>
+          <option value="casual">Casual</option>
+          <option value="creative">Creative</option>
+          <option value="executive">Executive</option>
+          <option value="wellness">Wellness</option>
+          <option value="academic">Academic</option>
+          <option value="entrepreneur">Entrepreneur</option>
+          <option value="artistic">Artistic</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>Voice</label>
+      <select id="p-voice">
+        {% for v in voices %}
+        <option value="{{ v }}">{{ v }}</option>
+        {% endfor %}
+        {% for v in google_tts_voices %}
+        <option value="{{ v.id }}">{{ v.name }} ({{ v.locale }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Personality</label>
+      <textarea id="p-personality" placeholder="e.g. Knowledgeable, approachable, uses humor..." style="min-height:50px;"></textarea>
+    </div>
+    <div class="form-row">
+      <label>Speaking Style</label>
+      <input type="text" id="p-speaking" placeholder="e.g. conversational, uses analogies, fast-paced" />
+    </div>
+    <div class="form-row">
+      <label>AI Video Model</label>
+      <select id="p-model">
+        {% for key, model in avatar_models.items() %}
+        <option value="{{ key }}">{{ model.name }} — {{ model.description }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <input type="hidden" id="p-edit-id" value="" />
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="savePersona()">Create Persona</button>
+    </div>
+  </div>
+</div>
+
+<!-- Preset Personas -->
+{% set presets = personas|selectattr("is_preset")|list %}
+{% set customs = personas|rejectattr("is_preset")|list %}
+
+{% if presets %}
+<div class="section-label">Built-in Personas ({{ presets|length }})</div>
+<div class="p-grid">
+  {% for p in presets %}
+  <div class="p-card preset">
+    <div class="p-header">
+      <div class="p-avatar">{{ {"technology":"💻","business":"📈","finance":"💰","education":"🎓","entertainment":"🎮","fitness":"💪","lifestyle":"🌟","creative":"🎨","general":"🎤"}.get(p.niche, "🎭") }}</div>
+      <div>
+        <div class="p-name">{{ p.name }}</div>
+        <div class="p-niche">{{ p.niche }}</div>
+      </div>
+    </div>
+    <div class="p-desc">{{ p.personality }}</div>
+    <div class="p-tags">
+      <span class="p-tag">{{ p.speaking_style }}</span>
+      <span class="p-tag">{{ p.gender }}</span>
+      <span class="p-tag">{{ p.age_range }}</span>
+    </div>
+    <div class="p-meta">
+      <span>Voice: {{ p.voice_id.split('-')|last }}</span>
+      <span>Used {{ p.use_count }}x</span>
+    </div>
+    <div class="p-actions">
+      <button class="btn btn-primary btn-sm" onclick="usePersona('{{ p.id }}')">Use in Video</button>
+      <button class="btn btn-ghost btn-sm" onclick="duplicatePersona('{{ p.id }}')">Duplicate</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Custom Personas -->
+<div class="section-label">Your Custom Personas ({{ customs|length }})</div>
+<div class="p-grid">
+  {% if not customs %}
+  <div class="empty-state">
+    <div class="icon">🎭</div>
+    <h3>No custom personas yet</h3>
+    <p>Create a persona to give your videos a consistent virtual presenter.<br>
+    Or start with a preset above and customize it.</p>
+    <button class="btn btn-primary" style="margin-top:16px;" onclick="showCreateModal()">+ Create Persona</button>
+  </div>
+  {% endif %}
+  {% for p in customs %}
+  <div class="p-card">
+    <div class="p-header">
+      <div class="p-avatar">{{ {"technology":"💻","business":"📈","finance":"💰","education":"🎓","entertainment":"🎮","fitness":"💪","lifestyle":"🌟","creative":"🎨","general":"🎤"}.get(p.niche, "🎭") }}</div>
+      <div>
+        <div class="p-name">{{ p.name }}</div>
+        <div class="p-niche">{{ p.niche }}</div>
+      </div>
+    </div>
+    <div class="p-desc">{{ p.personality }}</div>
+    <div class="p-tags">
+      <span class="p-tag">{{ p.speaking_style }}</span>
+      <span class="p-tag">{{ p.gender }}</span>
+      <span class="p-tag">{{ p.age_range }}</span>
+      <span class="p-tag">{{ p.avatar_style }}</span>
+    </div>
+    <div class="p-meta">
+      <span>Voice: {{ p.voice_id.split('-')|last }}</span>
+      <span>Model: {{ p.model_preference }}</span>
+      <span>Used {{ p.use_count }}x</span>
+    </div>
+    <div class="p-actions">
+      <button class="btn btn-primary btn-sm" onclick="usePersona('{{ p.id }}')">Use in Video</button>
+      <button class="btn btn-ghost btn-sm" onclick="editPersona({{ p|tojson }})">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="deletePersona('{{ p.id }}')">Delete</button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+function showCreateModal() {
+  document.getElementById('modal-title').textContent = 'Create Persona';
+  document.getElementById('modal-save-btn').textContent = 'Create Persona';
+  document.getElementById('p-edit-id').value = '';
+  document.getElementById('p-name').value = '';
+  document.getElementById('p-gender').value = 'neutral';
+  document.getElementById('p-age').value = '25-35';
+  document.getElementById('p-appearance').value = '';
+  document.getElementById('p-niche').value = 'general';
+  document.getElementById('p-style').value = 'professional';
+  document.getElementById('p-personality').value = '';
+  document.getElementById('p-speaking').value = '';
+  document.getElementById('personaModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('personaModal').classList.remove('open');
+}
+
+function editPersona(p) {
+  document.getElementById('modal-title').textContent = 'Edit Persona';
+  document.getElementById('modal-save-btn').textContent = 'Save Changes';
+  document.getElementById('p-edit-id').value = p.id;
+  document.getElementById('p-name').value = p.name || '';
+  document.getElementById('p-gender').value = p.gender || 'neutral';
+  document.getElementById('p-age').value = p.age_range || '25-35';
+  document.getElementById('p-appearance').value = p.appearance_desc || '';
+  document.getElementById('p-niche').value = p.niche || 'general';
+  document.getElementById('p-style').value = p.avatar_style || 'professional';
+  document.getElementById('p-voice').value = p.voice_id || '';
+  document.getElementById('p-personality').value = p.personality || '';
+  document.getElementById('p-speaking').value = p.speaking_style || '';
+  document.getElementById('p-model').value = p.model_preference || 'seedance_2_0';
+  document.getElementById('personaModal').classList.add('open');
+}
+
+async function savePersona() {
+  const editId = document.getElementById('p-edit-id').value;
+  const data = {
+    name: document.getElementById('p-name').value,
+    gender: document.getElementById('p-gender').value,
+    age_range: document.getElementById('p-age').value,
+    appearance_desc: document.getElementById('p-appearance').value,
+    niche: document.getElementById('p-niche').value,
+    avatar_style: document.getElementById('p-style').value,
+    voice_id: document.getElementById('p-voice').value,
+    personality: document.getElementById('p-personality').value,
+    speaking_style: document.getElementById('p-speaking').value,
+    model_preference: document.getElementById('p-model').value,
+  };
+  if (!data.name) { alert('Name is required'); return; }
+  const url = editId ? `/api/personas/${editId}` : '/api/personas';
+  const method = editId ? 'PUT' : 'POST';
+  const resp = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+  if (resp.ok) { location.reload(); } else { const e = await resp.json(); alert(e.error || 'Failed'); }
+}
+
+async function deletePersona(id) {
+  if (!confirm('Delete this persona?')) return;
+  await fetch(`/api/personas/${id}`, {method:'DELETE'});
+  location.reload();
+}
+
+function usePersona(id) {
+  window.location.href = `/create?persona_id=${id}`;
+}
+
+async function duplicatePersona(id) {
+  const resp = await fetch('/api/personas');
+  const personas = await resp.json();
+  const p = personas.find(x => x.id === id);
+  if (!p) return;
+  const data = {
+    name: p.name + ' (Copy)',
+    gender: p.gender, age_range: p.age_range, appearance_desc: p.appearance_desc,
+    niche: p.niche, avatar_style: p.avatar_style, voice_id: p.voice_id,
+    personality: p.personality, speaking_style: p.speaking_style,
+    model_preference: p.model_preference,
+  };
+  await fetch('/api/personas', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+  location.reload();
+}
+</script>
+{% endblock %}
