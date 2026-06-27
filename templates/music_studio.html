@@ -972,6 +972,879 @@ input[type=range]::-webkit-slider-thumb {
   height: 1px;
   background: var(--c-border);
 }
+
+/* ═══════════════════════════ DJ STUDIO CSS ═══════════════════════════════ */
+@keyframes djSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes partyPulse {
+  0%   { background: hsl(0,80%,20%); opacity:.55; }
+  25%  { background: hsl(90,80%,20%); opacity:.7; }
+  50%  { background: hsl(200,80%,20%); opacity:.55; }
+  75%  { background: hsl(300,80%,20%); opacity:.7; }
+  100% { background: hsl(360,80%,20%); opacity:.55; }
+}
+@keyframes strobePulse {
+  0%,100% { opacity: 0; }
+  50%      { opacity: .18; }
+}
+
+#partyLights {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  animation: partyPulse 1.2s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+#partyLightsStrobe {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  animation: strobePulse .18s steps(1) infinite;
+  opacity: 0;
+}
+
+.dj-wrap {
+  background: #0a0a0f;
+  min-height: 100%;
+  padding: 0;
+  overflow-y: auto;
+  color: #e0e0ef;
+  display: flex;
+  flex-direction: column;
+}
+
+/* DECKS ROW */
+.dj-decks-row {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  width: 100%;
+}
+
+.dj-deck {
+  flex: 1;
+  padding: 12px 14px;
+  border-right: 1px solid rgba(255,255,255,.06);
+  min-width: 0;
+}
+.dj-deck:last-child { border-right: none; border-left: 1px solid rgba(255,255,255,.06); }
+
+.deck-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.deck-label {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: var(--c-purple, #a259ff);
+  background: rgba(162,89,255,.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.deck-track-name {
+  font-size: 12px;
+  color: #ccc;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+.deck-bpm {
+  font-size: 12px;
+  color: var(--c-yellow, #f5c518);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.deck-time-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--c-muted, #888);
+}
+.deck-time.elapsed { color: #aef; }
+.deck-time-sep { color: #555; }
+
+/* WAVEFORM */
+.deck-waveform {
+  width: 100%;
+  height: 70px;
+  background: #0d0d1a;
+  border-radius: 4px;
+  display: block;
+  border: 1px solid rgba(255,255,255,.07);
+  margin-bottom: 8px;
+}
+
+/* VINYL */
+.deck-vinyl-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+.vinyl-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vinyl-disc {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%,
+    #111 0%, #111 8%,
+    #1c1c1c 9%, #1c1c1c 12%,
+    #141414 13%, #141414 18%,
+    #1c1c1c 19%, #1c1c1c 22%,
+    #141414 23%, #141414 28%,
+    #1c1c1c 29%, #1c1c1c 32%,
+    #141414 33%, #141414 38%,
+    #1c1c1c 39%, #1c1c1c 42%,
+    #141414 43%, #141414 48%,
+    #1c1c1c 49%
+  );
+  box-shadow: 0 0 0 2px #222, 0 0 12px rgba(0,0,0,.7), inset 0 0 30px rgba(0,0,0,.4);
+  animation: djSpin 3s linear infinite;
+  animation-play-state: paused;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+.vinyl-disc.playing {
+  animation-play-state: running;
+}
+.vinyl-label {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #6b21a8 0%, #4a1080 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  position: absolute;
+  letter-spacing: 0;
+  z-index: 2;
+  box-shadow: 0 0 8px rgba(162,89,255,.5);
+}
+
+/* PITCH FADER */
+.deck-pitch-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.pitch-label {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #777;
+  text-transform: uppercase;
+}
+.pitch-fader {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  appearance: slider-vertical;
+  -webkit-appearance: slider-vertical;
+  height: 120px;
+  width: 22px;
+  cursor: pointer;
+  accent-color: var(--c-purple, #a259ff);
+  background: #1a1a2e;
+  border-radius: 3px;
+}
+.pitch-val {
+  font-size: 10px;
+  color: #aaa;
+  min-width: 36px;
+  text-align: center;
+}
+
+/* TRANSPORT */
+.deck-transport {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.deck-transport button {
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 10px;
+  letter-spacing: 0.5px;
+  transition: filter .12s, transform .08s;
+}
+.deck-transport button:hover { filter: brightness(1.2); }
+.deck-transport button:active { transform: scale(.94); }
+
+.btn-cue  { background: var(--c-yellow,#f5c518); color: #111; }
+.btn-rew  { background: #23233a; color: #bbb; font-size: 14px; }
+.btn-play { background: var(--c-green,#22c55e); color: #fff; font-size: 18px; padding: 6px 14px; }
+.btn-play.pause-mode { background: #f59e0b; }
+.btn-fwd  { background: #23233a; color: #bbb; font-size: 14px; }
+.btn-stop { background: var(--c-red,#ef4444); color: #fff; }
+.btn-sync { background: #2563eb; color: #fff; letter-spacing: 1px; }
+
+/* LOOP CONTROLS */
+.deck-loop-row {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.loop-label {
+  font-size: 10px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+.btn-loop-sz {
+  background: #1e1e30;
+  border: 1px solid #333;
+  color: #bbb;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.btn-loop-sz:hover { background: #2a2a44; }
+.btn-loop-sz.active-loop { background: var(--c-purple,#a259ff); color: #fff; border-color: var(--c-purple,#a259ff); }
+.btn-loop-toggle {
+  background: #1e1e30;
+  border: 1px solid #444;
+  color: #888;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  cursor: pointer;
+  margin-left: 4px;
+  transition: background .1s, color .1s;
+}
+.btn-loop-toggle.loop-on { background: var(--c-purple,#a259ff); color: #fff; border-color: var(--c-purple,#a259ff); }
+
+/* HOT CUES */
+.deck-hotcue-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.hc-label {
+  font-size: 10px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+.btn-hotcue {
+  width: 52px;
+  height: 36px;
+  border: none;
+  border-radius: 5px;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: .55;
+  transition: opacity .1s, transform .08s;
+}
+.btn-hotcue:hover { opacity: .8; }
+.btn-hotcue.cue-set { opacity: 1; box-shadow: 0 0 8px currentColor; }
+.btn-hotcue:active { transform: scale(.92); }
+.hc-1 { background: #1d4ed8; color: #fff; }
+.hc-2 { background: #15803d; color: #fff; }
+.hc-3 { background: #c2410c; color: #fff; }
+.hc-4 { background: #b91c1c; color: #fff; }
+
+/* MIXER */
+.dj-mixer {
+  width: 200px;
+  flex-shrink: 0;
+  padding: 10px 10px;
+  border-left: 1px solid rgba(255,255,255,.06);
+  border-right: 1px solid rgba(255,255,255,.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.mixer-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #555;
+  text-transform: uppercase;
+  width: 100%;
+  text-align: center;
+}
+.mixer-eq-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.mixer-eq-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.eq-col-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--c-purple,#a259ff);
+}
+.eq-band-row {
+  display: flex;
+  gap: 5px;
+}
+.eq-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.eq-label {
+  font-size: 9px;
+  color: #777;
+  text-transform: uppercase;
+}
+.eq-fader {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  appearance: slider-vertical;
+  -webkit-appearance: slider-vertical;
+  height: 80px;
+  width: 18px;
+  accent-color: #c084fc;
+  cursor: pointer;
+}
+.btn-kill {
+  background: #3a1a1a;
+  border: 1px solid #5a2222;
+  color: #e88;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.btn-kill:hover { background: #5a2222; }
+.btn-kill.kill-active { background: var(--c-red,#ef4444); color: #fff; border-color: var(--c-red,#ef4444); }
+
+/* VU METERS */
+.mixer-vu-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.vu-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.vu-label {
+  font-size: 9px;
+  color: #666;
+}
+.vu-bar-bg {
+  width: 10px;
+  height: 60px;
+  background: #1a1a2e;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column-reverse;
+}
+.vu-bar {
+  width: 100%;
+  height: 0%;
+  background: linear-gradient(to top, #22c55e 0%, #facc15 70%, #ef4444 100%);
+  border-radius: 3px;
+  transition: height .04s;
+}
+
+/* VOLUME FADERS */
+.mixer-vol-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.vol-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.vol-label {
+  font-size: 9px;
+  color: #666;
+  text-transform: uppercase;
+}
+.vol-fader {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  appearance: slider-vertical;
+  -webkit-appearance: slider-vertical;
+  height: 100px;
+  width: 20px;
+  accent-color: #22c55e;
+  cursor: pointer;
+}
+
+/* FILTER KNOB (horizontal range as proxy for rotary) */
+.mixer-filter-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.filter-label {
+  font-size: 9px;
+  color: #777;
+  letter-spacing: 1px;
+}
+.filter-knob {
+  width: 80%;
+  accent-color: #06b6d4;
+  cursor: pointer;
+}
+
+/* CROSSFADER */
+.dj-xfader-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  background: #0e0e1a;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.xf-label-a, .xf-label-b {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--c-purple,#a259ff);
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+.crossfader {
+  flex: 1;
+  appearance: none;
+  height: 6px;
+  background: linear-gradient(to right, #a259ff 0%, #333 50%, #22c55e 100%);
+  border-radius: 3px;
+  cursor: pointer;
+  outline: none;
+}
+.crossfader::-webkit-slider-thumb {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(162,89,255,.7);
+  cursor: pointer;
+  border: 2px solid #a259ff;
+}
+.crossfader::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(162,89,255,.7);
+  cursor: pointer;
+  border: 2px solid #a259ff;
+}
+.xf-curve-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.xf-curve-label {
+  font-size: 10px;
+  color: #666;
+}
+.xf-curve-sel {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  color: #bbb;
+  font-size: 11px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* FX RACK */
+.dj-fx-rack {
+  padding: 10px 14px;
+  background: #0c0c18;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.fx-rack-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #444;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.fx-units-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.fx-unit {
+  background: #13132a;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 6px;
+  padding: 8px 10px;
+  min-width: 130px;
+  flex: 1;
+}
+.fx-unit-header {
+  margin-bottom: 8px;
+}
+.fx-toggle {
+  background: #1e1e3a;
+  border: 1px solid #333;
+  color: #888;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  transition: background .12s, color .12s;
+}
+.fx-toggle.fx-on {
+  background: var(--c-purple,#a259ff);
+  color: #fff;
+  border-color: var(--c-purple,#a259ff);
+  box-shadow: 0 0 8px rgba(162,89,255,.4);
+}
+.fx-params {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.fx-param-label {
+  font-size: 9px;
+  color: #666;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.fx-knob {
+  width: 60px;
+  accent-color: #c084fc;
+  cursor: pointer;
+}
+
+/* SAMPLER */
+.dj-sampler {
+  padding: 10px 14px;
+  background: #0a0a14;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.sampler-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #444;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.sampler-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.sampler-pad {
+  border-radius: 7px;
+  padding: 10px 8px 6px;
+  cursor: pointer;
+  position: relative;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  transition: filter .1s, transform .08s;
+  border: 1px solid rgba(255,255,255,.1);
+  user-select: none;
+}
+.sampler-pad:hover { filter: brightness(1.25); }
+.sampler-pad:active { transform: scale(.95); }
+.sampler-pad.pad-loaded { border-color: rgba(255,255,255,.35); }
+.sp-1 { background: #1e3a5f; }
+.sp-2 { background: #1a3a1a; }
+.sp-3 { background: #3a1a0a; }
+.sp-4 { background: #2a0a2a; }
+.sp-5 { background: #0a2a3a; }
+.sp-6 { background: #2a2a0a; }
+.sp-7 { background: #3a0a1a; }
+.sp-8 { background: #1a1a3a; }
+.sp-name {
+  font-size: 11px;
+  color: rgba(255,255,255,.8);
+  font-weight: 600;
+  word-break: break-all;
+}
+.sp-clear {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.3);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  align-self: flex-end;
+  transition: color .1s;
+}
+.sp-clear:hover { color: rgba(255,80,80,.8); }
+
+/* PARTY BAR */
+.dj-party-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 14px;
+  background: #080810;
+  border-top: 1px solid rgba(255,255,255,.06);
+  flex-wrap: wrap;
+}
+.party-btn {
+  background: #1a1a2e;
+  border: 1px solid #2a2a44;
+  color: #bbb;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+  letter-spacing: .5px;
+}
+.party-btn:hover { background: #24244a; }
+.party-btn.party-on { background: var(--c-purple,#a259ff); color: #fff; border-color: var(--c-purple,#a259ff); }
+.tap-btn { background: #1a2a1a; border-color: #2a4a2a; color: #8f8; }
+.tap-btn:hover { background: #224422; }
+.master-bpm-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 6px;
+}
+.master-bpm-label {
+  font-size: 9px;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.master-bpm-val {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--c-yellow,#f5c518);
+  letter-spacing: 1px;
+}
+.dj-queue-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  overflow: hidden;
+}
+.queue-label {
+  font-size: 10px;
+  color: #666;
+  flex-shrink: 0;
+}
+.dj-queue-list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1;
+  padding: 4px 0;
+}
+.queue-empty {
+  font-size: 11px;
+  color: #444;
+  font-style: italic;
+}
+.queue-item {
+  background: #1e1e3a;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: #bbb;
+  white-space: nowrap;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.queue-item:hover { background: #28284a; }
+.queue-item-remove {
+  color: #666;
+  cursor: pointer;
+  font-size: 10px;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.queue-item-remove:hover { color: #ef4444; }
+
+/* DJ LIBRARY */
+.dj-library {
+  padding: 10px 14px 14px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  background: #0a0a0f;
+}
+.dj-lib-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.dj-lib-title {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #444;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.dj-lib-search-wrap {
+  flex: 1;
+}
+.dj-lib-search {
+  background: #111122;
+  border: 1px solid #222;
+  color: #ddd;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  width: 100%;
+  outline: none;
+}
+.dj-lib-search:focus { border-color: var(--c-purple,#a259ff); }
+.dj-upload-btn {
+  background: #1a2a1a;
+  border: 1px solid #2a4a2a;
+  color: #8f8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .12s;
+}
+.dj-upload-btn:hover { background: #224422; }
+.dj-lib-table-wrap {
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 5px;
+}
+.dj-lib-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.dj-lib-table thead th {
+  background: #0e0e1e;
+  color: #666;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 6px 10px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.dj-lib-table tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  transition: background .1s;
+}
+.dj-lib-table tbody tr:hover { background: rgba(255,255,255,.04); }
+.dj-lib-table td {
+  padding: 6px 10px;
+  color: #ccc;
+  vertical-align: middle;
+}
+.dj-lib-empty {
+  text-align: center;
+  color: #444;
+  padding: 20px !important;
+  font-style: italic;
+}
+.dj-load-btn {
+  background: #1a1a3a;
+  border: 1px solid #333;
+  color: #a9f;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 3px;
+  transition: background .1s;
+}
+.dj-load-btn:hover { background: #2a2a5a; }
+.dj-queue-add-btn {
+  background: #1a2a1a;
+  border: 1px solid #2a4a2a;
+  color: #8f8;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background .1s;
+}
+.dj-queue-add-btn:hover { background: #224422; }
+
+/* Mobile stacking */
+@media (max-width: 900px) {
+  .dj-decks-row { flex-direction: column; }
+  .dj-deck { border-right: none !important; border-left: none !important; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .dj-mixer { width: 100%; border-left: none; border-right: none; border-top: 1px solid rgba(255,255,255,.06); }
+  .sampler-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 500px) {
+  .sampler-grid { grid-template-columns: repeat(2, 1fr); }
+  .fx-units-row { flex-direction: column; }
+}
 </style>
 
 <div class="ms-wrap">
@@ -1366,6 +2239,7 @@ input[type=range]::-webkit-slider-thumb {
       <button class="ms-main-tab" onclick="switchMainTab('beat',this)">🥁 Beat Maker</button>
       <button class="ms-main-tab" onclick="switchMainTab('loops',this)">🔄 Loops</button>
       <button class="ms-main-tab" onclick="switchMainTab('library',this)">📚 Library</button>
+      <button class="ms-main-tab" onclick="switchMainTab('dj',this)">🎧 DJ</button>
     </div>
 
     <div class="ms-main-body">
@@ -1549,6 +2423,420 @@ input[type=range]::-webkit-slider-thumb {
         </div>
       </div><!-- /library -->
 
+      <!-- ── DJ TAB ──────────────────────────────────────────────────────── -->
+      <div id="mpane-dj" class="ms-main-pane">
+        <div class="dj-wrap">
+
+          <!-- DECKS ROW -->
+          <div class="dj-decks-row">
+
+            <!-- ═══ DECK A ═══ -->
+            <div class="dj-deck" id="djDeckA">
+              <div class="deck-header">
+                <span class="deck-label">DECK A</span>
+                <span class="deck-track-name" id="djTrackNameA">No Track Loaded</span>
+                <span class="deck-bpm" id="djBpmA">-- BPM</span>
+              </div>
+              <div class="deck-time-row">
+                <span class="deck-time elapsed" id="djTimeA">0:00</span>
+                <span class="deck-time-sep">/</span>
+                <span class="deck-time remain" id="djDurA">0:00</span>
+              </div>
+
+              <canvas class="deck-waveform" id="waveformA" width="600" height="70"></canvas>
+
+              <div class="deck-vinyl-row">
+                <div class="vinyl-wrap">
+                  <div class="vinyl-disc" id="vinylA">
+                    <div class="vinyl-label">A</div>
+                  </div>
+                </div>
+                <div class="deck-pitch-wrap">
+                  <div class="pitch-label">PITCH</div>
+                  <input type="range" class="pitch-fader" id="pitchA" orient="vertical"
+                    min="-12" max="12" step="0.1" value="0"
+                    oninput="djSetPitch('A', this.value)">
+                  <div class="pitch-val" id="pitchValA">0%</div>
+                </div>
+              </div>
+
+              <div class="deck-transport">
+                <button class="btn-cue" onclick="djCue('A')" title="CUE">CUE</button>
+                <button class="btn-rew" onclick="djSeek('A',-4)" title="Rewind">◀◀</button>
+                <button class="btn-play" id="btnPlayA" onclick="djTogglePlay('A')" title="Play/Pause">▶</button>
+                <button class="btn-fwd" onclick="djSeek('A',4)" title="Forward">▷▷</button>
+                <button class="btn-stop" onclick="djStop('A')" title="Stop">⏹</button>
+                <button class="btn-sync" onclick="djSync('A')" title="Sync BPM">SYNC</button>
+              </div>
+
+              <div class="deck-loop-row">
+                <span class="loop-label">LOOP:</span>
+                <button class="btn-loop-sz" data-deck="A" data-beats="0.5" onclick="djSetLoop('A',0.5)">½</button>
+                <button class="btn-loop-sz" data-deck="A" data-beats="1" onclick="djSetLoop('A',1)">1</button>
+                <button class="btn-loop-sz" data-deck="A" data-beats="2" onclick="djSetLoop('A',2)">2</button>
+                <button class="btn-loop-sz" data-deck="A" data-beats="4" onclick="djSetLoop('A',4)">4</button>
+                <button class="btn-loop-sz" data-deck="A" data-beats="8" onclick="djSetLoop('A',8)">8</button>
+                <button class="btn-loop-toggle" id="loopToggleA" onclick="djToggleLoop('A')">LOOP OFF</button>
+              </div>
+
+              <div class="deck-hotcue-row">
+                <span class="hc-label">HOT CUE:</span>
+                <button class="btn-hotcue hc-1" id="hcA1"
+                  onclick="djHotCue('A',1)"
+                  oncontextmenu="djSetHotCue('A',1);return false;" title="Left-click: jump | Right-click: set">1</button>
+                <button class="btn-hotcue hc-2" id="hcA2"
+                  onclick="djHotCue('A',2)"
+                  oncontextmenu="djSetHotCue('A',2);return false;">2</button>
+                <button class="btn-hotcue hc-3" id="hcA3"
+                  onclick="djHotCue('A',3)"
+                  oncontextmenu="djSetHotCue('A',3);return false;">3</button>
+                <button class="btn-hotcue hc-4" id="hcA4"
+                  onclick="djHotCue('A',4)"
+                  oncontextmenu="djSetHotCue('A',4);return false;">4</button>
+              </div>
+            </div><!-- /deck A -->
+
+            <!-- ═══ MIXER CENTER ═══ -->
+            <div class="dj-mixer">
+              <div class="mixer-label">MIXER</div>
+
+              <div class="mixer-eq-row">
+                <!-- EQ A -->
+                <div class="mixer-eq-col">
+                  <div class="eq-col-label">A</div>
+                  <div class="eq-band-row">
+                    <div class="eq-band">
+                      <span class="eq-label">HI</span>
+                      <input type="range" class="eq-fader" orient="vertical" min="-12" max="6" step="0.5" value="0"
+                        oninput="djEQ('A','hi',this.value)">
+                      <button class="btn-kill" id="killAhi" onclick="djKill('A','hi')" title="Kill HI">K</button>
+                    </div>
+                    <div class="eq-band">
+                      <span class="eq-label">MID</span>
+                      <input type="range" class="eq-fader" orient="vertical" min="-12" max="6" step="0.5" value="0"
+                        oninput="djEQ('A','mid',this.value)">
+                      <button class="btn-kill" id="killAmid" onclick="djKill('A','mid')" title="Kill MID">K</button>
+                    </div>
+                    <div class="eq-band">
+                      <span class="eq-label">LOW</span>
+                      <input type="range" class="eq-fader" orient="vertical" min="-12" max="6" step="0.5" value="0"
+                        oninput="djEQ('A','low',this.value)">
+                      <button class="btn-kill" id="killAlow" onclick="djKill('A','low')" title="Kill LOW">K</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- EQ B -->
+                <div class="mixer-eq-col">
+                  <div class="eq-col-label">B</div>
+                  <div class="eq-band-row">
+                    <div class="eq-band">
+                      <span class="eq-label">HI</span>
+                      <input type="range" class="eq-fader" orient="vertical" min="-12" max="6" step="0.5" value="0"
+                        oninput="djEQ('B','hi',this.value)">
+                      <button class="btn-kill" id="killBhi" onclick="djKill('B','hi')" title="Kill HI">K</button>
+                    </div>
+                    <div class="eq-band">
+                      <span class="eq-label">MID</span>
+                      <input type="range" class="eq-fader" orient="vertical" min="-12" max="6" step="0.5" value="0"
+                        oninput="djEQ('B','mid',this.value)">
+                      <button class="btn-kill" id="killBmid" onclick="djKill('B','mid')" title="Kill MID">K</button>
+                    </div>
+                    <div class="eq-band">
+                      <span class="eq-label">LOW</span>
+                      <input type="range" class="eq-fader" orient="vertical" min="-12" max="6" step="0.5" value="0"
+                        oninput="djEQ('B','low',this.value)">
+                      <button class="btn-kill" id="killBlow" onclick="djKill('B','low')" title="Kill LOW">K</button>
+                    </div>
+                  </div>
+                </div>
+              </div><!-- /mixer-eq-row -->
+
+              <!-- VU METERS -->
+              <div class="mixer-vu-row">
+                <div class="vu-wrap">
+                  <div class="vu-label">A</div>
+                  <div class="vu-bar-bg"><div class="vu-bar" id="vuA"></div></div>
+                </div>
+                <div class="vu-wrap">
+                  <div class="vu-label">B</div>
+                  <div class="vu-bar-bg"><div class="vu-bar" id="vuB"></div></div>
+                </div>
+              </div>
+
+              <!-- VOLUME FADERS -->
+              <div class="mixer-vol-row">
+                <div class="vol-col">
+                  <span class="vol-label">VOL A</span>
+                  <input type="range" class="vol-fader" orient="vertical" min="0" max="100" value="80"
+                    oninput="djSetVol('A',this.value)">
+                </div>
+                <div class="vol-col">
+                  <span class="vol-label">VOL B</span>
+                  <input type="range" class="vol-fader" orient="vertical" min="0" max="100" value="80"
+                    oninput="djSetVol('B',this.value)">
+                </div>
+              </div>
+
+              <!-- FILTER KNOB -->
+              <div class="mixer-filter-row">
+                <span class="filter-label">FILTER</span>
+                <input type="range" class="filter-knob" id="mixerFilter" min="0" max="100" value="50"
+                  oninput="djSetMixerFilter(this.value)" title="50=flat, 0=lowpass, 100=highpass">
+              </div>
+            </div><!-- /mixer -->
+
+            <!-- ═══ DECK B ═══ -->
+            <div class="dj-deck" id="djDeckB">
+              <div class="deck-header">
+                <span class="deck-label">DECK B</span>
+                <span class="deck-track-name" id="djTrackNameB">No Track Loaded</span>
+                <span class="deck-bpm" id="djBpmB">-- BPM</span>
+              </div>
+              <div class="deck-time-row">
+                <span class="deck-time elapsed" id="djTimeB">0:00</span>
+                <span class="deck-time-sep">/</span>
+                <span class="deck-time remain" id="djDurB">0:00</span>
+              </div>
+
+              <canvas class="deck-waveform" id="waveformB" width="600" height="70"></canvas>
+
+              <div class="deck-vinyl-row">
+                <div class="vinyl-wrap">
+                  <div class="vinyl-disc" id="vinylB">
+                    <div class="vinyl-label">B</div>
+                  </div>
+                </div>
+                <div class="deck-pitch-wrap">
+                  <div class="pitch-label">PITCH</div>
+                  <input type="range" class="pitch-fader" id="pitchB" orient="vertical"
+                    min="-12" max="12" step="0.1" value="0"
+                    oninput="djSetPitch('B', this.value)">
+                  <div class="pitch-val" id="pitchValB">0%</div>
+                </div>
+              </div>
+
+              <div class="deck-transport">
+                <button class="btn-cue" onclick="djCue('B')" title="CUE">CUE</button>
+                <button class="btn-rew" onclick="djSeek('B',-4)" title="Rewind">◀◀</button>
+                <button class="btn-play" id="btnPlayB" onclick="djTogglePlay('B')" title="Play/Pause">▶</button>
+                <button class="btn-fwd" onclick="djSeek('B',4)" title="Forward">▷▷</button>
+                <button class="btn-stop" onclick="djStop('B')" title="Stop">⏹</button>
+                <button class="btn-sync" onclick="djSync('B')" title="Sync BPM">SYNC</button>
+              </div>
+
+              <div class="deck-loop-row">
+                <span class="loop-label">LOOP:</span>
+                <button class="btn-loop-sz" data-deck="B" data-beats="0.5" onclick="djSetLoop('B',0.5)">½</button>
+                <button class="btn-loop-sz" data-deck="B" data-beats="1" onclick="djSetLoop('B',1)">1</button>
+                <button class="btn-loop-sz" data-deck="B" data-beats="2" onclick="djSetLoop('B',2)">2</button>
+                <button class="btn-loop-sz" data-deck="B" data-beats="4" onclick="djSetLoop('B',4)">4</button>
+                <button class="btn-loop-sz" data-deck="B" data-beats="8" onclick="djSetLoop('B',8)">8</button>
+                <button class="btn-loop-toggle" id="loopToggleB" onclick="djToggleLoop('B')">LOOP OFF</button>
+              </div>
+
+              <div class="deck-hotcue-row">
+                <span class="hc-label">HOT CUE:</span>
+                <button class="btn-hotcue hc-1" id="hcB1"
+                  onclick="djHotCue('B',1)"
+                  oncontextmenu="djSetHotCue('B',1);return false;" title="Left-click: jump | Right-click: set">1</button>
+                <button class="btn-hotcue hc-2" id="hcB2"
+                  onclick="djHotCue('B',2)"
+                  oncontextmenu="djSetHotCue('B',2);return false;">2</button>
+                <button class="btn-hotcue hc-3" id="hcB3"
+                  onclick="djHotCue('B',3)"
+                  oncontextmenu="djSetHotCue('B',3);return false;">3</button>
+                <button class="btn-hotcue hc-4" id="hcB4"
+                  onclick="djHotCue('B',4)"
+                  oncontextmenu="djSetHotCue('B',4);return false;">4</button>
+              </div>
+            </div><!-- /deck B -->
+
+          </div><!-- /dj-decks-row -->
+
+          <!-- CROSSFADER ROW -->
+          <div class="dj-xfader-row">
+            <span class="xf-label-a">A</span>
+            <input type="range" class="crossfader" id="djCrossfader" min="0" max="100" value="50"
+              oninput="djXfade(this.value/100)">
+            <span class="xf-label-b">B</span>
+            <div class="xf-curve-wrap">
+              <span class="xf-curve-label">Curve:</span>
+              <select class="xf-curve-sel" id="djXfadeCurve" onchange="djSetXfadeCurve(this.value)">
+                <option value="linear">Linear</option>
+                <option value="power" selected>Power</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- EFFECTS RACK -->
+          <div class="dj-fx-rack">
+            <div class="fx-rack-label">FX RACK</div>
+            <div class="fx-units-row">
+
+              <div class="fx-unit" id="fxReverb">
+                <div class="fx-unit-header">
+                  <button class="fx-toggle" id="fxToggleReverb" onclick="djToggleEffect('reverb')">REVERB</button>
+                </div>
+                <div class="fx-params">
+                  <label class="fx-param-label">WET</label>
+                  <input type="range" class="fx-knob" min="0" max="100" value="30"
+                    oninput="djSetEffect('reverb','wet',this.value)">
+                </div>
+              </div>
+
+              <div class="fx-unit" id="fxDelay">
+                <div class="fx-unit-header">
+                  <button class="fx-toggle" id="fxToggleDelay" onclick="djToggleEffect('delay')">ECHO</button>
+                </div>
+                <div class="fx-params">
+                  <label class="fx-param-label">TIME</label>
+                  <input type="range" class="fx-knob" min="0" max="100" value="40"
+                    oninput="djSetEffect('delay','time',this.value)">
+                  <label class="fx-param-label">FDBK</label>
+                  <input type="range" class="fx-knob" min="0" max="90" value="30"
+                    oninput="djSetEffect('delay','feedback',this.value)">
+                  <label class="fx-param-label"><input type="checkbox" id="delayBpmSync" onchange="djDelayBpmSync(this.checked)"> BPM</label>
+                </div>
+              </div>
+
+              <div class="fx-unit" id="fxFilter">
+                <div class="fx-unit-header">
+                  <button class="fx-toggle" id="fxToggleFilter" onclick="djToggleEffect('filter')">FILTER</button>
+                </div>
+                <div class="fx-params">
+                  <label class="fx-param-label">CUTOFF</label>
+                  <input type="range" class="fx-knob" min="20" max="18000" value="18000"
+                    oninput="djSetEffect('filter','cutoff',this.value)">
+                  <label class="fx-param-label">RES</label>
+                  <input type="range" class="fx-knob" min="0.1" max="20" step="0.1" value="1"
+                    oninput="djSetEffect('filter','resonance',this.value)">
+                </div>
+              </div>
+
+              <div class="fx-unit" id="fxFlanger">
+                <div class="fx-unit-header">
+                  <button class="fx-toggle" id="fxToggleFlanger" onclick="djToggleEffect('flanger')">FLANGER</button>
+                </div>
+                <div class="fx-params">
+                  <label class="fx-param-label">RATE</label>
+                  <input type="range" class="fx-knob" min="0.01" max="5" step="0.01" value="0.5"
+                    oninput="djSetEffect('flanger','rate',this.value)">
+                  <label class="fx-param-label">DEPTH</label>
+                  <input type="range" class="fx-knob" min="0" max="100" value="50"
+                    oninput="djSetEffect('flanger','depth',this.value)">
+                </div>
+              </div>
+
+            </div><!-- /fx-units-row -->
+          </div><!-- /fx-rack -->
+
+          <!-- SAMPLER -->
+          <div class="dj-sampler">
+            <div class="sampler-label">SAMPLER</div>
+            <div class="sampler-grid">
+              <div class="sampler-pad sp-1" id="sPad0"
+                onclick="djTriggerSample(0)"
+                oncontextmenu="djLoadSamplePrompt(0);return false;">
+                <span class="sp-name" id="spName0">PAD 1</span>
+                <button class="sp-clear" onclick="djClearSample(0);event.stopPropagation()">✕</button>
+              </div>
+              <div class="sampler-pad sp-2" id="sPad1"
+                onclick="djTriggerSample(1)"
+                oncontextmenu="djLoadSamplePrompt(1);return false;">
+                <span class="sp-name" id="spName1">PAD 2</span>
+                <button class="sp-clear" onclick="djClearSample(1);event.stopPropagation()">✕</button>
+              </div>
+              <div class="sampler-pad sp-3" id="sPad2"
+                onclick="djTriggerSample(2)"
+                oncontextmenu="djLoadSamplePrompt(2);return false;">
+                <span class="sp-name" id="spName2">PAD 3</span>
+                <button class="sp-clear" onclick="djClearSample(2);event.stopPropagation()">✕</button>
+              </div>
+              <div class="sampler-pad sp-4" id="sPad3"
+                onclick="djTriggerSample(3)"
+                oncontextmenu="djLoadSamplePrompt(3);return false;">
+                <span class="sp-name" id="spName3">PAD 4</span>
+                <button class="sp-clear" onclick="djClearSample(3);event.stopPropagation()">✕</button>
+              </div>
+              <div class="sampler-pad sp-5" id="sPad4"
+                onclick="djTriggerSample(4)"
+                oncontextmenu="djLoadSamplePrompt(4);return false;">
+                <span class="sp-name" id="spName4">PAD 5</span>
+                <button class="sp-clear" onclick="djClearSample(4);event.stopPropagation()">✕</button>
+              </div>
+              <div class="sampler-pad sp-6" id="sPad5"
+                onclick="djTriggerSample(5)"
+                oncontextmenu="djLoadSamplePrompt(5);return false;">
+                <span class="sp-name" id="spName5">PAD 6</span>
+                <button class="sp-clear" onclick="djClearSample(5);event.stopPropagation()">✕</button>
+              </div>
+              <div class="sampler-pad sp-7" id="sPad6"
+                onclick="djTriggerSample(6)"
+                oncontextmenu="djLoadSamplePrompt(6);return false;">
+                <span class="sp-name" id="spName6">PAD 7</span>
+                <button class="sp-clear" onclick="djClearSample(6);event.stopPropagation()">✕</button>
+              </div>
+              <div class="sampler-pad sp-8" id="sPad7"
+                onclick="djTriggerSample(7)"
+                oncontextmenu="djLoadSamplePrompt(7);return false;">
+                <span class="sp-name" id="spName7">PAD 8</span>
+                <button class="sp-clear" onclick="djClearSample(7);event.stopPropagation()">✕</button>
+              </div>
+            </div><!-- /sampler-grid -->
+          </div><!-- /sampler -->
+
+          <!-- PARTY CONTROLS -->
+          <div class="dj-party-bar">
+            <button class="party-btn" id="btnAutoMix" onclick="djToggleAutoMix()">🎉 AUTO-MIX OFF</button>
+            <button class="party-btn" id="btnPartyLights" onclick="djTogglePartyLights()">💡 PARTY LIGHTS OFF</button>
+            <button class="party-btn tap-btn" id="btnTapTempo" onclick="djTapTempo()">TAP TEMPO</button>
+            <div class="master-bpm-wrap">
+              <span class="master-bpm-label">MASTER BPM</span>
+              <span class="master-bpm-val" id="masterBpmDisplay">--</span>
+            </div>
+            <div class="dj-queue-wrap">
+              <span class="queue-label">QUEUE:</span>
+              <div class="dj-queue-list" id="djQueueList">
+                <span class="queue-empty">No tracks in queue</span>
+              </div>
+            </div>
+          </div><!-- /party-bar -->
+
+          <!-- DJ LIBRARY -->
+          <div class="dj-library">
+            <div class="dj-lib-header">
+              <span class="dj-lib-title">TRACK LIBRARY</span>
+              <div class="dj-lib-search-wrap">
+                <input type="text" class="dj-lib-search" id="djLibSearch" placeholder="Search tracks..."
+                  oninput="djFilterLibrary(this.value)">
+              </div>
+              <label class="dj-upload-btn">
+                📂 Upload File
+                <input type="file" accept="audio/*" style="display:none" onchange="djUploadFile(this)">
+              </label>
+            </div>
+            <div class="dj-lib-table-wrap">
+              <table class="dj-lib-table">
+                <thead>
+                  <tr>
+                    <th>Load</th>
+                    <th>Track</th>
+                    <th>BPM</th>
+                    <th>Duration</th>
+                    <th>Queue</th>
+                  </tr>
+                </thead>
+                <tbody id="djLibBody">
+                  <tr><td colspan="5" class="dj-lib-empty">No tracks in library yet. Generate some music first!</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div><!-- /dj-library -->
+
+        </div><!-- /dj-wrap -->
+      </div><!-- /mpane-dj -->
+
     </div><!-- /ms-main-body -->
   </div><!-- /ms-main -->
 
@@ -1556,6 +2844,11 @@ input[type=range]::-webkit-slider-thumb {
 
 <!-- Hidden audio element -->
 <audio id="mainAudio" preload="auto"></audio>
+
+<!-- Party Lights Overlay -->
+<div id="partyLights" aria-hidden="true">
+  <div id="partyLightsStrobe"></div>
+</div>
 
 <script>
 /* ═══════════════════════ TAB NAVIGATION ════════════════════════════════════ */
@@ -3546,5 +4839,1094 @@ function _fmtSize(bytes) {
   if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
   return (bytes/1048576).toFixed(1) + ' MB';
 }
+
+/* ═══════════════════════ DJ STUDIO ════════════════════════════════════════ */
+(() => {
+  /* ── Namespace ──────────────────────────────────────────────────────── */
+  const DJ = {
+    ctx: null,
+    masterGain: null,
+    masterAnalyser: null,
+    xfadeVal: 0.5,
+    xfadeCurve: 'power',
+    masterBpm: null,
+    tapTimes: [],
+    autoMixEnabled: false,
+    autoMixTimer: null,
+    partyLightsEnabled: false,
+    partyLightsRaf: null,
+    rafId: null,
+    initialized: false,
+    queue: [],
+    sampler: Array.from({length:8}, () => ({buffer:null, name:''})),
+    decks: {
+      A: {
+        buffer: null,
+        source: null,
+        startTime: 0,
+        offset: 0,
+        playing: false,
+        origBpm: 0,
+        pitch: 0,
+        playbackRate: 1,
+        duration: 0,
+        cuePoint: 0,
+        hotCues: [null, null, null, null],
+        loopBeats: 4,
+        loopActive: false,
+        loopIn: 0,
+        bassFilter: null,
+        midFilter: null,
+        hiFilter: null,
+        volGain: null,
+        analyser: null,
+        xfGain: null,
+        killState: {hi: false, mid: false, low: false},
+        waveCache: null,
+      },
+      B: {
+        buffer: null,
+        source: null,
+        startTime: 0,
+        offset: 0,
+        playing: false,
+        origBpm: 0,
+        pitch: 0,
+        playbackRate: 1,
+        duration: 0,
+        cuePoint: 0,
+        hotCues: [null, null, null, null],
+        loopBeats: 4,
+        loopActive: false,
+        loopIn: 0,
+        bassFilter: null,
+        midFilter: null,
+        hiFilter: null,
+        volGain: null,
+        analyser: null,
+        xfGain: null,
+        killState: {hi: false, mid: false, low: false},
+        waveCache: null,
+      }
+    },
+    fx: {
+      reverb: { enabled: false, node: null, dryGain: null, wetGain: null, wet: 0.3 },
+      delay:  { enabled: false, node: null, feedbackGain: null, sendGain: null, time: 0.375, feedback: 0.3, bpmSync: false },
+      filter: { enabled: false, node: null, cutoff: 18000, resonance: 1 },
+      flanger: { enabled: false, delay: null, lfo: null, lfoGain: null, feedbackGain: null, depth: 0.005, rate: 0.5 },
+    },
+    mixerFilter: null,
+    fxChainIn: null,
+    fxChainOut: null,
+  };
+
+  /* ── Utility ─────────────────────────────────────────────────────────── */
+  function _fmt(s) {
+    if (!s || isNaN(s)) return '0:00';
+    const m = Math.floor(s/60), sec = Math.floor(s%60);
+    return m + ':' + String(sec).padStart(2,'0');
+  }
+
+  function _dbToGain(db) { return Math.pow(10, db/20); }
+
+  /* ── Impulse response for reverb (synthetic) ─────────────────────────── */
+  function _buildImpulse(ctx, dur, decay) {
+    const sr = ctx.sampleRate, len = Math.floor(sr * dur);
+    const buf = ctx.createBuffer(2, len, sr);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/len, decay);
+      }
+    }
+    return buf;
+  }
+
+  /* ── Build audio graph ──────────────────────────────────────────────── */
+  function djInit() {
+    if (DJ.initialized) return;
+    DJ.initialized = true;
+
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    DJ.ctx = ctx;
+
+    // Master
+    DJ.masterGain = ctx.createGain();
+    DJ.masterGain.gain.value = 1.0;
+    DJ.masterAnalyser = ctx.createAnalyser();
+    DJ.masterAnalyser.fftSize = 1024;
+    DJ.masterGain.connect(DJ.masterAnalyser);
+    DJ.masterAnalyser.connect(ctx.destination);
+
+    // FX chain: fxChainIn → reverb → delay → filter → masterGain
+    DJ.fxChainIn = ctx.createGain();
+    DJ.fxChainIn.gain.value = 1;
+
+    // Reverb
+    const rev = DJ.fx.reverb;
+    rev.node = ctx.createConvolver();
+    rev.node.buffer = _buildImpulse(ctx, 2.5, 3);
+    rev.dryGain = ctx.createGain(); rev.dryGain.gain.value = 1;
+    rev.wetGain = ctx.createGain(); rev.wetGain.gain.value = 0;
+    DJ.fxChainIn.connect(rev.dryGain);
+    DJ.fxChainIn.connect(rev.node);
+    rev.node.connect(rev.wetGain);
+
+    // Delay
+    const del = DJ.fx.delay;
+    del.node = ctx.createDelay(4.0);
+    del.node.delayTime.value = del.time;
+    del.feedbackGain = ctx.createGain(); del.feedbackGain.gain.value = 0;
+    del.sendGain = ctx.createGain(); del.sendGain.gain.value = 0;
+    DJ.fxChainIn.connect(del.sendGain);
+    del.sendGain.connect(del.node);
+    del.node.connect(del.feedbackGain);
+    del.feedbackGain.connect(del.node);
+
+    // Filter FX
+    const flt = DJ.fx.filter;
+    flt.node = ctx.createBiquadFilter();
+    flt.node.type = 'lowpass';
+    flt.node.frequency.value = 18000;
+    flt.node.Q.value = 1;
+
+    // Flanger
+    const flg = DJ.fx.flanger;
+    flg.delay = ctx.createDelay(0.05);
+    flg.delay.delayTime.value = 0.003;
+    flg.lfo = ctx.createOscillator();
+    flg.lfo.frequency.value = flg.rate;
+    flg.lfoGain = ctx.createGain();
+    flg.lfoGain.gain.value = 0;
+    flg.feedbackGain = ctx.createGain();
+    flg.feedbackGain.gain.value = 0;
+    flg.lfo.connect(flg.lfoGain);
+    flg.lfoGain.connect(flg.delay.delayTime);
+    flg.lfo.start();
+    DJ.fxChainIn.connect(flg.delay);
+    flg.delay.connect(flg.feedbackGain);
+    flg.feedbackGain.connect(flg.delay);
+
+    // Mixer filter (morphing lowpass/highpass via mid shelf)
+    DJ.mixerFilter = ctx.createBiquadFilter();
+    DJ.mixerFilter.type = 'allpass';
+    DJ.mixerFilter.frequency.value = 18000;
+
+    // Connect dry path: rev.dry → filter → flanger → mixerFilter → masterGain
+    rev.dryGain.connect(flt.node);
+    rev.wetGain.connect(flt.node);
+    del.node.connect(flt.node);
+    flg.delay.connect(flt.node);
+    flt.node.connect(flg.delay);
+    flt.node.connect(DJ.mixerFilter);
+    DJ.mixerFilter.connect(DJ.masterGain);
+
+    // Build per-deck graph
+    ['A','B'].forEach(dk => {
+      const d = DJ.decks[dk];
+
+      const bass = ctx.createBiquadFilter();
+      bass.type = 'peaking'; bass.frequency.value = 80;
+      bass.Q.value = 1; bass.gain.value = 0;
+      d.bassFilter = bass;
+
+      const mid = ctx.createBiquadFilter();
+      mid.type = 'peaking'; mid.frequency.value = 1000;
+      mid.Q.value = 1; mid.gain.value = 0;
+      d.midFilter = mid;
+
+      const hi = ctx.createBiquadFilter();
+      hi.type = 'peaking'; hi.frequency.value = 10000;
+      hi.Q.value = 1; hi.gain.value = 0;
+      d.hiFilter = hi;
+
+      const vol = ctx.createGain();
+      vol.gain.value = 0.8;
+      d.volGain = vol;
+
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      d.analyser = analyser;
+
+      const xfg = ctx.createGain();
+      xfg.gain.value = dk === 'A' ? 0.707 : 0.707;
+      d.xfGain = xfg;
+
+      // Chain: bass → mid → hi → vol → analyser → xfGain → fxChainIn
+      bass.connect(mid);
+      mid.connect(hi);
+      hi.connect(vol);
+      vol.connect(analyser);
+      analyser.connect(xfg);
+      xfg.connect(DJ.fxChainIn);
+
+      d._chainHead = bass; // source connects here
+    });
+
+    // Start RAF render loop
+    _djRafLoop();
+    // Populate library
+    djRefreshLibrary();
+  }
+
+  /* ── Connect/disconnect a new source node ─────────────────────────── */
+  function _connectSource(dk) {
+    const d = DJ.decks[dk];
+    if (!d.source) return;
+    d.source.playbackRate.value = d.playbackRate;
+    d.source.connect(d._chainHead);
+  }
+
+  /* ── Current playback position for a deck ─────────────────────────── */
+  function _deckPos(dk) {
+    const d = DJ.decks[dk];
+    if (!d.playing) return d.offset;
+    return d.offset + (DJ.ctx.currentTime - d.startTime) * d.playbackRate;
+  }
+
+  /* ── Load track into a deck ─────────────────────────────────────────── */
+  async function djLoadTrack(deck, url, title, bpm) {
+    await djInit();
+    const d = DJ.decks[deck];
+    // Stop current playback
+    _stopSource(deck);
+
+    try {
+      const resp = await fetch(url);
+      const ab = await resp.arrayBuffer();
+      const buf = await DJ.ctx.decodeAudioData(ab);
+      d.buffer = buf;
+      d.duration = buf.duration;
+      d.offset = 0;
+      d.cuePoint = 0;
+      d.origBpm = parseFloat(bpm) || 0;
+      d.playbackRate = 1;
+      d.pitch = 0;
+
+      document.getElementById('djTrackName' + deck).textContent = title || 'Unknown';
+      document.getElementById('djBpm' + deck).textContent = (d.origBpm || '--') + ' BPM';
+      document.getElementById('djDur' + deck).textContent = _fmt(buf.duration);
+      document.getElementById('pitch' + deck).value = 0;
+      document.getElementById('pitchVal' + deck).textContent = '0%';
+
+      _drawStaticWaveform(deck, buf);
+
+      // Update master BPM display if no BPM set yet
+      if (!DJ.masterBpm && d.origBpm) {
+        DJ.masterBpm = d.origBpm;
+        document.getElementById('masterBpmDisplay').textContent = DJ.masterBpm.toFixed(1);
+      }
+    } catch (e) {
+      console.error('DJ load error', e);
+    }
+  }
+
+  /* ── Draw static waveform from PCM data ─────────────────────────────── */
+  function _drawStaticWaveform(deck, buf) {
+    const canvas = document.getElementById('waveform' + deck);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = '#0d0d1a';
+    ctx.fillRect(0,0,W,H);
+
+    const raw = buf.getChannelData(0);
+    const step = Math.ceil(raw.length / W);
+    const mid = H / 2;
+    const colorA = deck === 'A' ? '#a259ff' : '#22c55e';
+
+    ctx.strokeStyle = colorA;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x < W; x++) {
+      let max = 0;
+      for (let j = 0; j < step; j++) {
+        const v = Math.abs(raw[x * step + j] || 0);
+        if (v > max) max = v;
+      }
+      const h = max * mid;
+      ctx.moveTo(x, mid - h);
+      ctx.lineTo(x, mid + h);
+    }
+    ctx.stroke();
+
+    // Center line
+    ctx.strokeStyle = 'rgba(255,255,255,.1)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, mid); ctx.lineTo(W, mid);
+    ctx.stroke();
+
+    // Cache the imageData for overlay drawing
+    DJ.decks[deck].waveCache = ctx.getImageData(0,0,W,H);
+  }
+
+  /* ── Stop source node ───────────────────────────────────────────────── */
+  function _stopSource(dk) {
+    const d = DJ.decks[dk];
+    if (d.source) {
+      try { d.source.stop(); } catch(e) {}
+      d.source.disconnect();
+      d.source = null;
+    }
+    d.playing = false;
+  }
+
+  /* ── Toggle Play ─────────────────────────────────────────────────────── */
+  function djTogglePlay(deck) {
+    if (!DJ.initialized) djInit();
+    if (DJ.ctx && DJ.ctx.state === 'suspended') DJ.ctx.resume();
+    const d = DJ.decks[deck];
+    if (!d.buffer) return;
+
+    if (d.playing) {
+      // Pause: save position
+      d.offset = _deckPos(deck);
+      _stopSource(deck);
+      document.getElementById('vinyl' + deck).classList.remove('playing');
+      document.getElementById('btnPlay' + deck).textContent = '▶';
+      document.getElementById('btnPlay' + deck).classList.remove('pause-mode');
+    } else {
+      // Play
+      const src = DJ.ctx.createBufferSource();
+      src.buffer = d.buffer;
+      src.loop = false;
+      src.playbackRate.value = d.playbackRate;
+      d.source = src;
+      _connectSource(deck);
+      src.start(0, d.offset);
+      d.startTime = DJ.ctx.currentTime;
+      d.playing = true;
+      if (d.loopActive) d.loopIn = d.offset;
+
+      src.onended = () => {
+        if (d.playing && !d.loopActive) {
+          d.playing = false;
+          d.offset = 0;
+          d.source = null;
+          document.getElementById('vinyl' + deck).classList.remove('playing');
+          document.getElementById('btnPlay' + deck).textContent = '▶';
+          document.getElementById('btnPlay' + deck).classList.remove('pause-mode');
+        }
+      };
+
+      document.getElementById('vinyl' + deck).classList.add('playing');
+      document.getElementById('btnPlay' + deck).textContent = '⏸';
+      document.getElementById('btnPlay' + deck).classList.add('pause-mode');
+    }
+  }
+
+  /* ── Stop (rewind to zero) ──────────────────────────────────────────── */
+  function djStop(deck) {
+    if (!DJ.initialized) return;
+    const d = DJ.decks[deck];
+    _stopSource(deck);
+    d.offset = 0;
+    document.getElementById('vinyl' + deck).classList.remove('playing');
+    document.getElementById('btnPlay' + deck).textContent = '▶';
+    document.getElementById('btnPlay' + deck).classList.remove('pause-mode');
+  }
+
+  /* ── Seek ────────────────────────────────────────────────────────────── */
+  function djSeek(deck, secs) {
+    if (!DJ.initialized) return;
+    const d = DJ.decks[deck];
+    if (!d.buffer) return;
+    const wasPlaying = d.playing;
+    _stopSource(deck);
+    d.offset = Math.max(0, Math.min(d.duration, _deckPos(deck) + secs));
+    if (wasPlaying) {
+      d.playing = false;
+      djTogglePlay(deck);
+    }
+  }
+
+  /* ── CUE ─────────────────────────────────────────────────────────────── */
+  function djCue(deck) {
+    if (!DJ.initialized) return;
+    const d = DJ.decks[deck];
+    if (!d.buffer) return;
+    if (!d.playing) {
+      // Set cue point at current position
+      d.cuePoint = d.offset;
+    } else {
+      // Jump to cue point
+      const wasPlaying = d.playing;
+      _stopSource(deck);
+      d.offset = d.cuePoint;
+      if (wasPlaying) { d.playing = false; djTogglePlay(deck); }
+    }
+  }
+
+  /* ── Pitch ───────────────────────────────────────────────────────────── */
+  function djSetPitch(deck, pct) {
+    if (!DJ.initialized) return;
+    const d = DJ.decks[deck];
+    d.pitch = parseFloat(pct);
+    d.playbackRate = 1 + d.pitch / 100;
+    if (d.source) d.source.playbackRate.value = d.playbackRate;
+    const adjBpm = d.origBpm ? (d.origBpm * d.playbackRate).toFixed(1) : '--';
+    document.getElementById('djBpm' + deck).textContent = adjBpm + ' BPM';
+    document.getElementById('pitchVal' + deck).textContent = (d.pitch >= 0 ? '+' : '') + d.pitch.toFixed(1) + '%';
+
+    // Update master BPM
+    if (d.playing) _updateMasterBpm();
+  }
+
+  function _updateMasterBpm() {
+    // Master BPM = BPM of whichever deck is playing (prefer A)
+    ['A','B'].forEach(dk => {
+      const d = DJ.decks[dk];
+      if (d.playing && d.origBpm) {
+        DJ.masterBpm = d.origBpm * d.playbackRate;
+        document.getElementById('masterBpmDisplay').textContent = DJ.masterBpm.toFixed(1);
+      }
+    });
+  }
+
+  /* ── Sync ────────────────────────────────────────────────────────────── */
+  function djSync(deck) {
+    if (!DJ.initialized) return;
+    const other = deck === 'A' ? 'B' : 'A';
+    const dO = DJ.decks[other];
+    const d  = DJ.decks[deck];
+    if (!d.origBpm || !dO.origBpm) return;
+    const targetBpm = dO.origBpm * dO.playbackRate;
+    const newRate = targetBpm / d.origBpm;
+    d.playbackRate = newRate;
+    d.pitch = (newRate - 1) * 100;
+    if (d.source) d.source.playbackRate.value = d.playbackRate;
+    document.getElementById('pitch' + deck).value = d.pitch.toFixed(1);
+    document.getElementById('pitchVal' + deck).textContent = (d.pitch >= 0 ? '+' : '') + d.pitch.toFixed(1) + '%';
+    document.getElementById('djBpm' + deck).textContent = (d.origBpm * d.playbackRate).toFixed(1) + ' BPM';
+  }
+
+  /* ── Crossfader ─────────────────────────────────────────────────────── */
+  function djXfade(val) {
+    if (!DJ.initialized) return;
+    DJ.xfadeVal = val;
+    _applyCrossfade();
+  }
+
+  function _applyCrossfade() {
+    const val = DJ.xfadeVal;
+    let gA, gB;
+    if (DJ.xfadeCurve === 'power') {
+      gA = Math.cos(val * Math.PI / 2);
+      gB = Math.cos((1 - val) * Math.PI / 2);
+    } else {
+      gA = 1 - val;
+      gB = val;
+    }
+    if (DJ.decks.A.xfGain) DJ.decks.A.xfGain.gain.setTargetAtTime(gA, DJ.ctx.currentTime, 0.02);
+    if (DJ.decks.B.xfGain) DJ.decks.B.xfGain.gain.setTargetAtTime(gB, DJ.ctx.currentTime, 0.02);
+  }
+
+  function djSetXfadeCurve(curve) {
+    DJ.xfadeCurve = curve;
+    _applyCrossfade();
+  }
+
+  /* ── EQ ──────────────────────────────────────────────────────────────── */
+  function djEQ(deck, band, val) {
+    if (!DJ.initialized) return;
+    const d = DJ.decks[deck];
+    const db = parseFloat(val);
+    if (band === 'hi')  { d.hiFilter.gain.value   = db; }
+    if (band === 'mid') { d.midFilter.gain.value  = db; }
+    if (band === 'low') { d.bassFilter.gain.value = db; }
+  }
+
+  /* ── Kill ────────────────────────────────────────────────────────────── */
+  function djKill(deck, band) {
+    if (!DJ.initialized) return;
+    const d = DJ.decks[deck];
+    const ks = d.killState;
+    ks[band] = !ks[band];
+    const flt = band === 'hi' ? d.hiFilter : band === 'mid' ? d.midFilter : d.bassFilter;
+    flt.gain.value = ks[band] ? -40 : 0;
+    const btnId = 'kill' + deck + (band === 'low' ? 'low' : band === 'mid' ? 'mid' : 'hi');
+    const btn = document.getElementById(btnId);
+    if (btn) btn.classList.toggle('kill-active', ks[band]);
+  }
+
+  /* ── Volume ──────────────────────────────────────────────────────────── */
+  function djSetVol(deck, val) {
+    if (!DJ.initialized) return;
+    DJ.decks[deck].volGain.gain.value = parseFloat(val) / 100;
+  }
+
+  /* ── Mixer Filter (morph lowpass↔highpass) ──────────────────────────── */
+  function djSetMixerFilter(val) {
+    if (!DJ.initialized || !DJ.mixerFilter) return;
+    const v = parseFloat(val);
+    if (v < 50) {
+      DJ.mixerFilter.type = 'lowpass';
+      // map 0→200Hz, 50→18000Hz
+      DJ.mixerFilter.frequency.value = 200 + (v / 50) * 17800;
+    } else if (v > 50) {
+      DJ.mixerFilter.type = 'highpass';
+      // map 50→20Hz, 100→18000Hz
+      DJ.mixerFilter.frequency.value = 20 + ((v-50)/50) * 17980;
+    } else {
+      DJ.mixerFilter.type = 'allpass';
+      DJ.mixerFilter.frequency.value = 18000;
+    }
+  }
+
+  /* ── Loop ────────────────────────────────────────────────────────────── */
+  function djSetLoop(deck, beats) {
+    const d = DJ.decks[deck];
+    d.loopBeats = beats;
+    // Update active button style
+    document.querySelectorAll('.btn-loop-sz[data-deck="' + deck + '"]').forEach(btn => {
+      btn.classList.toggle('active-loop', parseFloat(btn.dataset.beats) === beats);
+    });
+  }
+
+  function djToggleLoop(deck) {
+    const d = DJ.decks[deck];
+    d.loopActive = !d.loopActive;
+    const btn = document.getElementById('loopToggle' + deck);
+    if (d.loopActive) {
+      d.loopIn = _deckPos(deck);
+      btn.textContent = 'LOOP ON';
+      btn.classList.add('loop-on');
+    } else {
+      btn.textContent = 'LOOP OFF';
+      btn.classList.remove('loop-on');
+    }
+  }
+
+  /* ── Hot Cues ────────────────────────────────────────────────────────── */
+  function djSetHotCue(deck, num) {
+    if (!DJ.initialized) return;
+    const d = DJ.decks[deck];
+    if (!d.buffer) return;
+    d.hotCues[num-1] = _deckPos(deck);
+    const btn = document.getElementById('hc' + deck + num);
+    if (btn) btn.classList.add('cue-set');
+  }
+
+  function djHotCue(deck, num) {
+    if (!DJ.initialized) return;
+    const d = DJ.decks[deck];
+    if (!d.buffer) return;
+    const pos = d.hotCues[num-1];
+    if (pos === null || pos === undefined) {
+      // Set if not set
+      djSetHotCue(deck, num);
+      return;
+    }
+    // Jump to position
+    const wasPlaying = d.playing;
+    _stopSource(deck);
+    d.offset = pos;
+    if (wasPlaying) { d.playing = false; djTogglePlay(deck); }
+  }
+
+  /* ── Effects ─────────────────────────────────────────────────────────── */
+  function djToggleEffect(name) {
+    if (!DJ.initialized) return;
+    const fx = DJ.fx[name];
+    fx.enabled = !fx.enabled;
+    const btn = document.getElementById('fxToggle' + name.charAt(0).toUpperCase() + name.slice(1));
+    if (btn) btn.classList.toggle('fx-on', fx.enabled);
+
+    switch (name) {
+      case 'reverb':
+        fx.wetGain.gain.setTargetAtTime(fx.enabled ? fx.wet : 0, DJ.ctx.currentTime, 0.1);
+        break;
+      case 'delay':
+        fx.sendGain.gain.setTargetAtTime(fx.enabled ? 1 : 0, DJ.ctx.currentTime, 0.1);
+        break;
+      case 'filter':
+        fx.node.frequency.value = fx.enabled ? fx.cutoff : 18000;
+        break;
+      case 'flanger':
+        fx.lfoGain.gain.setTargetAtTime(fx.enabled ? fx.depth : 0, DJ.ctx.currentTime, 0.1);
+        fx.feedbackGain.gain.setTargetAtTime(fx.enabled ? 0.7 : 0, DJ.ctx.currentTime, 0.1);
+        break;
+    }
+  }
+
+  function djSetEffect(name, param, val) {
+    if (!DJ.initialized) return;
+    const fx = DJ.fx[name];
+    val = parseFloat(val);
+    switch (name) {
+      case 'reverb':
+        if (param === 'wet') {
+          fx.wet = val / 100;
+          if (fx.enabled) fx.wetGain.gain.setTargetAtTime(fx.wet, DJ.ctx.currentTime, 0.05);
+        }
+        break;
+      case 'delay':
+        if (param === 'time') {
+          fx.time = val / 100 * 2;
+          fx.node.delayTime.setTargetAtTime(fx.time, DJ.ctx.currentTime, 0.05);
+        }
+        if (param === 'feedback') {
+          fx.feedback = val / 100;
+          fx.feedbackGain.gain.setTargetAtTime(fx.feedback, DJ.ctx.currentTime, 0.05);
+        }
+        break;
+      case 'filter':
+        if (param === 'cutoff') {
+          fx.cutoff = val;
+          if (fx.enabled) fx.node.frequency.setTargetAtTime(val, DJ.ctx.currentTime, 0.05);
+        }
+        if (param === 'resonance') {
+          fx.resonance = val;
+          fx.node.Q.value = val;
+        }
+        break;
+      case 'flanger':
+        if (param === 'rate') {
+          fx.rate = val;
+          fx.lfo.frequency.value = val;
+        }
+        if (param === 'depth') {
+          fx.depth = val / 100 * 0.01;
+          if (fx.enabled) fx.lfoGain.gain.setTargetAtTime(fx.depth, DJ.ctx.currentTime, 0.05);
+        }
+        break;
+    }
+  }
+
+  function djDelayBpmSync(enabled) {
+    DJ.fx.delay.bpmSync = enabled;
+    if (enabled && DJ.masterBpm) {
+      const beatSec = 60 / DJ.masterBpm;
+      DJ.fx.delay.node.delayTime.setTargetAtTime(beatSec, DJ.ctx.currentTime, 0.05);
+    }
+  }
+
+  /* ── Sampler ─────────────────────────────────────────────────────────── */
+  async function djLoadSample(pad, url, name) {
+    if (!DJ.initialized) djInit();
+    try {
+      const resp = await fetch(url);
+      const ab = await resp.arrayBuffer();
+      const buf = await DJ.ctx.decodeAudioData(ab);
+      DJ.sampler[pad].buffer = buf;
+      DJ.sampler[pad].name = name;
+      const el = document.getElementById('spName' + pad);
+      if (el) el.textContent = name.substring(0,14);
+      document.getElementById('sPad' + pad).classList.add('pad-loaded');
+    } catch(e) {
+      console.error('Sampler load error', e);
+    }
+  }
+
+  function djTriggerSample(pad) {
+    if (!DJ.initialized || !DJ.sampler[pad].buffer) return;
+    if (DJ.ctx.state === 'suspended') DJ.ctx.resume();
+    const src = DJ.ctx.createBufferSource();
+    src.buffer = DJ.sampler[pad].buffer;
+    src.connect(DJ.masterGain);
+    src.start();
+  }
+
+  function djClearSample(pad) {
+    DJ.sampler[pad].buffer = null;
+    DJ.sampler[pad].name = '';
+    const el = document.getElementById('spName' + pad);
+    if (el) el.textContent = 'PAD ' + (pad+1);
+    document.getElementById('sPad' + pad).classList.remove('pad-loaded');
+  }
+
+  function djLoadSamplePrompt(pad) {
+    // Show DJ library panel and set pending deck/pad
+    djShowTrackPicker('sampler', pad);
+  }
+
+  /* ── Tap Tempo ───────────────────────────────────────────────────────── */
+  function djTapTempo() {
+    const now = performance.now();
+    DJ.tapTimes.push(now);
+    if (DJ.tapTimes.length > 8) DJ.tapTimes.shift();
+    if (DJ.tapTimes.length >= 2) {
+      const intervals = [];
+      for (let i = 1; i < DJ.tapTimes.length; i++) {
+        intervals.push(DJ.tapTimes[i] - DJ.tapTimes[i-1]);
+      }
+      const avgMs = intervals.reduce((a,b) => a+b, 0) / intervals.length;
+      DJ.masterBpm = 60000 / avgMs;
+      document.getElementById('masterBpmDisplay').textContent = DJ.masterBpm.toFixed(1);
+    }
+  }
+
+  /* ── Auto Mix ────────────────────────────────────────────────────────── */
+  function djToggleAutoMix() {
+    DJ.autoMixEnabled = !DJ.autoMixEnabled;
+    const btn = document.getElementById('btnAutoMix');
+    btn.textContent = '🎉 AUTO-MIX ' + (DJ.autoMixEnabled ? 'ON' : 'OFF');
+    btn.classList.toggle('party-on', DJ.autoMixEnabled);
+
+    if (DJ.autoMixEnabled) {
+      DJ.autoMixTimer = setInterval(_autoMixCheck, 2000);
+    } else {
+      clearInterval(DJ.autoMixTimer);
+      DJ.autoMixTimer = null;
+    }
+  }
+
+  let _autoMixFading = false;
+  function _autoMixCheck() {
+    if (!DJ.initialized || _autoMixFading) return;
+    // Find the active deck
+    let activeDeck = null, nextDeck = null;
+    if (DJ.decks.A.playing && !DJ.decks.B.playing) { activeDeck = 'A'; nextDeck = 'B'; }
+    else if (DJ.decks.B.playing && !DJ.decks.A.playing) { activeDeck = 'B'; nextDeck = 'A'; }
+    if (!activeDeck) return;
+
+    const d = DJ.decks[activeDeck];
+    const pos = _deckPos(activeDeck);
+    const remaining = d.duration - pos;
+
+    if (remaining <= 15 && DJ.queue.length > 0) {
+      _autoMixFading = true;
+      const nextTrack = DJ.queue.shift();
+      _renderQueue();
+
+      // Load next track into other deck
+      djLoadTrack(nextDeck, nextTrack.url, nextTrack.title, nextTrack.bpm).then(() => {
+        djTogglePlay(nextDeck);
+        // Crossfade over 8 seconds
+        const start = DJ.xfadeVal;
+        const targetVal = nextDeck === 'B' ? 1 : 0;
+        const steps = 80;
+        let step = 0;
+        const interval = setInterval(() => {
+          step++;
+          const t = step / steps;
+          DJ.xfadeVal = start + (targetVal - start) * t;
+          document.getElementById('djCrossfader').value = DJ.xfadeVal * 100;
+          _applyCrossfade();
+          if (step >= steps) {
+            clearInterval(interval);
+            djStop(activeDeck);
+            _autoMixFading = false;
+          }
+        }, 100);
+      });
+    }
+  }
+
+  /* ── Party Lights ────────────────────────────────────────────────────── */
+  function djTogglePartyLights() {
+    DJ.partyLightsEnabled = !DJ.partyLightsEnabled;
+    const btn = document.getElementById('btnPartyLights');
+    btn.textContent = '💡 PARTY LIGHTS ' + (DJ.partyLightsEnabled ? 'ON' : 'OFF');
+    btn.classList.toggle('party-on', DJ.partyLightsEnabled);
+
+    const overlay = document.getElementById('partyLights');
+    if (!overlay) return;
+
+    if (DJ.partyLightsEnabled) {
+      overlay.style.display = 'block';
+      _partyLightsLoop();
+    } else {
+      overlay.style.display = 'none';
+      if (DJ.partyLightsRaf) { cancelAnimationFrame(DJ.partyLightsRaf); DJ.partyLightsRaf = null; }
+    }
+  }
+
+  function _partyLightsLoop() {
+    if (!DJ.partyLightsEnabled) return;
+    const overlay = document.getElementById('partyLights');
+    if (!overlay) return;
+
+    if (DJ.masterAnalyser) {
+      const data = new Uint8Array(DJ.masterAnalyser.frequencyBinCount);
+      DJ.masterAnalyser.getByteFrequencyData(data);
+      const energy = data.reduce((s,v) => s+v, 0) / data.length;
+      const hue = (Date.now() / 40) % 360;
+      const bright = 10 + (energy / 255) * 30;
+      overlay.style.background = `hsl(${hue},80%,${bright}%)`;
+      overlay.style.opacity = 0.35 + (energy/255) * 0.4;
+
+      const strobe = overlay.querySelector('#partyLightsStrobe');
+      if (strobe) {
+        const beatEnergy = data.slice(0,10).reduce((s,v)=>s+v,0) / 10;
+        strobe.style.opacity = beatEnergy > 180 ? 0.3 : 0;
+      }
+    }
+
+    DJ.partyLightsRaf = requestAnimationFrame(_partyLightsLoop);
+  }
+
+  /* ── RAF render loop (waveform scrolling + VU meters + time display) ── */
+  function _djRafLoop() {
+    ['A','B'].forEach(dk => {
+      const d = DJ.decks[dk];
+
+      // Time display
+      if (d.buffer) {
+        const pos = _deckPos(dk);
+        document.getElementById('djTime' + dk).textContent = _fmt(pos);
+        document.getElementById('djDur' + dk).textContent  = _fmt(d.duration);
+      }
+
+      // Loop logic
+      if (d.playing && d.loopActive && d.buffer) {
+        const pos = _deckPos(dk);
+        const bpm = d.origBpm * d.playbackRate || 120;
+        const spb = 60 / bpm;
+        const loopOut = d.loopIn + d.loopBeats * spb;
+        if (pos >= loopOut) {
+          // Restart loop
+          _stopSource(dk);
+          d.offset = d.loopIn;
+          d.playing = false;
+          djTogglePlay(dk);
+        }
+      }
+
+      // Waveform scroll overlay
+      _renderScrollingWaveform(dk);
+
+      // VU meter
+      if (d.analyser) {
+        const data = new Uint8Array(d.analyser.frequencyBinCount);
+        d.analyser.getByteFrequencyData(data);
+        const avg = data.reduce((s,v) => s+v,0) / data.length;
+        const pct = Math.min(100, (avg / 255) * 100 * (d.playing ? 3 : 0.1));
+        const bar = document.getElementById('vu' + dk);
+        if (bar) bar.style.height = pct + '%';
+      }
+    });
+
+    // Delay BPM sync
+    if (DJ.fx.delay.bpmSync && DJ.masterBpm) {
+      const beatSec = 60 / DJ.masterBpm;
+      if (Math.abs(DJ.fx.delay.node.delayTime.value - beatSec) > 0.001) {
+        DJ.fx.delay.node.delayTime.setTargetAtTime(beatSec, DJ.ctx.currentTime, 0.1);
+      }
+    }
+
+    DJ.rafId = requestAnimationFrame(_djRafLoop);
+  }
+
+  function _renderScrollingWaveform(deck) {
+    const canvas = document.getElementById('waveform' + deck);
+    if (!canvas) return;
+    const d = DJ.decks[deck];
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+
+    if (!d.buffer || !d.waveCache) {
+      ctx.fillStyle = '#0d0d1a';
+      ctx.fillRect(0,0,W,H);
+      return;
+    }
+
+    // Draw cached static waveform
+    ctx.putImageData(d.waveCache, 0, 0);
+
+    // Draw playhead
+    const pos = _deckPos(deck);
+    const pct = pos / d.duration;
+    const x = Math.floor(pct * W);
+
+    // Darken played region
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(0, 0, x, H);
+
+    // Playhead line
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, 0); ctx.lineTo(x, H);
+    ctx.stroke();
+
+    // Cue point marker
+    if (d.cuePoint > 0) {
+      const cx = Math.floor((d.cuePoint / d.duration) * W);
+      ctx.strokeStyle = '#f5c518';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx, 0); ctx.lineTo(cx, H);
+      ctx.stroke();
+    }
+
+    // Frequency analyser overlay
+    if (d.analyser && d.playing) {
+      const freqData = new Uint8Array(d.analyser.frequencyBinCount);
+      d.analyser.getByteFrequencyData(freqData);
+      const color = deck === 'A' ? 'rgba(162,89,255,0.5)' : 'rgba(34,197,94,0.5)';
+      ctx.fillStyle = color;
+      const bw = W / freqData.length;
+      for (let i = 0; i < freqData.length; i++) {
+        const bh = (freqData[i] / 255) * (H / 2);
+        ctx.fillRect(i * bw, H/2 - bh, Math.max(1,bw-1), bh*2);
+      }
+    }
+  }
+
+  /* ── Track Library ───────────────────────────────────────────────────── */
+  let _djLibraryData = [];
+  let _djPendingDeck = 'A';
+  let _djPendingPad  = null;
+
+  function djRefreshLibrary() {
+    // Pull from existing page library data if available
+    try {
+      const rows = document.querySelectorAll('#libraryList .library-item, .lib-row');
+      const tracks = [];
+      rows.forEach(row => {
+        const url   = row.dataset.url || row.querySelector('[data-url]')?.dataset.url;
+        const title = row.dataset.title || row.querySelector('.lib-title, .track-name')?.textContent?.trim();
+        const bpm   = row.dataset.bpm || '';
+        const dur   = row.dataset.dur || '';
+        if (url && title) tracks.push({url, title, bpm, dur});
+      });
+      if (tracks.length) {
+        _djLibraryData = tracks;
+        _renderDjLibrary(_djLibraryData);
+        return;
+      }
+    } catch(e) {}
+
+    // Fallback: fetch /api/library
+    fetch('/api/library').then(r => r.json()).then(data => {
+      _djLibraryData = (data.tracks || data || []).map(t => ({
+        url: t.url || t.audio_url,
+        title: t.title || t.name,
+        bpm: t.bpm || '',
+        dur: t.duration || ''
+      })).filter(t => t.url);
+      _renderDjLibrary(_djLibraryData);
+    }).catch(() => {
+      _renderDjLibrary([]);
+    });
+  }
+
+  function djFilterLibrary(q) {
+    const filtered = q
+      ? _djLibraryData.filter(t => t.title.toLowerCase().includes(q.toLowerCase()))
+      : _djLibraryData;
+    _renderDjLibrary(filtered);
+  }
+
+  function _renderDjLibrary(tracks) {
+    const tbody = document.getElementById('djLibBody');
+    if (!tbody) return;
+    if (!tracks.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="dj-lib-empty">No tracks found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = tracks.map((t, i) => `
+      <tr>
+        <td>
+          <button class="dj-load-btn" onclick="djLoadTrack('A',${JSON.stringify(t.url)},${JSON.stringify(t.title)},${JSON.stringify(t.bpm||'')})">A</button>
+          <button class="dj-load-btn" onclick="djLoadTrack('B',${JSON.stringify(t.url)},${JSON.stringify(t.title)},${JSON.stringify(t.bpm||'')})">B</button>
+        </td>
+        <td>${_escHtml(t.title)}</td>
+        <td>${t.bpm || '--'}</td>
+        <td>${t.dur ? _fmt(parseFloat(t.dur)) : '--'}</td>
+        <td><button class="dj-queue-add-btn" onclick="djAddToQueue(${JSON.stringify(t)})">+Q</button></td>
+      </tr>
+    `).join('');
+  }
+
+  function _escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── Queue ───────────────────────────────────────────────────────────── */
+  function djAddToQueue(track) {
+    DJ.queue.push(track);
+    _renderQueue();
+  }
+
+  function _renderQueue() {
+    const el = document.getElementById('djQueueList');
+    if (!el) return;
+    if (!DJ.queue.length) {
+      el.innerHTML = '<span class="queue-empty">No tracks in queue</span>';
+      return;
+    }
+    el.innerHTML = DJ.queue.map((t, i) => `
+      <div class="queue-item">
+        <span>${_escHtml(t.title.substring(0,20))}</span>
+        <button class="queue-item-remove" onclick="djRemoveFromQueue(${i})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function djRemoveFromQueue(i) {
+    DJ.queue.splice(i, 1);
+    _renderQueue();
+  }
+
+  /* ── Track picker (for sampler right-click) ─────────────────────────── */
+  function djShowTrackPicker(target, pad) {
+    _djPendingDeck = target;
+    _djPendingPad  = pad;
+    djRefreshLibrary();
+    // Scroll to library
+    const lib = document.querySelector('.dj-library');
+    if (lib) lib.scrollIntoView({behavior:'smooth'});
+  }
+
+  /* ── File Upload ─────────────────────────────────────────────────────── */
+  function djUploadFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const name = file.name.replace(/\.[^.]+$/,'');
+    djLoadTrack(_djPendingDeck, url, name, '');
+    input.value = '';
+  }
+
+  /* ── Expose globals for onclick handlers ───────────────────────────── */
+  window.djInit            = djInit;
+  window.djLoadTrack       = djLoadTrack;
+  window.djTogglePlay      = djTogglePlay;
+  window.djStop            = djStop;
+  window.djSeek            = djSeek;
+  window.djCue             = djCue;
+  window.djSetPitch        = djSetPitch;
+  window.djSync            = djSync;
+  window.djXfade           = djXfade;
+  window.djSetXfadeCurve   = djSetXfadeCurve;
+  window.djEQ              = djEQ;
+  window.djKill            = djKill;
+  window.djSetVol          = djSetVol;
+  window.djSetMixerFilter  = djSetMixerFilter;
+  window.djSetLoop         = djSetLoop;
+  window.djToggleLoop      = djToggleLoop;
+  window.djHotCue          = djHotCue;
+  window.djSetHotCue       = djSetHotCue;
+  window.djToggleEffect    = djToggleEffect;
+  window.djSetEffect       = djSetEffect;
+  window.djDelayBpmSync    = djDelayBpmSync;
+  window.djTriggerSample   = djTriggerSample;
+  window.djClearSample     = djClearSample;
+  window.djLoadSamplePrompt= djLoadSamplePrompt;
+  window.djTapTempo        = djTapTempo;
+  window.djToggleAutoMix   = djToggleAutoMix;
+  window.djTogglePartyLights = djTogglePartyLights;
+  window.djAddToQueue      = djAddToQueue;
+  window.djRemoveFromQueue = djRemoveFromQueue;
+  window.djFilterLibrary   = djFilterLibrary;
+  window.djRefreshLibrary  = djRefreshLibrary;
+  window.djUploadFile      = djUploadFile;
+
+  /* ── Patch switchMainTab to lazy-init DJ ─────────────────────────────── */
+  const _origSwitchMainTab = window.switchMainTab;
+  window.switchMainTab = function(id, btn) {
+    _origSwitchMainTab(id, btn);
+    if (id === 'dj' && !DJ.initialized) {
+      djInit();
+      // Refresh library when tab opens
+      setTimeout(djRefreshLibrary, 300);
+    }
+  };
+
+})();
 </script>
 {% endblock %}
