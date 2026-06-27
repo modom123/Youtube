@@ -630,6 +630,127 @@ input[type=range]::-webkit-slider-thumb {
 }
 .lib-play-btn:hover { background: var(--c-purple); border-color: var(--c-purple); }
 
+/* ── Upload / Instruments ───────────────────────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--c-border);
+  border-radius: 12px;
+  padding: 20px 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.upload-zone:hover,
+.upload-zone.drag-over {
+  border-color: var(--c-purple);
+  background: var(--c-glow);
+}
+.upload-zone input[type=file] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.upload-zone .uz-icon { font-size: 28px; margin-bottom: 6px; }
+.upload-zone .uz-label { font-size: 12px; color: var(--c-text); font-weight: 600; }
+.upload-zone .uz-sub { font-size: 10px; color: var(--c-muted); margin-top: 3px; }
+
+.track-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.track-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--c-elevated);
+  border: 1px solid var(--c-border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  transition: border-color .2s;
+}
+.track-item:hover { border-color: var(--c-purple); }
+.track-item .ti-play {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--c-elevated);
+  border: 1px solid var(--c-border);
+  color: var(--c-text);
+  font-size: 11px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.track-item .ti-play:hover { background: var(--c-purple); border-color: var(--c-purple); }
+.track-item .ti-info { flex: 1; min-width: 0; }
+.track-item .ti-name { font-size: 11px; font-weight: 600; color: var(--c-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.track-item .ti-size { font-size: 10px; color: var(--c-muted); }
+.track-item .ti-del { font-size: 14px; color: var(--c-muted); cursor: pointer; padding: 2px 4px; transition: color .15s; }
+.track-item .ti-del:hover { color: var(--c-red); }
+
+/* Live instrument monitor */
+.live-monitor {
+  background: var(--c-elevated);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  padding: 14px;
+}
+.live-monitor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.live-monitor-header span { font-size: 11px; font-weight: 700; color: var(--c-text); }
+.monitor-btn {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--c-border);
+  background: var(--c-elevated);
+  color: var(--c-text);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+}
+.monitor-btn.on { background: var(--c-green); border-color: var(--c-green); color: #000; }
+.monitor-btn.rec { background: var(--c-red); border-color: var(--c-red); color: #fff; }
+
+.meter-bar {
+  height: 10px;
+  background: var(--c-elevated);
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+  margin-bottom: 6px;
+}
+.meter-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--c-green) 0%, #facc15 70%, var(--c-red) 90%);
+  transition: width .05s;
+}
+.meter-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--c-muted);
+  margin-bottom: 10px;
+}
+
+.input-select {
+  width: 100%;
+  background: var(--c-elevated);
+  border: 1px solid var(--c-border);
+  border-radius: 7px;
+  color: var(--c-text);
+  padding: 6px 8px;
+  font-size: 11px;
+  outline: none;
+  margin-bottom: 8px;
+}
+
 /* ── Record tab ─────────────────────────────────────────────────────────────── */
 .rec-wrap { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
 .rec-indicator {
@@ -717,6 +838,7 @@ input[type=range]::-webkit-slider-thumb {
     <div class="ms-left-tabs">
       <button class="ms-left-tab active" onclick="switchLeftTab('compose',this)">Compose</button>
       <button class="ms-left-tab" onclick="switchLeftTab('mix',this)">Mix &amp; FX</button>
+      <button class="ms-left-tab" onclick="switchLeftTab('instruments',this)">🎸 Inputs</button>
       <button class="ms-left-tab" onclick="switchLeftTab('record',this)">Record</button>
     </div>
 
@@ -907,6 +1029,50 @@ input[type=range]::-webkit-slider-thumb {
         </div>
 
       </div><!-- /mix -->
+
+      <!-- ── INSTRUMENTS / UPLOAD TAB ──────────────────────────────────── -->
+      <div id="lpane-instruments" class="ms-left-pane">
+
+        <!-- Live instrument monitoring -->
+        <div class="live-monitor">
+          <div class="live-monitor-header">
+            <span>🎸 Live Input</span>
+            <div style="display:flex;gap:6px">
+              <button class="monitor-btn" id="monitorBtn" onclick="toggleMonitor()">Monitor</button>
+              <button class="monitor-btn rec" id="liveRecBtn" onclick="toggleLiveRec()" disabled>⏺ Rec</button>
+            </div>
+          </div>
+          <select class="input-select" id="audioInputSelect">
+            <option value="">Default microphone / line in</option>
+          </select>
+          <div class="meter-bar"><div class="meter-fill" id="meterFill"></div></div>
+          <div class="meter-labels"><span>-60dB</span><span>-24</span><span>-12</span><span>-6</span><span>0</span></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:10px;color:var(--c-muted);font-weight:700;text-transform:uppercase">Input Gain</label>
+            <input type="range" id="inputGainSlider" min="0" max="300" value="100" step="1"
+                   oninput="setInputGain(this.value)" style="flex:1">
+            <span style="font-size:10px;color:var(--c-purple);width:32px;text-align:right" id="inputGainVal">100%</span>
+          </div>
+          <div id="liveRecStatus" style="display:none;font-size:11px;color:var(--c-red);text-align:center;margin-top:8px;font-weight:700">
+            ⏺ Recording… <span id="liveRecTimer">0:00</span>
+          </div>
+          <audio id="livePlayback" controls style="display:none;width:100%;margin-top:8px;border-radius:8px"></audio>
+        </div>
+
+        <!-- Upload audio files -->
+        <div class="sec-divider" style="margin-top:14px">Upload Audio</div>
+
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="audioUploadInput" accept="audio/*" multiple
+                 onchange="handleUploadFiles(this.files)">
+          <div class="uz-icon">📂</div>
+          <div class="uz-label">Drop audio files here</div>
+          <div class="uz-sub">MP3 · WAV · AIFF · OGG · FLAC · M4A</div>
+        </div>
+
+        <div class="track-list" id="uploadedTracks"></div>
+
+      </div><!-- /instruments -->
 
       <!-- ── RECORD TAB ─────────────────────────────────────────────────── -->
       <div id="lpane-record" class="ms-left-pane">
@@ -1795,6 +1961,229 @@ function stopRecording() {
   document.getElementById('recIndicator').classList.remove('recording');
   document.getElementById('recStartBtn').disabled = false;
   document.getElementById('recStopBtn').disabled = true;
+}
+
+/* ═══════════════════════ LIVE INSTRUMENT MONITOR ═══════════════════════════ */
+let _monStream = null;
+let _monActx = null;
+let _monSource = null;
+let _monGain = null;
+let _monAnalyser = null;
+let _monDest = null;
+let _monRec = null;
+let _monRecChunks = [];
+let _monLive = false;
+let _monRecording = false;
+let _meterRaf = null;
+let _liveRecSecs = 0;
+let _liveRecInterval = null;
+
+async function _getAudioDevices() {
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const sel = document.getElementById('audioInputSelect');
+    sel.innerHTML = '';
+    devices.filter(d => d.kind === 'audioinput').forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || 'Microphone / Line In';
+      sel.appendChild(opt);
+    });
+  } catch(e) {}
+}
+_getAudioDevices();
+
+async function toggleMonitor() {
+  const btn = document.getElementById('monitorBtn');
+  if (_monLive) {
+    _stopMonitor();
+    btn.textContent = 'Monitor';
+    btn.classList.remove('on');
+    document.getElementById('liveRecBtn').disabled = true;
+  } else {
+    await _startMonitor();
+    if (_monLive) {
+      btn.textContent = '● Live';
+      btn.classList.add('on');
+      document.getElementById('liveRecBtn').disabled = false;
+    }
+  }
+}
+
+async function _startMonitor() {
+  const deviceId = document.getElementById('audioInputSelect').value;
+  const constraints = { audio: deviceId ? { deviceId: { exact: deviceId } } : true };
+  try {
+    _monStream = await navigator.mediaDevices.getUserMedia(constraints);
+  } catch(e) {
+    alert('Could not access audio input. Check permissions and connection.');
+    return;
+  }
+  _monActx = new (window.AudioContext || window.webkitAudioContext)();
+  _monSource = _monActx.createMediaStreamSource(_monStream);
+  _monGain = _monActx.createGain();
+  _monGain.gain.value = 1.0;
+  _monAnalyser = _monActx.createAnalyser();
+  _monAnalyser.fftSize = 256;
+  _monAnalyser.smoothingTimeConstant = 0.7;
+  // Output to speakers for monitoring (with slight delay to avoid feedback)
+  const delayNode = _monActx.createDelay(0.05);
+  delayNode.delayTime.value = 0.01;
+  _monSource.connect(_monGain);
+  _monGain.connect(_monAnalyser);
+  _monGain.connect(delayNode);
+  delayNode.connect(_monActx.destination);
+  _monDest = _monActx.createMediaStreamDestination();
+  _monGain.connect(_monDest);
+  _monLive = true;
+  _runMeter();
+}
+
+function _stopMonitor() {
+  _monLive = false;
+  if (_monRecording) _stopLiveRec();
+  cancelAnimationFrame(_meterRaf);
+  if (_monStream) { _monStream.getTracks().forEach(t => t.stop()); _monStream = null; }
+  if (_monActx) { _monActx.close(); _monActx = null; }
+  document.getElementById('meterFill').style.width = '0%';
+}
+
+function _runMeter() {
+  if (!_monLive || !_monAnalyser) return;
+  const buf = new Uint8Array(_monAnalyser.frequencyBinCount);
+  _monAnalyser.getByteTimeDomainData(buf);
+  let max = 0;
+  for (let i = 0; i < buf.length; i++) {
+    const v = Math.abs(buf[i] - 128) / 128;
+    if (v > max) max = v;
+  }
+  const db = max > 0 ? 20 * Math.log10(max) : -60;
+  const pct = Math.max(0, Math.min(100, (db + 60) / 60 * 100));
+  document.getElementById('meterFill').style.width = pct + '%';
+  _meterRaf = requestAnimationFrame(_runMeter);
+}
+
+function setInputGain(val) {
+  document.getElementById('inputGainVal').textContent = val + '%';
+  if (_monGain) _monGain.gain.value = parseFloat(val) / 100;
+}
+
+function toggleLiveRec() {
+  if (_monRecording) {
+    _stopLiveRec();
+  } else {
+    _startLiveRec();
+  }
+}
+
+function _startLiveRec() {
+  if (!_monDest) return;
+  _monRecChunks = [];
+  _monRec = new MediaRecorder(_monDest.stream);
+  _monRec.ondataavailable = e => { if (e.data.size > 0) _monRecChunks.push(e.data); };
+  _monRec.onstop = () => {
+    const blob = new Blob(_monRecChunks, { type: 'audio/webm' });
+    const url = URL.createObjectURL(blob);
+    const pb = document.getElementById('livePlayback');
+    pb.src = url; pb.style.display = 'block';
+    // Add to uploaded tracks
+    _addUploadedTrack('Live Recording ' + new Date().toLocaleTimeString(), blob.size, url);
+  };
+  _monRec.start(100);
+  _monRecording = true;
+  _liveRecSecs = 0;
+  document.getElementById('liveRecStatus').style.display = 'block';
+  document.getElementById('liveRecBtn').textContent = '⏹ Stop';
+  _liveRecInterval = setInterval(() => {
+    _liveRecSecs++;
+    const m = Math.floor(_liveRecSecs / 60), s = _liveRecSecs % 60;
+    document.getElementById('liveRecTimer').textContent = m + ':' + String(s).padStart(2,'0');
+  }, 1000);
+}
+
+function _stopLiveRec() {
+  if (_monRec) { _monRec.stop(); _monRec = null; }
+  _monRecording = false;
+  clearInterval(_liveRecInterval);
+  document.getElementById('liveRecStatus').style.display = 'none';
+  document.getElementById('liveRecBtn').textContent = '⏺ Rec';
+}
+
+/* ═══════════════════════ FILE UPLOAD ═══════════════════════════════════════ */
+let _uploadedFiles = [];
+let _activeTrackAudio = null;
+
+// Drag & drop
+const _uploadZone = document.getElementById('uploadZone');
+_uploadZone.addEventListener('dragover', e => { e.preventDefault(); _uploadZone.classList.add('drag-over'); });
+_uploadZone.addEventListener('dragleave', () => _uploadZone.classList.remove('drag-over'));
+_uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  _uploadZone.classList.remove('drag-over');
+  handleUploadFiles(e.dataTransfer.files);
+});
+
+function handleUploadFiles(files) {
+  [...files].forEach(file => {
+    if (!file.type.startsWith('audio/')) return;
+    const url = URL.createObjectURL(file);
+    _addUploadedTrack(file.name, file.size, url);
+  });
+}
+
+function _addUploadedTrack(name, size, url) {
+  const id = 'ut_' + Date.now() + Math.random().toString(36).slice(2);
+  _uploadedFiles.push({ id, name, size, url });
+  _renderUploadedTracks();
+}
+
+function _renderUploadedTracks() {
+  const el = document.getElementById('uploadedTracks');
+  if (!_uploadedFiles.length) { el.innerHTML = ''; return; }
+  el.innerHTML = _uploadedFiles.map(f => `
+    <div class="track-item" id="ti-${f.id}">
+      <button class="ti-play" onclick="playUploadedTrack('${f.id}')" id="tip-${f.id}">▶</button>
+      <div class="ti-info">
+        <div class="ti-name" title="${_esc(f.name)}">${_esc(f.name.replace(/\.[^.]+$/, ''))}</div>
+        <div class="ti-size">${_fmtSize(f.size)}</div>
+      </div>
+      <span class="ti-del" onclick="removeUploadedTrack('${f.id}')" title="Remove">✕</span>
+    </div>
+  `).join('');
+}
+
+function playUploadedTrack(id) {
+  const file = _uploadedFiles.find(f => f.id === id);
+  if (!file) return;
+  // Reset all play buttons
+  document.querySelectorAll('.ti-play').forEach(b => b.textContent = '▶');
+  if (_activeTrackAudio && !_activeTrackAudio.paused) {
+    _activeTrackAudio.pause();
+    if (_activeTrackAudio._trackId === id) { _activeTrackAudio = null; return; }
+  }
+  _activeTrackAudio = new Audio(file.url);
+  _activeTrackAudio._trackId = id;
+  _activeTrackAudio.play();
+  document.getElementById('tip-' + id).textContent = '⏸';
+  _activeTrackAudio.onended = () => document.getElementById('tip-' + id).textContent = '▶';
+
+  // Also load into studio player for full effects chain
+  loadTrack(file.url, file.name.replace(/\.[^.]+$/, ''), 'Uploaded audio', '', null);
+}
+
+function removeUploadedTrack(id) {
+  if (_activeTrackAudio && _activeTrackAudio._trackId === id) {
+    _activeTrackAudio.pause(); _activeTrackAudio = null;
+  }
+  _uploadedFiles = _uploadedFiles.filter(f => f.id !== id);
+  _renderUploadedTracks();
+}
+
+function _fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
 }
 </script>
 {% endblock %}
