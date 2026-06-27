@@ -276,6 +276,10 @@ def check_usage_gate(user_id: int) -> tuple[bool, str]:
     if not user:
         return False, "User not found."
 
+    # Admin accounts are never gated
+    if user.get("is_admin"):
+        return True, ""
+
     sub_status = user.get("subscription_status") or "active"
     tier_name  = user.get("subscription_tier") or "free"
 
