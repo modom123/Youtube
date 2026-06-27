@@ -12,17 +12,77 @@ import database as db
 
 HOLLYWOOD_PERSONA = """You are Hollywood, the AI production agent for Social Optimize's Studio 56.
 You are confident, creative, and speak like a seasoned Hollywood producer.
-You help users create viral content, manage their social media pipeline, and keep the system running smoothly.
-You have direct access to Studio 56 (the content generation studio) and can create content, check job status,
-list recent work, and configure the deployment.
-Be concise, punchy, and results-oriented. Use occasional Hollywood flair but keep it professional."""
+
+## Your Capabilities
+You have two modes for creating content:
+
+### 1. HOLLYWOOD MODE (Premium — use create_hollywood_video)
+For high-quality documentary, history, sports, or cinematic storytelling videos.
+Uses the full HollywoodEngine pipeline:
+- CinematicDirector crafts the film concept in 3-act structure
+- Screenwriter writes documentary-grade scenes
+- HollywoodAssetCurator designs a MIXED media plan:
+  * Higgsfield AI for dramatic/atmospheric/cinematic shots
+  * Real sports/historical stock footage (Pixabay) for authentic scenes
+  * Together these create documentary-quality video with real-looking content
+- This is the RIGHT mode for: World Cup history, sports legends, historical documentaries,
+  player profiles, stadium tours, championship retrospectives
+
+### 2. STANDARD MODE (Quick — use create_content)
+For general social media content, shorts, lifestyle, and commercial videos.
+Uses the standard 5-agent pipeline with Pexels/Pixabay stock + optional Higgsfield AI.
+
+## When the user asks for a high-quality, cinematic, or documentary video — use create_hollywood_video.
+## For World Cup, sports history, player bios, famous moments — ALWAYS use create_hollywood_video.
+
+## Higgsfield Platform
+Higgsfield is a full creative platform with:
+- AI video generation (cinematic_studio_3_0, kling3_0, veo3, seedance)
+- AI image generation (nano_banana_pro)
+- Stock photo and video library
+- Marketing studio for composed visuals
+The Hollywood pipeline leverages ALL of these — not just AI generation.
+
+Be concise, punchy, and results-oriented. Use occasional Hollywood flair but keep it professional.
+When a user asks for a video, immediately use the right tool — don't just describe what you'll do."""
 
 # ── Tool definitions ───────────────────────────────────────────────────────────
 
 TOOLS = [
     {
+        "name": "create_hollywood_video",
+        "description": "Create a PREMIUM cinematic documentary video using the full HollywoodEngine pipeline. Use this for sports history, World Cup, player profiles, historical documentaries, and any high-quality cinematic content. Combines Higgsfield AI (cinematic/atmospheric shots) with real sports stock footage for documentary-grade results.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "description": "The topic for the documentary film. Be specific: 'History of the FIFA World Cup — famous players, golden boots, iconic stadiums'"
+                },
+                "format": {
+                    "type": "string",
+                    "description": "Video format: 'long' (5-10 min documentary) or 'short' (60-90 sec highlight reel)",
+                    "enum": ["long", "short"],
+                    "default": "long"
+                },
+                "audience": {
+                    "type": "string",
+                    "description": "Target audience for the film",
+                    "default": "football fans worldwide"
+                },
+                "platforms": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Platforms to publish to",
+                    "default": ["youtube"]
+                }
+            },
+            "required": ["topic"]
+        }
+    },
+    {
         "name": "create_content",
-        "description": "Create a new content job in Studio 56. Kicks off the production pipeline for a given topic.",
+        "description": "Create a standard content job in Studio 56. Use for general social media content, shorts, and commercial videos. For high-quality documentaries and sports history, use create_hollywood_video instead.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -197,6 +257,85 @@ TOOLS = [
 ]
 
 # ── Tool implementations ───────────────────────────────────────────────────────
+
+def _tool_create_hollywood_video(topic: str, format: str = "long", platforms: list = None, audience: str = "football fans worldwide", user_id: int = None) -> dict:
+    """Launch the HollywoodEngine pipeline for a premium cinematic video."""
+    if platforms is None:
+        platforms = ["youtube"]
+    try:
+        import threading
+        from app import push_event
+        import database as db
+
+        target_duration = 600 if format == "long" else 90
+
+        job_id = db.create_job(
+            topic=topic,
+            format=format,
+            platforms=platforms,
+            audience=audience,
+            voice=config.GOOGLE_TTS_VOICE if config.GOOGLE_API_KEY else "en-US-GuyNeural",
+            style="fire",
+            privacy="private",
+            skip_research=False,
+            user_id=user_id,
+        )
+
+        def _run_hollywood(jid, t, fmt, aud, uid):
+            try:
+                from generators.hollywood_engine import HollywoodEngine
+                from pathlib import Path
+                from utils import file_manager
+
+                def progress(msg, pct):
+                    db.update_job(jid, current_step=msg, progress=pct)
+                    try:
+                        push_event(str(uid or "anon"), jid, {"step": msg, "progress": pct})
+                    except Exception:
+                        pass
+
+                engine = HollywoodEngine(progress_callback=progress)
+                job_dir = file_manager.job_dir(t, "hollywood")
+                result = engine.run(
+                    topic=t,
+                    target_duration=target_duration,
+                    audience=aud,
+                    is_portrait=(fmt == "short"),
+                    job_dir=job_dir,
+                )
+
+                if result.video_path and Path(result.video_path).exists():
+                    db.update_job(
+                        jid,
+                        status="done",
+                        progress=100,
+                        title=result.seo.title_final if result.seo else t,
+                        video_path=result.video_path,
+                        audio_path=result.audio_path,
+                        thumbnail_path=result.thumbnail_path,
+                        manifest_path=result.manifest_path,
+                        current_step="Hollywood production complete!",
+                    )
+                else:
+                    err = "; ".join(result.errors[:3]) if result.errors else "Unknown error"
+                    db.update_job(jid, status="error", error_msg=err, current_step="Failed")
+            except Exception as e:
+                db.update_job(jid, status="error", error_msg=str(e), current_step="Failed")
+
+        t = threading.Thread(target=_run_hollywood, args=(job_id, topic, format, audience, user_id), daemon=True)
+        t.start()
+
+        return {
+            "job_id": job_id,
+            "status": "running",
+            "mode": "hollywood",
+            "topic": topic,
+            "format": format,
+            "message": f"Hollywood pipeline started! Job #{job_id}. Using CinematicDirector + Screenwriter + mixed Higgsfield AI + real sports footage. Check job status at /jobs/{job_id}.",
+        }
+    except Exception as e:
+        return {"error": str(e), "topic": topic}
+
 
 def _tool_create_content(topic: str, format: str = "short", platforms: list = None, audience: str = "general public", user_id: int = None) -> dict:
     """Create a content job via the same pipeline as /api/create."""
@@ -475,7 +614,15 @@ def _tool_test_stripe_webhook(stripe_api_key: str, webhook_id: str, event_type: 
 def _dispatch_tool(tool_name: str, tool_input: dict, user_id: int = None) -> str:
     """Execute a tool and return its result as a JSON string."""
     try:
-        if tool_name == "create_content":
+        if tool_name == "create_hollywood_video":
+            result = _tool_create_hollywood_video(
+                topic=tool_input["topic"],
+                format=tool_input.get("format", "long"),
+                platforms=tool_input.get("platforms", ["youtube"]),
+                audience=tool_input.get("audience", "football fans worldwide"),
+                user_id=user_id,
+            )
+        elif tool_name == "create_content":
             result = _tool_create_content(
                 topic=tool_input["topic"],
                 format=tool_input.get("format", "short"),

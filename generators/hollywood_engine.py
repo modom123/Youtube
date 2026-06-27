@@ -1,8 +1,10 @@
 """
-HollywoodEngine — 100% premium AI-only cinematic production pipeline.
+HollywoodEngine — Premium mixed-media cinematic production pipeline.
 
-Uses specialised subagents with Hollywood-grade prompts.
-Every asset is Higgsfield AI-generated — no stock footage fallback.
+Combines Higgsfield AI generation (atmospheric/cinematic shots) with
+Pixabay/Mixkit real sports footage for documentary-grade World Cup,
+history, and sports videos. No longer AI-only — uses the best source
+for each type of shot.
 """
 from __future__ import annotations
 import json
@@ -102,6 +104,8 @@ Your persona: Scene-builder. Every section is a SCENE with its own arc. You writ
 - Every visual_direction must specify: camera angle, camera distance, camera movement, lighting mood
 - Narration must sound like a documentary voiceover — authoritative, measured, emotionally resonant
 - thumbnail_prompt must describe a single powerful image from the film (not text/graphics)
+- b_roll_keywords: use SPECIFIC SEARCHABLE TERMS like "world cup trophy", "soccer stadium crowd",
+  "football celebration", "penalty kick stadium" — not generic words
 
 ## Guardrails
 - Never pad — if the story is told, end the scene
@@ -111,51 +115,75 @@ Your persona: Scene-builder. Every section is a SCENE with its own arc. You writ
 
 class HollywoodAssetCurator(AssetCurator):
     """
-    Replaces AssetCurator with a 100% premium AI curator.
-    No Pexels, no stock footage — every clip is Higgsfield cinematic.
+    Mixed-media Hollywood curator.
+    Uses Higgsfield AI for cinematic/atmospheric shots.
+    Uses Pixabay for real sports footage and historical-looking scenes.
+    Picks the best source for each type of shot.
     """
     name = "Hollywood Asset Curator"
     max_tokens = 4096
-    system_prompt = """You are the Hollywood Asset Curator — a visual effects supervisor for premium AI-generated films. Your standard is theatrical release quality.
+    system_prompt = """You are the Hollywood Asset Curator — a visual effects supervisor for premium documentary films. Your standard is theatrical release quality.
 
-Your persona: Uncompromising perfectionist. Budget is irrelevant. Every frame must be cinematic.
+Your persona: Smart strategist. You know WHICH tool to use for WHICH shot. Not everything needs to be AI-generated — real sports footage is more powerful for documentary subjects.
 
-## ABSOLUTE RULES
-1. EVERY asset MUST use source=higgsfield_cinematic
-2. EVERY asset MUST use model cinematic_studio_3_0 or kling3_0 — no exceptions
-3. NEVER use free_pixabay_api, free_stock_internal, or any other source
-4. Budget is unlimited — always choose quality
-5. All assets have priority=1 (everything is essential in a Hollywood production)
+## SOURCE SELECTION RULES
 
-## Shot Description Standards
-Each prompt MUST describe ALL of the following (minimum 15 words):
-- Camera angle: (low-angle / eye-level / high-angle / Dutch angle / POV / overhead)
-- Camera distance: (extreme close-up / close-up / medium / wide / establishing / extreme wide)
-- Camera movement: (static / slow push-in / pull-back / tracking / pan / tilt / handheld / crane)
-- Lighting mood: (golden hour / blue hour / high-key / low-key / silhouette / harsh noon / warm interior / cold clinical)
-- Visual style: (shallow depth of field / deep focus / anamorphic / film grain / hyper-real)
-- Subject/scene content: specific and visual, not abstract
+### Use source=higgsfield_cinematic for:
+- Dramatic atmospheric shots (trophy reveal, golden light, epic stadium at night)
+- Abstract/symbolic visuals (spinning ball, stadium silhouette at sunset)
+- Emotional transition shots (slow-motion crowd reaction, confetti falling)
+- Any shot requiring precise cinematic control (specific lighting, era look)
+- Model: cinematic_studio_3_0 (8 credits) for dramatic, atmospheric
+- Model: kling3_0 (10 credits) for action shots with precise motion
 
-## Example Prompts (use as quality benchmark)
-- "Low-angle tracking shot of a lone figure walking through an abandoned city street at blue hour, shallow depth of field, film grain, anamorphic lens flare, muted palette with warm amber streetlights"
-- "Extreme close-up static shot of weathered hands opening an old letter, golden hour light streaming through dusty window, crisp focus on paper texture, emotional weight"
-- "Wide establishing crane shot rising above mountain peaks at dawn, golden hour, sweeping scale, epic and solitary mood"
+### Use source=free_pixabay_api for:
+- Real sports footage (actual soccer/football games, real stadium content)
+- Player action shots (goal celebrations, team formations)
+- Historical documentary-style content (use era-specific keywords)
+- Crowd scenes with authentic energy
+- Golden Boot trophy shots, FIFA World Cup venue visuals
+- PROMPT = Pixabay search query (keep under 5 words, specific): "soccer world cup final", "football goal celebration", "stadium night match", "golden trophy soccer"
 
-## Model Selection
-- cinematic_studio_3_0 (8 credits): Default for all dramatic, emotional, atmospheric shots
-- kling3_0 (10 credits): Use for complex multi-character scenes, fast action, or shots requiring precise physics
+## DOCUMENTARY APPROACH (for sports/history topics)
+For each scene, ask: "Is this shot more powerful as REAL footage or CINEMATIC AI?"
+- Real match action → free_pixabay_api
+- Trophy/award reveal → higgsfield_cinematic (more dramatic control)
+- Player celebration → free_pixabay_api
+- Epic establishing shot of stadium → higgsfield_cinematic
+- Fan reaction → free_pixabay_api
+- Historical era atmosphere → higgsfield_cinematic (can style to specific decade)
 
-## Credit Costs
+## HIGGSFIELD PROMPT STANDARDS (when using AI generation)
+Each prompt MUST describe (minimum 15 words):
+- Camera: angle + distance + movement
+- Lighting: specific mood (golden hour / stadium floodlights / vintage film look)
+- Era styling: "1970s film grain", "80s VHS look", "modern 4K"
+- Subject: specific and evocative (never generic)
+
+## ERA-SPECIFIC EXAMPLES FOR WORLD CUP
+- 1958/1970: "Wide shot of football match in sunlit stadium, vintage 1970s Super 8 film grain, yellow-green color grade, euphoric crowd, warm nostalgic atmosphere"
+- 1986: "Low-angle tracking shot of lone footballer with ball in dusty stadium, golden afternoon light, 1980s VHS texture, cinematic and legendary"
+- 2002/2006: "Night match in modern stadium, electric blue floodlights, crowd holding scarves and flags, dynamic energy, documentary style"
+- 2022 Qatar: "Ultra-modern stadium at night, architectural lighting, global flags, 4K crisp, futuristic World Cup atmosphere"
+- Trophy: "FIFA World Cup trophy gleaming under spotlight, rotating slowly, golden light, black background, cinematic product shot, 4K"
+- Golden Boot: "Close-up of golden football boot award on pedestal, dramatic side lighting, shallow depth of field, trophy texture detail"
+
+## CREDIT COSTS
 - cinematic_studio_3_0: 8 credits per clip
-- kling3_0: 10 credits per clip"""
+- kling3_0: 10 credits per clip
+- free_pixabay_api: 0 credits
+
+## BUDGET STRATEGY
+Mix ~50% Higgsfield (cinematic key shots) + ~50% Pixabay (real sports content).
+This delivers maximum impact: cinematic quality where it matters, authentic footage where it's more powerful."""
 
 
 # ── Hollywood Engine ──────────────────────────────────────────────────────────
 
 class HollywoodEngine:
     """
-    100% premium AI-only cinematic production pipeline.
-    All assets are Higgsfield-generated. No stock footage fallback.
+    Premium mixed-media cinematic production pipeline.
+    Combines Higgsfield AI generation with real sports stock footage.
     """
 
     def __init__(self, progress_callback: ProgressCallback = _noop):
@@ -179,7 +207,7 @@ class HollywoodEngine:
         job_dir: Optional[Path] = None,
     ) -> ProductionResult:
         """
-        Full Hollywood pipeline: topic → cinematic agents → all-Higgsfield assets → video.
+        Full Hollywood pipeline: topic → cinematic agents → mixed Higgsfield+stock assets → video.
         """
         from generators import audio_generator, video_generator, media_fetcher, thumbnail_generator
         from generators.researcher import research_topic, brief_to_context
@@ -266,7 +294,7 @@ class HollywoodEngine:
                 errors=errors,
             )
 
-        # ── HollywoodAssetCurator → AssetPlan (all Higgsfield) ───────────────
+        # ── HollywoodAssetCurator → AssetPlan (mixed Higgsfield + Pixabay) ──
         self.cb("Visual Planning — HollywoodAssetCurator designing shots…", 38)
         raw_asset_plan: AssetPlan | None = None
         try:
@@ -283,50 +311,50 @@ class HollywoodEngine:
                 free_asset_count=0, paid_asset_count=0, notes="failed",
             )
 
-        # Build optimized plan (no cost engineering — budget is unlimited)
-        # Enforce that ALL assets are Higgsfield cinematic
-        enforced_assets = []
-        for a in raw_asset_plan.assets:
-            if not a.source.startswith("higgsfield_"):
-                # Force to higgsfield_cinematic
-                a = AssetSpec(
-                    section_id=a.section_id,
-                    asset_type=a.asset_type,
-                    source="higgsfield_cinematic",
-                    prompt=a.prompt if len(a.prompt) > 10 else f"Cinematic shot: {a.prompt}. Dramatic lighting, professional film quality, shallow depth of field.",
-                    model_key="cinematic_studio_3_0",
-                    duration_seconds=a.duration_seconds,
-                    aspect_ratio=a.aspect_ratio,
-                    credit_cost=8,
-                    priority=1,
-                )
-            enforced_assets.append(a)
+        # Build mixed asset plan — respect the curator's source decisions
+        aspect = "9:16" if is_portrait else "16:9"
+        planned_assets = list(raw_asset_plan.assets) if raw_asset_plan.assets else []
 
-        # If no assets were planned, generate one per script section (up to 8)
-        if not enforced_assets and script.sections:
-            aspect = "9:16" if is_portrait else "16:9"
-            for section in script.sections[:8]:
+        # If no assets were planned, auto-generate a mixed plan from script sections
+        if not planned_assets and script.sections:
+            for i, section in enumerate(script.sections[:8]):
                 visual_dir = section.visual_direction or section.label
-                enforced_assets.append(AssetSpec(
-                    section_id=section.section_id,
-                    asset_type="video_clip",
-                    source="higgsfield_cinematic",
-                    prompt=f"Cinematic shot: {visual_dir[:200]}. Dramatic lighting, slow camera push-in, shallow depth of field, film grain.",
-                    model_key="cinematic_studio_3_0",
-                    duration_seconds=section.duration_seconds,
-                    aspect_ratio=aspect,
-                    credit_cost=8,
-                    priority=1,
-                ))
+                # Alternate: even sections get Pixabay sports, odd get Higgsfield cinematic
+                if i % 2 == 0 and section.b_roll_keywords:
+                    # Use Pixabay for real-looking shots
+                    planned_assets.append(AssetSpec(
+                        section_id=section.section_id,
+                        asset_type="video_clip",
+                        source="free_pixabay_api",
+                        prompt=" ".join(section.b_roll_keywords[:3]),
+                        model_key=None,
+                        duration_seconds=section.duration_seconds,
+                        aspect_ratio=aspect,
+                        credit_cost=0,
+                        priority=1,
+                    ))
+                else:
+                    # Use Higgsfield for dramatic cinematic shots
+                    planned_assets.append(AssetSpec(
+                        section_id=section.section_id,
+                        asset_type="video_clip",
+                        source="higgsfield_cinematic",
+                        prompt=f"Cinematic shot: {visual_dir[:200]}. Dramatic lighting, slow camera push-in, shallow depth of field, film grain.",
+                        model_key="cinematic_studio_3_0",
+                        duration_seconds=section.duration_seconds,
+                        aspect_ratio=aspect,
+                        credit_cost=8,
+                        priority=1,
+                    ))
 
-        total_credits = sum(a.credit_cost for a in enforced_assets)
+        total_credits = sum(a.credit_cost for a in planned_assets if a.source.startswith("higgsfield_"))
         asset_plan = OptimizedAssetPlan(
-            assets=enforced_assets,
+            assets=planned_assets,
             total_credit_cost=total_credits,
             budget_state="healthy",
             credits_remaining_after=max(0, 9999 - total_credits),
             swaps_made=[],
-            quality_impact="100% premium Higgsfield AI — cinematic_studio_3_0 throughout",
+            quality_impact="Mixed: Higgsfield AI cinematics + real sports stock footage",
         )
         (job_dir / "asset_plan_optimised.json").write_text(asset_plan.model_dump_json(indent=2))
 
@@ -353,49 +381,113 @@ class HollywoodEngine:
             errors.append(f"Audio generation failed: {e}")
             duration = target_duration
 
-        # ── Generate ALL clips via Higgsfield — no Pexels ────────────────────
+        # ── Fetch/generate assets: Pixabay stock + Higgsfield AI ─────────────
+        stock_dir = job_dir / "stock"
         ai_clips_dir = job_dir / "ai_clips"
+        stock_dir.mkdir(parents=True, exist_ok=True)
         ai_clips_dir.mkdir(parents=True, exist_ok=True)
-        ai_clips: list[Path] = []
 
+        all_video_clips: list[Path] = []
+        all_image_clips: list[Path] = []
+        ai_clips_generated = 0
+
+        pixabay_assets = [a for a in asset_plan.assets if a.source == "free_pixabay_api"]
         higgsfield_assets = [a for a in asset_plan.assets if a.source.startswith("higgsfield_")]
-        clips_to_generate = higgsfield_assets[:8]  # Up to 8 clips
 
-        if clips_to_generate and config.HIGGSFIELD_MCP_TOKEN:
-            self.cb(f"AI Cinematography — generating {len(clips_to_generate)} Higgsfield clips…", 62)
+        # ── Step A: Fetch Pixabay/Mixkit stock for real sports footage ────────
+        if pixabay_assets:
+            self.cb(f"Sourcing real sports footage — {len(pixabay_assets)} clips…", 60)
+            for pa in pixabay_assets:
+                query = pa.prompt.strip()
+                if not query:
+                    continue
+                try:
+                    clips, imgs = media_fetcher.fetch_media_for_topic(
+                        keywords=[query],
+                        output_dir=stock_dir,
+                        video_count=2,
+                        is_portrait=is_portrait,
+                    )
+                    all_video_clips.extend(clips)
+                    all_image_clips.extend(imgs)
+                except Exception as e:
+                    errors.append(f"Stock fetch failed for '{query}': {e}")
+
+        # Always add Mixkit sports clips as guaranteed base layer for sports topics
+        topic_lower = topic.lower()
+        is_sports_topic = any(w in topic_lower for w in [
+            "world cup", "soccer", "football", "champion", "player", "stadium",
+            "sport", "game", "league", "fifa", "nfl", "nba", "olympic",
+        ])
+        if is_sports_topic:
+            try:
+                self.cb("Loading sports footage library…", 63)
+                mixkit_clips = media_fetcher._mixkit_fetch_videos(
+                    ["sports", "soccer", "football"], count=4, output_dir=stock_dir
+                )
+                all_video_clips.extend(mixkit_clips)
+            except Exception as e:
+                errors.append(f"Mixkit sports fetch failed: {e}")
+
+        # ── Step B: Generate Higgsfield AI clips for cinematic shots ──────────
+        if higgsfield_assets and config.HIGGSFIELD_MCP_TOKEN:
+            clips_to_generate = higgsfield_assets[:6]
+            self.cb(f"AI Cinematography — generating {len(clips_to_generate)} Higgsfield cinematic clips…", 68)
             try:
                 prompts = [a.prompt for a in clips_to_generate]
-                aspect = clips_to_generate[0].aspect_ratio if clips_to_generate else ("9:16" if is_portrait else "16:9")
+                model_id = clips_to_generate[0].model_key or "cinematic_studio_3_0"
                 ai_clips = higgsfield_mcp.generate_clips_via_mcp(
                     prompts=prompts,
                     output_dir=ai_clips_dir,
-                    model_id="cinematic_studio_3_0",
+                    model_id=model_id,
                     aspect_ratio=aspect,
                 )
+                all_video_clips.extend(ai_clips)
+                ai_clips_generated = len(ai_clips)
             except Exception as e:
                 errors.append(f"Higgsfield clip generation failed: {e}")
 
-        # Fallback: if ALL clips failed, fetch minimal Pexels stock so video can assemble
-        stock_clips: list[Path] = []
-        stock_images: list[Path] = []
-        if not ai_clips:
-            errors.append("All Higgsfield clips failed — falling back to 2 Pexels clips for assembly")
+        elif higgsfield_assets and not config.HIGGSFIELD_MCP_TOKEN:
+            # No Higgsfield token — use Pixabay for the higgsfield-planned shots too
+            self.cb("Higgsfield not connected — using expanded stock footage…", 68)
+            for ha in higgsfield_assets[:4]:
+                query_words = ha.b_roll_keywords[:3] if hasattr(ha, 'b_roll_keywords') and ha.b_roll_keywords else []
+                if not query_words:
+                    # Extract searchable terms from the cinematic prompt
+                    import re
+                    words = re.findall(r'\b(?:soccer|football|stadium|crowd|trophy|goal|player|match|sport)\b',
+                                       ha.prompt, re.I)
+                    query_words = words[:3] or ["soccer"]
+                try:
+                    clips, imgs = media_fetcher.fetch_media_for_topic(
+                        keywords=query_words,
+                        output_dir=stock_dir,
+                        video_count=1,
+                        is_portrait=is_portrait,
+                    )
+                    all_video_clips.extend(clips)
+                    all_image_clips.extend(imgs)
+                except Exception:
+                    pass
+
+        # Final fallback: ensure we have at least some video content
+        if not all_video_clips:
+            errors.append("No clips generated — using default sports stock")
             try:
-                stock_dir = job_dir / "stock"
-                fallback_keywords = script.sections[0].b_roll_keywords[:2] if script.sections else [topic]
-                stock_clips, stock_images = media_fetcher.fetch_media_for_topic(
-                    keywords=fallback_keywords,
+                fallback_kw = script.sections[0].b_roll_keywords[:2] if script.sections else [topic]
+                clips, imgs = media_fetcher.fetch_media_for_topic(
+                    keywords=fallback_kw,
                     output_dir=stock_dir,
-                    video_count=2,
+                    video_count=3,
                     is_portrait=is_portrait,
                 )
+                all_video_clips.extend(clips)
+                all_image_clips.extend(imgs)
             except Exception as e:
-                errors.append(f"Pexels fallback also failed: {e}")
-
-        all_video_clips = ai_clips + list(stock_clips)
+                errors.append(f"Fallback also failed: {e}")
 
         # ── AI Thumbnail via Higgsfield ───────────────────────────────────────
-        self.cb("AI Thumbnail — generating cinematic thumbnail…", 78)
+        self.cb("AI Thumbnail — generating cinematic thumbnail…", 80)
         thumbnail_path = job_dir / "thumbnail.jpg"
         ai_thumbnail_used = False
 
@@ -415,11 +507,12 @@ class HollywoodEngine:
                 errors.append(f"AI thumbnail generation failed: {e}")
 
         if not ai_thumbnail_used:
+            bg_image = all_image_clips[0] if all_image_clips else None
             try:
                 thumbnail_generator.generate_thumbnail(
                     title=seo.thumbnail_text or blueprint.title,
                     output_path=thumbnail_path,
-                    background_image_path=stock_images[0] if stock_images else None,
+                    background_image_path=bg_image,
                     style=thumbnail_style,
                     width=1280,
                     height=720,
@@ -428,7 +521,7 @@ class HollywoodEngine:
                 errors.append(f"Fallback thumbnail failed: {e}")
 
         # ── Assemble final video ──────────────────────────────────────────────
-        self.cb("Final Cut — assembling Hollywood film…", 85)
+        self.cb("Final Cut — assembling Hollywood film…", 87)
         video_path = job_dir / "video.mp4"
         width = config.SHORT_WIDTH if is_portrait else config.VIDEO_WIDTH
         height = config.SHORT_HEIGHT if is_portrait else config.VIDEO_HEIGHT
@@ -446,7 +539,7 @@ class HollywoodEngine:
                 audio_path=audio_path,
                 output_path=video_path,
                 video_clips=all_video_clips,
-                image_clips=list(stock_images),
+                image_clips=all_image_clips,
                 thumbnail_path=thumbnail_path,
                 width=width,
                 height=height,
@@ -457,7 +550,7 @@ class HollywoodEngine:
             errors.append(f"Video assembly failed: {e}")
 
         # ── Save manifest ─────────────────────────────────────────────────────
-        self.cb("Saving manifest…", 95)
+        self.cb("Saving manifest…", 96)
         manifest = {
             "niche": topic,
             "mode": "hollywood",
@@ -467,7 +560,8 @@ class HollywoodEngine:
             "blueprint": blueprint.model_dump(),
             "asset_plan": asset_plan.model_dump(),
             "seo": seo.model_dump(),
-            "ai_clips_generated": len(ai_clips),
+            "ai_clips_generated": ai_clips_generated,
+            "stock_clips_used": len(all_video_clips) - ai_clips_generated,
             "ai_thumbnail_used": ai_thumbnail_used,
             "files": {
                 "video": str(video_path),
@@ -476,6 +570,7 @@ class HollywoodEngine:
             },
             "errors": errors,
         }
+        from utils import file_manager
         file_manager.save_manifest(job_dir, manifest)
 
         result = ProductionResult(
