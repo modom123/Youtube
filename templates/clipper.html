@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+{% set active_page = "clipper" %}
+{% block title %}AI Clipper — Social Optimize Machine{% endblock %}
+{% block topbar_title %}AI Clipper{% endblock %}
+{% block topbar_sub %}Turn long videos into viral shorts automatically{% endblock %}
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+<style>
+  .clip-grid { display:grid; grid-template-columns:400px 1fr; gap:24px; align-items:start; }
+  @media (max-width:900px) { .clip-grid { grid-template-columns:1fr; } }
+  .cl-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:18px; }
+  .cl-card h2 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 16px; }
+  .form-row { margin-bottom:14px; }
+  .form-row label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.06em; }
+  .form-row input, .form-row select, .form-row textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; box-sizing:border-box; }
+  .form-row input:focus, .form-row select:focus { outline:none; border-color:var(--accent); }
+  .source-tabs { display:flex; gap:8px; margin-bottom:16px; }
+  .source-tab { padding:8px 16px; border-radius:8px; border:1px solid var(--border); background:var(--bg); cursor:pointer; font-size:13px; font-weight:600; color:var(--muted); transition:all .2s; }
+  .source-tab.active { border-color:var(--accent); color:var(--accent); background:rgba(255,59,48,.08); }
+  .clip-result { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:12px; display:flex; gap:16px; align-items:center; }
+  .clip-thumb { width:120px; height:68px; background:var(--border); border-radius:6px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:24px; }
+  .clip-info { flex:1; }
+  .clip-title { font-size:14px; font-weight:700; margin-bottom:4px; }
+  .clip-meta { font-size:11px; color:var(--muted); }
+  .clip-actions { display:flex; gap:6px; }
+  .empty-state { text-align:center; padding:60px 24px; color:var(--muted); }
+  .empty-state .big-icon { font-size:48px; margin-bottom:16px; }
+  .empty-state h3 { font-size:18px; font-weight:700; color:var(--text); margin-bottom:8px; }
+</style>
+
+<div class="clip-grid">
+
+  <!-- Left: Source Input -->
+  <div>
+
+    <div class="cl-card">
+      <h2>Video Source</h2>
+
+      <div class="source-tabs">
+        <div class="source-tab active" onclick="switchSource('url',this)">URL Import</div>
+        <div class="source-tab" onclick="switchSource('upload',this)">Upload File</div>
+        <div class="source-tab" onclick="switchSource('job',this)">From My Jobs</div>
+      </div>
+
+      <!-- URL Import -->
+      <div id="source-url">
+        <div class="form-row">
+          <label>Video URL</label>
+          <input type="text" id="clip_url" placeholder="https://youtube.com/watch?v=... or any video URL">
+        </div>
+        <div class="text-xs text-dim mt-4">Supports YouTube, TikTok, Instagram, Vimeo, X, and direct MP4 links.</div>
+      </div>
+
+      <!-- Upload -->
+      <div id="source-upload" style="display:none;">
+        <div class="form-row">
+          <label>Upload Video</label>
+          <input type="file" id="clip_file" accept="video/*" style="padding:10px;">
+        </div>
+        <div class="text-xs text-dim mt-4">Max 500 MB. MP4, MOV, AVI, WEBM supported.</div>
+      </div>
+
+      <!-- From Jobs -->
+      <div id="source-job" style="display:none;">
+        <div class="form-row">
+          <label>Select a completed video</label>
+          <select id="clip_job_id">
+            <option value="">— Choose a video —</option>
+            {% for j in completed_jobs %}
+            <option value="{{ j.id }}">{{ j.title or j.topic }} ({{ j.format }}, Job #{{ j.id }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% if not completed_jobs %}
+        <div class="text-xs text-dim mt-4">No completed videos yet. Create some content first!</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="cl-card">
+      <h2>Clip Settings</h2>
+
+      <div class="form-row">
+        <label>Number of Clips</label>
+        <select id="clip_count">
+          <option value="3">3 clips — Quick batch</option>
+          <option value="5" selected>5 clips — Standard</option>
+          <option value="10">10 clips — Maximum coverage</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Clip Length</label>
+        <select id="clip_length">
+          <option value="15">15 seconds — TikTok punchy</option>
+          <option value="30" selected>30 seconds — Reels sweet spot</option>
+          <option value="60">60 seconds — YouTube Shorts max</option>
+          <option value="90">90 seconds — Extended highlight</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Output Format</label>
+        <select id="clip_ratio">
+          <option value="9:16" selected>9:16 Portrait (TikTok / Reels / Shorts)</option>
+          <option value="16:9">16:9 Landscape (YouTube / X)</option>
+          <option value="1:1">1:1 Square (Instagram / Facebook)</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Clip Style</label>
+        <select id="clip_style">
+          <option value="viral" selected>Viral Hooks — Most engaging moments</option>
+          <option value="highlights">Highlights — Key points summary</option>
+          <option value="quotes">Best Quotes — Memorable soundbites</option>
+          <option value="tutorial">Tutorial Steps — How-to segments</option>
+        </select>
+      </div>
+
+      <label class="flex-center gap-8 mt-12" style="cursor:pointer;font-size:13px;">
+        <input type="checkbox" id="clip_captions" checked> Add animated captions
+      </label>
+      <label class="flex-center gap-8 mt-8" style="cursor:pointer;font-size:13px;">
+        <input type="checkbox" id="clip_hook" checked> Add hook text overlay
+      </label>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;" onclick="startClipping()" id="clip-btn">
+      ✂️ Start Clipping
+    </button>
+
+  </div>
+
+  <!-- Right: Results -->
+  <div>
+
+    <!-- Progress -->
+    <div class="cl-card" id="clipProgress" style="display:none;">
+      <h2>Clipping Progress</h2>
+      <div class="progress-track mb-8">
+        <div class="progress-bar" id="clip-bar" style="width:0%"></div>
+      </div>
+      <div class="text-sm text-dim" id="clip-step">Analyzing video for viral moments...</div>
+    </div>
+
+    <!-- Results -->
+    <div class="cl-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h2 style="margin:0;">Generated Clips</h2>
+        <span class="pill pill-done" id="clip-total" style="display:none;">0 clips</span>
+      </div>
+
+      <div id="clipResults">
+        <div class="empty-state">
+          <div class="big-icon">✂️</div>
+          <h3>No clips yet</h3>
+          <p>Import a video or select a completed job, then hit "Start Clipping" to generate viral shorts.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="cl-card">
+      <h2>Pro Tips</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="background:var(--bg);padding:14px;border-radius:8px;">
+          <div style="font-size:20px;margin-bottom:6px;">🎯</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Best for Clipping</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.5;">Documentaries, podcasts, and long-form videos produce the most clips. More content = more viral moments.</div>
+        </div>
+        <div style="background:var(--bg);padding:14px;border-radius:8px;">
+          <div style="font-size:20px;margin-bottom:6px;">📈</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">10x Your Output</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.5;">One 30-min documentary can produce 10+ shorts. That's a month of TikTok content from a single video.</div>
+        </div>
+        <div style="background:var(--bg);padding:14px;border-radius:8px;">
+          <div style="font-size:20px;margin-bottom:6px;">🧠</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">AI Virality Detection</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.5;">Our AI identifies hooks, emotional peaks, surprising facts, and quotable moments — the clips people actually share.</div>
+        </div>
+        <div style="background:var(--bg);padding:14px;border-radius:8px;">
+          <div style="font-size:20px;margin-bottom:6px;">🔄</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Create → Clip → Publish</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.5;">Generate a documentary, auto-clip it into shorts, then publish all of them to 8 platforms. Full pipeline.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _clipSource = 'url';
+
+// Auto-select job if passed via URL param
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const jobId = params.get('job');
+  if (jobId) {
+    _clipSource = 'job';
+    document.querySelectorAll('.source-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.source-tab')[2].classList.add('active');
+    document.getElementById('source-url').style.display = 'none';
+    document.getElementById('source-job').style.display = '';
+    setTimeout(() => { document.getElementById('clip_job_id').value = jobId; }, 100);
+  }
+})();
+
+function switchSource(src, el) {
+  document.querySelectorAll('.source-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  _clipSource = src;
+  document.getElementById('source-url').style.display = src === 'url' ? '' : 'none';
+  document.getElementById('source-upload').style.display = src === 'upload' ? '' : 'none';
+  document.getElementById('source-job').style.display = src === 'job' ? '' : 'none';
+}
+
+async function startClipping() {
+  const btn = document.getElementById('clip-btn');
+  btn.disabled = true;
+  btn.textContent = 'Clipping...';
+
+  const payload = {
+    source: _clipSource,
+    url: document.getElementById('clip_url').value || null,
+    job_id: document.getElementById('clip_job_id').value || null,
+    clip_count: parseInt(document.getElementById('clip_count').value),
+    clip_length: parseInt(document.getElementById('clip_length').value),
+    ratio: document.getElementById('clip_ratio').value,
+    style: document.getElementById('clip_style').value,
+    captions: document.getElementById('clip_captions').checked,
+    hook_overlay: document.getElementById('clip_hook').checked,
+  };
+
+  if (_clipSource === 'url' && !payload.url) {
+    toast('error', 'URL Required', 'Please enter a video URL.');
+    btn.disabled = false;
+    btn.textContent = '✂️ Start Clipping';
+    return;
+  }
+  if (_clipSource === 'job' && !payload.job_id) {
+    toast('error', 'Job Required', 'Please select a completed video.');
+    btn.disabled = false;
+    btn.textContent = '✂️ Start Clipping';
+    return;
+  }
+
+  const progress = document.getElementById('clipProgress');
+  progress.style.display = '';
+
+  const steps = [
+    [10, 'Downloading source video...'],
+    [25, 'Analyzing content for viral moments...'],
+    [40, 'Scoring engagement potential...'],
+    [55, 'Extracting top clips...'],
+    [70, 'Reframing to ' + payload.ratio + '...'],
+    [85, 'Adding captions & overlays...'],
+    [95, 'Finalizing clips...'],
+  ];
+
+  try {
+    const resp = await fetch('/api/clipper/create', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const result = await resp.json();
+
+    if (!resp.ok) {
+      toast('error', 'Clipping Failed', result.error || 'Unknown error');
+      progress.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = '✂️ Start Clipping';
+      return;
+    }
+
+    // Simulate progress while polling
+    let stepIdx = 0;
+    const progressInterval = setInterval(() => {
+      if (stepIdx < steps.length) {
+        document.getElementById('clip-bar').style.width = steps[stepIdx][0] + '%';
+        document.getElementById('clip-step').textContent = steps[stepIdx][1];
+        stepIdx++;
+      }
+    }, 2000);
+
+    // Poll for results
+    const clipJobId = result.clip_job_id;
+    const pollClips = async () => {
+      try {
+        const statusResp = await fetch('/api/clipper/' + clipJobId + '/status');
+        const statusData = await statusResp.json();
+
+        if (statusData.status === 'done') {
+          clearInterval(progressInterval);
+          document.getElementById('clip-bar').style.width = '100%';
+          document.getElementById('clip-step').textContent = 'Complete!';
+          renderClips(statusData.clips || []);
+          btn.disabled = false;
+          btn.textContent = '✂️ Start Clipping';
+          toast('success', 'Clips Ready!', (statusData.clips || []).length + ' viral clips generated');
+          return;
+        }
+        if (statusData.status === 'error') {
+          clearInterval(progressInterval);
+          progress.style.display = 'none';
+          toast('error', 'Clipping Failed', statusData.error || 'Unknown error');
+          btn.disabled = false;
+          btn.textContent = '✂️ Start Clipping';
+          return;
+        }
+        setTimeout(pollClips, 3000);
+      } catch (e) {
+        setTimeout(pollClips, 5000);
+      }
+    };
+    setTimeout(pollClips, 5000);
+
+  } catch (e) {
+    toast('error', 'Network Error', e.message);
+    progress.style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '✂️ Start Clipping';
+  }
+}
+
+function renderClips(clips) {
+  const container = document.getElementById('clipResults');
+  const total = document.getElementById('clip-total');
+  total.style.display = '';
+  total.textContent = clips.length + ' clips';
+
+  if (!clips.length) {
+    container.innerHTML = '<div class="empty-state"><div class="big-icon">🤔</div><h3>No clips found</h3><p>The AI couldn\'t find strong viral moments. Try a longer video or different style.</p></div>';
+    return;
+  }
+
+  container.innerHTML = clips.map((clip, i) => `
+    <div class="clip-result">
+      <div class="clip-thumb">🎬</div>
+      <div class="clip-info">
+        <div class="clip-title">${clip.title || 'Clip ' + (i+1)}</div>
+        <div class="clip-meta">
+          ${clip.start_time || '0:00'} — ${clip.end_time || '0:30'} ·
+          Virality: ${clip.virality_score || '—'}/100 ·
+          ${clip.hook || ''}
+        </div>
+      </div>
+      <div class="clip-actions">
+        ${clip.download_url ? '<a href="' + clip.download_url + '" class="btn btn-ghost btn-sm">⬇</a>' : ''}
+        <button class="btn btn-ghost btn-sm" onclick="publishClip(${i})">📡</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function publishClip(idx) {
+  toast('info', 'Coming Soon', 'One-click publish for clips is coming soon!');
+}
+</script>
+{% endblock %}

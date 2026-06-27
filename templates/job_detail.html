@@ -7,6 +7,7 @@
 {% block topbar_actions %}
 <a href="/jobs" class="btn btn-ghost">← Back to Jobs</a>
 {% if job.status == 'done' and job.video_path %}
+<a href="/clipper?job={{ job.id }}" class="btn btn-secondary">✂️ Clip into Shorts</a>
 <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green">⬇ Download MP4</a>
 {% endif %}
 {% endblock %}

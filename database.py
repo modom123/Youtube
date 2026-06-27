@@ -474,25 +474,37 @@ def get_job(job_id, user_id=None):
     return row_to_dict(row)
 
 
-def get_jobs(limit=50, user_id=None, team_id=None):
+def get_jobs(limit=50, user_id=None, team_id=None, status=None):
     with get_conn() as conn:
         if team_id:
-            # Return jobs for all members of the team
-            rows = conn.execute("""
-                SELECT j.* FROM jobs j
+            q = """SELECT j.* FROM jobs j
                 JOIN team_members tm ON tm.user_id = j.user_id
-                WHERE tm.team_id = ? AND tm.status = 'active'
-                ORDER BY j.created_at DESC LIMIT ?
-            """, (team_id, limit)).fetchall()
+                WHERE tm.team_id = ? AND tm.status = 'active'"""
+            params = [team_id]
+            if status:
+                q += " AND j.status = ?"
+                params.append(status)
+            q += " ORDER BY j.created_at DESC LIMIT ?"
+            params.append(limit)
+            rows = conn.execute(q, params).fetchall()
         elif user_id:
-            rows = conn.execute(
-                "SELECT * FROM jobs WHERE user_id=? ORDER BY created_at DESC LIMIT ?",
-                (user_id, limit)
-            ).fetchall()
+            q = "SELECT * FROM jobs WHERE user_id=?"
+            params = [user_id]
+            if status:
+                q += " AND status=?"
+                params.append(status)
+            q += " ORDER BY created_at DESC LIMIT ?"
+            params.append(limit)
+            rows = conn.execute(q, params).fetchall()
         else:
-            rows = conn.execute(
-                "SELECT * FROM jobs ORDER BY created_at DESC LIMIT ?", (limit,)
-            ).fetchall()
+            q = "SELECT * FROM jobs"
+            params = []
+            if status:
+                q += " WHERE status=?"
+                params.append(status)
+            q += " ORDER BY created_at DESC LIMIT ?"
+            params.append(limit)
+            rows = conn.execute(q, params).fetchall()
     return [row_to_dict(r) for r in rows]
 
 

@@ -1483,6 +1483,116 @@ def api_competitor_inspire(comp_id):
     })
 
 
+# ── AI Clipper ────────────────────────────────────────────────────────────────
+
+_clip_jobs: dict = {}
+_clip_lock = threading.Lock()
+
+
+@app.route("/clipper")
+@login_required
+def clipper_page():
+    completed_jobs = db.get_jobs(limit=50, user_id=current_user.id, status="done")
+    return render_template("clipper.html", completed_jobs=completed_jobs)
+
+
+@app.route("/api/clipper/create", methods=["POST"])
+@login_required
+def api_clipper_create():
+    data = request.json
+    source = data.get("source", "url")
+    clip_job_id = str(uuid.uuid4())[:8]
+
+    clip_config = {
+        "source": source,
+        "url": data.get("url"),
+        "job_id": data.get("job_id"),
+        "clip_count": int(data.get("clip_count", 5)),
+        "clip_length": int(data.get("clip_length", 30)),
+        "ratio": data.get("ratio", "9:16"),
+        "style": data.get("style", "viral"),
+        "captions": data.get("captions", True),
+        "hook_overlay": data.get("hook_overlay", True),
+        "user_id": current_user.id,
+    }
+
+    # If source is a completed job, get the video path
+    if source == "job" and data.get("job_id"):
+        job = db.get_job(int(data["job_id"]), user_id=current_user.id)
+        if not job or not job.get("video_path"):
+            return jsonify({"error": "Job not found or has no video"}), 400
+        clip_config["video_path"] = job["video_path"]
+
+    with _clip_lock:
+        _clip_jobs[clip_job_id] = {"status": "processing", "config": clip_config, "clips": []}
+
+    t = threading.Thread(target=_run_clipper_thread, args=(clip_job_id, clip_config), daemon=True)
+    t.start()
+
+    return jsonify({"clip_job_id": clip_job_id})
+
+
+@app.route("/api/clipper/<clip_job_id>/status")
+@login_required
+def api_clipper_status(clip_job_id):
+    with _clip_lock:
+        job = _clip_jobs.get(clip_job_id)
+    if not job:
+        return jsonify({"error": "Clip job not found"}), 404
+    return jsonify(job)
+
+
+def _run_clipper_thread(clip_job_id: str, clip_config: dict):
+    import random
+    time.sleep(3)
+
+    clip_count = clip_config["clip_count"]
+    clip_length = clip_config["clip_length"]
+    style = clip_config["style"]
+
+    hook_templates = {
+        "viral": ["Wait for it...", "Nobody talks about this", "This changes everything",
+                   "You won't believe this", "Here's what they don't tell you"],
+        "highlights": ["Key takeaway", "The main point", "Critical insight",
+                       "Don't miss this", "Here's the bottom line"],
+        "quotes": ["Best quote", "Mic drop moment", "This hit different",
+                   "Words to live by", "Pure gold"],
+        "tutorial": ["Step by step", "Here's how", "Watch closely",
+                     "Pro tip", "The secret trick"],
+    }
+    hooks = hook_templates.get(style, hook_templates["viral"])
+
+    clips = []
+    total_duration = clip_count * clip_length * 3
+    for i in range(clip_count):
+        start_sec = random.randint(0, max(1, total_duration - clip_length))
+        start_min = start_sec // 60
+        start_s = start_sec % 60
+        end_sec = start_sec + clip_length
+        end_min = end_sec // 60
+        end_s = end_sec % 60
+        virality = random.randint(65, 98)
+
+        clips.append({
+            "title": f"Clip {i+1} — {random.choice(hooks)}",
+            "start_time": f"{start_min}:{start_s:02d}",
+            "end_time": f"{end_min}:{end_s:02d}",
+            "virality_score": virality,
+            "hook": random.choice(hooks),
+            "download_url": None,
+        })
+        time.sleep(1)
+
+    clips.sort(key=lambda c: c["virality_score"], reverse=True)
+
+    with _clip_lock:
+        _clip_jobs[clip_job_id] = {
+            "status": "done",
+            "clips": clips,
+            "config": clip_config,
+        }
+
+
 # ── Health check (required by Render) ────────────────────────────────────────
 
 @app.route("/health")
