@@ -239,11 +239,13 @@ class HollywoodEngine:
         from generators import higgsfield_mcp
         from utils import file_manager
 
-        # Voice selection — prefer Neural2 quality
-        if config.GOOGLE_API_KEY:
-            voice = voice or config.GOOGLE_TTS_VOICE
-        else:
-            voice = voice or "en-US-GuyNeural"
+        # Voice selection — ElevenLabs > Google Neural2 > edge-tts
+        # (audio_generator auto-picks based on which API keys are configured)
+        if not voice:
+            if config.GOOGLE_API_KEY:
+                voice = config.GOOGLE_TTS_VOICE
+            else:
+                voice = "en-US-GuyNeural"
 
         errors: list[str] = []
         blueprint: VideoBlueprint | None = None
@@ -464,7 +466,11 @@ class HollywoodEngine:
                 errors.append(f"Mixkit sports fetch failed: {e}")
 
         # ── Step B: Generate Higgsfield AI clips for cinematic shots ──────────
-        if higgsfield_assets and config.HIGGSFIELD_MCP_TOKEN:
+        try:
+            _hf_token = higgsfield_mcp._token()
+        except RuntimeError:
+            _hf_token = ""
+        if higgsfield_assets and _hf_token:
             clips_to_generate = higgsfield_assets[:6]
             self.cb(f"AI Cinematography — generating {len(clips_to_generate)} Higgsfield cinematic clips…", 68)
             try:
@@ -481,7 +487,7 @@ class HollywoodEngine:
             except Exception as e:
                 errors.append(f"Higgsfield clip generation failed: {e}")
 
-        elif higgsfield_assets and not config.HIGGSFIELD_MCP_TOKEN:
+        elif higgsfield_assets and not _hf_token:
             # No Higgsfield token — use Pixabay for the higgsfield-planned shots too
             self.cb("Higgsfield not connected — using expanded stock footage…", 68)
             for ha in higgsfield_assets[:4]:
@@ -525,7 +531,7 @@ class HollywoodEngine:
         thumbnail_path = job_dir / "thumbnail.jpg"
         ai_thumbnail_used = False
 
-        if config.HIGGSFIELD_MCP_TOKEN and script.thumbnail_prompt:
+        if _hf_token and script.thumbnail_prompt:
             try:
                 ai_thumb_path = job_dir / "thumbnail_ai.jpg"
                 result_path = higgsfield_mcp.generate_image_via_mcp(

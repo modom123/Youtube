@@ -2569,6 +2569,11 @@ def _push_hw_event(job_id: str, data: dict):
 
 def _run_hw_thread(hw_job_id: str, params: dict, user_id: int = None):
     from generators.hollywood_engine import HollywoodEngine
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
+    if user_id:
+        _tok = _get_user_higgsfield_token(user_id)
+        _avg._session_token.value = _tok
+        _hmcp._session_token.value = _tok
     topic = params["topic"]
 
     # Create a DB job record so the output appears in the Jobs list
