@@ -8,6 +8,7 @@ for each type of shot.
 """
 from __future__ import annotations
 import json
+import threading as _threading
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -193,6 +194,30 @@ class HollywoodEngine:
         self.visual_producer = HollywoodAssetCurator()
         self.growth_engineer = GrowthEngineer()
 
+    def _with_heartbeat(self, msg: str, base_pct: int, fn):
+        """Run fn() while sending heartbeat progress events every 5 seconds."""
+        result = [None]
+        exc = [None]
+        done = _threading.Event()
+
+        def worker():
+            try:
+                result[0] = fn()
+            except Exception as e:
+                exc[0] = e
+            finally:
+                done.set()
+
+        t = _threading.Thread(target=worker, daemon=True)
+        t.start()
+        elapsed = 0
+        while not done.wait(timeout=5):
+            elapsed += 5
+            self.cb(f"{msg} ({elapsed}s)…", base_pct)
+        if exc[0]:
+            raise exc[0]
+        return result[0]
+
     def run(
         self,
         topic: str,
@@ -251,12 +276,15 @@ class HollywoodEngine:
                 errors.append(f"Research failed: {e}")
 
         # ── CinematicDirector → VideoBlueprint ────────────────────────────────
-        self.cb("Story Development — CinematicDirector crafting film concept…", 12)
+        self.cb("Story Development — CinematicDirector thinking", 12)
         try:
-            blueprint = self.cinematic_director.run(
-                niche=topic,
-                research_context=research_context,
-                competitor_titles=competitor_titles or [],
+            blueprint = self._with_heartbeat(
+                "Story Development — CinematicDirector thinking", 12,
+                lambda: self.cinematic_director.run(
+                    niche=topic,
+                    research_context=research_context,
+                    competitor_titles=competitor_titles or [],
+                )
             )
             (job_dir / "blueprint.json").write_text(blueprint.model_dump_json(indent=2))
         except Exception as e:
@@ -273,12 +301,15 @@ class HollywoodEngine:
             )
 
         # ── ScreenwriterAgent → FullScript ────────────────────────────────────
-        self.cb("Screenplay Writing — ScreenwriterAgent writing scenes…", 25)
+        self.cb("Screenplay Writing — ScreenwriterAgent crafting scenes", 25)
         try:
-            script = self.screenwriter.run(
-                blueprint=blueprint,
-                target_duration=target_duration,
-                audience=audience,
+            script = self._with_heartbeat(
+                "Screenplay Writing — ScreenwriterAgent crafting scenes", 25,
+                lambda: self.screenwriter.run(
+                    blueprint=blueprint,
+                    target_duration=target_duration,
+                    audience=audience,
+                )
             )
             (job_dir / "script.json").write_text(script.model_dump_json(indent=2))
         except Exception as e:
@@ -295,13 +326,16 @@ class HollywoodEngine:
             )
 
         # ── HollywoodAssetCurator → AssetPlan (mixed Higgsfield + Pixabay) ──
-        self.cb("Visual Planning — HollywoodAssetCurator designing shots…", 38)
+        self.cb("Visual Planning — HollywoodAssetCurator designing shot list", 38)
         raw_asset_plan: AssetPlan | None = None
         try:
-            raw_asset_plan = self.visual_producer.run(
-                script=script,
-                blueprint=blueprint,
-                is_portrait=is_portrait,
+            raw_asset_plan = self._with_heartbeat(
+                "Visual Planning — HollywoodAssetCurator designing shot list", 38,
+                lambda: self.visual_producer.run(
+                    script=script,
+                    blueprint=blueprint,
+                    is_portrait=is_portrait,
+                )
             )
             (job_dir / "asset_plan_raw.json").write_text(raw_asset_plan.model_dump_json(indent=2))
         except Exception as e:
