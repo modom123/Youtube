@@ -510,9 +510,8 @@ class HollywoodEngine:
                 except Exception:
                     pass
 
-        # Final fallback: ensure we have at least some video content
-        if not all_video_clips:
-            errors.append("No clips generated — using default sports stock")
+        # Final stock fallback
+        if not all_video_clips and not all_image_clips:
             try:
                 fallback_kw = script.sections[0].b_roll_keywords[:2] if script.sections else [topic]
                 clips, imgs = media_fetcher.fetch_media_for_topic(
@@ -524,7 +523,35 @@ class HollywoodEngine:
                 all_video_clips.extend(clips)
                 all_image_clips.extend(imgs)
             except Exception as e:
-                errors.append(f"Fallback also failed: {e}")
+                errors.append(f"Stock fallback failed: {e}")
+
+        # ── AI scene images: generate one per script section via Higgsfield ─
+        # This runs whenever we need more visuals, guaranteeing real images in the video.
+        if _hf_token and len(all_image_clips) < 3:
+            self.cb("AI Scene Images — generating visuals for each scene…", 74)
+            ai_img_dir = job_dir / "ai_images"
+            ai_img_dir.mkdir(parents=True, exist_ok=True)
+            for i, section in enumerate(script.sections[:8]):
+                try:
+                    img_prompt = (
+                        getattr(section, "visual_direction", None)
+                        or (section.b_roll_keywords[0] if getattr(section, "b_roll_keywords", None) else None)
+                        or f"Cinematic scene: {getattr(section, 'label', topic)}"
+                    )
+                    if len(img_prompt) < 20:
+                        img_prompt = f"Cinematic {topic} scene: {img_prompt}, photorealistic, 4K"
+                    img_path = ai_img_dir / f"scene_{i:02d}.jpg"
+                    result = higgsfield_mcp.generate_image_via_mcp(
+                        prompt=img_prompt[:400],
+                        output_path=img_path,
+                        model_id="nano_banana_pro",
+                        aspect_ratio=aspect,
+                    )
+                    if result and result.exists():
+                        all_image_clips.append(result)
+                        self.cb(f"Scene {i+1} image ready", 74 + i)
+                except Exception as e:
+                    errors.append(f"AI scene image {i} failed: {e}")
 
         # ── AI Thumbnail via Higgsfield ───────────────────────────────────────
         self.cb("AI Thumbnail — generating cinematic thumbnail…", 80)

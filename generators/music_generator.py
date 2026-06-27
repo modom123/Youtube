@@ -219,6 +219,36 @@ def _try_replicate(
         return None
 
 
+def _try_huggingface_musicgen(prompt: str, duration_seconds: int, job_dir: Path) -> Optional[str]:
+    """Generate instrumental music via HuggingFace free inference (no key required)."""
+    # Cap at 30s — musicgen-small max is ~30s of audio
+    max_tokens = min(int(duration_seconds * 51.2), 1500)
+    try:
+        r = requests.post(
+            "https://api-inference.huggingface.co/models/facebook/musicgen-small",
+            headers={"Content-Type": "application/json"},
+            json={
+                "inputs": prompt[:500],
+                "parameters": {"max_new_tokens": max_tokens},
+            },
+            timeout=180,
+        )
+        content_type = r.headers.get("content-type", "")
+        if r.status_code == 200 and ("audio" in content_type or len(r.content) > 50_000):
+            dest = job_dir / "song_musicgen.mp3"
+            dest.write_bytes(r.content)
+            if dest.stat().st_size > 10_000:
+                log.info("HuggingFace MusicGen: saved %d bytes → %s", dest.stat().st_size, dest)
+                return str(dest)
+        elif r.status_code == 503:
+            log.info("HuggingFace MusicGen: model loading (503) — skipping")
+        else:
+            log.warning("HuggingFace MusicGen: status %d — %s", r.status_code, r.text[:200])
+    except Exception as exc:
+        log.warning("HuggingFace MusicGen failed: %s", exc)
+    return None
+
+
 def _try_elevenlabs_tts(lyrics: str, job_dir: Path) -> Optional[str]:
     """Generate a vocal track from lyrics using ElevenLabs TTS."""
     key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
@@ -232,8 +262,8 @@ def _try_elevenlabs_tts(lyrics: str, job_dir: Path) -> Optional[str]:
             headers={"xi-api-key": key, "Content-Type": "application/json"},
             json={
                 "text": lyrics[:2000],
-                "model_id": "eleven_monolingual_v1",
-                "voice_settings": {"stability": 0.45, "similarity_boost": 0.80},
+                "model_id": "eleven_turbo_v2_5",
+                "voice_settings": {"stability": 0.35, "similarity_boost": 0.85, "style": 0.30, "use_speaker_boost": True},
             },
             timeout=90,
         )
@@ -401,6 +431,11 @@ class MusicEngine:
             cb("Trying Replicate MusicGen...", 50)
             audio_path = _try_replicate(prompt, duration_seconds, job_dir)
             provider = "Replicate MusicGen"
+
+        if not audio_path:
+            cb("Trying HuggingFace MusicGen (free)...", 58)
+            audio_path = _try_huggingface_musicgen(prompt, duration_seconds, job_dir)
+            provider = "HuggingFace MusicGen"
 
         if not audio_path:
             cb("Trying ElevenLabs Sound Generation...", 65)
