@@ -244,14 +244,131 @@
     </div>
     {% endif %}
 
-    <!-- Video Info -->
-    {% if job.status == 'done' and job.video_path %}
-    <div class="card">
-      <div class="card-title mb-16"><span class="accent">🎬</span> Video File</div>
-      <div class="text-dim text-sm mb-12">{{ job.video_path|replace('/home/user/Youtube/','') }}</div>
-      <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-block">
-        ⬇ Download MP4
-      </a>
+    <!-- Video / Audio Player -->
+    {% if job.status == 'done' %}
+    <div class="card" id="mediaCard">
+      <div class="flex-between mb-12">
+        <div class="card-title"><span class="accent">🎬</span> Preview</div>
+        <div style="display:flex;gap:8px;">
+          {% if job.video_path %}
+          <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-sm">⬇ Download</a>
+          {% elif job.audio_path %}
+          <a href="/api/jobs/{{ job.id }}/audio" class="btn btn-green btn-sm" download>⬇ Audio</a>
+          {% endif %}
+          <button class="btn btn-ghost btn-sm" onclick="toggleEditPanel()">✏ Edit</button>
+        </div>
+      </div>
+      <div id="mediaErr" style="display:none;background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.3);border-radius:8px;padding:14px;color:#ff6b6b;font-size:13px;margin-bottom:12px;"></div>
+      {% if job.video_path %}
+      <video id="detailPlayer" controls style="width:100%;border-radius:8px;background:#000;max-height:480px;">
+        <source src="/api/jobs/{{ job.id }}/video" type="video/mp4">
+      </video>
+      <script>
+      document.getElementById('detailPlayer').addEventListener('error', function() {
+        this.style.display = 'none';
+        const e = document.getElementById('mediaErr');
+        e.style.display = 'block';
+        e.textContent = 'Video file is not available — it may have been cleared from disk. You can upload a replacement below.';
+        document.getElementById('editPanel').style.display = 'block';
+      });
+      </script>
+      {% elif job.audio_path %}
+      <div style="text-align:center;padding:24px 0;">
+        <div style="font-size:52px;margin-bottom:16px;">🎵</div>
+        <audio id="detailAudio" controls style="width:100%;">
+          <source src="/api/jobs/{{ job.id }}/audio" type="audio/mpeg">
+        </audio>
+        <div class="text-xs text-dim mt-8">Audio narration — upload video footage below to combine</div>
+      </div>
+      {% else %}
+      <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">
+        No media file. Upload a video or audio file below.
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Edit / Replace Panel -->
+    <div class="card" id="editPanel" style="{{ 'display:block' if not job.video_path and not job.audio_path else 'display:none' }};">
+      <div class="card-title mb-4"><span class="accent">✏</span> Edit Job Media</div>
+      <div class="text-xs text-dim mb-16">Upload your own video or audio to attach to this job. If you have narration audio but no video, upload both and mix them together.</div>
+
+      <!-- Tab switcher -->
+      <div style="display:flex;gap:0;margin-bottom:16px;background:var(--bg-elevated);border-radius:8px;padding:3px;" id="editTabs">
+        <button class="btn btn-sm edit-tab active-tab" data-tab="video" onclick="setEditTab('video')" style="flex:1;border-radius:6px;background:var(--accent);color:#000;">Replace Video</button>
+        <button class="btn btn-sm edit-tab" data-tab="audio" onclick="setEditTab('audio')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Replace Audio</button>
+        <button class="btn btn-sm edit-tab" data-tab="mix" onclick="setEditTab('mix')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Mix A+V</button>
+      </div>
+
+      <!-- Upload Video tab -->
+      <div id="edit-tab-video">
+        <div style="border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;" onclick="document.getElementById('edit-video-file').click()" id="edit-video-drop">
+          <div style="font-size:36px;margin-bottom:8px;">🎬</div>
+          <div class="text-sm text-bold mb-4">Click to upload video footage</div>
+          <div class="text-xs text-dim">MP4, MOV, WebM — will replace existing video for this job</div>
+        </div>
+        <input type="file" id="edit-video-file" accept="video/mp4,video/quicktime,video/webm,video/*" style="display:none;" onchange="previewEditUpload(this,'video')">
+        <div id="edit-video-preview" style="display:none;margin-top:12px;">
+          <video id="edit-video-preview-player" controls style="width:100%;border-radius:8px;background:#000;max-height:300px;"></video>
+          <button class="btn btn-primary btn-block mt-12" onclick="uploadJobVideo({{ job.id }})">Upload & Set as Job Video</button>
+        </div>
+        <div id="edit-video-progress" style="display:none;margin-top:12px;">
+          <div class="progress-track"><div class="progress-bar" id="vid-prog-bar" style="width:0%"></div></div>
+          <div class="text-xs text-dim mt-4" id="vid-prog-txt">Uploading…</div>
+        </div>
+      </div>
+
+      <!-- Upload Audio tab -->
+      <div id="edit-tab-audio" style="display:none;">
+        <div style="border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;" onclick="document.getElementById('edit-audio-file').click()" id="edit-audio-drop">
+          <div style="font-size:36px;margin-bottom:8px;">🎙</div>
+          <div class="text-sm text-bold mb-4">Click to upload narration / audio</div>
+          <div class="text-xs text-dim">MP3, WAV, M4A — will replace existing audio for this job</div>
+        </div>
+        <input type="file" id="edit-audio-file" accept="audio/mpeg,audio/wav,audio/mp4,audio/x-m4a,audio/*" style="display:none;" onchange="previewEditUpload(this,'audio')">
+        <div id="edit-audio-preview" style="display:none;margin-top:12px;">
+          <audio id="edit-audio-preview-player" controls style="width:100%;"></audio>
+          <button class="btn btn-primary btn-block mt-12" onclick="uploadJobAudio({{ job.id }})">Upload & Set as Job Audio</button>
+        </div>
+      </div>
+
+      <!-- Mix tab -->
+      <div id="edit-tab-mix" style="display:none;">
+        <div style="background:var(--bg-elevated);border-radius:10px;padding:20px;margin-bottom:16px;">
+          <div class="text-sm text-bold mb-8">How this works:</div>
+          <div class="text-xs text-dim" style="line-height:1.6;">
+            This tool takes the <strong>audio track</strong> (narration) stored for this job and combines it with the <strong>video footage</strong> stored for this job using ffmpeg.
+            The result is saved as the new final video.<br><br>
+            Make sure you've uploaded both video and audio files above first.
+          </div>
+        </div>
+        {% if job.audio_path %}
+        <div class="flex gap-8 mb-8" style="align-items:center;">
+          <span class="pill pill-done" style="flex-shrink:0;">✓ Audio</span>
+          <span class="text-xs text-dim">{{ job.audio_path|replace('/home/user/Youtube/','') }}</span>
+        </div>
+        {% else %}
+        <div class="flex gap-8 mb-8" style="align-items:center;">
+          <span class="pill pill-error" style="flex-shrink:0;">✗ No Audio</span>
+          <span class="text-xs text-dim">Upload narration audio first</span>
+        </div>
+        {% endif %}
+        {% if job.video_path %}
+        <div class="flex gap-8 mb-16" style="align-items:center;">
+          <span class="pill pill-done" style="flex-shrink:0;">✓ Video</span>
+          <span class="text-xs text-dim">{{ job.video_path|replace('/home/user/Youtube/','') }}</span>
+        </div>
+        {% else %}
+        <div class="flex gap-8 mb-16" style="align-items:center;">
+          <span class="pill pill-error" style="flex-shrink:0;">✗ No Video</span>
+          <span class="text-xs text-dim">Upload video footage first</span>
+        </div>
+        {% endif %}
+        <button class="btn btn-primary btn-block" id="mix-btn" onclick="mixAudioVideo({{ job.id }})">
+          Mix Audio + Video → Final MP4
+        </button>
+        <div id="mix-result" style="display:none;margin-top:12px;"></div>
+      </div>
+
     </div>
     {% endif %}
 
@@ -472,6 +589,116 @@ async function createReformat() {
     toast('error', 'Network error', e.message);
     btn.disabled = false;
     btn.textContent = 'Generate New Version';
+  }
+}
+
+// ── Edit panel ───────────────────────────────────────────────────────────────
+function toggleEditPanel() {
+  const p = document.getElementById('editPanel');
+  if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function setEditTab(tab) {
+  ['video','audio','mix'].forEach(t => {
+    document.getElementById('edit-tab-' + t).style.display = t === tab ? 'block' : 'none';
+    const btn = document.querySelector(`.edit-tab[data-tab="${t}"]`);
+    if (btn) {
+      btn.style.background = t === tab ? 'var(--accent)' : 'transparent';
+      btn.style.color = t === tab ? '#000' : 'var(--muted)';
+    }
+  });
+}
+
+function previewEditUpload(input, type) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  if (type === 'video') {
+    const player = document.getElementById('edit-video-preview-player');
+    player.src = url;
+    document.getElementById('edit-video-preview').style.display = 'block';
+    document.getElementById('edit-video-drop').style.display = 'none';
+  } else {
+    const player = document.getElementById('edit-audio-preview-player');
+    player.src = url;
+    document.getElementById('edit-audio-preview').style.display = 'block';
+    document.getElementById('edit-audio-drop').style.display = 'none';
+  }
+}
+
+async function uploadJobVideo(jobId) {
+  const file = document.getElementById('edit-video-file').files[0];
+  if (!file) return;
+  const prog = document.getElementById('edit-video-progress');
+  const bar  = document.getElementById('vid-prog-bar');
+  const txt  = document.getElementById('vid-prog-txt');
+  document.getElementById('edit-video-preview').style.display = 'none';
+  prog.style.display = 'block';
+  txt.textContent = 'Uploading… (large files may take a minute)';
+
+  const form = new FormData();
+  form.append('file', file);
+
+  const xhr = new XMLHttpRequest();
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable) {
+      const pct = Math.round(e.loaded / e.total * 100);
+      bar.style.width = pct + '%';
+      txt.textContent = `Uploading… ${pct}%`;
+    }
+  };
+  xhr.onload = () => {
+    const data = JSON.parse(xhr.responseText);
+    if (data.ok) {
+      txt.textContent = 'Upload complete! Reloading…';
+      bar.style.width = '100%';
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      txt.textContent = 'Upload failed: ' + (data.error || 'Unknown error');
+    }
+  };
+  xhr.onerror = () => { txt.textContent = 'Upload failed — network error.'; };
+  xhr.open('POST', `/api/jobs/${jobId}/upload-video`);
+  xhr.send(form);
+}
+
+async function uploadJobAudio(jobId) {
+  const file = document.getElementById('edit-audio-file').files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const r = await fetch(`/api/jobs/${jobId}/upload-audio`, { method:'POST', body: form });
+    const d = await r.json();
+    if (d.ok) { toast('success', 'Audio uploaded!', 'Reloading…'); setTimeout(() => location.reload(), 1200); }
+    else toast('error', 'Upload failed', d.error || 'Unknown error');
+  } catch(e) { toast('error', 'Error', e.message); }
+}
+
+async function mixAudioVideo(jobId) {
+  const btn = document.getElementById('mix-btn');
+  const res = document.getElementById('mix-result');
+  btn.disabled = true;
+  btn.textContent = 'Mixing… (this may take a minute)';
+  res.style.display = 'none';
+  try {
+    const r = await fetch(`/api/jobs/${jobId}/mix`, { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      res.style.display = 'block';
+      res.innerHTML = '<div class="pill pill-done" style="display:inline-block;">✓ Mix complete!</div><div class="text-xs text-dim mt-8">Reloading to show final video…</div>';
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Mix Audio + Video → Final MP4';
+      res.style.display = 'block';
+      res.innerHTML = `<div class="text-red text-sm">Mix failed: ${d.error || 'Unknown error'}</div>`;
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = 'Mix Audio + Video → Final MP4';
+    res.style.display = 'block';
+    res.innerHTML = `<div class="text-red text-sm">Network error: ${e.message}</div>`;
   }
 }
 

@@ -895,6 +895,111 @@ def stream_video(job_id):
     return send_file(str(path), mimetype="video/mp4", conditional=True)
 
 
+@app.route("/api/jobs/<int:job_id>/audio")
+@login_required
+def stream_audio(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job or not job.get("audio_path"):
+        return jsonify({"error": "Audio not found"}), 404
+    path = Path(job["audio_path"])
+    if not path.exists():
+        return jsonify({"error": "File missing on disk"}), 404
+    mime = "audio/mpeg" if str(path).endswith(".mp3") else "audio/wav"
+    return send_file(str(path), mimetype=mime, conditional=True)
+
+
+@app.route("/api/jobs/<int:job_id>/upload-video", methods=["POST"])
+@login_required
+def upload_job_video(job_id):
+    """Replace the video file for a job (user uploads their own footage)."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"error": "No file provided"}), 400
+    from utils import file_manager
+    job_dir = Path(file_manager.job_dir(job.get("topic", "job"), "upload"))
+    job_dir.mkdir(parents=True, exist_ok=True)
+    dest = job_dir / f"video_upload_{int(time.time())}.mp4"
+    f.save(str(dest))
+    db.update_job(job_id, video_path=str(dest))
+    return jsonify({"ok": True, "video_path": str(dest)})
+
+
+@app.route("/api/jobs/<int:job_id>/upload-audio", methods=["POST"])
+@login_required
+def upload_job_audio(job_id):
+    """Replace or set the audio/narration file for a job."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"error": "No file provided"}), 400
+    from utils import file_manager
+    job_dir = Path(file_manager.job_dir(job.get("topic", "job"), "upload"))
+    job_dir.mkdir(parents=True, exist_ok=True)
+    ext = Path(f.filename).suffix or ".mp3"
+    dest = job_dir / f"audio_upload_{int(time.time())}{ext}"
+    f.save(str(dest))
+    db.update_job(job_id, audio_path=str(dest))
+    return jsonify({"ok": True, "audio_path": str(dest)})
+
+
+@app.route("/api/jobs/<int:job_id>/mix", methods=["POST"])
+@login_required
+def mix_job_audio_video(job_id):
+    """Combine job's audio_path + video_path via ffmpeg and save as final video."""
+    import subprocess
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+    audio = job.get("audio_path")
+    video = job.get("video_path")
+    if not audio or not video:
+        return jsonify({"error": "Job must have both audio and video files"}), 400
+    if not Path(audio).exists():
+        return jsonify({"error": "Audio file missing on disk"}), 404
+    if not Path(video).exists():
+        return jsonify({"error": "Video file missing on disk"}), 404
+    out_path = Path(video).parent / f"final_mixed_{int(time.time())}.mp4"
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", video,
+        "-i", audio,
+        "-c:v", "copy",
+        "-c:a", "aac", "-b:a", "192k",
+        "-map", "0:v:0", "-map", "1:a:0",
+        "-shortest",
+        str(out_path),
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=300)
+        if result.returncode != 0:
+            return jsonify({"error": "ffmpeg failed: " + result.stderr.decode()[:300]}), 500
+        db.update_job(job_id, video_path=str(out_path), status="done")
+        return jsonify({"ok": True})
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Mix timed out"}), 500
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/jobs/<int:job_id>/check-files")
+@login_required
+def check_job_files(job_id):
+    """Return which files exist on disk for this job."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify({
+        "has_video": bool(job.get("video_path") and Path(job["video_path"]).exists()),
+        "has_audio": bool(job.get("audio_path") and Path(job["audio_path"]).exists()),
+        "has_thumbnail": bool(job.get("thumbnail_path") and Path(job["thumbnail_path"]).exists()),
+    })
+
+
 @app.route("/api/jobs/<int:job_id>/script")
 @login_required
 def get_script(job_id):
