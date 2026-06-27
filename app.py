@@ -3179,16 +3179,6 @@ def api_batch_create():
     topics = [t.strip() for t in data.get("topics", []) if t.strip()]
     if not topics:
         return jsonify({"error": "At least one topic is required"}), 400
-    user = db.get_user_by_id(current_user.id)
-    tier = config.TIERS.get(user["subscription_tier"], config.TIERS["free"])
-    limit = tier["videos_per_month"]
-    if limit != -1:
-        remaining = limit - user["videos_used"]
-        if remaining < len(topics):
-            return jsonify({
-                "error": f"Not enough quota. You have {remaining} videos left this month but requested {len(topics)}.",
-                "upgrade": True,
-            }), 403
     common_config = data.get("common_config", {})
     batch_id = db.create_batch_job(user_id=current_user.id, topics=topics)
     t = threading.Thread(

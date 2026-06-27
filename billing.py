@@ -267,47 +267,5 @@ def _price_to_tier(price_id: str) -> str:
 # ── Usage gate helper ─────────────────────────────────────────────────────────
 
 def check_usage_gate(user_id: int) -> tuple[bool, str]:
-    """Returns (allowed, error_message). Call before starting any job."""
-    if config.BYPASS_USAGE_GATE:
-        return True, ""
-
-    db.reset_usage_if_new_period(user_id)
-    user = db.get_user_by_id(user_id)
-    if not user:
-        return False, "User not found."
-
-    # Admin accounts are never gated
-    if user.get("is_admin"):
-        return True, ""
-
-    sub_status = user.get("subscription_status") or "active"
-    tier_name  = user.get("subscription_tier") or "free"
-
-    # Users on a trial get free-tier limits (card is captured, full access unlocks after trial)
-    if sub_status == "trialing":
-        effective_tier = config.TIERS["free"]
-    else:
-        effective_tier = config.TIERS.get(tier_name, config.TIERS["free"])
-
-    limit = effective_tier["videos_per_month"]
-
-    if limit == -1:  # unlimited
-        return True, ""
-
-    # Count only successfully completed jobs in the current billing period to avoid
-    # the counter getting inflated by failed/error jobs.
-    from datetime import datetime as _dt
-    period_start = user.get("period_start") or _dt.now().strftime("%Y-%m-01")
-    actual_done = db.count_completed_jobs_since(user_id, period_start)
-
-    if actual_done >= limit:
-        if sub_status == "trialing":
-            return False, (
-                "You've reached the trial limit. Your full plan unlocks automatically when your 14-day trial ends — "
-                "or visit Billing to activate now."
-            )
-        return False, (
-            f"You've used all {limit} videos in your {effective_tier['label']} plan this month. "
-            "Upgrade to get more."
-        )
+    """Returns (allowed, error_message). All limits removed — always allowed."""
     return True, ""
