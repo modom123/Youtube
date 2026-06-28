@@ -1,4 +1,5 @@
-"""Admin Blueprint — client management, provisioning, audit log."""
+"""Admin Blueprint — client management, provisioning, audit log, settings."""
+import os
 import secrets
 import smtplib
 from datetime import datetime, timedelta
@@ -218,3 +219,104 @@ def admin_audit_log():
 def admin_stats():
     _require_admin()
     return jsonify(db.get_admin_stats())
+
+
+# ── Settings / Env Vars ──────────────────────────────────────────────────────
+
+_ENV_VAR_MAP = [
+    ("Core AI", [
+        ("ANTHROPIC_API_KEY", "All AI agents — scripts, vision, ad copy"),
+        ("ELEVENLABS_API_KEY", "AI voiceovers"),
+        ("DEEPSEEK_API_KEY", "DeepSeek AI model (optional)"),
+        ("GROQ_API_KEY", "Groq AI model (optional)"),
+        ("OPENROUTER_API_KEY", "OpenRouter AI models (optional)"),
+    ]),
+    ("Google / YouTube", [
+        ("GOOGLE_API_KEY", "Competitor tracker (YouTube Data API)"),
+        ("YOUTUBE_CLIENT_ID", "YouTube OAuth — upload/broadcast"),
+        ("YOUTUBE_CLIENT_SECRET", "YouTube OAuth — upload/broadcast"),
+    ]),
+    ("Higgsfield", [
+        ("HIGGSFIELD_MCP_TOKEN", "Higgsfield AI video generation"),
+    ]),
+    ("Media", [
+        ("PIXABAY_API_KEY", "Free stock footage"),
+        ("FREESOUND_API_KEY", "Free sound/loop library"),
+        ("REPLICATE_API_TOKEN", "Replicate AI models"),
+    ]),
+    ("Stripe Payments", [
+        ("STRIPE_SECRET_KEY", "Subscription billing"),
+        ("STRIPE_PUBLISHABLE_KEY", "Checkout UI"),
+        ("STRIPE_WEBHOOK_SECRET", "Payment webhooks"),
+    ]),
+    ("Social Platforms", [
+        ("TIKTOK_CLIENT_KEY", "TikTok"),
+        ("TIKTOK_CLIENT_SECRET", "TikTok"),
+        ("INSTAGRAM_ACCESS_TOKEN", "Instagram"),
+        ("FACEBOOK_APP_ID", "Facebook"),
+        ("FACEBOOK_APP_SECRET", "Facebook"),
+        ("TWITTER_CLIENT_ID", "Twitter / X"),
+        ("TWITTER_CLIENT_SECRET", "Twitter / X"),
+        ("TWITCH_CLIENT_ID", "Twitch streaming"),
+        ("TWITCH_CLIENT_SECRET", "Twitch streaming"),
+        ("THREADS_APP_ID", "Threads"),
+        ("SNAP_CLIENT_ID", "Snapchat"),
+        ("LINKEDIN_CLIENT_ID", "LinkedIn"),
+        ("PINTEREST_ACCESS_TOKEN", "Pinterest"),
+    ]),
+    ("Notifications", [
+        ("SMTP_HOST", "Email notifications"),
+        ("SMTP_USER", "Email login"),
+        ("SMTP_PASS", "Email password"),
+        ("TWILIO_ACCOUNT_SID", "SMS notifications"),
+        ("TWILIO_AUTH_TOKEN", "SMS notifications"),
+    ]),
+]
+
+
+@admin_bp.route("/admin/settings")
+@login_required
+def admin_settings():
+    _require_admin()
+    groups = []
+    total_set = 0
+    total_vars = 0
+    for group_name, vars_list in _ENV_VAR_MAP:
+        items = []
+        for var_name, description in vars_list:
+            val = os.getenv(var_name, "")
+            is_set = bool(val)
+            if is_set:
+                total_set += 1
+            total_vars += 1
+            masked = ""
+            if is_set:
+                if len(val) <= 8:
+                    masked = "••••••"
+                else:
+                    masked = val[:4] + "••••" + val[-4:]
+            items.append({"name": var_name, "description": description,
+                          "is_set": is_set, "masked": masked})
+        groups.append({"name": group_name, "items": items})
+    return render_template("admin/settings.html", groups=groups,
+                           total_set=total_set, total_vars=total_vars)
+
+
+@admin_bp.route("/api/admin/env", methods=["POST"])
+@login_required
+def admin_set_env():
+    _require_admin()
+    data = request.get_json(silent=True) or {}
+    var_name = (data.get("name") or "").strip()
+    var_value = (data.get("value") or "").strip()
+    if not var_name:
+        return jsonify({"error": "Variable name required"}), 400
+    allowed = {v for _, vlist in _ENV_VAR_MAP for v, _ in vlist}
+    if var_name not in allowed:
+        return jsonify({"error": "Unknown variable"}), 400
+    os.environ[var_name] = var_value
+    # Update config module if it has a matching attribute
+    if hasattr(config, var_name):
+        setattr(config, var_name, var_value)
+    return jsonify({"ok": True, "name": var_name,
+                    "masked": var_value[:4] + "••••" + var_value[-4:] if len(var_value) > 8 else "••••••"})
