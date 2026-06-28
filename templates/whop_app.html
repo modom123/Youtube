@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Social Optimize — AI Clipper</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; }
+    .loading { display: flex; align-items: center; justify-content: center; min-height: 100vh; flex-direction: column; gap: 16px; }
+    .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,.1); border-top-color: #6c5ce7; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error { background: #2d1b1b; border: 1px solid #e74c3c; border-radius: 12px; padding: 24px; max-width: 400px; margin: 40px auto; text-align: center; }
+    .error h3 { color: #e74c3c; margin-bottom: 8px; }
+    .error a { color: #6c5ce7; }
+    iframe { width: 100%; height: 100vh; border: none; }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loader">
+    <div class="spinner"></div>
+    <p>Validating your membership...</p>
+  </div>
+  <div id="app-frame" style="display:none;">
+    <iframe id="clipper-frame" src="/clipper"></iframe>
+  </div>
+  <div id="error-box" class="error" style="display:none;">
+    <h3>Access Denied</h3>
+    <p id="error-msg">Your membership could not be verified.</p>
+    <p style="margin-top:12px;"><a href="https://whop.com" target="_blank">Get access on Whop &rarr;</a></p>
+  </div>
+  <script>
+    (async () => {
+      const membershipId = "{{ membership_id }}";
+      if (!membershipId) {
+        document.getElementById("loader").style.display = "none";
+        document.getElementById("error-box").style.display = "block";
+        document.getElementById("error-msg").textContent = "No membership ID provided.";
+        return;
+      }
+      try {
+        const resp = await fetch("/whop/app/validate", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({membership_id: membershipId})
+        });
+        const data = await resp.json();
+        document.getElementById("loader").style.display = "none";
+        if (data.valid) {
+          document.getElementById("app-frame").style.display = "block";
+        } else {
+          document.getElementById("error-box").style.display = "block";
+          document.getElementById("error-msg").textContent = data.error || "Membership is not active.";
+        }
+      } catch (e) {
+        document.getElementById("loader").style.display = "none";
+        document.getElementById("app-frame").style.display = "block";
+      }
+    })();
+  </script>
+</body>
+</html>

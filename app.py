@@ -30,6 +30,7 @@ from billing import billing_bp, check_usage_gate
 from admin import admin_bp
 from notifications import send_notification
 from monetizer import monetizer_bp, init_monetizer_tables
+from whop_integration import whop_bp, init_whop_tables
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
@@ -59,6 +60,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(billing_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(monetizer_bp)
+app.register_blueprint(whop_bp)
 
 from admin import load_env_from_db
 load_env_from_db()
@@ -5750,6 +5752,7 @@ def editing_room_serve_media(media_id):
 
 db.init_db()
 init_monetizer_tables()
+init_whop_tables()
 _load_platform_creds_from_db()
 # ── Agency Command Center ─────────────────────────────────────────────────────
 

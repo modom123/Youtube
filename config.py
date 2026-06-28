@@ -45,6 +45,11 @@ STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 # Set BYPASS_USAGE_GATE=1 on Render while testing to skip video-count limits.
 BYPASS_USAGE_GATE = os.getenv("BYPASS_USAGE_GATE", "0") not in ("", "0", "false", "no")
 
+# ── Whop Marketplace ────────────────────────────────────────────────────────
+WHOP_API_KEY        = os.getenv("WHOP_API_KEY", "")
+WHOP_WEBHOOK_SECRET = os.getenv("WHOP_WEBHOOK_SECRET", "")
+WHOP_COMPANY_ID     = os.getenv("WHOP_COMPANY_ID", "")
+
 # ── Subscription tiers ───────────────────────────────────────────────────────
 TIERS = {
     "free": {
