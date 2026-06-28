@@ -224,11 +224,22 @@ def init_monetizer_tables():
 
 
 def _seed_milestones():
-    """Populate business plan milestones if empty."""
+    """Populate business plan milestones. Re-seeds if plan version changed."""
+    PLAN_VERSION = "v2_smooth"
     with _conn() as conn:
-        exists = conn.execute("SELECT COUNT(*) FROM business_plan_milestones").fetchone()[0]
-        if exists:
+        saved_ver = None
+        try:
+            row = conn.execute("SELECT value FROM settings WHERE key='plan_version'").fetchone()
+            saved_ver = row[0] if row else None
+        except Exception:
+            pass
+        if saved_ver == PLAN_VERSION:
             return
+        conn.execute("DELETE FROM business_plan_milestones")
+        try:
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('plan_version', ?)", (PLAN_VERSION,))
+        except Exception:
+            pass
 
         milestones = [
             (1,"Launch & Validate",1,"Jul 4-10","LAUNCH","Public launch, ProductHunt post, social blast",5,149),
@@ -283,11 +294,16 @@ def _seed_milestones():
             (5,"Hockey Stick",50,"Jun 12-18","Enterprise Push","2 outbound reps, Fortune 500",10000,223200),
             (5,"Hockey Stick",51,"Jun 19-25","Platform Stability","Security audit, SOC 2 prep",10000,223200),
             (5,"Hockey Stick",52,"Jun 26-Jul 2","YEAR ONE","Celebrate, retro, plan Year 2",10000,223200),
-            (6,"Dominance",55,"Jul-Aug 2027","Viral Growth","TikTok challenges, ambassador program",50000,1116000),
-            (6,"Dominance",60,"Aug-Sep 2027","International","Japan, Korea, India, Brazil",100000,2232000),
-            (6,"Dominance",65,"Sep-Oct 2027","Platform Play","Marketplace, plugin ecosystem",250000,5580000),
-            (6,"Dominance",70,"Oct-Nov 2027","Enterprise Sales","Dedicated team, Fortune 1000",500000,11160000),
-            (6,"Dominance",78,"Nov-Dec 2027","Market Leadership","Acquire competitors, IPO prep",1000000,22320000),
+            (6,"Scale-Up",55,"Jul-Aug 2027","Growth Acceleration","Ambassador program, referral 2.0",15000,334800),
+            (6,"Scale-Up",58,"Aug-Sep 2027","Channel Expansion","TikTok challenges, YT shorts, IG reels",22000,491040),
+            (6,"Scale-Up",61,"Sep-Oct 2027","Enterprise v2","Dedicated sales, custom onboarding",32000,714240),
+            (6,"Scale-Up",64,"Oct-Nov 2027","International v1","Spanish + Portuguese, LATAM partners",47000,1049040),
+            (6,"Scale-Up",67,"Nov-Dec 2027","Platform Play","Marketplace, plugin ecosystem, dev API",68000,1517760),
+            (6,"Scale-Up",70,"Dec 2027-Jan 2028","International v2","Japan, Korea, India launch",100000,2232000),
+            (6,"Scale-Up",73,"Jan-Feb 2028","Scale Operations","SOC 2, enterprise SLAs, infra team",145000,3236400),
+            (7,"Dominance",78,"Feb-Apr 2028","Market Leadership","Acquire competitors, Fortune 500",305000,6807600),
+            (7,"Dominance",86,"Apr-May 2028","Category Ownership","Industry partnerships, standards",620000,13838400),
+            (7,"Dominance",96,"May-Jul 2028","IPO Runway","$100M+ ARR, board, IPO prep",1000000,22320000),
         ]
         for m in milestones:
             conn.execute("""INSERT INTO business_plan_milestones
