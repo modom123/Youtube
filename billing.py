@@ -268,15 +268,17 @@ def _price_to_tier(price_id: str) -> str:
 
 def check_usage_gate(user_id: int) -> tuple[bool, str]:
     """Returns (allowed, error_message). Enforces per-tier video limits."""
-    import database
+    import database, config
     user = database.get_user_by_id(user_id)
     if not user:
         return False, "User not found"
     if user.get("is_admin"):
         return True, ""
     tier = user.get("subscription_tier", "free")
-    limits = {"free": 2, "starter": 30, "creator": 100, "agency": 999999}
-    limit = limits.get(tier, 2)
+    tier_cfg = config.TIERS.get(tier, config.TIERS.get("free", {}))
+    limit = tier_cfg.get("videos_per_month", 2)
+    if limit == -1:
+        return True, ""
     used = user.get("videos_used", 0)
     if used >= limit:
         return False, f"You've reached your {tier} plan limit of {limit} videos. Upgrade for more."
