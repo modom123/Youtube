@@ -17,7 +17,7 @@ import config
 from agents import executive_bus as bus
 
 AGENT_NAME = "elena_rostova"
-CHECK_INTERVAL = 900  # 15 min
+CHECK_INTERVAL = 50400  # 14 hours
 
 _thread = None
 _stop = threading.Event()

@@ -1057,25 +1057,25 @@ EXEC_PERSONAS = {
         "name": "Marcus Vance", "title": "Chief Growth Officer",
         "role": "Product-Led Growth, Virality Loops, Acquisition Engineering",
         "avatar": "M", "color": "#7c3aed",
-        "status": "active", "interval": "10 min"
+        "status": "active", "interval": "14 hrs"
     },
     "elena_rostova": {
         "name": "Elena Rostova", "title": "VP of Enterprise Development",
         "role": "B2B Sales Automation, Enterprise Lead Scraping, Intent Detection",
         "avatar": "E", "color": "#2563eb",
-        "status": "active", "interval": "15 min"
+        "status": "active", "interval": "14 hrs"
     },
     "julian_vance": {
         "name": "Dr. Julian Vance", "title": "Director of Retention & LTV",
         "role": "Churn Mitigation, Predictive Analytics, User Engagement",
         "avatar": "J", "color": "#059669",
-        "status": "active", "interval": "10 min"
+        "status": "active", "interval": "14 hrs"
     },
     "sterling_croft": {
         "name": "Sterling Croft", "title": "Chief Business Officer",
         "role": "Unit Economics, Strategic Partnerships, Pricing Models",
         "avatar": "S", "color": "#d97706",
-        "status": "active", "interval": "30 min"
+        "status": "active", "interval": "14 hrs"
     },
 }
 
