@@ -157,21 +157,29 @@ def main():
     print("Setting up webhook...")
     print(f"{'='*60}")
     try:
+        import httpx
         webhook_url = f"{APP_BASE_URL}/whop/webhook"
-        webhook = client.webhooks.create(
-            url=webhook_url,
-            resource_id=COMPANY_ID,
-            events=[
-                "membership_went_valid",
-                "membership_went_invalid",
-                "membership_cancel_at_period_end_changed",
-                "payment_succeeded",
-                "payment_failed",
-                "payment_created",
-            ],
+        resp = httpx.post(
+            "https://api.whop.com/api/v5/webhooks",
+            headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
+            json={
+                "url": webhook_url,
+                "resource_id": COMPANY_ID,
+                "events": [
+                    "membership_went_valid",
+                    "membership_went_invalid",
+                    "membership_cancel_at_period_end_changed",
+                    "payment_succeeded",
+                    "payment_failed",
+                    "payment_created",
+                ],
+            },
         )
-        print(f"  Webhook created: {webhook.id} -> {webhook_url}")
-        results["webhook"] = {"id": webhook.id, "url": webhook_url}
+        resp.raise_for_status()
+        wh_data = resp.json()
+        webhook_id = wh_data.get("id", "?")
+        print(f"  Webhook created: {webhook_id} -> {webhook_url}")
+        results["webhook"] = {"id": webhook_id, "url": webhook_url}
     except Exception as e:
         print(f"  Webhook failed: {e}")
         results["webhook"] = {"error": str(e)}
