@@ -419,6 +419,85 @@ def init_db():
         );
         """)
 
+        # ── Agency / BizDev tables ────────────────────────────────
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS agency_clients (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name         TEXT NOT NULL,
+            company      TEXT DEFAULT '',
+            email        TEXT DEFAULT '',
+            phone        TEXT DEFAULT '',
+            industry     TEXT DEFAULT '',
+            website      TEXT DEFAULT '',
+            status       TEXT DEFAULT 'lead',
+            monthly_value REAL DEFAULT 0,
+            notes        TEXT DEFAULT '',
+            created_at   TEXT DEFAULT (datetime('now')),
+            updated_at   TEXT DEFAULT (datetime('now'))
+        );
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS agency_deals (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            client_id    INTEGER REFERENCES agency_clients(id) ON DELETE CASCADE,
+            title        TEXT NOT NULL,
+            value        REAL DEFAULT 0,
+            stage        TEXT DEFAULT 'discovery',
+            service_type TEXT DEFAULT 'content',
+            description  TEXT DEFAULT '',
+            close_date   TEXT DEFAULT '',
+            created_at   TEXT DEFAULT (datetime('now')),
+            updated_at   TEXT DEFAULT (datetime('now'))
+        );
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS agency_proposals (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            deal_id      INTEGER REFERENCES agency_deals(id) ON DELETE CASCADE,
+            client_id    INTEGER REFERENCES agency_clients(id) ON DELETE CASCADE,
+            title        TEXT NOT NULL,
+            content      TEXT DEFAULT '',
+            pricing      TEXT DEFAULT '{}',
+            status       TEXT DEFAULT 'draft',
+            sent_at      TEXT,
+            created_at   TEXT DEFAULT (datetime('now'))
+        );
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS agency_projects (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            client_id    INTEGER REFERENCES agency_clients(id) ON DELETE CASCADE,
+            deal_id      INTEGER REFERENCES agency_deals(id),
+            name         TEXT NOT NULL,
+            status       TEXT DEFAULT 'active',
+            service_type TEXT DEFAULT 'content',
+            deliverables TEXT DEFAULT '[]',
+            start_date   TEXT DEFAULT (date('now')),
+            end_date     TEXT DEFAULT '',
+            monthly_fee  REAL DEFAULT 0,
+            videos_quota INTEGER DEFAULT 10,
+            videos_used  INTEGER DEFAULT 0,
+            created_at   TEXT DEFAULT (datetime('now'))
+        );
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS agency_revenue (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            client_id    INTEGER REFERENCES agency_clients(id),
+            project_id   INTEGER REFERENCES agency_projects(id),
+            amount       REAL NOT NULL,
+            type         TEXT DEFAULT 'recurring',
+            description  TEXT DEFAULT '',
+            period       TEXT DEFAULT '',
+            created_at   TEXT DEFAULT (datetime('now'))
+        );
+        """)
+
         # Migrate: add user_id columns if upgrading from an older schema
         for table in ("jobs", "contacts", "social_accounts"):
             cols = [r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()]
@@ -1712,3 +1791,154 @@ def get_daily_action_count(user_id, platform=None):
         return conn.execute(
             "SELECT COUNT(*) FROM engagement_actions WHERE user_id=? AND date(created_at)=date('now')",
             (user_id,)).fetchone()[0]
+
+
+# ── Agency / BizDev ──────────────────────────────────────────────────────────
+
+def get_agency_clients(user_id, status=None):
+    with get_conn() as conn:
+        if status:
+            rows = conn.execute("SELECT * FROM agency_clients WHERE user_id=? AND status=? ORDER BY updated_at DESC", (user_id, status)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM agency_clients WHERE user_id=? ORDER BY updated_at DESC", (user_id,)).fetchall()
+        return [row_to_dict(r) for r in rows]
+
+def create_agency_client(user_id, data):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO agency_clients (user_id, name, company, email, phone, industry, website, status, monthly_value, notes) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (user_id, data.get("name",""), data.get("company",""), data.get("email",""), data.get("phone",""),
+             data.get("industry",""), data.get("website",""), data.get("status","lead"), data.get("monthly_value",0), data.get("notes","")))
+        return cur.lastrowid
+
+def update_agency_client(user_id, client_id, data):
+    with get_conn() as conn:
+        fields = []
+        vals = []
+        for k in ("name","company","email","phone","industry","website","status","monthly_value","notes"):
+            if k in data:
+                fields.append(f"{k}=?")
+                vals.append(data[k])
+        if not fields:
+            return
+        fields.append("updated_at=datetime('now')")
+        vals.extend([user_id, client_id])
+        conn.execute(f"UPDATE agency_clients SET {','.join(fields)} WHERE user_id=? AND id=?", vals)
+
+def delete_agency_client(user_id, client_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM agency_clients WHERE user_id=? AND id=?", (user_id, client_id))
+
+def get_agency_deals(user_id, client_id=None, stage=None):
+    with get_conn() as conn:
+        q = "SELECT d.*, c.name as client_name, c.company as client_company FROM agency_deals d LEFT JOIN agency_clients c ON d.client_id=c.id WHERE d.user_id=?"
+        params = [user_id]
+        if client_id:
+            q += " AND d.client_id=?"
+            params.append(client_id)
+        if stage:
+            q += " AND d.stage=?"
+            params.append(stage)
+        q += " ORDER BY d.updated_at DESC"
+        return [row_to_dict(r) for r in conn.execute(q, params).fetchall()]
+
+def create_agency_deal(user_id, data):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO agency_deals (user_id, client_id, title, value, stage, service_type, description, close_date) VALUES (?,?,?,?,?,?,?,?)",
+            (user_id, data.get("client_id"), data.get("title",""), data.get("value",0), data.get("stage","discovery"),
+             data.get("service_type","content"), data.get("description",""), data.get("close_date","")))
+        return cur.lastrowid
+
+def update_agency_deal(user_id, deal_id, data):
+    with get_conn() as conn:
+        fields = []
+        vals = []
+        for k in ("client_id","title","value","stage","service_type","description","close_date"):
+            if k in data:
+                fields.append(f"{k}=?")
+                vals.append(data[k])
+        if not fields:
+            return
+        fields.append("updated_at=datetime('now')")
+        vals.extend([user_id, deal_id])
+        conn.execute(f"UPDATE agency_deals SET {','.join(fields)} WHERE user_id=? AND id=?", vals)
+
+def delete_agency_deal(user_id, deal_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM agency_deals WHERE user_id=? AND id=?", (user_id, deal_id))
+
+def get_agency_projects(user_id, client_id=None, status=None):
+    with get_conn() as conn:
+        q = "SELECT p.*, c.name as client_name FROM agency_projects p LEFT JOIN agency_clients c ON p.client_id=c.id WHERE p.user_id=?"
+        params = [user_id]
+        if client_id:
+            q += " AND p.client_id=?"
+            params.append(client_id)
+        if status:
+            q += " AND p.status=?"
+            params.append(status)
+        q += " ORDER BY p.created_at DESC"
+        return [row_to_dict(r) for r in conn.execute(q, params).fetchall()]
+
+def create_agency_project(user_id, data):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO agency_projects (user_id, client_id, deal_id, name, status, service_type, deliverables, start_date, end_date, monthly_fee, videos_quota) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (user_id, data.get("client_id"), data.get("deal_id"), data.get("name",""), data.get("status","active"),
+             data.get("service_type","content"), json.dumps(data.get("deliverables",[])), data.get("start_date",""),
+             data.get("end_date",""), data.get("monthly_fee",0), data.get("videos_quota",10)))
+        return cur.lastrowid
+
+def update_agency_project(user_id, project_id, data):
+    with get_conn() as conn:
+        fields = []
+        vals = []
+        for k in ("client_id","name","status","service_type","start_date","end_date","monthly_fee","videos_quota","videos_used"):
+            if k in data:
+                fields.append(f"{k}=?")
+                vals.append(data[k])
+        if "deliverables" in data:
+            fields.append("deliverables=?")
+            vals.append(json.dumps(data["deliverables"]))
+        if not fields:
+            return
+        vals.extend([user_id, project_id])
+        conn.execute(f"UPDATE agency_projects SET {','.join(fields)} WHERE user_id=? AND id=?", vals)
+
+def get_agency_revenue(user_id, client_id=None, period=None):
+    with get_conn() as conn:
+        q = "SELECT r.*, c.name as client_name FROM agency_revenue r LEFT JOIN agency_clients c ON r.client_id=c.id WHERE r.user_id=?"
+        params = [user_id]
+        if client_id:
+            q += " AND r.client_id=?"
+            params.append(client_id)
+        if period:
+            q += " AND r.period=?"
+            params.append(period)
+        q += " ORDER BY r.created_at DESC"
+        return [row_to_dict(r) for r in conn.execute(q, params).fetchall()]
+
+def create_agency_revenue(user_id, data):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO agency_revenue (user_id, client_id, project_id, amount, type, description, period) VALUES (?,?,?,?,?,?,?)",
+            (user_id, data.get("client_id"), data.get("project_id"), data.get("amount",0),
+             data.get("type","recurring"), data.get("description",""), data.get("period","")))
+
+def get_agency_stats(user_id):
+    with get_conn() as conn:
+        clients_total = conn.execute("SELECT COUNT(*) FROM agency_clients WHERE user_id=?", (user_id,)).fetchone()[0]
+        clients_active = conn.execute("SELECT COUNT(*) FROM agency_clients WHERE user_id=? AND status='active'", (user_id,)).fetchone()[0]
+        leads = conn.execute("SELECT COUNT(*) FROM agency_clients WHERE user_id=? AND status='lead'", (user_id,)).fetchone()[0]
+        deals_open = conn.execute("SELECT COUNT(*) FROM agency_deals WHERE user_id=? AND stage NOT IN ('won','lost')", (user_id,)).fetchone()[0]
+        pipeline_value = conn.execute("SELECT COALESCE(SUM(value),0) FROM agency_deals WHERE user_id=? AND stage NOT IN ('won','lost')", (user_id,)).fetchone()[0]
+        deals_won = conn.execute("SELECT COALESCE(SUM(value),0) FROM agency_deals WHERE user_id=? AND stage='won'", (user_id,)).fetchone()[0]
+        mrr = conn.execute("SELECT COALESCE(SUM(monthly_fee),0) FROM agency_projects WHERE user_id=? AND status='active'", (user_id,)).fetchone()[0]
+        total_revenue = conn.execute("SELECT COALESCE(SUM(amount),0) FROM agency_revenue WHERE user_id=?", (user_id,)).fetchone()[0]
+        projects_active = conn.execute("SELECT COUNT(*) FROM agency_projects WHERE user_id=? AND status='active'", (user_id,)).fetchone()[0]
+        return {
+            "clients_total": clients_total, "clients_active": clients_active, "leads": leads,
+            "deals_open": deals_open, "pipeline_value": pipeline_value, "deals_won": deals_won,
+            "mrr": mrr, "total_revenue": total_revenue, "projects_active": projects_active
+        }

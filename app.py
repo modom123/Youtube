@@ -5622,6 +5622,163 @@ def editing_room_serve_media(media_id):
 db.init_db()
 init_monetizer_tables()
 _load_platform_creds_from_db()
+# ── Agency Command Center ─────────────────────────────────────────────────────
+
+@app.route("/agency")
+@login_required
+def agency_page():
+    stats = db.get_agency_stats(current_user.id)
+    clients = db.get_agency_clients(current_user.id)
+    deals = db.get_agency_deals(current_user.id)
+    projects = db.get_agency_projects(current_user.id)
+    return render_template("agency.html", stats=stats, clients=clients, deals=deals, projects=projects)
+
+@app.route("/api/agency/clients", methods=["GET"])
+@login_required
+def api_agency_clients_list():
+    status = request.args.get("status")
+    return jsonify(db.get_agency_clients(current_user.id, status=status))
+
+@app.route("/api/agency/clients", methods=["POST"])
+@login_required
+def api_agency_clients_create():
+    data = request.get_json(force=True)
+    if not data.get("name"):
+        return jsonify({"error": "Name required"}), 400
+    cid = db.create_agency_client(current_user.id, data)
+    return jsonify({"id": cid, "ok": True}), 201
+
+@app.route("/api/agency/clients/<int:cid>", methods=["PUT"])
+@login_required
+def api_agency_clients_update(cid):
+    data = request.get_json(force=True)
+    db.update_agency_client(current_user.id, cid, data)
+    return jsonify({"ok": True})
+
+@app.route("/api/agency/clients/<int:cid>", methods=["DELETE"])
+@login_required
+def api_agency_clients_delete(cid):
+    db.delete_agency_client(current_user.id, cid)
+    return jsonify({"ok": True})
+
+@app.route("/api/agency/deals", methods=["GET"])
+@login_required
+def api_agency_deals_list():
+    client_id = request.args.get("client_id", type=int)
+    stage = request.args.get("stage")
+    return jsonify(db.get_agency_deals(current_user.id, client_id=client_id, stage=stage))
+
+@app.route("/api/agency/deals", methods=["POST"])
+@login_required
+def api_agency_deals_create():
+    data = request.get_json(force=True)
+    if not data.get("title"):
+        return jsonify({"error": "Title required"}), 400
+    did = db.create_agency_deal(current_user.id, data)
+    return jsonify({"id": did, "ok": True}), 201
+
+@app.route("/api/agency/deals/<int:did>", methods=["PUT"])
+@login_required
+def api_agency_deals_update(did):
+    data = request.get_json(force=True)
+    db.update_agency_deal(current_user.id, did, data)
+    return jsonify({"ok": True})
+
+@app.route("/api/agency/deals/<int:did>", methods=["DELETE"])
+@login_required
+def api_agency_deals_delete(did):
+    db.delete_agency_deal(current_user.id, did)
+    return jsonify({"ok": True})
+
+@app.route("/api/agency/projects", methods=["GET"])
+@login_required
+def api_agency_projects_list():
+    client_id = request.args.get("client_id", type=int)
+    status = request.args.get("status")
+    return jsonify(db.get_agency_projects(current_user.id, client_id=client_id, status=status))
+
+@app.route("/api/agency/projects", methods=["POST"])
+@login_required
+def api_agency_projects_create():
+    data = request.get_json(force=True)
+    if not data.get("name"):
+        return jsonify({"error": "Name required"}), 400
+    pid = db.create_agency_project(current_user.id, data)
+    return jsonify({"id": pid, "ok": True}), 201
+
+@app.route("/api/agency/projects/<int:pid>", methods=["PUT"])
+@login_required
+def api_agency_projects_update(pid):
+    data = request.get_json(force=True)
+    db.update_agency_project(current_user.id, pid, data)
+    return jsonify({"ok": True})
+
+@app.route("/api/agency/revenue", methods=["GET"])
+@login_required
+def api_agency_revenue_list():
+    client_id = request.args.get("client_id", type=int)
+    period = request.args.get("period")
+    return jsonify(db.get_agency_revenue(current_user.id, client_id=client_id, period=period))
+
+@app.route("/api/agency/revenue", methods=["POST"])
+@login_required
+def api_agency_revenue_create():
+    data = request.get_json(force=True)
+    if not data.get("amount"):
+        return jsonify({"error": "Amount required"}), 400
+    db.create_agency_revenue(current_user.id, data)
+    return jsonify({"ok": True}), 201
+
+@app.route("/api/agency/stats")
+@login_required
+def api_agency_stats():
+    return jsonify(db.get_agency_stats(current_user.id))
+
+@app.route("/api/agency/proposals", methods=["POST"])
+@login_required
+def api_agency_proposal_generate():
+    """Use Claude to generate a professional proposal for a deal."""
+    data = request.get_json(force=True)
+    deal_id = data.get("deal_id")
+    if not deal_id:
+        return jsonify({"error": "deal_id required"}), 400
+    deals = db.get_agency_deals(current_user.id)
+    deal = next((d for d in deals if d["id"] == deal_id), None)
+    if not deal:
+        return jsonify({"error": "Deal not found"}), 404
+    client = None
+    if deal.get("client_id"):
+        clients = db.get_agency_clients(current_user.id)
+        client = next((c for c in clients if c["id"] == deal["client_id"]), None)
+
+    prompt = f"""Generate a professional agency proposal for the following deal:
+Client: {client['name'] if client else 'Unknown'} ({client.get('company','') if client else ''})
+Industry: {client.get('industry','') if client else ''}
+Deal: {deal['title']}
+Value: ${deal['value']:,.2f}
+Service: {deal.get('service_type','content creation')}
+Description: {deal.get('description','')}
+
+Create a compelling proposal with:
+1. Executive Summary
+2. Proposed Services & Deliverables
+3. Timeline & Milestones
+4. Pricing Breakdown
+5. Why Social Optimize (our AI-powered platform creates content 10x faster)
+
+Format in clean HTML with inline styles. Professional, concise, persuasive."""
+
+    try:
+        import anthropic
+        ac = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        msg = ac.messages.create(model="claude-sonnet-4-6", max_tokens=2000,
+                                 messages=[{"role": "user", "content": prompt}])
+        html = msg.content[0].text
+        return jsonify({"proposal_html": html, "ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 start_background_threads()
 
 # Start the job monitor agent (auto-resets stuck jobs every 5 min)
