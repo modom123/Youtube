@@ -10,7 +10,7 @@ billing_bp = Blueprint("billing", __name__, url_prefix="/billing")
 
 stripe.api_key = config.STRIPE_SECRET_KEY
 
-TIER_ORDER = ["free", "starter", "creator", "agency"]
+TIER_ORDER = ["free", "starter", "creator", "pro", "agency"]
 
 
 @billing_bp.route("/")
@@ -259,6 +259,7 @@ def _price_to_tier(price_id: str) -> str:
     mapping = {
         config.STRIPE_PRICE_STARTER: "starter",
         config.STRIPE_PRICE_CREATOR: "creator",
+        config.STRIPE_PRICE_PRO:     "pro",
         config.STRIPE_PRICE_AGENCY:  "agency",
     }
     return mapping.get(price_id, "free")

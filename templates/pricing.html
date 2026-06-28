@@ -70,7 +70,7 @@
     .pricing-savings { background: linear-gradient(135deg, var(--purple), var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; font-weight: 700; font-size: 14px; }
 
     /* PRICING GRID */
-    .pricing-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 80px; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 80px; }
     .pricing-card {
       background: var(--card); border: 1px solid var(--border); border-radius: 24px;
       padding: 40px 28px; position: relative; transition: all .3s; display: flex; flex-direction: column;
@@ -154,6 +154,12 @@
     .footer-links a:hover { color: var(--text); }
 
     /* RESPONSIVE */
+    .pricing-limit { font-size: 11px; color: #ff453a; opacity: .7; padding: 4px 0 0; display: flex; align-items: center; gap: 8px; }
+    .pricing-limit::before { content: '✗'; font-weight: 700; flex-shrink: 0; }
+
+    @media (max-width: 1200px) {
+      .pricing-grid { grid-template-columns: repeat(3, 1fr); }
+    }
     @media (max-width: 1024px) {
       .pricing-grid { grid-template-columns: repeat(2, 1fr); }
       .pricing-card.featured { transform: scale(1); }
@@ -222,83 +228,109 @@
       <div class="pricing-tier">Free Forever</div>
       <h3 class="pricing-name">Free</h3>
       <div class="pricing-price">$<span style="font-size:36px">0</span><span>/mo</span></div>
-      <p class="pricing-desc">No credit card. No commitment. Start creating today.</p>
+      <p class="pricing-desc">See what AI content creation feels like. No card, no strings.</p>
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free — No Card</button>
       <ul class="pricing-features">
-        <li>🎬 2 AI videos/month</li>
-        <li>📲 Publish to 8 platforms</li>
-        <li>📸 Quick Post from photo/video</li>
-        <li>🖼 Pexels stock media</li>
-        <li>✍️ Basic AI scripts</li>
+        <li>3 AI videos/month</li>
+        <li>10 Social Optimize Credits</li>
+        <li>Publish to YouTube</li>
+        <li>Quick Post from photo/video</li>
+        <li>Pexels stock media</li>
       </ul>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+        <div class="pricing-limit">No AI Clipper</div>
+        <div class="pricing-limit">No scheduling</div>
+        <div class="pricing-limit">Watermark on exports</div>
+      </div>
     </div>
 
-    <!-- STARTER -->
+    <!-- STARTER $9.99 -->
     <div class="pricing-card">
-      <div class="pricing-popular" style="background:#30d158;color:#000;">14-Day Free Trial</div>
-      <div class="pricing-tier">Starter — $29/mo</div>
+      <div class="pricing-popular" style="background:#30d158;color:#000;">7-Day Free Trial</div>
+      <div class="pricing-tier">Starter — <span id="starter-price">$9.99</span>/mo</div>
       <h3 class="pricing-name">Starter</h3>
-      <div class="pricing-price"><span id="starter-price">$29</span><span>/mo</span></div>
-      <p class="pricing-desc">Card required — you won't be charged for 14 days. Cancel anytime.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=starter'">Start 14-Day Free Trial</button>
+      <div class="pricing-price"><span id="starter-price-big">$9.99</span><span>/mo</span></div>
+      <p class="pricing-desc">Post consistently without breaking the bank. Scheduling, 8 platforms, no watermark.</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=starter'">Start 7-Day Free Trial</button>
       <ul class="pricing-features">
-        <li>✅ 14-day free trial</li>
-        <li>🎬 15 AI videos/month</li>
-        <li>📲 Publish to 8 platforms</li>
-        <li>📸 Quick Post from photo/video</li>
-        <li>🤖 150 Social Optimize Credits/mo</li>
-        <li>🧠 5-agent AI content pipeline</li>
-        <li>📅 Content calendar & scheduling</li>
-        <li>#️⃣ Hashtag research tool</li>
-        <li>📧 Email support</li>
+        <li>10 AI videos/month</li>
+        <li>50 Social Optimize Credits/mo</li>
+        <li>Publish to 8 platforms</li>
+        <li>5-agent AI pipeline</li>
+        <li>Content calendar & scheduling</li>
+        <li>Hashtag research</li>
+        <li>No watermark</li>
+        <li>Email support</li>
       </ul>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+        <div class="pricing-limit">No AI Clipper</div>
+        <div class="pricing-limit">No batch creation</div>
+      </div>
     </div>
 
-    <!-- CREATOR (FEATURED) -->
+    <!-- CREATOR $29 (FEATURED) -->
     <div class="pricing-card featured">
       <div class="pricing-popular">⭐ Most Popular</div>
-      <div class="pricing-tier">Creator — $79/mo</div>
+      <div class="pricing-tier">Creator — <span id="creator-price">$29</span>/mo</div>
       <h3 class="pricing-name">Creator</h3>
-      <div class="pricing-price"><span id="pro-price">$79</span><span>/mo</span></div>
-      <p class="pricing-desc">Card required — you won't be charged for 14 days. Cancel anytime.</p>
+      <div class="pricing-price"><span id="creator-price-big">$29</span><span>/mo</span></div>
+      <p class="pricing-desc">The sweet spot. AI Clipper, batch creation, Studio 56 — everything a serious creator needs.</p>
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=creator'">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
-        <li>✅ 14-day free trial</li>
-        <li>🎬 50 AI videos/month</li>
-        <li>📲 Publish to all 8 platforms</li>
-        <li>📸 Quick Post from photo/video</li>
-        <li>🤖 500 Social Optimize Credits/mo</li>
-        <li>🎙 Studio 56 — full production suite</li>
-        <li>📺 Commercial Studio — photo → ad</li>
-        <li>🎬 Hollywood AI agent</li>
-        <li>📦 Batch create 30 videos at once</li>
-        <li>🔍 Competitor & trend analysis</li>
-        <li>📊 Advanced analytics</li>
-        <li>⚡ Priority support</li>
+        <li>30 AI videos/month</li>
+        <li>200 Social Optimize Credits/mo</li>
+        <li>AI Clipper — 10 clips/month</li>
+        <li>Batch create 10 videos at once</li>
+        <li>Studio 56 — full production suite</li>
+        <li>Template Library</li>
+        <li>Competitor & trend analysis</li>
+        <li>Advanced analytics</li>
+        <li>Priority email support</li>
       </ul>
     </div>
 
-    <!-- AGENCY -->
+    <!-- PRO $79 -->
     <div class="pricing-card">
       <div class="pricing-popular" style="background:#a855f7;">14-Day Free Trial</div>
-      <div class="pricing-tier">Agency — $199/mo</div>
+      <div class="pricing-tier">Pro — <span id="pro-price">$79</span>/mo</div>
+      <h3 class="pricing-name">Pro</h3>
+      <div class="pricing-price"><span id="pro-price-big">$79</span><span>/mo</span></div>
+      <p class="pricing-desc">Every tool unlocked. Unlimited clips, Hollywood AI, multi-language, team seats.</p>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=pro'">Start 14-Day Free Trial</button>
+      <ul class="pricing-features">
+        <li>100 AI videos/month</li>
+        <li>750 Social Optimize Credits/mo</li>
+        <li>AI Clipper — unlimited clips</li>
+        <li>Batch create 50 videos at once</li>
+        <li>Hollywood AI agent</li>
+        <li>Commercial Studio — photo to ad</li>
+        <li>Documentary & Animation formats</li>
+        <li>Multi-language (15 languages)</li>
+        <li>3 team seats</li>
+        <li>Priority support</li>
+      </ul>
+    </div>
+
+    <!-- AGENCY $199 -->
+    <div class="pricing-card">
+      <div class="pricing-popular" style="background:var(--gold);color:#000;">Best Value at Scale</div>
+      <div class="pricing-tier">Agency — <span id="agency-price">$199</span>/mo</div>
       <h3 class="pricing-name">Agency</h3>
-      <div class="pricing-price"><span id="agency-price">$199</span><span>/mo</span></div>
-      <p class="pricing-desc">Card required — you won't be charged for 14 days. Cancel anytime.</p>
+      <div class="pricing-price"><span id="agency-price-big">$199</span><span>/mo</span></div>
+      <p class="pricing-desc">White-label, API, CRM, 10 seats, and a dedicated manager. Built for agencies.</p>
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=agency'">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
-        <li>✅ 14-day free trial</li>
-        <li>🎬 125 AI videos/month</li>
-        <li>📲 Publish to all 8 platforms</li>
-        <li>📸 Quick Post from photo/video</li>
-        <li>🤖 2,000 Social Optimize Credits/mo</li>
-        <li>🎙 Everything in Creator</li>
-        <li>👥 Team management (5 seats)</li>
-        <li>🏷 White-label exports</li>
-        <li>📣 SMS/WhatsApp outreach</li>
-        <li>🔌 API access</li>
-        <li>🧑‍💼 Dedicated account manager</li>
-        <li>🕐 24/7 priority support</li>
+        <li>200 AI videos/month</li>
+        <li>2,000 Social Optimize Credits/mo</li>
+        <li>Everything in Pro</li>
+        <li>AI Clipper — unlimited clips</li>
+        <li>10 team seats</li>
+        <li>White-label exports</li>
+        <li>SMS/WhatsApp outreach</li>
+        <li>Contacts / CRM</li>
+        <li>API access</li>
+        <li>Dedicated account manager</li>
+        <li>24/7 priority support</li>
       </ul>
     </div>
 
@@ -315,72 +347,98 @@
     <table class="comp-table">
       <thead>
         <tr>
-          <th style="width: 25%;">Feature</th>
-          <th style="width: 18.75%;">Free</th>
-          <th style="width: 18.75%;">Starter</th>
-          <th style="width: 18.75%;">Creator</th>
-          <th style="width: 18.75%;">Agency</th>
+          <th style="width:20%;">Feature</th>
+          <th style="width:16%;">Free</th>
+          <th style="width:16%;">Starter $9.99</th>
+          <th style="width:16%;">Creator $29</th>
+          <th style="width:16%;">Pro $79</th>
+          <th style="width:16%;">Agency $199</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td class="comp-feature">Videos per month</td>
-          <td><span class="comp-check">2</span></td>
-          <td><span class="comp-check">15</span></td>
-          <td><span class="comp-check">50</span></td>
-          <td><span class="comp-check">125</span></td>
+          <td><span class="comp-check">3</span></td>
+          <td><span class="comp-check">10</span></td>
+          <td><span class="comp-check">30</span></td>
+          <td><span class="comp-check">100</span></td>
+          <td><span class="comp-check">200</span></td>
         </tr>
         <tr>
-          <td class="comp-feature">Platforms supported</td>
-          <td><span class="comp-check">8</span></td>
-          <td><span class="comp-check">8</span></td>
-          <td><span class="comp-check">8</span></td>
-          <td><span class="comp-check">8</span></td>
-        </tr>
-        <tr>
-          <td class="comp-feature">Research suite</td>
-          <td><span class="comp-check">Basic</span></td>
-          <td><span class="comp-check">Full</span></td>
-          <td><span class="comp-check">Full</span></td>
-          <td><span class="comp-check">Full</span></td>
-        </tr>
-        <tr>
-          <td class="comp-feature">Hollywood AI agent</td>
+          <td class="comp-feature">AI Clipper</td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
-          <td><span class="comp-check">Yes</span></td>
-          <td><span class="comp-check">Yes</span></td>
+          <td><span class="comp-check">10 clips/mo</span></td>
+          <td><span class="comp-check">Unlimited</span></td>
+          <td><span class="comp-check">Unlimited</span></td>
         </tr>
         <tr>
-          <td class="comp-feature">Analytics & tracking</td>
-          <td><span class="comp-cross">—</span></td>
-          <td><span class="comp-check">Basic</span></td>
-          <td><span class="comp-check">Advanced</span></td>
-          <td><span class="comp-check">Advanced</span></td>
+          <td class="comp-feature">Platforms</td>
+          <td><span class="comp-check">YouTube</span></td>
+          <td><span class="comp-check">All 8</span></td>
+          <td><span class="comp-check">All 8</span></td>
+          <td><span class="comp-check">All 8</span></td>
+          <td><span class="comp-check">All 8</span></td>
         </tr>
         <tr>
           <td class="comp-feature">Batch creation</td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">10 at once</span></td>
+          <td><span class="comp-check">50 at once</span></td>
+          <td><span class="comp-check">50 at once</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Scheduling</td>
+          <td><span class="comp-cross">—</span></td>
           <td><span class="comp-check">Yes</span></td>
           <td><span class="comp-check">Yes</span></td>
+          <td><span class="comp-check">Yes</span></td>
+          <td><span class="comp-check">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Hollywood AI agent</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">Yes</span></td>
+          <td><span class="comp-check">Yes</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Multi-language</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">15 languages</span></td>
+          <td><span class="comp-check">15 languages</span></td>
+        </tr>
+        <tr>
+          <td class="comp-feature">Analytics</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">Basic</span></td>
+          <td><span class="comp-check">Advanced</span></td>
+          <td><span class="comp-check">Advanced</span></td>
+          <td><span class="comp-check">Advanced</span></td>
         </tr>
         <tr>
           <td class="comp-feature">Team seats</td>
           <td><span class="comp-check">1</span></td>
-          <td><span class="comp-check">2</span></td>
+          <td><span class="comp-check">1</span></td>
+          <td><span class="comp-check">1</span></td>
           <td><span class="comp-check">3</span></td>
-          <td><span class="comp-check">5</span></td>
+          <td><span class="comp-check">10</span></td>
         </tr>
         <tr>
-          <td class="comp-feature">API access</td>
+          <td class="comp-feature">Watermark-free</td>
           <td><span class="comp-cross">—</span></td>
-          <td><span class="comp-cross">—</span></td>
-          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">Yes</span></td>
+          <td><span class="comp-check">Yes</span></td>
+          <td><span class="comp-check">Yes</span></td>
           <td><span class="comp-check">Yes</span></td>
         </tr>
         <tr>
-          <td class="comp-feature">White-label</td>
+          <td class="comp-feature">White-label / API</td>
+          <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
@@ -390,6 +448,7 @@
           <td class="comp-feature">Support</td>
           <td><span class="comp-check">Community</span></td>
           <td><span class="comp-check">Email</span></td>
+          <td><span class="comp-check">Priority email</span></td>
           <td><span class="comp-check">Priority</span></td>
           <td><span class="comp-check">24/7 Dedicated</span></td>
         </tr>
@@ -478,8 +537,8 @@
 
 <script>
 const priceMap = {
-  'monthly': { starter: 29, pro: 79, agency: 199 },
-  'annual': { starter: 23, pro: 63, agency: 159 }
+  'monthly': { starter: '9.99', creator: '29', pro: '79', agency: '199' },
+  'annual':  { starter: '7.99', creator: '23', pro: '63', agency: '159' }
 };
 
 function togglePricing(period) {
@@ -489,9 +548,10 @@ function togglePricing(period) {
   const savingsLabel = document.getElementById('savingsLabel');
   savingsLabel.style.display = period === 'annual' ? 'block' : 'none';
 
-  document.getElementById('starter-price').textContent = '$' + priceMap[period].starter;
-  document.getElementById('pro-price').textContent = '$' + priceMap[period].pro;
-  document.getElementById('agency-price').textContent = '$' + priceMap[period].agency;
+  ['starter','creator','pro','agency'].forEach(t => {
+    const el = document.getElementById(t + '-price-big');
+    if (el) el.textContent = '$' + priceMap[period][t];
+  });
 }
 
 function toggleFaq(button) {
