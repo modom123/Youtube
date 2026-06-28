@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% block title %}Editing Room — Social Optimize{% endblock %}
+{% block topbar_title %}Editing Room{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;">
+    <div>
+      <h2 style="margin:0;font-size:22px;font-weight:700;">Editing Room</h2>
+      <p style="margin:4px 0 0;color:var(--muted);font-size:13px;">Produce, remix, and re-edit videos from any studio</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+    <!-- Left: Studio Selector + Script Editor -->
+    <div>
+      <!-- Studio Picker -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Choose Studio</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <label class="studio-card" data-studio="hollywood" style="cursor:pointer;">
+            <input type="radio" name="studio" value="hollywood" checked style="display:none;">
+            <div class="studio-inner" id="studio-hollywood" style="border:2px solid var(--accent);border-radius:10px;padding:14px;text-align:center;transition:all .2s;">
+              <div style="font-size:28px;">🎬</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px;">Hollywood</div>
+              <div style="font-size:11px;color:var(--muted);">Cinematic 16:9</div>
+            </div>
+          </label>
+          <label class="studio-card" data-studio="studio56" style="cursor:pointer;">
+            <input type="radio" name="studio" value="studio56" style="display:none;">
+            <div class="studio-inner" id="studio-studio56" style="border:2px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all .2s;">
+              <div style="font-size:28px;">📱</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px;">Studio 56</div>
+              <div style="font-size:11px;color:var(--muted);">Vertical 9:16</div>
+            </div>
+          </label>
+          <label class="studio-card" data-studio="commercials" style="cursor:pointer;">
+            <input type="radio" name="studio" value="commercials" style="display:none;">
+            <div class="studio-inner" id="studio-commercials" style="border:2px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all .2s;">
+              <div style="font-size:28px;">📺</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px;">Commercials</div>
+              <div style="font-size:11px;color:var(--muted);">Product Ads 16:9</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Title & Subtitle -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Video Details</h3>
+        <label style="display:block;margin-bottom:10px;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">Title</span>
+          <input type="text" id="video-title" placeholder="Enter video title..." value="{{ remix_job.topic if remix_job else '' }}"
+            style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+        </label>
+        <label style="display:block;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">Subtitle</span>
+          <input type="text" id="video-subtitle" placeholder="Optional subtitle or tagline..."
+            style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+        </label>
+      </div>
+
+      <!-- Script / Sections Editor -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h3 style="margin:0;font-size:15px;font-weight:600;">Sections</h3>
+          <button onclick="addSection()" style="padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;">+ Add Section</button>
+        </div>
+        <div id="sections-list">
+          <!-- Sections rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Preview + Actions + Job History -->
+    <div>
+      <!-- AI Clips Toggle -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <h3 style="margin:0;font-size:15px;font-weight:600;">Visual Mode</h3>
+            <p style="margin:4px 0 0;font-size:12px;color:var(--muted);">Choose how section visuals are generated</p>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button id="mode-gradient" onclick="setVisualMode('gradient')" class="visual-mode-btn active"
+              style="padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#fff;transition:all .2s;">
+              Gradient
+            </button>
+            <button id="mode-ai" onclick="setVisualMode('ai')" class="visual-mode-btn"
+              style="padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all .2s;">
+              AI Video Clips
+            </button>
+          </div>
+        </div>
+        <div id="ai-mode-info" style="display:none;margin-top:10px;padding:10px;background:rgba(100,80,255,.08);border:1px solid rgba(100,80,255,.2);border-radius:8px;">
+          <div style="font-size:12px;color:var(--muted);">Each section will get a real AI-generated video clip via Higgsfield. Add a visual prompt per section below, or leave blank for auto-generated prompts. Uses credits from your plan.</div>
+        </div>
+      </div>
+
+      <!-- Produce Button -->
+      <div class="card" style="margin-bottom:16px;">
+        <button onclick="startProduction()" id="produce-btn"
+          style="width:100%;padding:14px;background:linear-gradient(135deg,#e53e3e,#dd6b20);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.5px;">
+          Start Production
+        </button>
+        <!-- Progress -->
+        <div id="progress-area" style="display:none;margin-top:14px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span id="progress-step" style="font-size:12px;color:var(--muted);">Starting...</span>
+            <span id="progress-pct" style="font-size:12px;font-weight:700;color:var(--accent);">0%</span>
+          </div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div id="progress-bar" style="height:100%;background:linear-gradient(90deg,#e53e3e,#dd6b20);width:0%;transition:width .4s;border-radius:3px;"></div>
+          </div>
+        </div>
+        <!-- Result -->
+        <div id="result-area" style="display:none;margin-top:14px;">
+          <div style="padding:12px;background:rgba(72,187,120,.1);border:1px solid rgba(72,187,120,.3);border-radius:8px;">
+            <div style="font-weight:700;color:#48bb78;font-size:14px;">Production Complete!</div>
+            <div id="result-info" style="font-size:12px;color:var(--muted);margin-top:4px;"></div>
+            <a id="result-download" href="#" style="display:inline-block;margin-top:8px;padding:6px 16px;background:#48bb78;color:#fff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">Download Video</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Remix from existing job -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Remix Existing Job</h3>
+        <p style="margin:0 0 10px;font-size:12px;color:var(--muted);">Pick any past job to load its content into the editor for remixing.</p>
+        {% if jobs %}
+        <div style="max-height:300px;overflow-y:auto;">
+          {% for job in jobs %}
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">{{ job.title or job.topic }}</div>
+              <div style="font-size:11px;color:var(--muted);">{{ job.format }} &middot; {{ job.created_at[:10] }}</div>
+            </div>
+            <a href="/editing-room/remix/{{ job.id }}" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;color:var(--accent);text-decoration:none;">Remix</a>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">No jobs yet. Create your first video above!</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let selectedStudio = 'hollywood';
+let sections = [];
+let visualMode = 'gradient';
+let bgmTrackId = new URLSearchParams(window.location.search).get('bgm') || null;
+let bgmType = new URLSearchParams(window.location.search).get('bgm_type') || 'track';
+
+const defaultSections = {
+  hollywood: [
+    {heading: 'THE HOOK', narration: 'Open with something dramatic that grabs attention instantly.'},
+    {heading: 'THE PROBLEM', narration: 'Describe the challenge your audience faces.'},
+    {heading: 'THE SOLUTION', narration: 'Present the transformation or answer.'},
+    {heading: 'THE FUTURE', narration: 'End with inspiration and a call to action.'},
+  ],
+  studio56: [
+    {heading: 'STOP SCROLLING', narration: 'Hook them in the first 3 seconds.'},
+    {heading: 'TIP 1', narration: 'Your first key insight.'},
+    {heading: 'TIP 2', narration: 'Your second game-changer.'},
+    {heading: 'TIP 3', narration: 'The tip that seals the deal.'},
+    {heading: 'FOLLOW FOR MORE', narration: 'Call to action — follow, save, share.'},
+  ],
+  commercials: [
+    {heading: 'THE PROBLEM', narration: 'What pain does your customer feel?'},
+    {heading: 'THE SOLUTION', narration: 'How your product solves it.'},
+    {heading: 'START FREE', narration: 'Clear call to action.'},
+  ],
+};
+
+// ── Init ───────────────────────────────────────────────────────────────────
+{% if remix_job %}
+  // Pre-fill from remix job
+  document.getElementById('video-title').value = {{ remix_job.topic | tojson }};
+  sections = [
+    {heading: 'SECTION 1', narration: {{ (remix_job.title or remix_job.topic) | tojson }} },
+  ];
+{% endif %}
+
+if (sections.length === 0) {
+  sections = JSON.parse(JSON.stringify(defaultSections[selectedStudio]));
+}
+renderSections();
+
+// ── Studio selection ──────────────────────────────────────────────────────
+document.querySelectorAll('.studio-card').forEach(card => {
+  card.addEventListener('click', () => {
+    selectedStudio = card.dataset.studio;
+    document.querySelectorAll('.studio-inner').forEach(el => {
+      el.style.borderColor = 'var(--border)';
+    });
+    card.querySelector('.studio-inner').style.borderColor = 'var(--accent)';
+    // Load default sections for this studio if user hasn't edited
+    if (confirm('Load default sections for this studio? (Current sections will be replaced)')) {
+      sections = JSON.parse(JSON.stringify(defaultSections[selectedStudio]));
+      renderSections();
+    }
+  });
+});
+
+// ── Visual mode toggle ────────────────────────────────────────────────────
+function setVisualMode(mode) {
+  visualMode = mode;
+  document.getElementById('mode-gradient').style.cssText =
+    mode === 'gradient'
+      ? 'padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#fff;transition:all .2s;'
+      : 'padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all .2s;';
+  document.getElementById('mode-ai').style.cssText =
+    mode === 'ai'
+      ? 'padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--accent);background:var(--accent);color:#fff;transition:all .2s;'
+      : 'padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all .2s;';
+  document.getElementById('ai-mode-info').style.display = mode === 'ai' ? 'block' : 'none';
+  renderSections();
+}
+
+// ── Sections editor ───────────────────────────────────────────────────────
+function renderSections() {
+  const container = document.getElementById('sections-list');
+  container.innerHTML = '';
+  sections.forEach((sec, i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--surface);';
+    let visualPromptHtml = '';
+    if (visualMode === 'ai') {
+      visualPromptHtml = `
+        <div style="margin-top:8px;">
+          <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;">Visual Prompt</span>
+          <input type="text" value="${(sec.visual_prompt || '').replace(/"/g, '&quot;')}" onchange="sections[${i}].visual_prompt=this.value"
+            placeholder="Describe the visual scene (leave blank for auto)..."
+            style="width:100%;padding:6px 8px;border:1px solid rgba(100,80,255,.3);border-radius:6px;background:rgba(100,80,255,.05);color:var(--text);font-size:12px;margin-top:4px;">
+        </div>`;
+    }
+    const mediaHtml = `
+      <div style="margin-top:8px;">
+        <span style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;">Photos & Videos</span>
+        <div id="media-list-${i}" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div>
+        <label style="display:inline-block;margin-top:6px;padding:5px 12px;border:1px dashed var(--border);border-radius:6px;cursor:pointer;font-size:11px;color:var(--muted);">
+          + Add Media
+          <input type="file" accept="image/*,video/mp4,video/mov,video/avi,video/webm" multiple
+            onchange="uploadSectionMedia(${i}, this.files)" style="display:none;">
+        </label>
+      </div>`;
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <input type="text" value="${sec.heading}" onchange="sections[${i}].heading=this.value"
+          style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;font-weight:700;">
+        <button onclick="removeSection(${i})" style="margin-left:8px;padding:4px 8px;border:1px solid rgba(229,62,62,.3);border-radius:6px;background:transparent;color:#e53e3e;cursor:pointer;font-size:11px;">Remove</button>
+      </div>
+      <textarea onchange="sections[${i}].narration=this.value" rows="3"
+        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;resize:vertical;font-family:inherit;">${sec.narration}</textarea>
+      ${visualPromptHtml}
+      ${mediaHtml}
+    `;
+    container.appendChild(div);
+    renderMediaList(i);
+  });
+}
+
+function addSection() {
+  sections.push({heading: `SECTION ${sections.length + 1}`, narration: 'Enter narration text here...'});
+  renderSections();
+}
+
+function removeSection(i) {
+  if (sections.length <= 1) return alert('Need at least one section.');
+  sections.splice(i, 1);
+  renderSections();
+}
+
+// ── Section Media ─────────────────────────────────────────────────────
+let sectionMedia = {};  // {sectionIndex: [{media_id, path, type, filename}]}
+
+async function uploadSectionMedia(secIdx, files) {
+  if (!sectionMedia[secIdx]) sectionMedia[secIdx] = [];
+  for (const file of files) {
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const resp = await fetch('/api/editing-room/upload-media', {method:'POST', body: fd});
+      const data = await resp.json();
+      if (!resp.ok) { alert(data.error || 'Upload failed'); continue; }
+      sectionMedia[secIdx].push(data);
+    } catch(e) { alert('Upload error: ' + e); }
+  }
+  renderMediaList(secIdx);
+}
+
+function renderMediaList(secIdx) {
+  const el = document.getElementById('media-list-' + secIdx);
+  if (!el) return;
+  const items = sectionMedia[secIdx] || [];
+  if (!items.length) { el.innerHTML = ''; return; }
+  el.innerHTML = items.map((m, mi) => `
+    <div style="position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--border);background:var(--bg);">
+      ${m.type === 'video'
+        ? `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:24px;">🎥</div>`
+        : `<img src="/api/editing-room/upload-media/${m.media_id}" style="width:100%;height:100%;object-fit:cover;">`}
+      <button onclick="removeSectionMedia(${secIdx},${mi})" style="position:absolute;top:1px;right:1px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;border:none;cursor:pointer;font-size:10px;line-height:16px;padding:0;">×</button>
+      <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.6);color:#fff;font-size:8px;padding:1px 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${m.filename}</div>
+    </div>
+  `).join('');
+}
+
+function removeSectionMedia(secIdx, mediaIdx) {
+  if (sectionMedia[secIdx]) sectionMedia[secIdx].splice(mediaIdx, 1);
+  renderMediaList(secIdx);
+}
+
+// ── Production ────────────────────────────────────────────────────────────
+function startProduction() {
+  const title = document.getElementById('video-title').value.trim();
+  if (!title) return alert('Enter a video title.');
+  if (sections.length === 0) return alert('Add at least one section.');
+
+  // Read current section values from DOM inputs
+  document.querySelectorAll('#sections-list > div').forEach((div, i) => {
+    const inputs = div.querySelectorAll('input[type=text]');
+    const narration = div.querySelector('textarea');
+    if (inputs[0]) sections[i].heading = inputs[0].value;
+    if (narration) sections[i].narration = narration.value;
+    if (inputs[1] && visualMode === 'ai') sections[i].visual_prompt = inputs[1].value;
+  });
+
+  const btn = document.getElementById('produce-btn');
+  btn.disabled = true;
+  btn.textContent = 'Producing...';
+  btn.style.opacity = '0.6';
+  document.getElementById('progress-area').style.display = 'block';
+  document.getElementById('result-area').style.display = 'none';
+
+  fetch('/api/editing-room/produce', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      studio: selectedStudio,
+      topic: title,
+      subtitle: document.getElementById('video-subtitle').value.trim(),
+      sections: sections,
+      source_job_id: {{ remix_job.id if remix_job else 'null' }},
+      use_ai_clips: visualMode === 'ai',
+      bgm_track_id: bgmTrackId,
+      bgm_type: bgmType,
+      section_media: sectionMedia,
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      alert(data.error);
+      btn.disabled = false;
+      btn.textContent = 'Start Production';
+      btn.style.opacity = '1';
+      document.getElementById('progress-area').style.display = 'none';
+      return;
+    }
+    // Stream progress
+    const es = new EventSource(`/api/editing-room/stream/${data.editing_job_id}`);
+    es.onmessage = (e) => {
+      const d = JSON.parse(e.data);
+      if (d.progress !== undefined) {
+        document.getElementById('progress-bar').style.width = d.progress + '%';
+        document.getElementById('progress-pct').textContent = d.progress + '%';
+      }
+      if (d.step) {
+        document.getElementById('progress-step').textContent = d.step;
+      }
+      if (d.status === 'done') {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = 'Start Production';
+        btn.style.opacity = '1';
+        document.getElementById('result-area').style.display = 'block';
+        const r = d.result || {};
+        document.getElementById('result-info').textContent =
+          `${r.label || selectedStudio} | ${(r.duration||0).toFixed(1)}s | ${r.resolution || ''} | ${r.file_size_mb || '?'} MB`;
+        if (d.db_job_id) {
+          document.getElementById('result-download').href = `/api/jobs/${d.db_job_id}/download`;
+        }
+      }
+      if (d.status === 'error') {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = 'Start Production';
+        btn.style.opacity = '1';
+        alert('Production failed: ' + (d.step || 'Unknown error'));
+      }
+    };
+    es.onerror = () => {
+      es.close();
+      btn.disabled = false;
+      btn.textContent = 'Start Production';
+      btn.style.opacity = '1';
+    };
+  })
+  .catch(err => {
+    alert('Request failed: ' + err);
+    btn.disabled = false;
+    btn.textContent = 'Start Production';
+    btn.style.opacity = '1';
+  });
+}
+</script>
+{% endblock %}

@@ -52,7 +52,7 @@ TIERS = {
         "description": "Get started for free — no credit card, no commitment. 3 AI videos per month with 10 credits.",
         "price_monthly": 0,
         "trial_days": 0,
-        "videos_per_month": 3,
+        "videos_per_month": -1,
         "higgsfield_credits": 10,
         "stripe_price_id": None,
         "features": [
@@ -179,12 +179,6 @@ MUBERT_KEY = os.getenv("MUBERT_KEY", "")
 FREESOUND_API_KEY = os.getenv("FREESOUND_API_KEY", "")
 
 # Higgsfield AI — bearer token for REST + MCP API calls
-# Accepts any of these Render env var names (first non-empty wins):
-#   HIGGSFIELD_MCP_TOKEN  (preferred)
-#   HIGGSFIELD_TOKEN
-#   HIGGSVILLE_TOKEN
-#   HIGGSVILLE_MCP_TOKEN
-#   HIGGSFIELD_API_KEY
 HIGGSFIELD_MCP_TOKEN = (
     os.getenv("HIGGSFIELD_MCP_TOKEN")
     or os.getenv("HIGGSFIELD_TOKEN")
@@ -193,7 +187,6 @@ HIGGSFIELD_MCP_TOKEN = (
     or os.getenv("HIGGSFIELD_API_KEY")
     or ""
 )
-# Optional override for the MCP endpoint URL (defaults to the Higgsfield cloud endpoint)
 HIGGSFIELD_MCP_URL = os.getenv("HIGGSFIELD_MCP_URL", "https://mcp.higgsfield.ai/mcp")
 
 # YouTube
