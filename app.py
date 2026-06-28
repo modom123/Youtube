@@ -1635,10 +1635,12 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
         output_dir = P(config.OUTPUT_DIR) / "editing_room" / editing_job_id
         use_ai_clips = params.get("use_ai_clips", False)
         custom_bgm = params.get("custom_bgm_path")
+        section_media = params.get("section_media", {})
         result = produce(
             studio=studio, topic=topic, sections=sections,
             output_dir=output_dir, subtitle=subtitle, progress_cb=_cb,
             use_ai_clips=use_ai_clips, custom_bgm_path=custom_bgm,
+            section_media=section_media,
         )
 
         # Create a job record in the DB so it shows in /jobs and can be remixed
@@ -1751,6 +1753,7 @@ def api_editing_room_produce():
         "source_job_id": data.get("source_job_id"),
         "use_ai_clips": bool(data.get("use_ai_clips", False)),
         "custom_bgm_path": custom_bgm_path,
+        "section_media": data.get("section_media", {}),
     }
 
     t = threading.Thread(
@@ -1793,6 +1796,34 @@ def editing_room_status(editing_job_id):
     if job is None:
         return jsonify({"error": "Not found"}), 404
     return jsonify(job)
+
+
+# ── Editing Room Media Upload ─────────────────────────────────────────────
+@app.route("/api/editing-room/upload-media", methods=["POST"])
+@login_required
+def editing_room_upload_media():
+    f = request.files.get("file")
+    if not f or not f.filename:
+        return jsonify({"error": "No file"}), 400
+    ext = Path(f.filename).suffix.lower()
+    if ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov", ".avi", ".webm"):
+        return jsonify({"error": "Unsupported file type"}), 400
+    media_id = str(uuid.uuid4())
+    media_dir = Path(config.OUTPUT_DIR) / "editing_media" / str(current_user.id)
+    media_dir.mkdir(parents=True, exist_ok=True)
+    dest = media_dir / f"{media_id}{ext}"
+    f.save(str(dest))
+    is_video = ext in (".mp4", ".mov", ".avi", ".webm")
+    return jsonify({"media_id": media_id, "path": str(dest), "type": "video" if is_video else "image", "filename": f.filename})
+
+
+@app.route("/api/editing-room/upload-media/<media_id>")
+@login_required
+def editing_room_serve_media(media_id):
+    media_dir = Path(config.OUTPUT_DIR) / "editing_media" / str(current_user.id)
+    for f in media_dir.glob(f"{media_id}.*"):
+        return send_file(str(f))
+    return "", 404
 
 
 # ── Music Studio ──────────────────────────────────────────────────────────

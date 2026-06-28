@@ -438,6 +438,41 @@ def _ken_burns(clip, tw, th, z_start=1.0, z_end=1.08):
 
 # ── Main production function ──────────────────────────────────────────────
 
+def _image_background(image_path, heading, palette, w, h, duration, idx, total, is_portrait=False):
+    """Use an uploaded image as background with text overlay."""
+    try:
+        img = Image.open(image_path).convert("RGBA")
+        iw, ih = img.size
+        scale = max(w / iw, h / ih)
+        nw, nh = int(iw * scale), int(ih * scale)
+        img = img.resize((nw, nh), Image.LANCZOS)
+        x_off = (nw - w) // 2
+        y_off = (nh - h) // 2
+        img = img.crop((x_off, y_off, x_off + w, y_off + h))
+        overlay = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay, "RGBA")
+        for y in range(h // 2, h):
+            alpha = int(140 * (y - h // 2) / (h // 2))
+            draw.rectangle([0, y, w, y + 1], fill=(0, 0, 0, alpha))
+        _lower_third(draw, w, h, heading, palette["accent"], is_portrait)
+        _watermark(draw, w, h)
+        dot_y = int(h * 0.92)
+        dot_sp = 24
+        dx_start = (w - (total - 1) * dot_sp) // 2
+        for i in range(total):
+            dx = dx_start + i * dot_sp
+            r = 5 if i == idx else 3
+            c = palette["accent"] + (220,) if i == idx else (255, 255, 255, 60)
+            draw.ellipse([dx - r, dot_y - r, dx + r, dot_y + r], fill=c)
+        composite = Image.alpha_composite(img, overlay)
+        frame = np.array(composite.convert("RGB"))
+        clip = ImageClip(frame).with_duration(duration).with_fps(30)
+        return clip
+    except Exception as e:
+        print(f"[editing_room] Image background failed for {image_path}: {e}")
+        return None
+
+
 def produce(
     studio: str,
     topic: str,
@@ -448,6 +483,7 @@ def produce(
     clip_paths: Optional[dict] = None,
     use_ai_clips: bool = False,
     custom_bgm_path: Optional[str] = None,
+    section_media: Optional[dict] = None,
 ) -> dict:
     """
     Produce a complete enhanced video.
@@ -565,13 +601,29 @@ def produce(
 
     # Section clips
     has_ai_clips = False
+    if section_media is None:
+        section_media = {}
     for i, sec in enumerate(sections):
         pal = palette_list[i % len(palette_list)]
         dur = max(sec_durs[i], 1.0)
 
         clip = None
-        # Try AI video clip background first
-        if i in clip_paths and clip_paths[i] and Path(clip_paths[i]).exists():
+        # Try user-uploaded media first
+        si = str(i)
+        media_list = section_media.get(si, [])
+        if media_list:
+            m = media_list[0]
+            mp = Path(m.get("path", ""))
+            if mp.exists():
+                if m.get("type") == "video":
+                    clip = _clip_with_overlay(str(mp), sec["heading"], pal, w, h, dur, i, total_secs, is_portrait)
+                else:
+                    clip = _image_background(str(mp), sec["heading"], pal, w, h, dur, i, total_secs, is_portrait)
+                if clip:
+                    has_ai_clips = True
+
+        # Try AI video clip background
+        if clip is None and i in clip_paths and clip_paths[i] and Path(clip_paths[i]).exists():
             clip = _clip_with_overlay(
                 clip_paths[i], sec["heading"], pal, w, h, dur, i, total_secs, is_portrait,
             )

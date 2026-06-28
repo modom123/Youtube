@@ -26,7 +26,7 @@ TIERS = {
     "free": {
         "label": "Free Trial",
         "price_monthly": 0,
-        "videos_per_month": 2,
+        "videos_per_month": -1,
         "higgsfield_credits": 0,
         "stripe_price_id": None,
         "features": ["2 videos/month", "Pexels stock media", "Basic scripts"],
