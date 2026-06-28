@@ -4352,7 +4352,7 @@ SCRIPT_SECTIONS:
 
         step("Commercial ready!", 100)
 
-        db.increment_credits_used(user_id, 1)
+        db.increment_videos_used(user_id)
 
         # Extract hooks/CTAs from ad copy variants for display
         hooks = [v.headline for v in ad_copy.variants[:3]]
@@ -4591,6 +4591,23 @@ def commercial_twitch_broadcast_status(broadcast_id):
     with _twitch_broadcast_lock:
         info = dict(_twitch_broadcast_jobs.get(broadcast_id, {"status": "unknown"}))
     return jsonify(info)
+
+
+@app.route("/api/commercial/<job_id>/audio")
+@login_required
+def commercial_audio(job_id):
+    with _commercial_lock:
+        events = _commercial_jobs.get(job_id, [])
+    import json as _json
+    for ev in reversed(events):
+        if ev.startswith("data: "):
+            try:
+                data = _json.loads(ev[6:])
+                if data.get("audio_path") and Path(data["audio_path"]).exists():
+                    return send_file(data["audio_path"], mimetype="audio/mpeg")
+            except Exception:
+                pass
+    return jsonify({"error": "Audio not ready"}), 404
 
 
 @app.route("/api/commercial/<job_id>/download")

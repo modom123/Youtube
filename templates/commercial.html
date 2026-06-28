@@ -514,11 +514,14 @@ async function runCommercial() {
   try {
     const resp = await fetch('/api/commercial/run', { method: 'POST', body: fd });
     const data = await resp.json();
-    if (data.error) { showError(data.error); return; }
+    if (data.error) { showError(data.error); stopTimer(); btn.disabled = false; btn.textContent = '🎬 Generate Commercial'; return; }
     currentJobId = data.job_id;
     listenToStream(currentJobId);
   } catch(e) {
     showError('Failed to start: ' + e.message);
+    stopTimer();
+    btn.disabled = false;
+    btn.textContent = '🎬 Generate Commercial';
   }
 }
 
@@ -603,16 +606,17 @@ function showResults(d) {
   // Strategy agent results
   if (d.strategy) {
     const s = d.strategy;
+    const esc = t => { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; };
     document.getElementById('strategyBox').style.display = 'block';
     document.getElementById('strategyContent').innerHTML = `
       <div style="margin-top:6px;font-size:13px;line-height:1.7;">
-        <div><strong>USP:</strong> ${s.usp || ''}</div>
-        <div><strong>Target:</strong> ${s.target || ''}</div>
-        <div><strong>Ad Angle:</strong> ${s.angle || ''}</div>
+        <div><strong>USP:</strong> ${esc(s.usp)}</div>
+        <div><strong>Target:</strong> ${esc(s.target)}</div>
+        <div><strong>Ad Angle:</strong> ${esc(s.angle)}</div>
         <div style="margin-top:6px;"><strong>Hook Options:</strong></div>
-        <ul style="margin:4px 0 0 16px;padding:0;">${(s.hooks||[]).map(h => '<li>'+h+'</li>').join('')}</ul>
+        <ul style="margin:4px 0 0 16px;padding:0;">${(s.hooks||[]).map(h => '<li>'+esc(h)+'</li>').join('')}</ul>
         <div style="margin-top:6px;"><strong>CTA Options:</strong></div>
-        <ul style="margin:4px 0 0 16px;padding:0;">${(s.ctas||[]).map(c => '<li>'+c+'</li>').join('')}</ul>
+        <ul style="margin:4px 0 0 16px;padding:0;">${(s.ctas||[]).map(c => '<li>'+esc(c)+'</li>').join('')}</ul>
       </div>`;
   }
 }
