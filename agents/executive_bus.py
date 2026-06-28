@@ -132,3 +132,26 @@ def get_agent_stats():
                 "SELECT COUNT(*) FROM exec_agent_events WHERE agent_name=?", (name,)).fetchone()[0]
             agents[name] = {"actions_total": actions, "actions_today": today_actions, "events": events}
         return agents
+
+
+def get_plan_targets():
+    """Get current business plan milestone targets for agent guidance."""
+    try:
+        with db.get_conn() as conn:
+            current = conn.execute(
+                "SELECT * FROM business_plan_milestones WHERE status != 'completed' ORDER BY week_number LIMIT 3"
+            ).fetchall()
+            if not current:
+                return None
+            milestones = [dict(r) for r in current]
+            return {
+                "current_focus": milestones[0]["focus"],
+                "current_deliverables": milestones[0]["deliverables"],
+                "target_users": milestones[0]["target_users"],
+                "target_mrr": milestones[0]["target_mrr"],
+                "phase": milestones[0]["phase_name"],
+                "week": milestones[0]["week_number"],
+                "upcoming": [{"week": m["week_number"], "focus": m["focus"]} for m in milestones[1:]],
+            }
+    except Exception:
+        return None

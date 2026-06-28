@@ -200,7 +200,99 @@ def init_monetizer_tables():
             acknowledged INTEGER DEFAULT 0,
             created_at  TEXT DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS business_plan_milestones (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            phase       INTEGER NOT NULL,
+            phase_name  TEXT NOT NULL,
+            week_number INTEGER NOT NULL,
+            week_dates  TEXT,
+            focus       TEXT NOT NULL,
+            deliverables TEXT,
+            target_users INTEGER DEFAULT 0,
+            target_mrr  REAL DEFAULT 0,
+            status      TEXT DEFAULT 'pending',
+            actual_users INTEGER DEFAULT 0,
+            actual_mrr  REAL DEFAULT 0,
+            notes       TEXT,
+            completed_at TEXT,
+            created_at  TEXT DEFAULT (datetime('now')),
+            UNIQUE(week_number)
+        );
         """)
+    _seed_milestones()
+
+
+def _seed_milestones():
+    """Populate business plan milestones if empty."""
+    with _conn() as conn:
+        exists = conn.execute("SELECT COUNT(*) FROM business_plan_milestones").fetchone()[0]
+        if exists:
+            return
+
+        milestones = [
+            (1,"Launch & Validate",1,"Jul 4-10","LAUNCH","Public launch, ProductHunt post, social blast",5,149),
+            (1,"Launch & Validate",2,"Jul 11-17","Onboarding","Fix friction, welcome flow, tutorial video",8,149),
+            (1,"Launch & Validate",3,"Jul 18-24","Stability","Monitor errors, fix crashes, add Sentry",10,149),
+            (1,"Launch & Validate",4,"Jul 25-31","Feedback Loop","User interviews, NPS survey, prioritize complaints",12,149),
+            (1,"Launch & Validate",5,"Aug 1-7","Conversion","Optimize free->paid funnel, trial nudges, email drip",15,223),
+            (1,"Launch & Validate",6,"Aug 8-14","Content","Create 10 demo videos, post on socials",15,223),
+            (1,"Launch & Validate",7,"Aug 15-21","SEO","Blog posts, landing page optimization",18,223),
+            (1,"Launch & Validate",8,"Aug 22-28","Referral v1","Invite a friend, get 5 free videos",20,223),
+            (2,"Product-Market Fit",9,"Aug 29-Sep 4","Analytics","Add Mixpanel/Amplitude, track funnel",25,446),
+            (2,"Product-Market Fit",10,"Sep 5-11","Templates","20 pre-built video templates",30,446),
+            (2,"Product-Market Fit",11,"Sep 12-18","Mobile Web","Responsive UI overhaul",35,446),
+            (2,"Product-Market Fit",12,"Sep 19-25","Speed","Redis caching, async queue, 2x faster",40,446),
+            (2,"Product-Market Fit",13,"Sep 26-Oct 2","Niche Targeting","Creator-focused landing pages",50,893),
+            (2,"Product-Market Fit",14,"Oct 3-9","Partnerships","50 micro-influencer affiliate deals",60,893),
+            (2,"Product-Market Fit",15,"Oct 10-16","Self-Marketing v1","App generates own TikTok/IG ads",70,893),
+            (2,"Product-Market Fit",16,"Oct 17-23","Iteration","A/B test pricing page",80,893),
+            (3,"Growth Engine",17,"Oct 24-30","Paid Ads v1","$200 Meta ads, test 5 creatives",95,1786),
+            (3,"Growth Engine",18,"Oct 31-Nov 6","Viral Loop","Watermark on free tier, share buttons",110,1786),
+            (3,"Growth Engine",19,"Nov 7-13","DB Migration","SQLite -> PostgreSQL",130,1786),
+            (3,"Growth Engine",20,"Nov 14-20","Workers","Celery + Redis async video gen",150,1786),
+            (3,"Growth Engine",21,"Nov 21-27","Holiday Push","Black Friday 40% off annual",180,3571),
+            (3,"Growth Engine",22,"Nov 28-Dec 4","API v1","Public API for Agency tier",210,3571),
+            (3,"Growth Engine",23,"Dec 5-11","Multi-Region","Deploy to EU Frankfurt",250,3571),
+            (3,"Growth Engine",24,"Dec 12-18","Team Features","Multi-seat Agency, shared workspace",300,3571),
+            (3,"Growth Engine",25,"Dec 19-25","Year-End Push","New Year Content Kit",320,3571),
+            (3,"Growth Engine",26,"Dec 26-Jan 1","Infra Hardening","Load testing, auto-scaling",320,3571),
+            (4,"Scale",27,"Jan 2-8","Mobile App","React Native shell, auth, preview",400,7142),
+            (4,"Scale",28,"Jan 9-15","Mobile Create","Video creation from phone",500,7142),
+            (4,"Scale",29,"Jan 16-22","Mobile Publish","One-tap publish from phone",600,7142),
+            (4,"Scale",30,"Jan 23-29","App Store","iOS + Android, ASO optimization",700,7142),
+            (4,"Scale",31,"Jan 30-Feb 5","Ad Ramp","$2K/mo across Meta, Google, TikTok",850,14285),
+            (4,"Scale",32,"Feb 6-12","Affiliates","20% recurring commission program",1000,14285),
+            (4,"Scale",33,"Feb 13-19","Enterprise","SSO, custom branding, SLA",1100,14285),
+            (4,"Scale",34,"Feb 20-26","Content Machine","50 YouTube tutorials, weekly blog",1280,14285),
+            (4,"Scale",35,"Feb 27-Mar 5","Marketplace v1","Users sell templates (10% cut)",1500,28570),
+            (4,"Scale",36,"Mar 6-12","AI Improvements","Better scripts, more styles, faster",1800,28570),
+            (4,"Scale",37,"Mar 13-19","Localization","Spanish, Portuguese, French, German",2100,28570),
+            (4,"Scale",38,"Mar 20-26","CRM Integration","HubSpot, Salesforce connectors",2400,28570),
+            (4,"Scale",39,"Mar 27-Apr 2","Webinars","Weekly AI Video Masterclass",2580,57586),
+            (4,"Scale",40,"Apr 3-9","Scaling Infra","Kubernetes, auto-scaling, global CDN",3000,57586),
+            (5,"Hockey Stick",41,"Apr 10-16","Ad Spend $5K","Scale winning creatives",3500,57586),
+            (5,"Hockey Stick",42,"Apr 17-23","TikTok Shop","Sell through TikTok marketplace",4000,57586),
+            (5,"Hockey Stick",43,"Apr 24-30","White-Label v2","Agencies resell, rev share",4500,111600),
+            (5,"Hockey Stick",44,"May 1-7","Conferences","VidCon, Creator Economy Expo",5000,111600),
+            (5,"Hockey Stick",45,"May 8-14","Ad Spend $10K","Double down on best channels",6000,111600),
+            (5,"Hockey Stick",46,"May 15-21","Self-Marketing v2","App optimizes own ad spend",7000,111600),
+            (5,"Hockey Stick",47,"May 22-28","Partnerships","Canva, Notion, Shopify integrations",8000,223200),
+            (5,"Hockey Stick",48,"May 29-Jun 4","Press/PR","TechCrunch, Product Hunt relaunch",9000,223200),
+            (5,"Hockey Stick",49,"Jun 5-11","Series A Prep","Pitch deck, financial model",9500,223200),
+            (5,"Hockey Stick",50,"Jun 12-18","Enterprise Push","2 outbound reps, Fortune 500",10000,223200),
+            (5,"Hockey Stick",51,"Jun 19-25","Platform Stability","Security audit, SOC 2 prep",10000,223200),
+            (5,"Hockey Stick",52,"Jun 26-Jul 2","YEAR ONE","Celebrate, retro, plan Year 2",10000,223200),
+            (6,"Dominance",55,"Jul-Aug 2027","Viral Growth","TikTok challenges, ambassador program",50000,1116000),
+            (6,"Dominance",60,"Aug-Sep 2027","International","Japan, Korea, India, Brazil",100000,2232000),
+            (6,"Dominance",65,"Sep-Oct 2027","Platform Play","Marketplace, plugin ecosystem",250000,5580000),
+            (6,"Dominance",70,"Oct-Nov 2027","Enterprise Sales","Dedicated team, Fortune 1000",500000,11160000),
+            (6,"Dominance",78,"Nov-Dec 2027","Market Leadership","Acquire competitors, IPO prep",1000000,22320000),
+        ]
+        for m in milestones:
+            conn.execute("""INSERT INTO business_plan_milestones
+                (phase, phase_name, week_number, week_dates, focus, deliverables, target_users, target_mrr)
+                VALUES (?,?,?,?,?,?,?,?)""", m)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1156,3 +1248,136 @@ def api_executives_trigger():
         economics = _compute_unit_economics()
         return jsonify({"ok": True, "economics": economics})
     return jsonify({"error": "Unknown agent"}), 400
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BUSINESS PLAN — Progress Tracking
+# ═══════════════════════════════════════════════════════════════════════════════
+
+PLAN_TARGETS = {
+    "launch_date": "2026-07-04",
+    "target_arr": 10_000_000,
+    "target_users": 1_000_000,
+    "gross_margin_target": 92,
+    "arpu_target": 74.40,
+    "ltv_target": 595,
+    "cac_target": 20,
+    "breakeven_month": 3,
+}
+
+
+def _get_current_week():
+    from datetime import timezone
+    launch = datetime(2026, 7, 4, tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc) if hasattr(datetime, 'now') else datetime.utcnow()
+    try:
+        now = datetime.now(timezone.utc)
+    except Exception:
+        now = datetime.utcnow()
+    delta = (now - launch.replace(tzinfo=None) if now.tzinfo is None else now - launch)
+    weeks = max(0, delta.days // 7)
+    return weeks
+
+
+@monetizer_bp.route("/plan")
+@login_required
+@owner_required
+def plan_page():
+    return render_template("monetizer_plan.html")
+
+
+@monetizer_bp.route("/api/plan/overview")
+@login_required
+@owner_required
+def api_plan_overview():
+    current_week = _get_current_week()
+
+    with _conn() as conn:
+        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        paying = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL"
+        ).fetchone()[0]
+
+        tier_prices = {k: v["price_monthly"] for k, v in config.TIERS.items()}
+        mrr = 0
+        for row in conn.execute("SELECT subscription_tier, COUNT(*) as cnt FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL AND subscription_status='active' GROUP BY subscription_tier").fetchall():
+            mrr += row["cnt"] * tier_prices.get(row["subscription_tier"], 0)
+        arr = mrr * 12
+
+        milestones = _rows_to_list(conn.execute(
+            "SELECT * FROM business_plan_milestones ORDER BY week_number"
+        ).fetchall())
+
+        completed = sum(1 for m in milestones if m["status"] == "completed")
+        in_progress = sum(1 for m in milestones if m["status"] == "in_progress")
+        total = len(milestones)
+
+    current_milestone = None
+    for m in milestones:
+        if m["week_number"] >= current_week and m["status"] != "completed":
+            current_milestone = m
+            break
+
+    target_for_week = None
+    for m in milestones:
+        if m["week_number"] >= current_week:
+            target_for_week = m
+            break
+
+    return jsonify({
+        "current_week": current_week,
+        "plan_targets": PLAN_TARGETS,
+        "actual": {
+            "total_users": total_users,
+            "paying_users": paying,
+            "mrr": round(mrr, 2),
+            "arr": round(arr, 2),
+        },
+        "target": {
+            "users": target_for_week["target_users"] if target_for_week else 0,
+            "mrr": target_for_week["target_mrr"] if target_for_week else 0,
+        },
+        "progress": {
+            "completed": completed,
+            "in_progress": in_progress,
+            "total": total,
+            "pct": round(completed / total * 100, 1) if total else 0,
+        },
+        "milestones": milestones,
+        "current_milestone": current_milestone,
+    })
+
+
+@monetizer_bp.route("/api/plan/milestone/<int:milestone_id>", methods=["PATCH"])
+@login_required
+@owner_required
+def api_plan_update_milestone(milestone_id):
+    data = request.get_json(force=True)
+    status = data.get("status")
+    notes = data.get("notes")
+    with _conn() as conn:
+        sets = []
+        vals = []
+        if status:
+            sets.append("status=?")
+            vals.append(status)
+            if status == "completed":
+                sets.append("completed_at=datetime('now')")
+        if notes is not None:
+            sets.append("notes=?")
+            vals.append(notes)
+
+        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        paying = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL"
+        ).fetchone()[0]
+        tier_prices = {k: v["price_monthly"] for k, v in config.TIERS.items()}
+        mrr = 0
+        for row in conn.execute("SELECT subscription_tier, COUNT(*) as cnt FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL AND subscription_status='active' GROUP BY subscription_tier").fetchall():
+            mrr += row["cnt"] * tier_prices.get(row["subscription_tier"], 0)
+
+        sets.extend(["actual_users=?", "actual_mrr=?"])
+        vals.extend([total_users, round(mrr, 2)])
+        vals.append(milestone_id)
+        conn.execute(f"UPDATE business_plan_milestones SET {','.join(sets)} WHERE id=?", vals)
+    return jsonify({"ok": True})

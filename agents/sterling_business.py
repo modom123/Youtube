@@ -218,6 +218,12 @@ def _run():
 
     while not _stop.wait(CHECK_INTERVAL):
         try:
+            plan = bus.get_plan_targets()
+            if plan:
+                bus.log_msg(AGENT_NAME,
+                    f"Plan guidance: Phase '{plan['phase']}' W{plan['week']} — "
+                    f"Target {plan['target_users']} users, ${plan['target_mrr']:,.0f} MRR — "
+                    f"Focus: {plan['current_focus']}")
             economics = _compute_unit_economics()
             _snapshot_kpis(economics)
             _check_free_tier_surge()

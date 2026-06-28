@@ -169,6 +169,11 @@ def _run():
 
     while not _stop.wait(CHECK_INTERVAL):
         try:
+            plan = bus.get_plan_targets()
+            if plan:
+                bus.log_msg(AGENT_NAME,
+                    f"Plan target: {plan['target_users']} users by W{plan['week']} — "
+                    f"Focus: {plan['current_focus']}")
             _compute_growth_metrics()
             _check_upgrade_triggers()
             _check_referral_opportunities()
