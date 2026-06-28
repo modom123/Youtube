@@ -67,7 +67,7 @@ export function DashboardScreen() {
         <StatCard label="Credits" value={user?.credits_used ?? 0} color={COLORS.green} />
         <StatCard
           label="Plan"
-          value={tier === 'free' ? 'Free' : `$${tier === 'starter' ? 29 : tier === 'creator' ? 79 : 199}`}
+          value={tier === 'free' ? 'Free' : `$${tier === 'starter' ? '9.99' : tier === 'creator' ? 29 : tier === 'pro' ? 79 : 199}`}
           sub="/month"
         />
       </View>

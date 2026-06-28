@@ -82,15 +82,15 @@ def _send_upgrade_nudge(user, video_count):
     email = user.get("email")
     if not email:
         return
-    subject = f"You've created {video_count} videos — unlock unlimited with Starter"
+    subject = f"You've created {video_count} videos — unlock more with Starter"
     body = f"""Hi {(user.get('name') or 'Creator').split()[0]},
 
 You've been on fire — {video_count} videos created! You're getting close to the free tier limit.
 
-Upgrade to Starter ($29/mo) and unlock:
-- 15 AI videos/month (vs 3 on free)
+Upgrade to Starter ($9.99/mo) and unlock:
+- 10 AI videos/month (vs 3 on free)
 - Publish to 8 platforms
-- 150 Social Optimize Credits
+- 50 Social Optimize Credits
 - 14-day free trial — no charge today
 
 Start your free trial: {config.APP_BASE_URL}/pricing

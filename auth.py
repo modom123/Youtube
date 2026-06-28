@@ -14,7 +14,7 @@ import config
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
-PAID_PLANS = {"starter", "creator", "agency"}
+PAID_PLANS = {"starter", "creator", "pro", "agency"}
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])

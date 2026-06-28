@@ -24,10 +24,11 @@ export function SettingsScreen() {
 
   const tier = user?.subscription_tier || 'free';
   const tierInfo: Record<string, { price: string; videos: string; next: string }> = {
-    free: { price: 'Free', videos: '3/mo', next: 'Starter ($29/mo)' },
-    starter: { price: '$29/mo', videos: '15/mo', next: 'Creator ($79/mo)' },
-    creator: { price: '$79/mo', videos: '50/mo', next: 'Agency ($199/mo)' },
-    agency: { price: '$199/mo', videos: '125/mo', next: '' },
+    free: { price: 'Free', videos: '3/mo', next: 'Starter ($9.99/mo)' },
+    starter: { price: '$9.99/mo', videos: '10/mo', next: 'Creator ($29/mo)' },
+    creator: { price: '$29/mo', videos: '30/mo', next: 'Pro ($79/mo)' },
+    pro: { price: '$79/mo', videos: '100/mo', next: 'Agency ($199/mo)' },
+    agency: { price: '$199/mo', videos: '200/mo', next: '' },
   };
 
   return (
