@@ -5,6 +5,7 @@ Flask application serving the command center UI.
 import json
 import os
 import csv
+import subprocess
 
 # Allow OAuth over HTTP for local development
 os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
@@ -1725,6 +1726,14 @@ def api_editing_room_produce():
             p = Path(config.OUTPUT_DIR) / "music_catalog" / f"{bgm_track_id}.mp3"
             if p.exists():
                 custom_bgm_path = str(p)
+        elif bgm_type == "upload":
+            meta_path = Path(config.OUTPUT_DIR) / "music_uploads" / str(current_user.id) / f"{bgm_track_id}.json"
+            if meta_path.exists():
+                with open(meta_path) as _mf:
+                    _meta = json.load(_mf)
+                p = Path(_meta.get("path", ""))
+                if p.exists():
+                    custom_bgm_path = str(p)
         else:
             bgm_dir = Path(config.OUTPUT_DIR) / "music_studio" / bgm_track_id
             for name in ("track.mp3", "beat.mp3"):
@@ -1964,6 +1973,98 @@ def api_music_catalog_play(track_id):
     if not track_path.exists():
         return "Not found", 404
     return send_file(str(track_path), mimetype="audio/mpeg")
+
+
+@app.route("/api/music-studio/upload", methods=["POST"])
+@login_required
+def api_music_upload():
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "No file selected"}), 400
+    ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
+    if ext not in ("mp3", "wav", "ogg", "m4a", "aac"):
+        return jsonify({"error": "Unsupported format. Use MP3, WAV, or OGG."}), 400
+
+    upload_id = str(uuid.uuid4())
+    upload_dir = Path(config.OUTPUT_DIR) / "music_uploads" / str(current_user.id)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    safe_name = secure_filename(f.filename)
+    file_path = upload_dir / f"{upload_id}.{ext}"
+    f.save(str(file_path))
+
+    # Get duration via ffprobe
+    duration = None
+    try:
+        dur_cmd = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", str(file_path)],
+            capture_output=True, text=True,
+        )
+        duration = round(float(dur_cmd.stdout.strip()), 1)
+    except Exception:
+        pass
+
+    # Save manifest
+    meta = {
+        "id": upload_id,
+        "name": f.filename,
+        "ext": ext,
+        "duration": duration,
+        "size_mb": round(file_path.stat().st_size / (1024 * 1024), 1),
+        "path": str(file_path),
+        "created_at": datetime.now().isoformat(),
+    }
+    with open(upload_dir / f"{upload_id}.json", "w") as mf:
+        json.dump(meta, mf, indent=2)
+
+    return jsonify(meta)
+
+
+@app.route("/api/music-studio/uploads")
+@login_required
+def api_music_uploads():
+    upload_dir = Path(config.OUTPUT_DIR) / "music_uploads" / str(current_user.id)
+    songs = []
+    if upload_dir.exists():
+        for mf in sorted(upload_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
+            try:
+                with open(mf) as f:
+                    songs.append(json.load(f))
+            except Exception:
+                pass
+    return jsonify({"songs": songs})
+
+
+@app.route("/api/music-studio/uploads/<upload_id>/play")
+@login_required
+def api_music_upload_play(upload_id):
+    upload_dir = Path(config.OUTPUT_DIR) / "music_uploads" / str(current_user.id)
+    # Find the file by ID
+    meta_path = upload_dir / f"{upload_id}.json"
+    if not meta_path.exists():
+        return "Not found", 404
+    with open(meta_path) as f:
+        meta = json.load(f)
+    file_path = Path(meta["path"])
+    if not file_path.exists():
+        return "Not found", 404
+    return send_file(str(file_path), mimetype="audio/mpeg")
+
+
+@app.route("/api/music-studio/uploads/<upload_id>", methods=["DELETE"])
+@login_required
+def api_music_upload_delete(upload_id):
+    upload_dir = Path(config.OUTPUT_DIR) / "music_uploads" / str(current_user.id)
+    meta_path = upload_dir / f"{upload_id}.json"
+    if meta_path.exists():
+        with open(meta_path) as f:
+            meta = json.load(f)
+        Path(meta.get("path", "")).unlink(missing_ok=True)
+        meta_path.unlink(missing_ok=True)
+    return jsonify({"status": "deleted"})
 
 
 @app.route("/api/music-studio/voices")

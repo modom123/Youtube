@@ -90,6 +90,34 @@
 
     <!-- Right Column -->
     <div>
+      <!-- Upload Songs -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Upload Songs</h3>
+        <p style="margin:0 0 10px;font-size:12px;color:var(--muted);">Upload MP3 files to your personal music library. Play them or use in video productions.</p>
+        <div id="upload-zone" onclick="document.getElementById('file-input').click()"
+          style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:border-color .2s;"
+          ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+          ondragleave="this.style.borderColor='var(--border)'"
+          ondrop="handleDrop(event)">
+          <div style="font-size:28px;margin-bottom:8px;">🎵</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">Drop MP3 files here or click to browse</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">MP3, WAV, OGG — max 50MB per file</div>
+        </div>
+        <input type="file" id="file-input" accept=".mp3,.wav,.ogg,audio/*" multiple style="display:none;" onchange="uploadFiles(this.files)">
+        <div id="upload-progress" style="display:none;margin-top:10px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span id="upload-status" style="font-size:12px;color:var(--muted);">Uploading...</span>
+            <span id="upload-pct" style="font-size:12px;font-weight:700;color:var(--accent);">0%</span>
+          </div>
+          <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+            <div id="upload-bar" style="height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:2px;"></div>
+          </div>
+        </div>
+        <!-- Uploaded songs list -->
+        <div id="uploaded-songs" style="margin-top:12px;max-height:250px;overflow-y:auto;">
+        </div>
+      </div>
+
       <!-- Sound Search (Freesound) -->
       <div class="card" style="margin-bottom:16px;">
         <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Sound Library (Freesound)</h3>
@@ -421,7 +449,89 @@ function playCatalogTrack(trackId, name) {
   document.getElementById('download-btn').href = url;
 }
 
-// Load catalog on page load
+// ── Upload Songs ──────────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = 'var(--border)';
+  if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+}
+
+function uploadFiles(files) {
+  const prog = document.getElementById('upload-progress');
+  prog.style.display = 'block';
+  let uploaded = 0;
+  const total = files.length;
+
+  Array.from(files).forEach((file, i) => {
+    const form = new FormData();
+    form.append('file', file);
+
+    document.getElementById('upload-status').textContent = `Uploading ${i+1}/${total}: ${file.name}`;
+    document.getElementById('upload-pct').textContent = Math.round((i / total) * 100) + '%';
+    document.getElementById('upload-bar').style.width = Math.round((i / total) * 100) + '%';
+
+    fetch('/api/music-studio/upload', { method: 'POST', body: form })
+      .then(r => r.json())
+      .then(data => {
+        uploaded++;
+        document.getElementById('upload-pct').textContent = Math.round((uploaded / total) * 100) + '%';
+        document.getElementById('upload-bar').style.width = Math.round((uploaded / total) * 100) + '%';
+        if (uploaded === total) {
+          document.getElementById('upload-status').textContent = `${total} song${total > 1 ? 's' : ''} uploaded!`;
+          loadUploadedSongs();
+        }
+      })
+      .catch(err => {
+        uploaded++;
+        if (uploaded === total) loadUploadedSongs();
+      });
+  });
+}
+
+function loadUploadedSongs() {
+  fetch('/api/music-studio/uploads')
+    .then(r => r.json())
+    .then(data => {
+      const list = document.getElementById('uploaded-songs');
+      if (!data.songs || data.songs.length === 0) {
+        list.innerHTML = '';
+        return;
+      }
+      list.innerHTML = data.songs.map(s => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.name}</div>
+            <div style="font-size:11px;color:var(--muted);">${s.duration ? s.duration + 's' : ''} ${s.size_mb ? '&middot; ' + s.size_mb + ' MB' : ''}</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="playUpload('${s.id}','${s.name.replace(/'/g, "\\'")}')" style="padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:11px;font-weight:600;">Play</button>
+            <a href="/editing-room?bgm=${s.id}&bgm_type=upload" style="padding:4px 10px;border:1px solid var(--border);border-radius:6px;color:var(--accent);text-decoration:none;font-size:11px;font-weight:600;">Use in Video</a>
+            <button onclick="deleteUpload('${s.id}')" style="padding:4px 8px;border:1px solid rgba(229,62,62,.3);border-radius:6px;background:transparent;color:#e53e3e;cursor:pointer;font-size:10px;">X</button>
+          </div>
+        </div>
+      `).join('');
+    });
+}
+
+function playUpload(id, name) {
+  const url = '/api/music-studio/uploads/' + id + '/play';
+  document.getElementById('player-empty').style.display = 'none';
+  document.getElementById('player-active').style.display = 'block';
+  document.getElementById('player-info').textContent = name;
+  const audio = document.getElementById('audio-player');
+  audio.src = url;
+  audio.play();
+  document.getElementById('download-btn').href = url;
+}
+
+function deleteUpload(id) {
+  if (!confirm('Remove this song?')) return;
+  fetch('/api/music-studio/uploads/' + id, { method: 'DELETE' })
+    .then(() => loadUploadedSongs());
+}
+
+// Load catalog and uploads on page load
 loadCatalog();
+loadUploadedSongs();
 </script>
 {% endblock %}
