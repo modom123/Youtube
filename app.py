@@ -4220,11 +4220,12 @@ def _run_commercial_thread(job_id: str, params: dict, user_id: int):
         style    = params.get("style") or "energetic"
         duration = params.get("duration") or 15
 
-        # ── Step 1: Analyze media with Claude Vision ──────────────────────────
+        # ── Step 1: Analyze media + Market Strategy (single vision call) ────
         client = _ant.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        model = config.TIER_CLAUDE_MODEL.get("creator", "claude-sonnet-4-6")
 
         if is_video:
-            media_description = f"a {ext} video clip of {brand}"
+            media_description = f"a {ext} video clip of {brand}. {product_description}"
         else:
             img_bytes = media_path.read_bytes()
             b64 = base64.standard_b64encode(img_bytes).decode()
@@ -4232,103 +4233,78 @@ def _run_commercial_thread(job_id: str, params: dict, user_id: int):
                     "png": "image/png", "webp": "image/webp",
                     "gif": "image/gif"}.get(ext, "image/jpeg")
             analysis = client.messages.create(
-                model=config.TIER_CLAUDE_MODEL.get("creator", "claude-sonnet-4-6"),
-                max_tokens=400,
+                model=model, max_tokens=500,
                 messages=[{"role": "user", "content": [
                     {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
-                    {"type": "text", "text": "Describe this image in detail: what product or subject is shown, colors, mood, setting, and what makes it visually compelling for advertising."}
+                    {"type": "text", "text": f"Analyze this product image for advertising.\nBrand: {brand}\nDescription: {product_description or 'not provided'}\nTarget audience: {audience}\n\nProvide:\n1. Detailed visual description (colors, mood, setting, product details)\n2. The single strongest selling point for an ad\n3. 3 scroll-stopping ad hooks\n4. The ideal emotional trigger for this product\n5. A strong call-to-action\n\nBe specific and concise."}
                 ]}]
             )
             media_description = analysis.content[0].text
 
-        # ── Step 2: Agent 1 — Market Strategist ──────────────────────────────
-        step("Agent 1: Market Strategist analyzing your product...", 15)
-        from generators.agents.market_strategist import MarketStrategist
-        strategist = MarketStrategist()
-        strategy = strategist.run(
-            product_description=product_description or media_description,
-            media_analysis=media_description,
-            brand_name=brand,
-            target_audience=audience,
-        )
+        # ── Step 2: Ad Copy + Script in parallel ─────────────────────────────
+        step("AI agents writing your commercial...", 25)
+        from concurrent.futures import ThreadPoolExecutor
 
-        # ── Step 3: Agent 2 — Ad Copywriter ──────────────────────────────────
-        step("Agent 2: Ad Copywriter writing your commercial...", 30)
-        from generators.agents.ad_copywriter import AdCopywriter
-        copywriter = AdCopywriter()
-        ad_copy = copywriter.run(
-            product_name=brand,
-            description=f"{product_description}\n\nVisual: {media_description}\n\nStrategy: {strategy.unique_selling_point}. Target: {strategy.target_persona}. Angle: {strategy.ad_angle}. Emotion: {', '.join(strategy.emotional_triggers)}",
-            target_audience=strategy.target_persona,
-            tone=strategy.tone,
-        )
+        def _run_ad_copy():
+            from generators.agents.ad_copywriter import AdCopywriter
+            cw = AdCopywriter()
+            return cw.run(
+                product_name=brand,
+                description=f"{product_description}\n\nVisual: {media_description}",
+                target_audience=audience,
+                tone="conversational" if style in ("funny", "emotional") else "urgent" if style == "urgency" else "authoritative",
+            )
 
-        # ── Step 4: Agent 3 — Creative Director (script + video prompt) ──────
-        step("Agent 3: Creative Director crafting your commercial script...", 45)
-        best_hook = strategy.hook_suggestions[0] if strategy.hook_suggestions else ""
-        best_cta = strategy.cta_suggestions[0] if strategy.cta_suggestions else ""
-        best_ad = ad_copy.variants[0] if ad_copy.variants else None
-
-        script_prompt = f"""You are a world-class commercial director. Using the market strategy and ad copy below, write a {duration}-second commercial script.
+        def _run_script():
+            return client.messages.create(
+                model=model, max_tokens=1000,
+                messages=[{"role": "user", "content": f"""Write a {duration}-second commercial script.
 
 PRODUCT: {brand}
 DESCRIPTION: {product_description or media_description}
 VISUAL ANALYSIS: {media_description}
 TAGLINE: {tagline or '(generate one)'}
-
-MARKET STRATEGY:
-- USP: {strategy.unique_selling_point}
-- Target: {strategy.target_persona}
-- Pain Points: {', '.join(strategy.pain_points)}
-- Ad Angle: {strategy.ad_angle}
-- Emotional Triggers: {', '.join(strategy.emotional_triggers)}
-- Best Hook: {best_hook}
-- Best CTA: {best_cta}
-
-AD COPY (use as inspiration):
-{best_ad.body if best_ad else 'Write fresh copy'}
-
+TARGET AUDIENCE: {audience}
 STYLE: {style}
 DURATION: {duration} seconds
 
-Write:
-1. A complete {duration}-second voiceover script that flows naturally
-2. A detailed AI video generation prompt for the visuals
-
-Format your response EXACTLY as:
+Format EXACTLY as:
 
 VOICEOVER:
-[The complete spoken narration, paced for {duration} seconds]
+[Complete spoken narration paced for {duration} seconds. Hook in first 3 seconds, problem/desire, solution with key benefit, strong CTA at end.]
 
 VIDEO_PROMPT:
-[Detailed cinematic prompt: camera angles, lighting, product shots, transitions, mood. Make it feel like a Super Bowl ad.]
+[Cinematic AI video prompt: camera angles, lighting, product shots, transitions, mood. Super Bowl ad quality.]
 
 SCRIPT_SECTIONS:
 [Hook] (0-3s): ...
 [Problem] (3-{min(8, duration//3)}s): ...
 [Solution] ({min(8, duration//3)}-{duration-3}s): ...
-[CTA] ({duration-3}-{duration}s): ..."""
+[CTA] ({duration-3}-{duration}s): ..."""}]
+            )
 
-        script_resp = client.messages.create(
-            model=config.TIER_CLAUDE_MODEL.get("creator", "claude-sonnet-4-6"),
-            max_tokens=1200,
-            messages=[{"role": "user", "content": script_prompt}]
-        )
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            ad_future = pool.submit(_run_ad_copy)
+            script_future = pool.submit(_run_script)
+            ad_copy = ad_future.result()
+            script_resp = script_future.result()
+
         script_text = script_resp.content[0].text
+        step("Agents complete, preparing production...", 45)
 
         video_prompt = ""
         if "VIDEO_PROMPT:" in script_text:
             video_prompt = script_text.split("VIDEO_PROMPT:")[-1].split("SCRIPT_SECTIONS:")[0].strip()
         else:
-            video_prompt = f"Cinematic product commercial for {brand}. {style} style. {strategy.unique_selling_point}. Professional lighting, close-up product shots, dynamic camera movement. 4K quality."
+            video_prompt = f"Cinematic product commercial for {brand}. {style} style. Professional lighting, close-up product shots, dynamic camera movement. 4K quality."
 
         voiceover_text = ""
         if "VOICEOVER:" in script_text:
             raw = script_text.split("VOICEOVER:")[-1]
             voiceover_text = raw.split("VIDEO_PROMPT:")[0].strip()
 
-        # Build full script text for display
-        full_script_display = f"=== MARKET STRATEGY ===\nUSP: {strategy.unique_selling_point}\nTarget: {strategy.target_persona}\nAngle: {strategy.ad_angle}\nHooks: {' | '.join(strategy.hook_suggestions[:3])}\n\n=== AD COPY ===\n"
+        # Build display text
+        full_script_display = f"=== AD COPY ===\n"
         for v in ad_copy.variants[:3]:
             full_script_display += f"\n[{v.framework}]\n{v.headline}\n{v.body}\n"
         full_script_display += f"\n=== COMMERCIAL SCRIPT ===\n{script_text}"
@@ -4368,7 +4344,6 @@ SCRIPT_SECTIONS:
         # Save manifest
         manifest = {
             "brand": brand, "product_description": product_description,
-            "strategy": strategy.model_dump(),
             "script": script_text, "voiceover": voiceover_text,
             "video_prompt": video_prompt,
         }
@@ -4378,6 +4353,10 @@ SCRIPT_SECTIONS:
         step("Commercial ready!", 100)
 
         db.increment_credits_used(user_id, 1)
+
+        # Extract hooks/CTAs from ad copy variants for display
+        hooks = [v.headline for v in ad_copy.variants[:3]]
+        ctas = [v.cta for v in ad_copy.variants[:3]]
 
         _push_commercial(job_id, {
             "status": "done",
@@ -4389,11 +4368,11 @@ SCRIPT_SECTIONS:
             "audio_path": audio_path,
             "media_description": media_description,
             "strategy": {
-                "usp": strategy.unique_selling_point,
-                "target": strategy.target_persona,
-                "hooks": strategy.hook_suggestions,
-                "ctas": strategy.cta_suggestions,
-                "angle": strategy.ad_angle,
+                "usp": ad_copy.variants[0].headline if ad_copy.variants else brand,
+                "target": audience,
+                "hooks": hooks,
+                "ctas": ctas,
+                "angle": style,
             },
         })
 
