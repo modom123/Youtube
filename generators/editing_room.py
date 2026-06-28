@@ -611,16 +611,31 @@ def produce(
         # Try user-uploaded media first
         si = str(i)
         media_list = section_media.get(si, [])
-        if media_list:
-            m = media_list[0]
-            mp = Path(m.get("path", ""))
-            if mp.exists():
+        valid_media = [m for m in media_list if Path(m.get("path", "")).exists()]
+        if valid_media:
+            if len(valid_media) == 1:
+                m = valid_media[0]
+                mp = Path(m["path"])
                 if m.get("type") == "video":
                     clip = _clip_with_overlay(str(mp), sec["heading"], pal, w, h, dur, i, total_secs, is_portrait)
                 else:
                     clip = _image_background(str(mp), sec["heading"], pal, w, h, dur, i, total_secs, is_portrait)
-                if clip:
-                    has_ai_clips = True
+            else:
+                sub_dur = dur / len(valid_media)
+                sub_clips = []
+                for m in valid_media:
+                    mp = Path(m["path"])
+                    if m.get("type") == "video":
+                        sc = _clip_with_overlay(str(mp), sec["heading"], pal, w, h, sub_dur, i, total_secs, is_portrait)
+                    else:
+                        sc = _image_background(str(mp), sec["heading"], pal, w, h, sub_dur, i, total_secs, is_portrait)
+                    if sc:
+                        sc = sc.with_effects([FadeIn(0.3), FadeOut(0.3)])
+                        sub_clips.append(sc)
+                if sub_clips:
+                    clip = concatenate_videoclips(sub_clips, method="compose")
+            if clip:
+                has_ai_clips = True
 
         # Try AI video clip background
         if clip is None and i in clip_paths and clip_paths[i] and Path(clip_paths[i]).exists():
