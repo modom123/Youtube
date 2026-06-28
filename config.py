@@ -80,6 +80,7 @@ TIERS = {
             "150 Social Optimize Credits/mo",
             "5-agent AI pipeline",
             "Production Studio",
+            "Commercial Studio — photo → ad",
             "Music Studio",
             "Quick Post from photo/video",
             "Batch Generator",
