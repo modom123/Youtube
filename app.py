@@ -2929,6 +2929,22 @@ def _run_music_thread(job_id: str, params: dict, user_id: int = None):
         if result.get("lyrics"):
             _push_music_event(job_id, {"type": "lyrics", "lyrics": result["lyrics"]})
 
+        # Save track to database for DJ booth / library access
+        track_record = {
+            "id": job_id,
+            "title": params.get("title", "Untitled"),
+            "genre": params.get("genre", ""),
+            "bpm": params.get("bpm", 120),
+            "duration": params.get("duration_seconds", 60),
+            "audio_url": audio_url,
+            "audio_path": result.get("audio_path", ""),
+            "lyrics": result.get("lyrics", ""),
+            "provider": result.get("provider", "AI"),
+            "created_at": datetime.now().isoformat(),
+            "user_id": user_id,
+        }
+        db.set_setting(f"music_track:{job_id}", json.dumps(track_record))
+
         with _music_lock:
             _music_jobs[job_id].update({"status": "done", "progress": 100, "result": result, "audio_url": audio_url})
         _push_music_event(job_id, {
@@ -3570,7 +3586,29 @@ def _load_music_catalog():
 @app.route("/api/library")
 @login_required
 def api_library():
-    catalog = _load_music_catalog()
+    catalog = list(_load_music_catalog())
+
+    # Merge user-generated tracks from Music Studio
+    with db.get_conn() as conn:
+        rows = conn.execute("SELECT key, value FROM settings WHERE key LIKE 'music_track:%'").fetchall()
+    for row in rows:
+        try:
+            t = json.loads(row["value"])
+            catalog.insert(0, {
+                "title": t.get("title", "Untitled"),
+                "artist": "You",
+                "genre": t.get("genre", ""),
+                "bpm": t.get("bpm"),
+                "duration": t.get("duration"),
+                "key": "",
+                "year": 2026,
+                "audio_url": t.get("audio_url", ""),
+                "source": "generated",
+                "job_id": t.get("id", ""),
+            })
+        except Exception:
+            continue
+
     q = request.args.get("q", "").strip().lower()
     genre = request.args.get("genre", "").strip().lower()
     decade = request.args.get("decade", "").strip()

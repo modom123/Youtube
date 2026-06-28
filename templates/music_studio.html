@@ -5924,21 +5924,31 @@ function _fmtSize(bytes) {
       tbody.innerHTML = '<tr><td colspan="8" class="dj-lib-empty">No tracks found.</td></tr>';
       return;
     }
-    tbody.innerHTML = tracks.map(t => `
-      <tr>
+    tbody.innerHTML = tracks.map(t => {
+      const url = t.audio_url || '';
+      const label = _escHtml(t.title) + (t.artist ? ' — ' + _escHtml(t.artist) : '');
+      const hasAudio = !!url;
+      const loadA = hasAudio
+        ? `djLoadTrack('A',${JSON.stringify(url)},${JSON.stringify(label)},${JSON.stringify(String(t.bpm||''))})`
+        : `showFeedback('No audio available for this track')`;
+      const loadB = hasAudio
+        ? `djLoadTrack('B',${JSON.stringify(url)},${JSON.stringify(label)},${JSON.stringify(String(t.bpm||''))})`
+        : `showFeedback('No audio available for this track')`;
+      const src = t.source === 'generated' ? '<span style="font-size:9px;color:#22c55e;">★</span> ' : '';
+      return `<tr>
         <td>
-          <button class="dj-load-btn" onclick="djPreviewTrack(${JSON.stringify(t.title)},${JSON.stringify(t.artist||'')},${JSON.stringify(String(t.bpm||''))})">A</button>
-          <button class="dj-load-btn" onclick="djPreviewTrack(${JSON.stringify(t.title)},${JSON.stringify(t.artist||'')},${JSON.stringify(String(t.bpm||''))})">B</button>
+          <button class="dj-load-btn" onclick="${loadA}">A</button>
+          <button class="dj-load-btn" onclick="${loadB}">B</button>
         </td>
-        <td><strong>${_escHtml(t.title)}</strong></td>
+        <td><strong>${src}${_escHtml(t.title)}</strong></td>
         <td>${_escHtml(t.artist || '')}</td>
         <td><span style="font-size:10px;background:var(--c-elevated);padding:2px 6px;border-radius:3px;">${_escHtml(t.genre || '')}</span></td>
         <td>${t.bpm || '--'}</td>
         <td>${t.key || '--'}</td>
         <td>${t.duration ? _fmtDuration(t.duration) : '--'}</td>
-        <td><button class="dj-queue-add-btn" onclick="djAddToQueue(${JSON.stringify({title:t.title,artist:t.artist,bpm:t.bpm,dur:t.duration})})">+Q</button></td>
-      </tr>
-    `).join('');
+        <td><button class="dj-queue-add-btn" onclick="djAddToQueue(${JSON.stringify({title:t.title,artist:t.artist,bpm:t.bpm,dur:t.duration,url:url})})">+Q</button></td>
+      </tr>`;
+    }).join('');
     // Pagination row
     tbody.innerHTML += `<tr><td colspan="8" style="text-align:center;padding:8px;">
       <button class="dj-load-btn" onclick="djLibPrev()" ${_djLibPage<=1?'disabled':''}>◀ Prev</button>
