@@ -197,11 +197,12 @@
     {% endif %}
   </div>
 
-  <!-- Higgsfield AI (Social Optimize AI Video Engine) -->
+  {% if is_admin %}
+  <!-- Higgsfield AI (admin only — platform infrastructure) -->
   <div class="platform-tile {% if higgsfield_connected %}connected{% endif %}" style="border-color:{% if higgsfield_connected %}var(--green){% else %}rgba(168,85,247,.4){% endif %};">
     <div class="pt-icon">🎬</div>
-    <div class="pt-name" style="color:#a855f7;">Social Optimize AI</div>
-    <div class="pt-desc">AI video generation engine — connect your Higgsfield account to enable AI video creation</div>
+    <div class="pt-name" style="color:#a855f7;">AI Video Engine</div>
+    <div class="pt-desc">Higgsfield AI — powers all video generation for your users</div>
     {% if higgsfield_connected %}
       <span class="pt-status ok">✓ Connected</span>
       <a href="/oauth/higgsfield/start" class="btn btn-ghost btn-sm">Reconnect</a>
@@ -209,6 +210,7 @@
       <a href="/oauth/higgsfield/start" class="btn btn-primary btn-sm" style="background:linear-gradient(135deg,#a855f7,#7c3aed);">Connect AI Engine</a>
     {% endif %}
   </div>
+  {% endif %}
 
 </div>
 
