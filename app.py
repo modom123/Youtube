@@ -1016,6 +1016,26 @@ def check_job_files(job_id):
     })
 
 
+@app.route("/api/jobs/<int:job_id>/update", methods=["PATCH"])
+@login_required
+def api_update_job(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+    data = request.json or {}
+    allowed = {}
+    if "format" in data and data["format"] in ("short", "long", "podcast", "reel", "studio", "commercial", "hollywood"):
+        allowed["format"] = data["format"]
+    if "title" in data and isinstance(data["title"], str):
+        allowed["title"] = data["title"].strip()[:200]
+    if "voice" in data and isinstance(data["voice"], str):
+        allowed["voice"] = data["voice"].strip()
+    if not allowed:
+        return jsonify({"error": "No valid fields to update"}), 400
+    db.update_job(job_id, **allowed)
+    return jsonify({"ok": True, **allowed})
+
+
 @app.route("/api/jobs/<int:job_id>/script")
 @login_required
 def get_script(job_id):

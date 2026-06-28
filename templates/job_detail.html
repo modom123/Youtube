@@ -43,7 +43,18 @@
         </div>
         <div>
           <div class="text-xs text-dim mb-4">Format</div>
-          <span class="pill pill-running">{{ job.format }}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="pill pill-running" id="format-display">{{ job.format }}</span>
+            <button class="btn btn-ghost btn-sm" onclick="toggleFormatEdit()" style="font-size:11px;padding:2px 8px;">✏</button>
+          </div>
+          <div id="format-edit" style="display:none;margin-top:6px;">
+            <select id="format-select" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text);">
+              {% for val, label in [('short','Short'),('long','Long Form'),('podcast','Podcast'),('reel','Reel'),('studio','Studio'),('commercial','Commercial'),('hollywood','Hollywood')] %}
+              <option value="{{ val }}" {% if job.format == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="saveFormat()" style="font-size:11px;padding:2px 10px;margin-left:4px;">Save</button>
+          </div>
         </div>
         <div>
           <div class="text-xs text-dim mb-4">Duration</div>
@@ -463,6 +474,31 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+function toggleFormatEdit() {
+  const el = document.getElementById('format-edit');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveFormat() {
+  const fmt = document.getElementById('format-select').value;
+  try {
+    const r = await fetch('/api/jobs/{{ job.id }}/update', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ format: fmt }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      document.getElementById('format-display').textContent = fmt;
+      document.getElementById('format-edit').style.display = 'none';
+      toast('success', 'Format updated', 'Changed to ' + fmt);
+    } else {
+      toast('error', 'Failed', d.error || 'Unknown error');
+    }
+  } catch(e) { toast('error', 'Error', e.message); }
+}
+</script>
 {% if job.status == 'running' %}
 <script>
 (function poll() {

@@ -44,13 +44,16 @@
             <div class="text-xs text-dim">{{ job.topic[:35] if job.title else '' }}</div>
           </td>
           <td>
-            <span class="pill
-              {% if job.format == 'short' %}pill-running
-              {% elif job.format == 'long' %}pill-done
-              {% elif job.format == 'podcast' %}pill-pending
-              {% else %}pill-running{% endif %}">
-              {{ job.format }}
-            </span>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <span class="pill
+                {% if job.format == 'short' %}pill-running
+                {% elif job.format == 'long' %}pill-done
+                {% elif job.format == 'podcast' %}pill-pending
+                {% else %}pill-running{% endif %}" id="fmt-pill-{{ job.id }}">
+                {{ job.format }}
+              </span>
+              <button class="btn btn-ghost btn-sm" onclick="editFormat({{ job.id }}, '{{ job.format }}', this)" style="font-size:10px;padding:1px 5px;opacity:.5;" title="Change format">✏</button>
+            </div>
           </td>
           <td class="text-sm text-dim">
             {% if job.duration %}{{ "%.0f"|format(job.duration) }}s{% else %}—{% endif %}
@@ -197,6 +200,52 @@ function closePreview(e) {
   document.getElementById('previewAudio').pause();
   document.getElementById('previewAudio').src  = '';
   document.getElementById('videoModal').style.display = 'none';
+}
+
+async function editFormat(jobId, current, btn) {
+  const formats = ['short','long','podcast','reel','studio','commercial','hollywood'];
+  const select = document.createElement('select');
+  select.style.cssText = 'font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text);';
+  formats.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f; opt.textContent = f;
+    if (f === current) opt.selected = true;
+    select.appendChild(opt);
+  });
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn btn-primary btn-sm';
+  saveBtn.style.cssText = 'font-size:10px;padding:1px 8px;margin-left:4px;';
+  saveBtn.textContent = '✓';
+
+  const parent = btn.parentElement;
+  const pill = parent.querySelector('.pill');
+  pill.style.display = 'none';
+  btn.style.display = 'none';
+  parent.appendChild(select);
+  parent.appendChild(saveBtn);
+
+  saveBtn.onclick = async () => {
+    const fmt = select.value;
+    try {
+      const r = await fetch(`/api/jobs/${jobId}/update`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ format: fmt }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        pill.textContent = fmt;
+        pill.style.display = '';
+        btn.style.display = '';
+        select.remove();
+        saveBtn.remove();
+        toast('success', 'Format updated', `Job #${jobId} → ${fmt}`);
+      } else {
+        toast('error', 'Failed', d.error);
+      }
+    } catch(e) { toast('error', 'Error', e.message); }
+  };
+  select.focus();
 }
 
 async function retryJob(id, btn) {
