@@ -165,30 +165,31 @@ def whop_setup():
         try:
             product = client.products.create(
                 company_id=company_id,
-                name=tier["name"],
+                title=tier["name"],
                 description=tier["description"],
                 visibility="visible",
             )
 
             if tier["price"] == 0:
-                plan_type = "one_time"
-            elif tier["billing_period"]:
-                plan_type = "renewal"
+                plan = client.plans.create(
+                    company_id=company_id,
+                    product_id=product.id,
+                    plan_type="one_time",
+                    initial_price=0.0,
+                    currency="usd",
+                    unlimited_stock=True,
+                )
             else:
-                plan_type = "one_time"
-
-            plan_params = {
-                "company_id": company_id,
-                "product_id": product.id,
-                "plan_type": plan_type,
-                "initial_price": tier["price"],
-                "currency": "usd",
-            }
-            if tier["billing_period"] and tier["price"] > 0:
-                plan_params["billing_period"] = tier["billing_period"]
-                plan_params["renewal_price"] = tier["price"]
-
-            plan = client.plans.create(**plan_params)
+                plan = client.plans.create(
+                    company_id=company_id,
+                    product_id=product.id,
+                    plan_type="renewal",
+                    initial_price=tier["price"],
+                    renewal_price=tier["price"],
+                    billing_period=30,
+                    currency="usd",
+                    unlimited_stock=True,
+                )
 
             results[tier_key] = {
                 "product_id": product.id,
@@ -206,8 +207,8 @@ def whop_setup():
     try:
         webhook_url = f"{config.APP_BASE_URL}/whop/webhook"
         webhook = client.webhooks.create(
-            company_id=company_id,
             url=webhook_url,
+            resource_id=company_id,
             events=[
                 "membership.went_valid",
                 "membership.went_invalid",
@@ -269,14 +270,7 @@ def whop_checkout(tier):
     product_info = WHOP_PRODUCTS[tier]
     try:
         checkout = client.checkout_configurations.create(
-            currency="usd",
-            plan={
-                "id": plan_id,
-                "initial_price": product_info["price"],
-                "plan_type": "renewal" if product_info["billing_period"] else "one_time",
-                "company_id": WHOP_COMPANY_ID,
-                "currency": "usd",
-            },
+            plan_id=plan_id,
             metadata={
                 "user_id": str(current_user.id),
                 "tier": tier,
@@ -284,7 +278,7 @@ def whop_checkout(tier):
             },
             redirect_url=f"{config.APP_BASE_URL}/whop/success?tier={tier}",
         )
-        checkout_url = f"https://whop.com/checkout/{checkout.plan.id}" if hasattr(checkout, "plan") else f"https://whop.com/checkout/{checkout.id}"
+        checkout_url = getattr(checkout, "purchase_url", None) or f"https://whop.com/checkout/{plan_id}"
         return jsonify({"checkout_url": checkout_url})
     except Exception as e:
         logger.error("Checkout creation failed: %s", e)

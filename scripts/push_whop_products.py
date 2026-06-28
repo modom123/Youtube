@@ -26,38 +26,38 @@ COMPANY_ID = os.getenv("WHOP_COMPANY_ID", "")
 
 PRODUCTS = {
     "free": {
-        "name": "Social Optimize — Free",
+        "title": "Social Optimize — Free",
         "description": "3 AI videos per month. Basic AI generation, vertical reframe, animated captions. No credit card required.",
         "price": 0.0,
-        "billing_period": None,
+        "billing_period_days": None,
         "videos_per_month": 3,
     },
     "starter": {
-        "name": "Social Optimize — Starter",
+        "title": "Social Optimize — Starter",
         "description": "10 AI videos per month. 8-platform publishing, scheduling, analytics, no watermark.",
         "price": 9.99,
-        "billing_period": "month",
+        "billing_period_days": 30,
         "videos_per_month": 10,
     },
     "creator": {
-        "name": "Social Optimize — Creator",
+        "title": "Social Optimize — Creator",
         "description": "30 AI videos per month. AI Clipper, batch creation, Studio 56, virality scoring.",
         "price": 29.0,
-        "billing_period": "month",
+        "billing_period_days": 30,
         "videos_per_month": 30,
     },
     "pro": {
-        "name": "Social Optimize — Pro",
+        "title": "Social Optimize — Pro",
         "description": "100 AI videos per month. Hollywood AI, multi-language, team seats, advanced analytics.",
         "price": 79.0,
-        "billing_period": "month",
+        "billing_period_days": 30,
         "videos_per_month": 100,
     },
     "agency": {
-        "name": "Social Optimize — Agency",
+        "title": "Social Optimize — Agency",
         "description": "200 AI videos per month. White-label, API access, 10 team seats, dedicated account manager.",
         "price": 199.0,
-        "billing_period": "month",
+        "billing_period_days": 30,
         "videos_per_month": 200,
     },
 }
@@ -84,21 +84,21 @@ def main():
 
     for tier_key, tier in PRODUCTS.items():
         print(f"\n{'='*60}")
-        print(f"Creating: {tier['name']} (${tier['price']}/{'mo' if tier['billing_period'] else 'free'})")
+        print(f"Creating: {tier['title']} (${tier['price']}/{'mo' if tier['billing_period_days'] else 'free'})")
         print(f"{'='*60}")
 
         # 1. Create product
         try:
             product = client.products.create(
                 company_id=COMPANY_ID,
-                name=tier["name"],
+                title=tier["title"],
                 description=tier["description"],
                 visibility="visible",
             )
             product_id = product.id
-            print(f"  ✅ Product created: {product_id}")
+            print(f"  Product created: {product_id}")
         except Exception as e:
-            print(f"  ❌ Product creation failed: {e}")
+            print(f"  Product creation failed: {e}")
             results[tier_key] = {"error": str(e)}
             continue
 
@@ -111,6 +111,7 @@ def main():
                     plan_type="one_time",
                     initial_price=0.0,
                     currency="usd",
+                    unlimited_stock=True,
                 )
             else:
                 plan = client.plans.create(
@@ -119,31 +120,30 @@ def main():
                     plan_type="renewal",
                     initial_price=tier["price"],
                     renewal_price=tier["price"],
-                    billing_period=tier["billing_period"],
+                    billing_period=tier["billing_period_days"],
                     currency="usd",
+                    unlimited_stock=True,
+                    trial_period_days=7,
                 )
             plan_id = plan.id
-            print(f"  ✅ Plan created: {plan_id}")
+            print(f"  Plan created: {plan_id}")
         except Exception as e:
-            print(f"  ❌ Plan creation failed: {e}")
+            print(f"  Plan creation failed: {e}")
             results[tier_key] = {"product_id": product_id, "error": str(e)}
             continue
 
         # 3. Create checkout configuration
         try:
             checkout = client.checkout_configurations.create(
-                currency="usd",
-                plan={"id": plan_id},
+                plan_id=plan_id,
                 metadata={"tier": tier_key, "source": "social_optimize"},
                 redirect_url=f"{APP_BASE_URL}/whop/success?tier={tier_key}",
             )
-            checkout_id = checkout.id if hasattr(checkout, "id") else "?"
-            checkout_plan_id = checkout.plan.id if hasattr(checkout, "plan") else plan_id
-            checkout_url = f"https://whop.com/checkout/{checkout_plan_id}"
-            print(f"  ✅ Checkout created: {checkout_url}")
+            checkout_url = getattr(checkout, "purchase_url", None) or f"https://whop.com/checkout/{plan_id}"
+            print(f"  Checkout created: {checkout_url}")
         except Exception as e:
             checkout_url = f"https://whop.com/checkout/{plan_id}"
-            print(f"  ⚠️  Checkout config failed ({e}), fallback URL: {checkout_url}")
+            print(f"  Checkout config note ({e}), fallback URL: {checkout_url}")
 
         results[tier_key] = {
             "product_id": product_id,
@@ -159,8 +159,8 @@ def main():
     try:
         webhook_url = f"{APP_BASE_URL}/whop/webhook"
         webhook = client.webhooks.create(
-            company_id=COMPANY_ID,
             url=webhook_url,
+            resource_id=COMPANY_ID,
             events=[
                 "membership.went_valid",
                 "membership.went_invalid",
@@ -169,10 +169,10 @@ def main():
                 "payment.failed",
             ],
         )
-        print(f"  ✅ Webhook created: {webhook.id} → {webhook_url}")
+        print(f"  Webhook created: {webhook.id} -> {webhook_url}")
         results["webhook"] = {"id": webhook.id, "url": webhook_url}
     except Exception as e:
-        print(f"  ❌ Webhook failed: {e}")
+        print(f"  Webhook failed: {e}")
         results["webhook"] = {"error": str(e)}
 
     # Summary
@@ -182,10 +182,10 @@ def main():
     for tier_key, r in results.items():
         if tier_key == "webhook":
             continue
-        status = "✅" if r.get("status") == "created" else "❌"
-        print(f"  {status} {tier_key:10s} — product: {r.get('product_id', 'FAILED'):20s} plan: {r.get('plan_id', 'FAILED'):20s}")
+        status = "OK" if r.get("status") == "created" else "FAIL"
+        print(f"  [{status}] {tier_key:10s} product={r.get('product_id', 'FAILED'):24s} plan={r.get('plan_id', 'FAILED')}")
         if r.get("checkout_url"):
-            print(f"     checkout: {r['checkout_url']}")
+            print(f"           checkout: {r['checkout_url']}")
 
     # Save IDs for .env
     print(f"\n{'='*60}")
