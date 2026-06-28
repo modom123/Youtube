@@ -309,6 +309,7 @@
         <button class="btn btn-sm edit-tab active-tab" data-tab="video" onclick="setEditTab('video')" style="flex:1;border-radius:6px;background:var(--accent);color:#000;">Replace Video</button>
         <button class="btn btn-sm edit-tab" data-tab="audio" onclick="setEditTab('audio')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Replace Audio</button>
         <button class="btn btn-sm edit-tab" data-tab="mix" onclick="setEditTab('mix')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Mix A+V</button>
+        <button class="btn btn-sm edit-tab" data-tab="convert" onclick="setEditTab('convert')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Convert</button>
       </div>
 
       <!-- Upload Video tab -->
@@ -379,6 +380,40 @@
           Mix Audio + Video → Final MP4
         </button>
         <div id="mix-result" style="display:none;margin-top:12px;"></div>
+      </div>
+
+      <!-- Convert Format tab -->
+      <div id="edit-tab-convert" style="display:none;">
+        <div style="background:var(--bg-elevated);border-radius:10px;padding:20px;margin-bottom:16px;">
+          <div class="text-sm text-bold mb-8">Convert Video Format</div>
+          <div class="text-xs text-dim" style="line-height:1.6;">
+            Some platforms require specific formats. Convert your video to MP4, MOV, WebM, or other formats for compatibility.
+          </div>
+        </div>
+        {% if job.video_path %}
+        <div class="flex gap-8 mb-16" style="align-items:center;">
+          <span class="pill pill-done" style="flex-shrink:0;">✓ Current</span>
+          <span class="text-xs text-dim">{{ job.video_path.split('.')[-1]|upper }} format</span>
+        </div>
+        <div class="form-group">
+          <label>Convert to:</label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="convert-fmt-grid">
+            {% for fmt, label, desc in [('mp4','MP4','Best compatibility'),('mov','MOV','Apple / Final Cut'),('webm','WebM','Web optimized'),('avi','AVI','Legacy format'),('mkv','MKV','High quality'),('gif','GIF','Animated image')] %}
+            <div class="platform-card" data-fmt="{{ fmt }}" onclick="selectConvertFmt(this)"
+                 style="padding:10px;text-align:center;height:auto;cursor:pointer;">
+              <div class="text-sm text-bold">{{ label }}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px;">{{ desc }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block mt-8" id="convert-btn" onclick="convertVideo({{ job.id }})">
+          Convert Video
+        </button>
+        <div id="convert-result" style="display:none;margin-top:12px;"></div>
+        {% else %}
+        <div class="text-dim text-xs" style="padding:20px;text-align:center;">No video file to convert. Upload one first.</div>
+        {% endif %}
       </div>
 
     </div>
@@ -636,7 +671,7 @@ function toggleEditPanel() {
 }
 
 function setEditTab(tab) {
-  ['video','audio','mix'].forEach(t => {
+  ['video','audio','mix','convert'].forEach(t => {
     document.getElementById('edit-tab-' + t).style.display = t === tab ? 'block' : 'none';
     const btn = document.querySelector(`.edit-tab[data-tab="${t}"]`);
     if (btn) {
@@ -710,6 +745,49 @@ async function uploadJobAudio(jobId) {
     if (d.ok) { toast('success', 'Audio uploaded!', 'Reloading…'); setTimeout(() => location.reload(), 1200); }
     else toast('error', 'Upload failed', d.error || 'Unknown error');
   } catch(e) { toast('error', 'Error', e.message); }
+}
+
+let _convertFmt = null;
+function selectConvertFmt(el) {
+  document.querySelectorAll('#convert-fmt-grid .platform-card').forEach(c => c.classList.remove('selected'));
+  _convertFmt = el.dataset.fmt;
+  el.classList.add('selected');
+}
+
+async function convertVideo(jobId) {
+  if (!_convertFmt) {
+    toast('error', 'No format selected', 'Pick a target format first.');
+    return;
+  }
+  const btn = document.getElementById('convert-btn');
+  const res = document.getElementById('convert-result');
+  btn.disabled = true;
+  btn.textContent = 'Converting… (this may take a minute)';
+  res.style.display = 'none';
+  try {
+    const r = await fetch(`/api/jobs/${jobId}/convert`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({format: _convertFmt}),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      res.style.display = 'block';
+      res.innerHTML = `<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:12px;color:#22c55e;font-size:13px;">
+        ✓ Converted to ${_convertFmt.toUpperCase()} — reloading…</div>`;
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      res.style.display = 'block';
+      res.innerHTML = `<div style="background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.3);border-radius:8px;padding:12px;color:#ff6b6b;font-size:13px;">
+        ✗ ${d.error || 'Conversion failed'}</div>`;
+      btn.disabled = false;
+      btn.textContent = 'Convert Video';
+    }
+  } catch(e) {
+    toast('error', 'Error', e.message);
+    btn.disabled = false;
+    btn.textContent = 'Convert Video';
+  }
 }
 
 async function mixAudioVideo(jobId) {

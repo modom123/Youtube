@@ -971,6 +971,40 @@ def upload_job_audio(job_id):
     return jsonify({"ok": True, "audio_path": str(dest)})
 
 
+@app.route("/api/jobs/<int:job_id>/convert", methods=["POST"])
+@login_required
+def convert_job_video(job_id):
+    """Convert a job's video to a different format using ffmpeg."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+    if not job.get("video_path") or not Path(job["video_path"]).exists():
+        return jsonify({"error": "No video file found for this job"}), 400
+    data = request.get_json(force=True)
+    target = data.get("format", "mp4")
+    if target not in ("mp4", "mov", "webm", "avi", "mkv", "gif"):
+        return jsonify({"error": "Unsupported target format"}), 400
+    src = Path(job["video_path"])
+    dest = src.with_name(src.stem + f"_converted.{target}")
+    codec_args = {
+        "mp4":  ["-c:v", "libx264", "-c:a", "aac", "-movflags", "+faststart"],
+        "mov":  ["-c:v", "libx264", "-c:a", "aac"],
+        "webm": ["-c:v", "libvpx-vp9", "-c:a", "libopus", "-b:v", "2M"],
+        "avi":  ["-c:v", "libx264", "-c:a", "mp3"],
+        "mkv":  ["-c:v", "libx264", "-c:a", "aac"],
+        "gif":  ["-vf", "fps=15,scale=480:-1:flags=lanczos", "-an"],
+    }
+    cmd = ["ffmpeg", "-y", "-i", str(src)] + codec_args[target] + [str(dest)]
+    try:
+        result = subprocess.run(cmd, capture_output=True, timeout=300)
+        if result.returncode != 0:
+            return jsonify({"error": "Conversion failed: " + result.stderr.decode()[:300]}), 500
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Conversion timed out (video too long)"}), 500
+    db.update_job(job_id, video_path=str(dest))
+    return jsonify({"ok": True, "video_path": str(dest), "format": target})
+
+
 @app.route("/api/jobs/<int:job_id>/mix", methods=["POST"])
 @login_required
 def mix_job_audio_video(job_id):
@@ -5734,14 +5768,26 @@ def editing_room_upload_media():
     if not f or not f.filename:
         return jsonify({"error": "No file"}), 400
     ext = Path(f.filename).suffix.lower()
-    if ext not in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov", ".avi", ".webm"):
+    image_exts = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+    video_exts = {".mp4", ".mov", ".avi", ".webm", ".mkv", ".m4v", ".flv", ".3gp", ".ts", ".mts", ".wmv", ".mpg", ".mpeg"}
+    if ext not in image_exts | video_exts:
         return jsonify({"error": "Unsupported file type"}), 400
     media_id = str(uuid.uuid4())
     media_dir = Path(config.OUTPUT_DIR) / "editing_media" / str(current_user.id)
     media_dir.mkdir(parents=True, exist_ok=True)
+    is_video = ext in video_exts
     dest = media_dir / f"{media_id}{ext}"
     f.save(str(dest))
-    is_video = ext in (".mp4", ".mov", ".avi", ".webm")
+    if is_video and ext != ".mp4":
+        converted = media_dir / f"{media_id}.mp4"
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", str(dest), "-c:v", "libx264", "-c:a", "aac", "-movflags", "+faststart", str(converted)],
+            capture_output=True, timeout=300,
+        )
+        if result.returncode == 0:
+            dest.unlink(missing_ok=True)
+            dest = converted
+            ext = ".mp4"
     return jsonify({"media_id": media_id, "path": str(dest), "type": "video" if is_video else "image", "filename": f.filename})
 
 

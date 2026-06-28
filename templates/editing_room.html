@@ -251,7 +251,7 @@ function renderSections() {
         <div id="media-list-${i}" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div>
         <label style="display:inline-block;margin-top:6px;padding:5px 12px;border:1px dashed var(--border);border-radius:6px;cursor:pointer;font-size:11px;color:var(--muted);">
           + Add Media
-          <input type="file" accept="image/*,video/mp4,video/mov,video/avi,video/webm" multiple
+          <input type="file" accept="image/*,video/*,.mkv,.m4v,.flv,.3gp,.ts,.mts,.wmv,.mpg,.mpeg" multiple
             onchange="uploadSectionMedia(${i}, this.files)" style="display:none;">
         </label>
       </div>`;
