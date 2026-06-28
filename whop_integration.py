@@ -427,12 +427,55 @@ def use_whop_clip(user_id: int) -> bool:
 @whop_bp.route("/app")
 def whop_app_iframe():
     """Serve our clipper inside Whop's iframe. Whop passes user info via query params."""
+    experience_id = request.args.get("experienceId", "")
     membership_id = request.args.get("membership_id", "")
     user_id = request.args.get("user_id", "")
 
     return render_template("whop_app.html",
+                           experience_id=experience_id,
                            membership_id=membership_id,
                            whop_user_id=user_id)
+
+
+@whop_bp.route("/experiences/<experience_id>")
+def whop_experience(experience_id):
+    """Experience path — Whop loads this for each member's experience."""
+    membership_id = request.args.get("membership_id", "")
+    user_id = request.args.get("user_id", "")
+    return render_template("whop_app.html",
+                           experience_id=experience_id,
+                           membership_id=membership_id,
+                           whop_user_id=user_id)
+
+
+@whop_bp.route("/dashboard/<company_id>")
+def whop_dashboard(company_id):
+    """Dashboard path — Whop loads this for creators managing the app."""
+    client = _get_whop_client()
+    stats = {}
+    if client:
+        try:
+            memberships = client.memberships.list(
+                company_id=company_id, per=100, status="active",
+            )
+            member_list = memberships.data if hasattr(memberships, "data") else list(memberships)
+            stats["active_members"] = len(member_list)
+            stats["members"] = [
+                {"id": getattr(m, "id", ""), "email": getattr(m, "email", ""),
+                 "status": getattr(m, "status", "")}
+                for m in member_list
+            ]
+        except Exception as e:
+            stats["error"] = str(e)
+    return render_template("whop_dashboard.html",
+                           company_id=company_id, stats=stats,
+                           products=WHOP_PRODUCTS)
+
+
+@whop_bp.route("/discover")
+def whop_discover():
+    """Discover path — public-facing app listing inside Whop."""
+    return render_template("whop_discover.html", products=WHOP_PRODUCTS)
 
 
 @whop_bp.route("/app/validate", methods=["POST"])
