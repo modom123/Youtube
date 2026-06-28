@@ -59,7 +59,7 @@
 {% for group in groups %}
 <div class="sg">
   <h3>{{ group.name }}</h3>
-  {% for item in group.items %}
+  {% for item in group.vars %}
   <div class="sv" id="row-{{ item.name }}">
     <div class="sv-status {{ 'on' if item.is_set else 'off' }}"></div>
     <div class="sv-info">

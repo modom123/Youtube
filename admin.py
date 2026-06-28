@@ -297,7 +297,7 @@ def admin_settings():
                     masked = val[:4] + "••••" + val[-4:]
             items.append({"name": var_name, "description": description,
                           "is_set": is_set, "masked": masked})
-        groups.append({"name": group_name, "items": items})
+        groups.append({"name": group_name, "vars": items})
     return render_template("admin/settings.html", groups=groups,
                            total_set=total_set, total_vars=total_vars)
 
