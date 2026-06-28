@@ -777,14 +777,16 @@ async function loadTrendingTopics() {
 
     const section = document.getElementById('trending-section');
     const chips = document.getElementById('trending-chips');
-    chips.innerHTML = daily.slice(0, 10).map(t =>
-      `<span onclick="document.getElementById('s-niche').value='${t.replace(/'/g, "\\'")}'"
-        style="display:inline-block;padding:4px 10px;background:var(--border);border-radius:20px;
-               font-size:11px;cursor:pointer;white-space:nowrap;transition:background .15s;"
-        onmouseover="this.style.background='var(--accent)';this.style.color='#fff'"
-        onmouseout="this.style.background='var(--border)';this.style.color=''"
-      >${t}</span>`
-    ).join('');
+    chips.innerHTML = '';
+    daily.slice(0, 10).forEach(t => {
+      const span = document.createElement('span');
+      span.textContent = t;
+      span.style.cssText = 'display:inline-block;padding:4px 10px;background:var(--border);border-radius:20px;font-size:11px;cursor:pointer;white-space:nowrap;transition:background .15s;';
+      span.onclick = () => { document.getElementById('s-niche').value = t; };
+      span.onmouseover = () => { span.style.background='var(--accent)'; span.style.color='#fff'; };
+      span.onmouseout = () => { span.style.background='var(--border)'; span.style.color=''; };
+      chips.appendChild(span);
+    });
     section.style.display = '';
   } catch (e) {
     // Silently skip if trends unavailable
