@@ -4204,6 +4204,10 @@ def _run_commercial_thread(job_id: str, params: dict, user_id: int):
         _push_commercial(job_id, {"status": "running", "step": msg, "progress": pct})
 
     try:
+        if not config.ANTHROPIC_API_KEY:
+            _push_commercial(job_id, {"status": "error", "error": "Anthropic API key not configured. Set ANTHROPIC_API_KEY in Render environment variables.", "progress": 0})
+            return
+
         step("Analyzing your media with AI vision...", 5)
 
         media_path = Path(params["media_path"])
