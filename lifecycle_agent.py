@@ -59,7 +59,7 @@ LIFECYCLE_MESSAGES = {
     "trial_3days": {
         "title": "3 days left on your free trial",
         "body": (
-            "Your free trial ends in 3 days. Upgrade to Starter ($29/mo) to keep creating — "
+            "Your free trial ends in 3 days. Upgrade to Starter ($29.99/mo) to keep creating — "
             "you'll get 15 videos/month, 150 AI credits, 8 platforms, and full studio access."
         ),
         "link": "/billing",

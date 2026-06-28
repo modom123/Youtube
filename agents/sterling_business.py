@@ -45,9 +45,10 @@ COST_PER_VIDEO = {
 
 TIER_PRICING = {
     "free": {"monthly": 0, "videos": 3, "model": "haiku"},
-    "starter": {"monthly": 29, "videos": 15, "model": "sonnet"},
-    "creator": {"monthly": 79, "videos": 50, "model": "sonnet"},
-    "agency": {"monthly": 199, "videos": 125, "model": "sonnet"},
+    "basic": {"monthly": 9.99, "videos": 7, "model": "haiku"},
+    "starter": {"monthly": 29.99, "videos": 15, "model": "sonnet"},
+    "creator": {"monthly": 79.99, "videos": 50, "model": "sonnet"},
+    "agency": {"monthly": 199.99, "videos": 125, "model": "sonnet"},
 }
 
 

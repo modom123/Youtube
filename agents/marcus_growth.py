@@ -87,7 +87,7 @@ def _send_upgrade_nudge(user, video_count):
 
 You've been on fire — {video_count} videos created! You're getting close to the free tier limit.
 
-Upgrade to Starter ($29/mo) and unlock:
+Upgrade to Starter ($29.99/mo) and unlock:
 - 15 AI videos/month (vs 3 on free)
 - Publish to 8 platforms (vs 3 on free)
 - Production Studio, Commercial Studio & Music Studio

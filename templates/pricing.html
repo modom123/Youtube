@@ -238,24 +238,48 @@
       </ul>
     </div>
 
+    <!-- BASIC -->
+    <div class="pricing-card">
+      <div class="pricing-popular" style="background:#3b82f6;">7-Day Free Trial</div>
+      <div class="pricing-tier">Basic — $9.99/mo</div>
+      <h3 class="pricing-name">Basic</h3>
+      <div class="pricing-price"><span id="basic-price">$9.99</span><span>/mo</span></div>
+      <p class="pricing-desc">Essential tools to start growing your brand across multiple platforms.</p>
+      <button class="pricing-cta" onclick="openCheckout('basic')">Start 7-Day Free Trial</button>
+      <ul class="pricing-features">
+        <li>✅ 7-day free trial</li>
+        <li>🎬 7 AI videos/month</li>
+        <li>📲 Publish to 5 platforms</li>
+        <li>🤖 50 Social Optimize Credits/mo</li>
+        <li>🧠 5-agent AI content pipeline</li>
+        <li>📅 Content calendar & scheduling</li>
+        <li>🎞 Editing Room</li>
+        <li>📚 Template Library</li>
+        <li>#️⃣ Hashtag research</li>
+        <li>📸 Quick Post from photo/video</li>
+        <li>🖼 Pexels stock media</li>
+        <li>📧 Email support</li>
+      </ul>
+    </div>
+
     <!-- STARTER — Small Business -->
     <div class="pricing-card">
       <div class="pricing-popular" style="background:#30d158;color:#000;">Best for Small Business</div>
-      <div class="pricing-tier">Starter — $29/mo</div>
+      <div class="pricing-tier">Starter — $29.99/mo</div>
       <h3 class="pricing-name">Starter</h3>
-      <div class="pricing-price"><span id="starter-price">$29</span><span>/mo</span></div>
+      <div class="pricing-price"><span id="starter-price">$29.99</span><span>/mo</span></div>
       <p class="pricing-desc">Built for entrepreneurs and small businesses. Grow your brand with AI-powered content across every platform.</p>
       <button class="pricing-cta" onclick="openCheckout('starter')">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
         <li>✅ 14-day free trial</li>
         <li>🎬 15 AI videos/month</li>
         <li>📲 Publish to 8 platforms</li>
-        <li>📸 Quick Post from photo/video</li>
         <li>🤖 150 Social Optimize Credits/mo</li>
         <li>🧠 5-agent AI content pipeline</li>
         <li>🎙 Production Studio</li>
         <li>📺 Commercial Studio — photo → ad</li>
         <li>🎵 Music Studio</li>
+        <li>📦 Batch Generator</li>
         <li>📅 Content calendar & scheduling</li>
         <li>#️⃣ Hashtag research tool</li>
         <li>📧 Email support</li>
@@ -265,20 +289,18 @@
     <!-- CREATOR (FEATURED) -->
     <div class="pricing-card featured">
       <div class="pricing-popular">⭐ Most Popular</div>
-      <div class="pricing-tier">Creator — $79/mo</div>
+      <div class="pricing-tier">Creator — $79.99/mo</div>
       <h3 class="pricing-name">Creator</h3>
-      <div class="pricing-price"><span id="pro-price">$79</span><span>/mo</span></div>
-      <p class="pricing-desc">Card required — you won't be charged for 14 days. Cancel anytime.</p>
+      <div class="pricing-price"><span id="pro-price">$79.99</span><span>/mo</span></div>
+      <p class="pricing-desc">The full creative suite for serious creators. Cancel anytime.</p>
       <button class="pricing-cta" onclick="openCheckout('creator')">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
         <li>✅ 14-day free trial</li>
         <li>🎬 50 AI videos/month</li>
         <li>📲 Publish to all 8 platforms</li>
-        <li>📸 Quick Post from photo/video</li>
         <li>🤖 500 Social Optimize Credits/mo</li>
         <li>✨ Everything in Starter</li>
         <li>🎙 Studio 56 — full production suite</li>
-        <li>📺 Commercial Studio — photo → ad</li>
         <li>🎬 Hollywood AI agent</li>
         <li>🎵 Music Studio — DJ & beat maker</li>
         <li>✂️ AI Clipper — auto-clip to shorts</li>
@@ -295,16 +317,15 @@
     <!-- AGENCY -->
     <div class="pricing-card">
       <div class="pricing-popular" style="background:#a855f7;">14-Day Free Trial</div>
-      <div class="pricing-tier">Agency — $199/mo</div>
+      <div class="pricing-tier">Agency — $199.99/mo</div>
       <h3 class="pricing-name">Agency</h3>
-      <div class="pricing-price"><span id="agency-price">$199</span><span>/mo</span></div>
-      <p class="pricing-desc">Card required — you won't be charged for 14 days. Cancel anytime.</p>
+      <div class="pricing-price"><span id="agency-price">$199.99</span><span>/mo</span></div>
+      <p class="pricing-desc">Scale your content operation with your whole team. Cancel anytime.</p>
       <button class="pricing-cta" onclick="openCheckout('agency')">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
         <li>✅ 14-day free trial</li>
         <li>🎬 125 AI videos/month</li>
         <li>📲 Publish to all 8 platforms</li>
-        <li>📸 Quick Post from photo/video</li>
         <li>🤖 2,000 Social Optimize Credits/mo</li>
         <li>🎙 Everything in Creator</li>
         <li>👥 Team management (5 seats)</li>
@@ -329,17 +350,27 @@
     <table class="comp-table">
       <thead>
         <tr>
-          <th style="width: 25%;">Feature</th>
-          <th style="width: 18.75%;">Free</th>
-          <th style="width: 18.75%;">Starter</th>
-          <th style="width: 18.75%;">Creator</th>
-          <th style="width: 18.75%;">Agency</th>
+          <th style="width:20%;">Feature</th>
+          <th style="width:16%;">Free</th>
+          <th style="width:16%;">Basic</th>
+          <th style="width:16%;">Starter</th>
+          <th style="width:16%;">Creator</th>
+          <th style="width:16%;">Agency</th>
         </tr>
       </thead>
       <tbody>
         <tr>
+          <td class="comp-feature">Price</td>
+          <td><span class="comp-check">$0</span></td>
+          <td><span class="comp-check">$9.99</span></td>
+          <td><span class="comp-check">$29.99</span></td>
+          <td><span class="comp-check">$79.99</span></td>
+          <td><span class="comp-check">$199.99</span></td>
+        </tr>
+        <tr>
           <td class="comp-feature">Videos per month</td>
           <td><span class="comp-check">3</span></td>
+          <td><span class="comp-check">7</span></td>
           <td><span class="comp-check">15</span></td>
           <td><span class="comp-check">50</span></td>
           <td><span class="comp-check">125</span></td>
@@ -347,19 +378,22 @@
         <tr>
           <td class="comp-feature">Platforms supported</td>
           <td><span class="comp-check">3</span></td>
+          <td><span class="comp-check">5</span></td>
           <td><span class="comp-check">8</span></td>
           <td><span class="comp-check">8</span></td>
           <td><span class="comp-check">8</span></td>
         </tr>
         <tr>
-          <td class="comp-feature">Research suite</td>
-          <td><span class="comp-check">Basic</span></td>
-          <td><span class="comp-check">Full</span></td>
-          <td><span class="comp-check">Full</span></td>
-          <td><span class="comp-check">Full</span></td>
+          <td class="comp-feature">SO Credits/mo</td>
+          <td><span class="comp-check">10</span></td>
+          <td><span class="comp-check">50</span></td>
+          <td><span class="comp-check">150</span></td>
+          <td><span class="comp-check">500</span></td>
+          <td><span class="comp-check">2,000</span></td>
         </tr>
         <tr>
           <td class="comp-feature">Production, Commercial & Music Studio</td>
+          <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-check">Yes</span></td>
           <td><span class="comp-check">Yes</span></td>
@@ -369,11 +403,21 @@
           <td class="comp-feature">Hollywood AI agent</td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
           <td><span class="comp-check">Yes</span></td>
           <td><span class="comp-check">Yes</span></td>
         </tr>
         <tr>
+          <td class="comp-feature">AI Clipper</td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-check">Yes</span></td>
+          <td><span class="comp-check">Unlimited</span></td>
+        </tr>
+        <tr>
           <td class="comp-feature">Analytics & tracking</td>
+          <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-check">Basic</span></td>
           <td><span class="comp-check">Advanced</span></td>
@@ -384,10 +428,12 @@
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-check">Yes</span></td>
-          <td><span class="comp-check">Yes</span></td>
+          <td><span class="comp-check">30 at once</span></td>
+          <td><span class="comp-check">Unlimited</span></td>
         </tr>
         <tr>
           <td class="comp-feature">Team seats</td>
+          <td><span class="comp-check">1</span></td>
           <td><span class="comp-check">1</span></td>
           <td><span class="comp-check">2</span></td>
           <td><span class="comp-check">3</span></td>
@@ -398,10 +444,12 @@
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
+          <td><span class="comp-cross">—</span></td>
           <td><span class="comp-check">Yes</span></td>
         </tr>
         <tr>
           <td class="comp-feature">White-label</td>
+          <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
           <td><span class="comp-cross">—</span></td>
@@ -410,6 +458,7 @@
         <tr>
           <td class="comp-feature">Support</td>
           <td><span class="comp-check">Community</span></td>
+          <td><span class="comp-check">Email</span></td>
           <td><span class="comp-check">Email</span></td>
           <td><span class="comp-check">Priority</span></td>
           <td><span class="comp-check">24/7 Dedicated</span></td>
@@ -541,8 +590,8 @@ document.getElementById('whopCheckoutOverlay').addEventListener('click', functio
 });
 
 const priceMap = {
-  'monthly': { starter: 29, pro: 79, agency: 199 },
-  'annual': { starter: 23, pro: 63, agency: 159 }
+  'monthly': { basic: '9.99', starter: '29.99', pro: '79.99', agency: '199.99' },
+  'annual': { basic: '7.99', starter: '23.99', pro: '63.99', agency: '159.99' }
 };
 
 function togglePricing(period) {
@@ -552,6 +601,7 @@ function togglePricing(period) {
   const savingsLabel = document.getElementById('savingsLabel');
   savingsLabel.style.display = period === 'annual' ? 'block' : 'none';
 
+  document.getElementById('basic-price').textContent = '$' + priceMap[period].basic;
   document.getElementById('starter-price').textContent = '$' + priceMap[period].starter;
   document.getElementById('pro-price').textContent = '$' + priceMap[period].pro;
   document.getElementById('agency-price').textContent = '$' + priceMap[period].agency;

@@ -37,9 +37,18 @@ STRIPE_SECRET_KEY       = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY  = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET   = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
+STRIPE_PRICE_BASIC    = os.getenv("STRIPE_PRICE_BASIC", "")
 STRIPE_PRICE_STARTER  = os.getenv("STRIPE_PRICE_STARTER", "")
 STRIPE_PRICE_CREATOR  = os.getenv("STRIPE_PRICE_CREATOR", "")
 STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
+
+# ── Whop ─────────────────────────────────────────────────────────────────────
+WHOP_API_KEY          = os.getenv("WHOP_API_KEY", "")
+WHOP_WEBHOOK_SECRET   = os.getenv("WHOP_WEBHOOK_SECRET", "")
+WHOP_PLAN_BASIC       = os.getenv("WHOP_PLAN_BASIC", "")
+WHOP_PLAN_STARTER     = os.getenv("WHOP_PLAN_STARTER", "")
+WHOP_PLAN_CREATOR     = os.getenv("WHOP_PLAN_CREATOR", "")
+WHOP_PLAN_AGENCY      = os.getenv("WHOP_PLAN_AGENCY", "")
 
 # ── Testing / bypass flags ───────────────────────────────────────────────────
 # Set BYPASS_USAGE_GATE=1 on Render while testing to skip video-count limits.
@@ -69,14 +78,39 @@ TIERS = {
             "Community support",
         ],
     },
+    "basic": {
+        "label": "Basic",
+        "description": "Essential tools to start growing your brand — just $9.99/mo.",
+        "price_monthly": 9.99,
+        "trial_days": 7,
+        "videos_per_month": 7,
+        "higgsfield_credits": 50,
+        "stripe_price_id": STRIPE_PRICE_BASIC,
+        "whop_plan_id": WHOP_PLAN_BASIC,
+        "features": [
+            "7-day free trial",
+            "7 AI videos/month",
+            "Publish to 5 platforms",
+            "50 Social Optimize Credits/mo",
+            "5-agent AI pipeline",
+            "Content calendar & scheduling",
+            "Editing Room",
+            "Template Library",
+            "Hashtag research",
+            "Quick Post from photo/video",
+            "Pexels stock media library",
+            "Email support",
+        ],
+    },
     "starter": {
         "label": "Starter",
-        "description": "Try free for 14 days — card required, cancel anytime. Then just $29/mo.",
-        "price_monthly": 29,
+        "description": "Built for entrepreneurs and small businesses. 14-day free trial, then $29.99/mo.",
+        "price_monthly": 29.99,
         "trial_days": 14,
         "videos_per_month": 15,
         "higgsfield_credits": 150,
         "stripe_price_id": STRIPE_PRICE_STARTER,
+        "whop_plan_id": WHOP_PLAN_STARTER,
         "features": [
             "14-day free trial",
             "15 AI videos/month",
@@ -96,12 +130,13 @@ TIERS = {
     },
     "creator": {
         "label": "Creator",
-        "description": "Try free for 14 days — card required, cancel anytime. Then $79/mo for serious creators.",
-        "price_monthly": 79,
+        "description": "The full creative suite for serious creators. 14-day free trial, then $79.99/mo.",
+        "price_monthly": 79.99,
         "trial_days": 14,
         "videos_per_month": 50,
         "higgsfield_credits": 500,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
+        "whop_plan_id": WHOP_PLAN_CREATOR,
         "features": [
             "14-day free trial",
             "50 AI videos/month",
@@ -124,12 +159,13 @@ TIERS = {
     },
     "agency": {
         "label": "Agency",
-        "description": "Try free for 14 days — card required, cancel anytime. Then $199/mo for unlimited scale.",
-        "price_monthly": 199,
+        "description": "Scale your content operation. 14-day free trial, then $199.99/mo.",
+        "price_monthly": 199.99,
         "trial_days": 14,
         "videos_per_month": 125,
         "higgsfield_credits": 2000,
         "stripe_price_id": STRIPE_PRICE_AGENCY,
+        "whop_plan_id": WHOP_PLAN_AGENCY,
         "features": [
             "14-day free trial",
             "125 AI videos/month",
@@ -165,6 +201,7 @@ for d in [VIDEOS_DIR, AUDIO_DIR, THUMBNAILS_DIR, SCRIPTS_DIR]:
 # Paid tiers get Sonnet for quality scripts and agents.
 TIER_CLAUDE_MODEL = {
     "free":    "claude-haiku-4-5-20251001",
+    "basic":   "claude-haiku-4-5-20251001",
     "starter": "claude-sonnet-4-6",
     "creator": "claude-sonnet-4-6",
     "agency":  "claude-sonnet-4-6",

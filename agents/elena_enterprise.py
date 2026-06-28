@@ -83,7 +83,7 @@ def _send_upsell_pitch(user):
         return
     tier = user.get("subscription_tier", "starter")
     next_tier = "Creator" if tier == "starter" else "Agency"
-    price = "$79" if tier == "starter" else "$199"
+    price = "$79.99" if tier == "starter" else "$199.99"
 
     subject = f"Your content volume is impressive — let's talk {next_tier}"
     body = f"""Hi {(user.get('name') or 'there').split()[0]},
