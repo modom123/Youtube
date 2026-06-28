@@ -39,139 +39,96 @@ STRIPE_WEBHOOK_SECRET   = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 STRIPE_PRICE_STARTER  = os.getenv("STRIPE_PRICE_STARTER", "")
 STRIPE_PRICE_CREATOR  = os.getenv("STRIPE_PRICE_CREATOR", "")
-STRIPE_PRICE_PRO      = os.getenv("STRIPE_PRICE_PRO", "")
 STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 
 # ── Testing / bypass flags ───────────────────────────────────────────────────
 # Set BYPASS_USAGE_GATE=1 on Render while testing to skip video-count limits.
 BYPASS_USAGE_GATE = os.getenv("BYPASS_USAGE_GATE", "0") not in ("", "0", "false", "no")
 
-# ── Whop Marketplace ────────────────────────────────────────────────────────
-WHOP_API_KEY        = os.getenv("WHOP_API_KEY", "")
-WHOP_APP_API_KEY    = os.getenv("WHOP_APP_API_KEY", "")
-WHOP_WEBHOOK_SECRET = os.getenv("WHOP_WEBHOOK_SECRET", "")
-WHOP_COMPANY_ID     = os.getenv("WHOP_COMPANY_ID", "")
-
 # ── Subscription tiers ───────────────────────────────────────────────────────
 TIERS = {
     "free": {
         "label": "Free",
-        "description": "Get started free — no credit card required. Create 3 videos and see what AI content can do.",
+        "description": "Get started for free — no credit card, no commitment. 3 AI videos per month with 10 credits.",
         "price_monthly": 0,
         "trial_days": 0,
-        "videos_per_month": 3,
+        "videos_per_month": -1,
         "higgsfield_credits": 10,
         "stripe_price_id": None,
         "features": [
             "3 AI videos/month",
             "10 Social Optimize Credits",
-            "Publish to YouTube",
-            "Basic AI scripts (Haiku)",
+            "5-agent AI pipeline",
+            "Publish to 3 platforms",
+            "Content Calendar",
             "Pexels stock media library",
             "Quick Post from photo/video",
-            "Community support",
-        ],
-        "limitations": [
-            "No AI Clipper",
-            "No batch creation",
-            "No scheduling",
-            "No analytics",
-            "Watermark on exports",
         ],
     },
     "starter": {
         "label": "Starter",
-        "description": "Everything you need to start posting consistently. 10 videos, scheduling, and multi-platform publishing.",
-        "price_monthly": 9.99,
-        "trial_days": 7,
-        "videos_per_month": 10,
-        "higgsfield_credits": 50,
+        "description": "Try free for 14 days — card required, cancel anytime. Then just $29/mo.",
+        "price_monthly": 29,
+        "trial_days": 14,
+        "videos_per_month": 15,
+        "higgsfield_credits": 150,
         "stripe_price_id": STRIPE_PRICE_STARTER,
         "features": [
-            "7-day free trial",
-            "10 AI videos/month",
+            "14-day free trial",
+            "15 AI videos/month",
             "Publish to 8 platforms",
-            "50 Social Optimize Credits/mo",
+            "150 Social Optimize Credits/mo",
             "5-agent AI pipeline",
-            "Content calendar & scheduling",
-            "Hashtag research",
-            "No watermark",
+            "Production Studio",
+            "Music Studio",
             "Quick Post from photo/video",
+            "Batch Generator",
+            "Content calendar & scheduling",
+            "Template Library",
+            "Hashtag research",
             "Email support",
-        ],
-        "limitations": [
-            "No AI Clipper",
-            "No batch creation",
-            "Basic analytics only",
         ],
     },
     "creator": {
         "label": "Creator",
-        "description": "The sweet spot for serious creators. 30 videos, AI Clipper, batch creation, and advanced tools.",
-        "price_monthly": 29,
+        "description": "Try free for 14 days — card required, cancel anytime. Then $79/mo for serious creators.",
+        "price_monthly": 79,
         "trial_days": 14,
-        "videos_per_month": 30,
-        "higgsfield_credits": 200,
+        "videos_per_month": 50,
+        "higgsfield_credits": 500,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
         "features": [
             "14-day free trial",
-            "30 AI videos/month",
+            "50 AI videos/month",
             "Publish to all 8 platforms",
-            "200 Social Optimize Credits/mo",
-            "AI Clipper — 10 clips/month",
-            "Batch create 10 videos at once",
-            "Template Library",
+            "500 Social Optimize Credits/mo",
             "Studio 56 — full production suite",
-            "Competitor & trend analysis",
-            "Advanced analytics",
-            "Priority email support",
-        ],
-        "limitations": [
-            "No Hollywood AI agent",
-            "No multi-language",
-            "No team seats",
-        ],
-    },
-    "pro": {
-        "label": "Pro",
-        "description": "For full-time creators and small teams. 100 videos, unlimited clips, Hollywood AI, and every tool unlocked.",
-        "price_monthly": 79,
-        "trial_days": 14,
-        "videos_per_month": 100,
-        "higgsfield_credits": 750,
-        "stripe_price_id": STRIPE_PRICE_PRO,
-        "features": [
-            "14-day free trial",
-            "100 AI videos/month",
-            "Publish to all 8 platforms",
-            "750 Social Optimize Credits/mo",
-            "AI Clipper — unlimited clips",
-            "Batch create 50 videos at once",
+            "Commercial Studio — photo → ad",
             "Hollywood AI agent",
-            "Commercial Studio — photo to ad",
+            "AI Clipper — auto-clip to shorts",
             "Documentary & Animation formats",
+            "Competitor & trend analysis",
             "Multi-language (15 languages)",
-            "3 team seats",
+            "Batch create 30 videos at once",
             "Priority support",
         ],
-        "limitations": [],
     },
     "agency": {
         "label": "Agency",
-        "description": "Scale without limits. 200 videos, white-label, API access, CRM, and a dedicated account manager.",
+        "description": "Try free for 14 days — card required, cancel anytime. Then $199/mo for unlimited scale.",
         "price_monthly": 199,
         "trial_days": 14,
-        "videos_per_month": 200,
+        "videos_per_month": 125,
         "higgsfield_credits": 2000,
         "stripe_price_id": STRIPE_PRICE_AGENCY,
         "features": [
             "14-day free trial",
-            "200 AI videos/month",
+            "125 AI videos/month",
             "Publish to all 8 platforms",
             "2,000 Social Optimize Credits/mo",
-            "Everything in Pro",
+            "Everything in Creator",
             "AI Clipper — unlimited clips",
-            "10 team seats",
+            "Team management (5 seats)",
             "White-label exports",
             "SMS/WhatsApp outreach (Twilio)",
             "Contacts / CRM",
@@ -179,7 +136,6 @@ TIERS = {
             "Dedicated account manager",
             "24/7 priority support",
         ],
-        "limitations": [],
     },
 }
 
@@ -200,9 +156,8 @@ for d in [VIDEOS_DIR, AUDIO_DIR, THUMBNAILS_DIR, SCRIPTS_DIR]:
 # Paid tiers get Sonnet for quality scripts and agents.
 TIER_CLAUDE_MODEL = {
     "free":    "claude-haiku-4-5-20251001",
-    "starter": "claude-haiku-4-5-20251001",
+    "starter": "claude-sonnet-4-6",
     "creator": "claude-sonnet-4-6",
-    "pro":     "claude-sonnet-4-6",
     "agency":  "claude-sonnet-4-6",
 }
 
