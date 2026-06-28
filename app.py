@@ -3270,6 +3270,135 @@ def proxy_loop_audio():
         return jsonify({"error": str(exc)}), 502
 
 
+# ── YouTube Audio for Music Library ───────────────────────────────────────────
+
+@app.route("/api/music/youtube-search")
+@login_required
+def api_music_yt_search():
+    """Search YouTube for a track by title + artist, cache the video ID."""
+    import requests as _req
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"error": "Query required"}), 400
+
+    cached = db.get_setting(f"yt_search:{q.lower()}")
+    if cached:
+        try:
+            return jsonify(json.loads(cached))
+        except Exception:
+            pass
+
+    api_key = config.GOOGLE_API_KEY
+    if not api_key:
+        return jsonify({"error": "Google API key not configured"}), 503
+
+    try:
+        r = _req.get("https://www.googleapis.com/youtube/v3/search", params={
+            "part": "snippet", "q": q, "type": "video",
+            "videoCategoryId": "10", "maxResults": 1, "key": api_key,
+        }, timeout=10)
+        if not r.ok:
+            return jsonify({"error": f"YouTube API {r.status_code}"}), 502
+        items = r.json().get("items", [])
+        if not items:
+            return jsonify({"error": "No results"}), 404
+        vid = items[0]
+        result = {
+            "video_id": vid["id"]["videoId"],
+            "title": vid["snippet"]["title"],
+            "thumbnail": vid["snippet"]["thumbnails"].get("default", {}).get("url", ""),
+            "audio_url": f"/api/music/youtube-audio/{vid['id']['videoId']}",
+        }
+        db.set_setting(f"yt_search:{q.lower()}", json.dumps(result))
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/music/youtube-audio/<video_id>")
+@login_required
+def api_music_yt_audio(video_id):
+    """Extract and serve audio from a YouTube video via yt-dlp."""
+    import re as _re
+    if not _re.match(r'^[a-zA-Z0-9_-]{11}$', video_id):
+        return jsonify({"error": "Invalid video ID"}), 400
+
+    cache_dir = Path(config.OUTPUT_DIR) / "yt_audio_cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cached = cache_dir / f"{video_id}.mp3"
+
+    if cached.exists() and cached.stat().st_size > 1000:
+        return send_file(cached, mimetype="audio/mpeg",
+                         headers={"Cache-Control": "public, max-age=86400"})
+
+    try:
+        import subprocess
+        result = subprocess.run([
+            "yt-dlp", "--no-playlist", "-x", "--audio-format", "mp3",
+            "--audio-quality", "5", "-o", str(cached.with_suffix(".%(ext)s")),
+            f"https://www.youtube.com/watch?v={video_id}",
+        ], capture_output=True, text=True, timeout=60)
+
+        if cached.exists() and cached.stat().st_size > 1000:
+            return send_file(cached, mimetype="audio/mpeg",
+                             headers={"Cache-Control": "public, max-age=86400"})
+
+        for f in cache_dir.glob(f"{video_id}.*"):
+            if f.suffix != ".mp3" and f.stat().st_size > 1000:
+                subprocess.run(["ffmpeg", "-i", str(f), "-q:a", "5", str(cached), "-y"],
+                               capture_output=True, timeout=30)
+                f.unlink(missing_ok=True)
+                if cached.exists():
+                    return send_file(cached, mimetype="audio/mpeg",
+                                     headers={"Cache-Control": "public, max-age=86400"})
+
+        return jsonify({"error": "Audio extraction failed"}), 500
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Download timed out"}), 504
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/music/youtube-bulk-search", methods=["POST"])
+@login_required
+def api_music_yt_bulk_search():
+    """Search YouTube for multiple catalog tracks at once (max 10 per request)."""
+    data = request.json or {}
+    tracks = data.get("tracks", [])[:10]
+    results = {}
+    for t in tracks:
+        q = f"{t.get('title','')} {t.get('artist','')}".strip()
+        if not q:
+            continue
+        cached = db.get_setting(f"yt_search:{q.lower()}")
+        if cached:
+            try:
+                results[q] = json.loads(cached)
+                continue
+            except Exception:
+                pass
+        try:
+            import requests as _req
+            r = _req.get("https://www.googleapis.com/youtube/v3/search", params={
+                "part": "snippet", "q": q, "type": "video",
+                "videoCategoryId": "10", "maxResults": 1, "key": config.GOOGLE_API_KEY,
+            }, timeout=8)
+            if r.ok:
+                items = r.json().get("items", [])
+                if items:
+                    vid = items[0]
+                    result = {
+                        "video_id": vid["id"]["videoId"],
+                        "title": vid["snippet"]["title"],
+                        "audio_url": f"/api/music/youtube-audio/{vid['id']['videoId']}",
+                    }
+                    db.set_setting(f"yt_search:{q.lower()}", json.dumps(result))
+                    results[q] = result
+        except Exception:
+            continue
+    return jsonify({"results": results})
+
+
 # ── Feature 1: Analytics Dashboard ───────────────────────────────────────────
 
 @app.route("/analytics")
@@ -3590,8 +3719,17 @@ def api_library():
 
     # Merge user-generated tracks from Music Studio
     with db.get_conn() as conn:
-        rows = conn.execute("SELECT key, value FROM settings WHERE key LIKE 'music_track:%'").fetchall()
-    for row in rows:
+        gen_rows = conn.execute("SELECT key, value FROM settings WHERE key LIKE 'music_track:%'").fetchall()
+        yt_rows = conn.execute("SELECT key, value FROM settings WHERE key LIKE 'yt_search:%'").fetchall()
+
+    yt_cache = {}
+    for row in yt_rows:
+        try:
+            yt_cache[row["key"].replace("yt_search:", "")] = json.loads(row["value"])
+        except Exception:
+            pass
+
+    for row in gen_rows:
         try:
             t = json.loads(row["value"])
             catalog.insert(0, {
@@ -3608,6 +3746,16 @@ def api_library():
             })
         except Exception:
             continue
+
+    # Attach YouTube audio URLs to catalog tracks that have been searched
+    for t in catalog:
+        if t.get("audio_url"):
+            continue
+        q = f"{t.get('title', '')} {t.get('artist', '')}".strip().lower()
+        yt = yt_cache.get(q)
+        if yt:
+            t["audio_url"] = yt.get("audio_url", "")
+            t["yt_video_id"] = yt.get("video_id", "")
 
     q = request.args.get("q", "").strip().lower()
     genre = request.args.get("genre", "").strip().lower()
