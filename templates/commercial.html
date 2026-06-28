@@ -246,7 +246,10 @@
 
       <!-- Progress -->
       <div id="progressSection">
-        <h2>⚡ Generating your commercial...</h2>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <h2 style="margin:0;">⚡ Generating your commercial...</h2>
+          <div id="elapsedTimer" style="font-size:22px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;">0:00</div>
+        </div>
         <div class="step-log" id="stepLog">Starting up...</div>
         <div class="progress-bar-wrap">
           <div class="progress-bar" id="progressBar"></div>
@@ -393,6 +396,25 @@
 let currentJobId = null;
 let streamController = null;
 let selectedFile = null;
+let _timerInterval = null;
+let _timerStart = null;
+
+function startTimer() {
+  stopTimer();
+  _timerStart = Date.now();
+  const el = document.getElementById('elapsedTimer');
+  el.textContent = '0:00';
+  _timerInterval = setInterval(() => {
+    const s = Math.floor((Date.now() - _timerStart) / 1000);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    el.textContent = m + ':' + String(sec).padStart(2, '0');
+  }, 1000);
+}
+
+function stopTimer() {
+  if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+}
 const _tvSelected = new Set();
 
 // ── Media preview ─────────────────────────────────────────────────────────────
@@ -477,6 +499,7 @@ async function runCommercial() {
   document.getElementById('doneSection').style.display = 'none';
   document.getElementById('progressBar').style.width = '0%';
   document.getElementById('stepLog').textContent = 'Uploading media...';
+  startTimer();
 
   const fd = new FormData();
   fd.append('media', fileInput.files[0] || selectedFile);
@@ -533,12 +556,14 @@ function handleEvent(d, jobId, es) {
 
   if (d.status === 'done') {
     if (es) es.close();
+    stopTimer();
     showResults(d);
     const btn = document.getElementById('generateBtn');
     btn.disabled = false;
     btn.textContent = '🎬 Generate Commercial';
   } else if (d.status === 'error') {
     if (es) es.close();
+    stopTimer();
     showError(d.error || 'Generation failed');
     const btn = document.getElementById('generateBtn');
     btn.disabled = false;
