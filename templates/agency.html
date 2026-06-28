@@ -120,6 +120,16 @@
       <div class="ag-kpi-value" id="kpiRevenue">${{ "{:,.0f}".format(stats.total_revenue) }}</div>
       <div class="ag-kpi-sub">All time</div>
     </div>
+    <div class="ag-kpi">
+      <div class="ag-kpi-label">Assets Created</div>
+      <div class="ag-kpi-value" id="kpiAssets">{{ stats.assets_total }}</div>
+      <div class="ag-kpi-sub">Tracked deliverables</div>
+    </div>
+    <div class="ag-kpi">
+      <div class="ag-kpi-label">Follow-ups</div>
+      <div class="ag-kpi-value" id="kpiFollowups" style="color:var(--ag-orange);">{{ stats.followups_pending }}</div>
+      <div class="ag-kpi-sub">Pending outreach</div>
+    </div>
   </div>
 
   <!-- Tabs -->
@@ -127,6 +137,8 @@
     <button class="ag-tab active" onclick="switchTab('pipeline')">Pipeline</button>
     <button class="ag-tab" onclick="switchTab('clients')">Clients</button>
     <button class="ag-tab" onclick="switchTab('projects')">Projects</button>
+    <button class="ag-tab" onclick="switchTab('assets')">Assets</button>
+    <button class="ag-tab" onclick="switchTab('followups')">Follow-ups</button>
     <button class="ag-tab" onclick="switchTab('revenue')">Revenue</button>
   </div>
 
@@ -160,25 +172,27 @@
   <div class="ag-tab-content" id="tab-clients">
     <table class="ag-table">
       <thead>
-        <tr><th>Name</th><th>Company</th><th>Industry</th><th>Status</th><th>Monthly Value</th><th>Email</th><th>Actions</th></tr>
+        <tr><th>Client #</th><th>Name</th><th>Company</th><th>Industry</th><th>Status</th><th>Monthly Value</th><th>Next Follow-up</th><th>Actions</th></tr>
       </thead>
       <tbody id="clientsTable">
         {% for c in clients %}
         <tr>
-          <td style="font-weight:600;">{{ c.name }}</td>
+          <td style="font-family:monospace;font-size:11px;color:var(--ag-purple);">{{ c.client_number or '—' }}</td>
+          <td style="font-weight:600;">{{ c.name }}<br><span style="font-size:10px;color:var(--ag-muted);">{{ c.email }}</span></td>
           <td>{{ c.company }}</td>
           <td>{{ c.industry }}</td>
           <td><span class="ag-badge ag-badge-{{ c.status }}">{{ c.status }}</span></td>
           <td style="font-weight:600;color:var(--ag-green);">${{ "{:,.0f}".format(c.monthly_value) }}</td>
-          <td style="color:var(--ag-muted);">{{ c.email }}</td>
+          <td style="font-size:11px;color:var(--ag-muted);">{{ c.next_followup[:10] if c.next_followup else '—' }}</td>
           <td>
             <button onclick="editClient({{ c.id }})" style="border:none;background:none;cursor:pointer;color:var(--ag-blue);font-size:12px;">Edit</button>
+            <button onclick="scheduleFollowup({{ c.id }},'{{ c.name }}')" style="border:none;background:none;cursor:pointer;color:var(--ag-orange);font-size:12px;">Follow-up</button>
             <button onclick="deleteClient({{ c.id }})" style="border:none;background:none;cursor:pointer;color:var(--ag-red);font-size:12px;">Del</button>
           </td>
         </tr>
         {% endfor %}
         {% if not clients %}
-        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--ag-muted);">No clients yet. Click "+ New Client" to start building your agency.</td></tr>
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--ag-muted);">No clients yet. Click "+ New Client" to start building your agency.</td></tr>
         {% endif %}
       </tbody>
     </table>
@@ -228,6 +242,35 @@
       </div>
     </div>
   </div>
+
+  <!-- Assets Tab -->
+  <div class="ag-tab-content" id="tab-assets">
+    <table class="ag-table">
+      <thead>
+        <tr><th>Asset #</th><th>Title</th><th>Client</th><th>Project</th><th>Type</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="assetsTable">
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--ag-muted);">Loading assets...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Follow-ups Tab -->
+  <div class="ag-tab-content" id="tab-followups">
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="openModal('followup')" class="ag-btn ag-btn-primary" style="font-size:12px;">+ Schedule Follow-up</button>
+      <button onclick="aiGenerateFollowup()" class="ag-btn" style="font-size:12px;background:var(--ag-blue);color:#fff;">AI Write Email</button>
+    </div>
+    <table class="ag-table">
+      <thead>
+        <tr><th>Client</th><th>Type</th><th>Subject</th><th>Status</th><th>Scheduled</th><th>Sent</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="followupsTable">
+        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--ag-muted);">Loading follow-ups...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
 </div>
 
 <!-- Client Modal -->
@@ -345,6 +388,30 @@
   </div>
 </div>
 
+<!-- Follow-up Modal -->
+<div class="ag-modal-overlay" id="modal-followup" onclick="if(event.target===this)closeModal('followup')">
+  <div class="ag-modal">
+    <h3 id="followupModalTitle">Schedule Follow-up</h3>
+    <div class="ag-field"><label>Client *</label>
+      <select id="fuClient"><option value="">Select client...</option></select>
+    </div>
+    <div class="ag-field"><label>Type</label>
+      <select id="fuType">
+        <option value="email">Email</option><option value="call">Call</option>
+        <option value="meeting">Meeting</option><option value="sms">SMS</option>
+      </select>
+    </div>
+    <div class="ag-field"><label>Subject</label><input id="fuSubject" placeholder="Follow-up about content package"></div>
+    <div class="ag-field"><label>Message Body</label><textarea id="fuBody" rows="5" placeholder="Write your follow-up message..."></textarea></div>
+    <div class="ag-field"><label>Scheduled Date/Time</label><input id="fuScheduled" type="datetime-local"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="ag-btn ag-btn-ghost" onclick="closeModal('followup')">Cancel</button>
+      <button class="ag-btn" style="background:var(--ag-blue);color:#fff;" onclick="aiWriteFollowup()">AI Write</button>
+      <button class="ag-btn ag-btn-primary" onclick="saveFollowup()">Schedule</button>
+    </div>
+  </div>
+</div>
+
 <!-- Proposal Modal -->
 <div class="ag-modal-overlay" id="modal-proposal" onclick="if(event.target===this)closeModal('proposal')">
   <div class="ag-modal" style="max-width:700px;">
@@ -368,6 +435,8 @@ function switchTab(name) {
   event.target.classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'revenue') loadRevenue();
+  if (name === 'assets') loadAssets();
+  if (name === 'followups') loadFollowups();
 }
 
 function openModal(type) {
@@ -396,7 +465,7 @@ function closeModal(type) { document.getElementById('modal-' + type).classList.r
 function populateClientDropdowns() {
   const opts = '<option value="">Select client...</option>' + _clients.map(c =>
     `<option value="${c.id}">${c.name}${c.company ? ' — '+c.company : ''}</option>`).join('');
-  ['dealClient','projClient','revClient'].forEach(id => {
+  ['dealClient','projClient','revClient','fuClient'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = opts;
   });
@@ -570,6 +639,131 @@ async function loadRevenue() {
         </div>`).join('');
     }
   } catch(e) {}
+}
+
+// ── Assets ──────────────────────────────────────────────────────────────────
+
+async function loadAssets() {
+  try {
+    const r = await fetch('/api/agency/assets');
+    const items = await r.json();
+    const tbody = document.getElementById('assetsTable');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--ag-muted);">No assets yet. Create content for a client and it will appear here with a tracking number.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(a => {
+      const statusColors = {draft:'var(--ag-muted)',ready:'var(--ag-blue)',delivered:'var(--ag-green)',revision:'var(--ag-orange)'};
+      return `<tr>
+        <td style="font-family:monospace;font-size:11px;color:var(--ag-purple);font-weight:600;">${a.asset_number}</td>
+        <td style="font-weight:600;">${a.title || '—'}</td>
+        <td>${a.client_name || '—'}<br><span style="font-size:10px;color:var(--ag-muted);">${a.client_number || ''}</span></td>
+        <td>${a.project_name || '—'}</td>
+        <td><span class="ag-badge" style="background:rgba(124,58,237,.1);color:var(--ag-purple);">${a.asset_type}</span></td>
+        <td><span class="ag-badge" style="color:${statusColors[a.status]||'var(--ag-muted)'}">${a.status}</span></td>
+        <td style="font-size:11px;color:var(--ag-muted);">${(a.created_at||'').slice(0,10)}</td>
+        <td>
+          ${a.file_path ? `<a href="${a.file_path}" target="_blank" style="font-size:11px;color:var(--ag-blue);">View</a>` : ''}
+          <button onclick="markDelivered(${a.id})" style="border:none;background:none;cursor:pointer;color:var(--ag-green);font-size:11px;">Deliver</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function markDelivered(assetId) {
+  await fetch(`/api/agency/assets/${assetId}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status:'delivered', delivered_at: new Date().toISOString()})
+  });
+  loadAssets();
+}
+
+// ── Follow-ups ──────────────────────────────────────────────────────────────
+
+async function loadFollowups() {
+  try {
+    const r = await fetch('/api/agency/followups');
+    const items = await r.json();
+    const tbody = document.getElementById('followupsTable');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--ag-muted);">No follow-ups scheduled. Add a lead and the system will auto-create a 3-email sequence.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(f => {
+      const stColors = {scheduled:'var(--ag-orange)',sent:'var(--ag-green)',failed:'var(--ag-red)',cancelled:'var(--ag-muted)'};
+      return `<tr>
+        <td style="font-weight:600;">${f.client_name || '—'}<br><span style="font-size:10px;color:var(--ag-muted);">${f.client_email || ''}</span></td>
+        <td>${f.type}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.subject || '—'}</td>
+        <td><span class="ag-badge" style="color:${stColors[f.status]||'var(--ag-muted)'}">${f.status}</span></td>
+        <td style="font-size:11px;">${(f.scheduled_at||'').replace('T',' ').slice(0,16)}</td>
+        <td style="font-size:11px;color:var(--ag-green);">${f.sent_at ? f.sent_at.replace('T',' ').slice(0,16) : '—'}</td>
+        <td>
+          ${f.status==='scheduled' ? `<button onclick="cancelFollowup(${f.id})" style="border:none;background:none;cursor:pointer;color:var(--ag-red);font-size:11px;">Cancel</button>` : ''}
+          ${f.status==='scheduled' ? `<button onclick="sendNow(${f.id})" style="border:none;background:none;cursor:pointer;color:var(--ag-green);font-size:11px;">Send Now</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+function scheduleFollowup(clientId, clientName) {
+  populateClientDropdowns();
+  openModal('followup');
+  document.getElementById('followupModalTitle').textContent = `Follow-up: ${clientName}`;
+  setTimeout(() => { document.getElementById('fuClient').value = clientId; }, 50);
+  const tomorrow = new Date(Date.now() + 86400000);
+  document.getElementById('fuScheduled').value = tomorrow.toISOString().slice(0,16);
+}
+
+async function saveFollowup() {
+  const data = {
+    client_id: parseInt(document.getElementById('fuClient').value) || null,
+    type: document.getElementById('fuType').value,
+    subject: document.getElementById('fuSubject').value,
+    body: document.getElementById('fuBody').value,
+    scheduled_at: new Date(document.getElementById('fuScheduled').value).toISOString(),
+  };
+  if (!data.client_id) return alert('Select a client');
+  await fetch('/api/agency/followups', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  closeModal('followup');
+  loadFollowups();
+}
+
+async function cancelFollowup(id) {
+  await fetch(`/api/agency/followups/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'cancelled'}) });
+  loadFollowups();
+}
+
+async function sendNow(id) {
+  await fetch(`/api/agency/followups/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({scheduled_at: new Date().toISOString()}) });
+  loadFollowups();
+  alert('Follow-up queued for immediate send. The agent will process it within 5 minutes.');
+}
+
+async function aiWriteFollowup() {
+  const clientId = document.getElementById('fuClient').value;
+  if (!clientId) return alert('Select a client first');
+  document.getElementById('fuBody').value = 'Writing with AI...';
+  try {
+    const r = await fetch('/api/agency/followups/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({client_id: parseInt(clientId), context: 'follow-up outreach'})
+    });
+    const data = await r.json();
+    if (data.subject) document.getElementById('fuSubject').value = data.subject;
+    if (data.body) document.getElementById('fuBody').value = data.body;
+  } catch(e) {
+    document.getElementById('fuBody').value = '';
+    alert('Failed to generate email');
+  }
+}
+
+function aiGenerateFollowup() {
+  populateClientDropdowns();
+  openModal('followup');
+  document.getElementById('followupModalTitle').textContent = 'AI-Generated Follow-up';
 }
 </script>
 {% endblock %}

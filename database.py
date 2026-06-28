@@ -424,6 +424,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS agency_clients (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            client_number TEXT DEFAULT '',
             name         TEXT NOT NULL,
             company      TEXT DEFAULT '',
             email        TEXT DEFAULT '',
@@ -433,6 +434,9 @@ def init_db():
             status       TEXT DEFAULT 'lead',
             monthly_value REAL DEFAULT 0,
             notes        TEXT DEFAULT '',
+            source       TEXT DEFAULT 'manual',
+            last_contact TEXT DEFAULT '',
+            next_followup TEXT DEFAULT '',
             created_at   TEXT DEFAULT (datetime('now')),
             updated_at   TEXT DEFAULT (datetime('now'))
         );
@@ -485,6 +489,41 @@ def init_db():
         );
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS agency_assets (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            asset_number TEXT NOT NULL,
+            client_id    INTEGER REFERENCES agency_clients(id),
+            project_id   INTEGER REFERENCES agency_projects(id),
+            job_id       INTEGER REFERENCES jobs(id),
+            asset_type   TEXT DEFAULT 'video',
+            title        TEXT DEFAULT '',
+            file_path    TEXT DEFAULT '',
+            thumbnail    TEXT DEFAULT '',
+            status       TEXT DEFAULT 'draft',
+            delivered_at TEXT,
+            feedback     TEXT DEFAULT '',
+            created_at   TEXT DEFAULT (datetime('now'))
+        );
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS agency_followups (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            client_id    INTEGER REFERENCES agency_clients(id) ON DELETE CASCADE,
+            deal_id      INTEGER REFERENCES agency_deals(id),
+            type         TEXT DEFAULT 'email',
+            subject      TEXT DEFAULT '',
+            body         TEXT DEFAULT '',
+            status       TEXT DEFAULT 'scheduled',
+            scheduled_at TEXT NOT NULL,
+            sent_at      TEXT,
+            opened_at    TEXT,
+            template     TEXT DEFAULT '',
+            created_at   TEXT DEFAULT (datetime('now'))
+        );
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS agency_revenue (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -515,6 +554,20 @@ def init_db():
         job_cols = [r["name"] for r in conn.execute("PRAGMA table_info(jobs)").fetchall()]
         if "build_log" not in job_cols:
             conn.execute("ALTER TABLE jobs ADD COLUMN build_log TEXT DEFAULT ''")
+
+        # Migrate: wire jobs to agency clients/projects
+        if "client_id" not in job_cols:
+            conn.execute("ALTER TABLE jobs ADD COLUMN client_id INTEGER REFERENCES agency_clients(id)")
+        if "project_id" not in job_cols:
+            conn.execute("ALTER TABLE jobs ADD COLUMN project_id INTEGER REFERENCES agency_projects(id)")
+        if "asset_number" not in job_cols:
+            conn.execute("ALTER TABLE jobs ADD COLUMN asset_number TEXT DEFAULT ''")
+
+        # Migrate: add new agency_clients columns if upgrading
+        ac_cols = [r["name"] for r in conn.execute("PRAGMA table_info(agency_clients)").fetchall()]
+        for col, default in [("client_number","''"),("source","'manual'"),("last_contact","''"),("next_followup","''")]:
+            if col not in ac_cols:
+                conn.execute(f"ALTER TABLE agency_clients ADD COLUMN {col} TEXT DEFAULT {default}")
 
 
 def row_to_dict(row):
@@ -1803,19 +1856,26 @@ def get_agency_clients(user_id, status=None):
             rows = conn.execute("SELECT * FROM agency_clients WHERE user_id=? ORDER BY updated_at DESC", (user_id,)).fetchall()
         return [row_to_dict(r) for r in rows]
 
+def _next_client_number(conn, user_id):
+    row = conn.execute("SELECT COUNT(*) FROM agency_clients WHERE user_id=?", (user_id,)).fetchone()
+    seq = (row[0] if row else 0) + 1
+    return f"SO-{user_id:04d}-{seq:04d}"
+
 def create_agency_client(user_id, data):
     with get_conn() as conn:
+        client_num = _next_client_number(conn, user_id)
         cur = conn.execute(
-            "INSERT INTO agency_clients (user_id, name, company, email, phone, industry, website, status, monthly_value, notes) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (user_id, data.get("name",""), data.get("company",""), data.get("email",""), data.get("phone",""),
-             data.get("industry",""), data.get("website",""), data.get("status","lead"), data.get("monthly_value",0), data.get("notes","")))
+            "INSERT INTO agency_clients (user_id, client_number, name, company, email, phone, industry, website, status, monthly_value, notes, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (user_id, client_num, data.get("name",""), data.get("company",""), data.get("email",""), data.get("phone",""),
+             data.get("industry",""), data.get("website",""), data.get("status","lead"), data.get("monthly_value",0),
+             data.get("notes",""), data.get("source","manual")))
         return cur.lastrowid
 
 def update_agency_client(user_id, client_id, data):
     with get_conn() as conn:
         fields = []
         vals = []
-        for k in ("name","company","email","phone","industry","website","status","monthly_value","notes"):
+        for k in ("name","company","email","phone","industry","website","status","monthly_value","notes","source","last_contact","next_followup"):
             if k in data:
                 fields.append(f"{k}=?")
                 vals.append(data[k])
@@ -1937,8 +1997,110 @@ def get_agency_stats(user_id):
         mrr = conn.execute("SELECT COALESCE(SUM(monthly_fee),0) FROM agency_projects WHERE user_id=? AND status='active'", (user_id,)).fetchone()[0]
         total_revenue = conn.execute("SELECT COALESCE(SUM(amount),0) FROM agency_revenue WHERE user_id=?", (user_id,)).fetchone()[0]
         projects_active = conn.execute("SELECT COUNT(*) FROM agency_projects WHERE user_id=? AND status='active'", (user_id,)).fetchone()[0]
+        assets_total = conn.execute("SELECT COUNT(*) FROM agency_assets WHERE user_id=?", (user_id,)).fetchone()[0]
+        followups_pending = conn.execute("SELECT COUNT(*) FROM agency_followups WHERE user_id=? AND status='scheduled'", (user_id,)).fetchone()[0]
         return {
             "clients_total": clients_total, "clients_active": clients_active, "leads": leads,
             "deals_open": deals_open, "pipeline_value": pipeline_value, "deals_won": deals_won,
-            "mrr": mrr, "total_revenue": total_revenue, "projects_active": projects_active
+            "mrr": mrr, "total_revenue": total_revenue, "projects_active": projects_active,
+            "assets_total": assets_total, "followups_pending": followups_pending
         }
+
+
+# ── Agency Assets ────────────────────────────────────────────────────────────
+
+def _next_asset_number(conn, user_id):
+    row = conn.execute("SELECT COUNT(*) FROM agency_assets WHERE user_id=?", (user_id,)).fetchone()
+    seq = (row[0] if row else 0) + 1
+    return f"AST-{user_id:04d}-{seq:05d}"
+
+def create_agency_asset(user_id, data):
+    with get_conn() as conn:
+        asset_num = _next_asset_number(conn, user_id)
+        cur = conn.execute(
+            "INSERT INTO agency_assets (user_id, asset_number, client_id, project_id, job_id, asset_type, title, file_path, thumbnail, status) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (user_id, asset_num, data.get("client_id"), data.get("project_id"), data.get("job_id"),
+             data.get("asset_type","video"), data.get("title",""), data.get("file_path",""),
+             data.get("thumbnail",""), data.get("status","draft")))
+        return {"id": cur.lastrowid, "asset_number": asset_num}
+
+def get_agency_assets(user_id, client_id=None, project_id=None, status=None):
+    with get_conn() as conn:
+        q = "SELECT a.*, c.name as client_name, c.client_number, p.name as project_name FROM agency_assets a LEFT JOIN agency_clients c ON a.client_id=c.id LEFT JOIN agency_projects p ON a.project_id=p.id WHERE a.user_id=?"
+        params = [user_id]
+        if client_id:
+            q += " AND a.client_id=?"
+            params.append(client_id)
+        if project_id:
+            q += " AND a.project_id=?"
+            params.append(project_id)
+        if status:
+            q += " AND a.status=?"
+            params.append(status)
+        q += " ORDER BY a.created_at DESC"
+        return [row_to_dict(r) for r in conn.execute(q, params).fetchall()]
+
+def update_agency_asset(user_id, asset_id, data):
+    with get_conn() as conn:
+        fields = []
+        vals = []
+        for k in ("client_id","project_id","status","title","feedback","delivered_at"):
+            if k in data:
+                fields.append(f"{k}=?")
+                vals.append(data[k])
+        if not fields:
+            return
+        vals.extend([user_id, asset_id])
+        conn.execute(f"UPDATE agency_assets SET {','.join(fields)} WHERE user_id=? AND id=?", vals)
+
+def link_job_to_client(job_id, client_id, project_id=None):
+    with get_conn() as conn:
+        conn.execute("UPDATE jobs SET client_id=?, project_id=? WHERE id=?", (client_id, project_id, job_id))
+
+
+# ── Agency Follow-ups ────────────────────────────────────────────────────────
+
+def create_agency_followup(user_id, data):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO agency_followups (user_id, client_id, deal_id, type, subject, body, status, scheduled_at, template) VALUES (?,?,?,?,?,?,?,?,?)",
+            (user_id, data.get("client_id"), data.get("deal_id"), data.get("type","email"),
+             data.get("subject",""), data.get("body",""), data.get("status","scheduled"),
+             data.get("scheduled_at",""), data.get("template","")))
+        return cur.lastrowid
+
+def get_agency_followups(user_id, client_id=None, status=None):
+    with get_conn() as conn:
+        q = "SELECT f.*, c.name as client_name, c.email as client_email FROM agency_followups f LEFT JOIN agency_clients c ON f.client_id=c.id WHERE f.user_id=?"
+        params = [user_id]
+        if client_id:
+            q += " AND f.client_id=?"
+            params.append(client_id)
+        if status:
+            q += " AND f.status=?"
+            params.append(status)
+        q += " ORDER BY f.scheduled_at ASC"
+        return [row_to_dict(r) for r in conn.execute(q, params).fetchall()]
+
+def get_due_followups():
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT f.*, c.name as client_name, c.email as client_email FROM agency_followups f LEFT JOIN agency_clients c ON f.client_id=c.id WHERE f.status='scheduled' AND f.scheduled_at <= datetime('now')"
+        ).fetchall()
+        return [row_to_dict(r) for r in rows]
+
+def update_agency_followup(followup_id, data):
+    with get_conn() as conn:
+        fields = []
+        vals = []
+        for k in ("status","sent_at","opened_at","subject","body","scheduled_at"):
+            if k in data:
+                fields.append(f"{k}=?")
+                vals.append(data[k])
+        if fields:
+            vals.append(followup_id)
+            conn.execute(f"UPDATE agency_followups SET {','.join(fields)} WHERE id=?", vals)
+
+def delete_agency_followup(user_id, followup_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM agency_followups WHERE user_id=? AND id=?", (user_id, followup_id))

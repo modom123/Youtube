@@ -543,6 +543,10 @@ def api_create():
         style=data.get("style", "fire"), privacy=data.get("privacy", "private"),
         skip_research=skip_research, user_id=current_user.id,
     )
+    agency_client = data.get("agency_client_id")
+    agency_project = data.get("agency_project_id")
+    if agency_client:
+        db.link_job_to_client(job_id, int(agency_client), int(agency_project) if agency_project else None)
     fmt = data.get("format", "short")
     params = {
         "topic": topic, "format": fmt,
@@ -5779,11 +5783,132 @@ Format in clean HTML with inline styles. Professional, concise, persuasive."""
         return jsonify({"error": str(e)}), 500
 
 
+# ── Agency Assets ─────────────────────────────────────────────────────────────
+
+@app.route("/api/agency/assets", methods=["GET"])
+@login_required
+def api_agency_assets_list():
+    client_id = request.args.get("client_id", type=int)
+    project_id = request.args.get("project_id", type=int)
+    status = request.args.get("status")
+    return jsonify(db.get_agency_assets(current_user.id, client_id=client_id, project_id=project_id, status=status))
+
+@app.route("/api/agency/assets", methods=["POST"])
+@login_required
+def api_agency_assets_create():
+    data = request.get_json(force=True)
+    result = db.create_agency_asset(current_user.id, data)
+    return jsonify(result), 201
+
+@app.route("/api/agency/assets/<int:aid>", methods=["PUT"])
+@login_required
+def api_agency_assets_update(aid):
+    data = request.get_json(force=True)
+    db.update_agency_asset(current_user.id, aid, data)
+    return jsonify({"ok": True})
+
+@app.route("/api/agency/jobs/<int:job_id>/link", methods=["POST"])
+@login_required
+def api_agency_link_job(job_id):
+    data = request.get_json(force=True)
+    client_id = data.get("client_id")
+    project_id = data.get("project_id")
+    if not client_id:
+        return jsonify({"error": "client_id required"}), 400
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    db.link_job_to_client(job_id, client_id, project_id)
+    return jsonify({"ok": True})
+
+
+# ── Agency Follow-ups ─────────────────────────────────────────────────────────
+
+@app.route("/api/agency/followups", methods=["GET"])
+@login_required
+def api_agency_followups_list():
+    client_id = request.args.get("client_id", type=int)
+    status = request.args.get("status")
+    return jsonify(db.get_agency_followups(current_user.id, client_id=client_id, status=status))
+
+@app.route("/api/agency/followups", methods=["POST"])
+@login_required
+def api_agency_followups_create():
+    data = request.get_json(force=True)
+    if not data.get("client_id"):
+        return jsonify({"error": "client_id required"}), 400
+    if not data.get("scheduled_at"):
+        from datetime import datetime, timezone
+        data["scheduled_at"] = datetime.now(timezone.utc).isoformat()
+    fid = db.create_agency_followup(current_user.id, data)
+    return jsonify({"id": fid, "ok": True}), 201
+
+@app.route("/api/agency/followups/<int:fid>", methods=["PUT"])
+@login_required
+def api_agency_followups_update(fid):
+    data = request.get_json(force=True)
+    db.update_agency_followup(fid, data)
+    return jsonify({"ok": True})
+
+@app.route("/api/agency/followups/<int:fid>", methods=["DELETE"])
+@login_required
+def api_agency_followups_delete(fid):
+    db.delete_agency_followup(current_user.id, fid)
+    return jsonify({"ok": True})
+
+@app.route("/api/agency/followups/generate", methods=["POST"])
+@login_required
+def api_agency_followup_ai_generate():
+    """Use Claude to generate a personalized follow-up email."""
+    data = request.get_json(force=True)
+    client_id = data.get("client_id")
+    if not client_id:
+        return jsonify({"error": "client_id required"}), 400
+    clients = db.get_agency_clients(current_user.id)
+    client = next((c for c in clients if c["id"] == client_id), None)
+    if not client:
+        return jsonify({"error": "Client not found"}), 404
+
+    context = data.get("context", "initial outreach")
+    prompt = f"""Write a professional, warm follow-up email for an agency client.
+
+Client: {client['name']}
+Company: {client.get('company', '')}
+Industry: {client.get('industry', '')}
+Status: {client.get('status', 'lead')}
+Context: {context}
+
+Write a compelling, personalized email. Be concise (under 150 words).
+Return JSON with "subject" and "body" keys only."""
+
+    try:
+        import anthropic
+        ac = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        msg = ac.messages.create(model="claude-sonnet-4-6", max_tokens=500,
+                                 messages=[{"role": "user", "content": prompt}])
+        text = msg.content[0].text
+        import re
+        json_match = re.search(r'\{[^}]+\}', text, re.DOTALL)
+        if json_match:
+            result = json.loads(json_match.group())
+        else:
+            result = {"subject": "Following up", "body": text}
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 start_background_threads()
 
 # Start the job monitor agent (auto-resets stuck jobs every 5 min)
 from agents.job_monitor import start as _start_monitor  # noqa: E402
 _start_monitor()
+
+# Start agency workers
+from agents.followup_agent import start as _start_followup  # noqa: E402
+_start_followup()
+from agents.asset_tracker import start as _start_asset_tracker  # noqa: E402
+_start_asset_tracker()
 
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")
