@@ -1087,6 +1087,7 @@ def accounts_page():
         accounts=accounts,
         connected=connected,
         higgsfield_connected=higgsfield_connected,
+        is_admin=current_user.is_admin,
         youtube_configured=bool(config.YOUTUBE_CLIENT_ID),
         tiktok_configured=bool(config.TIKTOK_CLIENT_KEY),
         meta_configured=bool(config.FACEBOOK_APP_ID),

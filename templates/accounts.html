@@ -5,7 +5,7 @@
 {% block topbar_title %}Social Accounts{% endblock %}
 {% block topbar_sub %}Connect your platforms — one click per account{% endblock %}
 {% block topbar_actions %}
-<button class="btn btn-secondary" onclick="openModal('manualModal')">+ Add Manually</button>
+{% if is_admin %}<button class="btn btn-secondary" onclick="openModal('manualModal')">+ Add Manually</button>{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -42,9 +42,10 @@
       <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/youtube/start'">Reconnect</button>
     {% elif youtube_configured %}
       <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/youtube/start'">Connect YouTube</button>
+    {% elif is_admin %}
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('youtube')">Setup</button>
     {% else %}
-      <span class="pt-status cfg">Needs Setup</span>
-      <button class="btn btn-ghost btn-sm" onclick="showSetup('youtube')">Connect — Quick Setup</button>
+      <span class="pt-status off">Coming Soon</span>
     {% endif %}
   </div>
 
@@ -58,9 +59,10 @@
       <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/tiktok/start'">Reconnect</button>
     {% elif tiktok_configured %}
       <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/tiktok/start'">Connect TikTok</button>
+    {% elif is_admin %}
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('tiktok')">Setup</button>
     {% else %}
-      <span class="pt-status cfg">Needs Setup</span>
-      <button class="btn btn-ghost btn-sm" onclick="showSetup('tiktok')">Connect — Quick Setup</button>
+      <span class="pt-status off">Coming Soon</span>
     {% endif %}
   </div>
 
@@ -74,9 +76,10 @@
       <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/facebook/start'">Reconnect</button>
     {% elif meta_configured %}
       <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/facebook/start'">Connect Instagram</button>
+    {% elif is_admin %}
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('instagram')">Setup</button>
     {% else %}
-      <span class="pt-status cfg">Needs Setup</span>
-      <button class="btn btn-ghost btn-sm" onclick="showSetup('instagram')">Connect — Quick Setup</button>
+      <span class="pt-status off">Coming Soon</span>
     {% endif %}
   </div>
 
@@ -90,9 +93,10 @@
       <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/facebook/start'">Reconnect</button>
     {% elif meta_configured %}
       <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/facebook/start'">Connect Facebook</button>
+    {% elif is_admin %}
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('facebook')">Setup</button>
     {% else %}
-      <span class="pt-status cfg">Needs Setup</span>
-      <button class="btn btn-ghost btn-sm" onclick="showSetup('facebook')">Connect — Quick Setup</button>
+      <span class="pt-status off">Coming Soon</span>
     {% endif %}
   </div>
 
@@ -103,11 +107,13 @@
     <div class="pt-desc">Post tweets and video clips to your X followers</div>
     {% if 'twitter' in connected %}
       <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/twitter/start'">Reconnect</button>
     {% elif twitter_configured %}
-      <a href="/oauth/twitter/start" class="btn btn-primary btn-sm">Connect</a>
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/twitter/start'">Connect</button>
+    {% elif is_admin %}
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('twitter')">Setup</button>
     {% else %}
-      <span class="pt-status cfg">Needs Setup</span>
-      <button class="btn btn-ghost btn-sm" onclick="showSetup('twitter')">Connect — Quick Setup</button>
+      <span class="pt-status off">Coming Soon</span>
     {% endif %}
   </div>
 
@@ -118,11 +124,13 @@
     <div class="pt-desc">Publish posts and short videos to Meta Threads</div>
     {% if 'threads' in connected %}
       <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/threads/start'">Reconnect</button>
     {% elif threads_configured %}
-      <a href="/oauth/threads/start" class="btn btn-primary btn-sm">Connect</a>
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/threads/start'">Connect</button>
+    {% elif is_admin %}
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('threads')">Setup</button>
     {% else %}
-      <span class="pt-status cfg">Needs Setup</span>
-      <button class="btn btn-ghost btn-sm" onclick="showSetup('threads')">Connect — Quick Setup</button>
+      <span class="pt-status off">Coming Soon</span>
     {% endif %}
   </div>
 
@@ -133,11 +141,13 @@
     <div class="pt-desc">Publish Spotlight and Stories to Snapchat</div>
     {% if 'snapchat' in connected %}
       <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/snapchat/start'">Reconnect</button>
     {% elif snapchat_configured %}
-      <a href="/oauth/snapchat/start" class="btn btn-primary btn-sm">Connect</a>
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/snapchat/start'">Connect</button>
+    {% elif is_admin %}
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('snapchat')">Setup</button>
     {% else %}
-      <span class="pt-status cfg">Needs Setup</span>
-      <button class="btn btn-ghost btn-sm" onclick="showSetup('snapchat')">Connect — Quick Setup</button>
+      <span class="pt-status off">Coming Soon</span>
     {% endif %}
   </div>
 
@@ -148,11 +158,13 @@
     <div class="pt-desc">Upload VODs and clips to your Twitch channel</div>
     {% if 'twitch' in connected %}
       <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/twitch/start'">Reconnect</button>
     {% elif twitch_configured %}
-      <a href="/oauth/twitch/start" class="btn btn-primary btn-sm">Connect</a>
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/twitch/start'">Connect</button>
+    {% elif is_admin %}
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('twitch')">Setup</button>
     {% else %}
-      <span class="pt-status cfg">Needs Setup</span>
-      <button class="btn btn-ghost btn-sm" onclick="showSetup('twitch')">Connect — Quick Setup</button>
+      <span class="pt-status off">Coming Soon</span>
     {% endif %}
   </div>
 
@@ -163,6 +175,23 @@
     <div class="pt-desc">Pin videos and drive traffic to your content</div>
     {% if 'pinterest' in connected %}
       <span class="pt-status ok">✓ Connected</span>
+    {% else %}
+      <span class="pt-status off">Coming Soon</span>
+    {% endif %}
+  </div>
+
+  <!-- LinkedIn -->
+  <div class="platform-tile {% if 'linkedin' in connected %}connected{% endif %}">
+    <div class="pt-icon">💼</div>
+    <div class="pt-name">LinkedIn</div>
+    <div class="pt-desc">Share professional video content on LinkedIn</div>
+    {% if 'linkedin' in connected %}
+      <span class="pt-status ok">✓ Connected</span>
+      <button class="btn btn-ghost btn-sm" onclick="window.location.href='/oauth/linkedin/start'">Reconnect</button>
+    {% elif linkedin_configured %}
+      <button class="btn btn-primary btn-sm" onclick="window.location.href='/oauth/linkedin/start'">Connect</button>
+    {% elif is_admin %}
+      <button class="btn btn-ghost btn-sm" onclick="showSetup('linkedin')">Setup</button>
     {% else %}
       <span class="pt-status off">Coming Soon</span>
     {% endif %}
@@ -219,7 +248,8 @@
 </div>
 {% endif %}
 
-<!-- Setup Wizard Modal -->
+{% if is_admin %}
+<!-- Setup Wizard Modal (admin only) -->
 <div class="modal-overlay" id="setupModal" style="display:none;" onclick="closeModalOutside(event,'setupModal')">
   <div class="modal" style="max-width:560px;padding:0;overflow:hidden;">
     <button class="modal-close" onclick="closeModal('setupModal')" style="z-index:10;">✕</button>
@@ -310,7 +340,10 @@
   </div>
 </div>
 
-<!-- Manual Account Modal -->
+{% endif %}
+
+{% if is_admin %}
+<!-- Manual Account Modal (admin only) -->
 <div class="modal-overlay" id="manualModal" style="display:none;" onclick="closeModalOutside(event,'manualModal')">
   <div class="modal">
     <button class="modal-close" onclick="closeModal('manualModal')">✕</button>
@@ -352,6 +385,7 @@
   </div>
 </div>
 
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -436,6 +470,16 @@ const PLATFORM_WIZARD = {
     callback: '/oauth/snapchat/callback',
     step2: 'Create a Snap Kit app with Login Kit and Creative Kit enabled.',
     portalSteps: '1. Click "Create App"\n2. Enable "Login Kit"\n3. Enable "Creative Kit"\n4. Paste the Redirect URI above under OAuth Redirect URLs\n5. Copy Client ID and Client Secret',
+    idLabel: 'Client ID', secretLabel: 'Client Secret',
+  },
+  linkedin: {
+    icon: '💼', name: 'LinkedIn',
+    why: 'Share professional video content on your LinkedIn profile or company page.',
+    needs: '• A LinkedIn account\n• 5 minutes on LinkedIn Developer portal',
+    devUrl: 'https://www.linkedin.com/developers/apps/new',
+    callback: '/oauth/linkedin/callback',
+    step2: 'Create a LinkedIn app and request the "Share on LinkedIn" and "Sign In with LinkedIn" products.',
+    portalSteps: '1. Click "Create app"\n2. Fill in app name and company page\n3. Go to "Auth" tab → paste the Redirect URI above\n4. Go to "Products" tab → request "Share on LinkedIn"\n5. Copy Client ID and Client Secret from "Auth" tab',
     idLabel: 'Client ID', secretLabel: 'Client Secret',
   },
 };
