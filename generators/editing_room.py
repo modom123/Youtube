@@ -7,13 +7,11 @@ Three production studios:
   commercials — product ads (16:9, ~15-20s)
 
 Each studio produces a complete MP4 with:
-  - Radial gradient backgrounds with vignette
-  - Animated particle/bokeh overlays
-  - Lower-third title bars
+  - AI-generated video clip backgrounds (via Higgsfield) OR gradient fallback
+  - Lower-third title bars and text overlays
   - Ken Burns zoom animation
   - Synthesized ambient background music
   - Title card + section cards + outro
-  - Section indicator dots
   - Text shadows and watermarks
 """
 import math
@@ -28,6 +26,7 @@ from PIL import Image, ImageDraw, ImageFont
 from moviepy import (
     AudioFileClip,
     ImageClip,
+    VideoFileClip,
     CompositeVideoClip,
     concatenate_videoclips,
 )
@@ -326,6 +325,98 @@ def _mix_audio(voice_path, music_path, output_path, pad_before=3.0, pad_after=2.
     return full_dur
 
 
+# ── Video clip helpers ─────────────────────────────────────────────────────
+
+def _clip_with_overlay(clip_path, heading, palette, w, h, duration, idx, total, is_portrait=False):
+    """Use an AI-generated video clip as background with text overlay."""
+    try:
+        vclip = VideoFileClip(str(clip_path))
+        # Resize to fill target dimensions
+        vw, vh = vclip.size
+        scale = max(w / vw, h / vh)
+        nw, nh = int(vw * scale), int(vh * scale)
+        vclip = vclip.resized((nw, nh))
+        # Center crop
+        x_off = (nw - w) // 2
+        y_off = (nh - h) // 2
+        vclip = vclip.cropped(x1=x_off, y1=y_off, x2=x_off + w, y2=y_off + h)
+        # Loop or trim to match duration
+        if vclip.duration < duration:
+            loops = int(duration / vclip.duration) + 1
+            from moviepy import concatenate_videoclips as _cat
+            vclip = _cat([vclip] * loops).subclipped(0, duration)
+        else:
+            vclip = vclip.subclipped(0, duration)
+
+        # Create text overlay frame
+        overlay_img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay_img, "RGBA")
+        # Semi-transparent bottom gradient for readability
+        for y in range(h // 2, h):
+            alpha = int(140 * (y - h // 2) / (h // 2))
+            draw.rectangle([0, y, w, y + 1], fill=(0, 0, 0, alpha))
+        _lower_third(draw, w, h, heading, palette["accent"], is_portrait)
+        _watermark(draw, w, h)
+        # Section dots
+        dot_y = int(h * 0.92)
+        dot_sp = 24
+        dx_start = (w - (total - 1) * dot_sp) // 2
+        for i in range(total):
+            dx = dx_start + i * dot_sp
+            r = 5 if i == idx else 3
+            c = palette["accent"] + (220,) if i == idx else (255, 255, 255, 60)
+            draw.ellipse([dx - r, dot_y - r, dx + r, dot_y + r], fill=c)
+
+        overlay_arr = np.array(overlay_img)
+        overlay_clip = ImageClip(overlay_arr).with_duration(duration).with_fps(30)
+
+        composite = CompositeVideoClip([vclip, overlay_clip], size=(w, h))
+        return composite
+    except Exception as e:
+        print(f"[editing_room] Clip overlay failed for {clip_path}: {e}, falling back to gradient")
+        return None
+
+
+def generate_section_clips(sections, studio, output_dir, progress_cb=None):
+    """Generate Higgsfield AI clips for each section. Returns dict of {index: clip_path}."""
+    from generators.higgsfield_mcp import generate_clips_via_mcp
+    preset = STUDIO_PRESETS[studio]
+    w, h = preset["width"], preset["height"]
+    ar = "9:16" if h > w else "16:9"
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    prompts = []
+    for sec in sections:
+        visual_prompt = sec.get("visual_prompt", "")
+        if not visual_prompt:
+            visual_prompt = f"Cinematic video: {sec['narration'][:120]}. Professional quality, smooth motion."
+        prompts.append(visual_prompt)
+
+    if progress_cb:
+        progress_cb(f"Generating {len(prompts)} AI clips via Higgsfield...", 5)
+
+    model = "kling3_0_turbo"
+    clips = generate_clips_via_mcp(
+        prompts=prompts,
+        output_dir=output_dir / "clips",
+        model_id=model,
+        aspect_ratio=ar,
+        duration=5,
+    )
+
+    clip_map = {}
+    for i, path in enumerate(clips):
+        if path and path.exists() and path.stat().st_size > 10_000:
+            clip_map[i] = path
+
+    if progress_cb:
+        progress_cb(f"Generated {len(clip_map)}/{len(prompts)} clips", 15)
+
+    return clip_map
+
+
 # ── Ken Burns ──────────────────────────────────────────────────────────────
 
 def _ken_burns(clip, tw, th, z_start=1.0, z_end=1.08):
@@ -354,6 +445,8 @@ def produce(
     output_dir: Path,
     subtitle: str = "",
     progress_cb: Optional[Callable] = None,
+    clip_paths: Optional[dict] = None,
+    use_ai_clips: bool = False,
 ) -> dict:
     """
     Produce a complete enhanced video.
@@ -361,10 +454,12 @@ def produce(
     Args:
         studio: "hollywood", "studio56", or "commercials"
         topic: Video title
-        sections: List of {"heading": str, "narration": str}
+        sections: List of {"heading": str, "narration": str, "visual_prompt": str (optional)}
         output_dir: Where to write output files
         subtitle: Optional subtitle for title card
         progress_cb: Optional callback(message, percent)
+        clip_paths: Optional dict {section_index: Path} of pre-generated video clips
+        use_ai_clips: If True, generate AI clips via Higgsfield before assembly
 
     Returns:
         dict with output path, duration, resolution, etc.
@@ -378,6 +473,17 @@ def produce(
     def _progress(msg, pct):
         if progress_cb:
             progress_cb(msg, pct)
+
+    # Generate AI clips if requested
+    if clip_paths is None:
+        clip_paths = {}
+    if use_ai_clips and not clip_paths:
+        try:
+            _progress("Generating AI video clips...", 5)
+            clip_paths = generate_section_clips(sections, studio, output_dir, progress_cb)
+        except Exception as e:
+            _progress(f"AI clip generation failed ({e}), using gradient visuals", 8)
+            clip_paths = {}
 
     _progress("Generating voiceover...", 10)
     full_narration = " ".join(s["narration"] for s in sections)
@@ -449,17 +555,31 @@ def produce(
     clips.append(tc_clip)
 
     # Section clips
+    has_ai_clips = False
     for i, sec in enumerate(sections):
         pal = palette_list[i % len(palette_list)]
-        frame = _section_frame(
-            sec["heading"], sec["narration"], pal, ow, oh, i, total_secs, is_portrait,
-        )
         dur = max(sec_durs[i], 1.0)
-        clip = ImageClip(frame).with_duration(dur).with_fps(fps)
-        if i % 2 == 0:
-            clip = _ken_burns(clip, w, h, 1.0, 1.08)
-        else:
-            clip = _ken_burns(clip, w, h, 1.06, 1.0)
+
+        clip = None
+        # Try AI video clip background first
+        if i in clip_paths and clip_paths[i] and Path(clip_paths[i]).exists():
+            clip = _clip_with_overlay(
+                clip_paths[i], sec["heading"], pal, w, h, dur, i, total_secs, is_portrait,
+            )
+            if clip:
+                has_ai_clips = True
+
+        # Fallback to gradient card
+        if clip is None:
+            frame = _section_frame(
+                sec["heading"], sec["narration"], pal, ow, oh, i, total_secs, is_portrait,
+            )
+            clip = ImageClip(frame).with_duration(dur).with_fps(fps)
+            if i % 2 == 0:
+                clip = _ken_burns(clip, w, h, 1.0, 1.08)
+            else:
+                clip = _ken_burns(clip, w, h, 1.06, 1.0)
+
         clip = clip.with_effects([FadeIn(0.5), FadeOut(0.5)])
         clips.append(clip)
         _progress(f"Section {i + 1}/{total_secs} built", 45 + int(35 * (i + 1) / total_secs))
@@ -508,6 +628,7 @@ def produce(
         "resolution": f"{w}x{h}",
         "fps": fps,
         "has_music": has_music,
+        "has_ai_clips": has_ai_clips,
         "file_size_mb": round(file_size, 1),
         "output_path": str(output_path),
         "sections": total_secs,

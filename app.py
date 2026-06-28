@@ -1632,9 +1632,11 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
         source_job_id = params.get("source_job_id")
 
         output_dir = P(config.OUTPUT_DIR) / "editing_room" / editing_job_id
+        use_ai_clips = params.get("use_ai_clips", False)
         result = produce(
             studio=studio, topic=topic, sections=sections,
             output_dir=output_dir, subtitle=subtitle, progress_cb=_cb,
+            use_ai_clips=use_ai_clips,
         )
 
         # Create a job record in the DB so it shows in /jobs and can be remixed
@@ -1720,6 +1722,7 @@ def api_editing_room_produce():
         "sections": sections,
         "subtitle": (data.get("subtitle") or "").strip(),
         "source_job_id": data.get("source_job_id"),
+        "use_ai_clips": bool(data.get("use_ai_clips", False)),
     }
 
     t = threading.Thread(
