@@ -3860,19 +3860,11 @@ def api_get_competitors():
 def _refresh_competitor_videos(comp_id: str, channel_id: str, platform: str, user_id: int):
     if platform != "youtube":
         return
+    if not config.GOOGLE_API_KEY:
+        return
     try:
-        accounts = db.get_accounts(user_id=user_id)
-        yt_account = next((a for a in accounts if a["platform"] == "youtube" and a.get("access_token")), None)
-        if not yt_account:
-            return
-        from google.oauth2.credentials import Credentials
         import googleapiclient.discovery
-        creds = Credentials(
-            token=yt_account["access_token"], refresh_token=yt_account.get("refresh_token"),
-            client_id=config.YOUTUBE_CLIENT_ID, client_secret=config.YOUTUBE_CLIENT_SECRET,
-            token_uri="https://oauth2.googleapis.com/token",
-        )
-        yt = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
+        yt = googleapiclient.discovery.build("youtube", "v3", developerKey=config.GOOGLE_API_KEY)
         search_resp = yt.search().list(
             part="id,snippet", channelId=channel_id, type="video", order="date", maxResults=10,
         ).execute()
@@ -3890,8 +3882,8 @@ def _refresh_competitor_videos(comp_id: str, channel_id: str, platform: str, use
                 thumbnail_url=snippet.get("thumbnails", {}).get("medium", {}).get("url", ""),
                 video_url=f"https://www.youtube.com/watch?v={item['id']}",
             )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[competitors] Refresh failed for {channel_id}: {e}")
 
 
 @app.route("/api/competitors", methods=["POST"])
@@ -3905,40 +3897,30 @@ def api_add_competitor():
     channel_id = ""
     channel_name = channel_url
     try:
-        if platform == "youtube" and config.YOUTUBE_CLIENT_ID:
-            accounts = db.get_accounts(user_id=current_user.id)
-            yt_account = next((a for a in accounts if a["platform"] == "youtube" and a.get("access_token")), None)
-            if yt_account:
-                from google.oauth2.credentials import Credentials
-                import googleapiclient.discovery
-                creds = Credentials(
-                    token=yt_account["access_token"], refresh_token=yt_account.get("refresh_token"),
-                    client_id=config.YOUTUBE_CLIENT_ID, client_secret=config.YOUTUBE_CLIENT_SECRET,
-                    token_uri="https://oauth2.googleapis.com/token",
-                )
-                yt = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
-                if "/channel/" in channel_url:
-                    channel_id = channel_url.split("/channel/")[1].split("/")[0].split("?")[0]
+        if platform == "youtube" and config.GOOGLE_API_KEY:
+            import googleapiclient.discovery
+            yt = googleapiclient.discovery.build("youtube", "v3", developerKey=config.GOOGLE_API_KEY)
+            resp = {"items": []}
+            if "/channel/" in channel_url:
+                channel_id = channel_url.split("/channel/")[1].split("/")[0].split("?")[0]
+                resp = yt.channels().list(part="snippet", id=channel_id).execute()
+            elif "/@" in channel_url:
+                handle = channel_url.split("/@")[1].split("/")[0].split("?")[0]
+                resp = yt.channels().list(part="snippet", forHandle=handle).execute()
+            else:
+                search_resp = yt.search().list(
+                    part="snippet", type="channel", q=channel_url, maxResults=1
+                ).execute()
+                items = search_resp.get("items", [])
+                if items:
+                    channel_id = items[0]["snippet"]["channelId"]
                     resp = yt.channels().list(part="snippet", id=channel_id).execute()
-                elif "/@" in channel_url:
-                    handle = channel_url.split("/@")[1].split("/")[0].split("?")[0]
-                    resp = yt.channels().list(part="snippet", forHandle=handle).execute()
-                else:
-                    search_resp = yt.search().list(
-                        part="snippet", type="channel", q=channel_url, maxResults=1
-                    ).execute()
-                    items = search_resp.get("items", [])
-                    if items:
-                        channel_id = items[0]["snippet"]["channelId"]
-                        resp = yt.channels().list(part="snippet", id=channel_id).execute()
-                    else:
-                        resp = {"items": []}
-                if resp.get("items"):
-                    ch = resp["items"][0]
-                    channel_id = ch["id"]
-                    channel_name = ch["snippet"]["title"]
-    except Exception:
-        pass
+            if resp.get("items"):
+                ch = resp["items"][0]
+                channel_id = ch["id"]
+                channel_name = ch["snippet"]["title"]
+    except Exception as e:
+        print(f"[competitors] Channel lookup failed: {e}")
     comp_id = db.add_competitor_channel(
         user_id=current_user.id, platform=platform,
         channel_id=channel_id or channel_url, channel_name=channel_name, channel_url=channel_url,
