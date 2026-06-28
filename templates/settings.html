@@ -148,7 +148,7 @@ const API_SERVICES = [
   {
     key: 'PIXABAY_API_KEY',
     icon: '🖼️', name: 'Pixabay Stock Media',
-    desc: 'Free stock photos and videos — primary media source. Pixabay is free and doesn't require a credit card.',
+    desc: 'Free stock photos and videos — primary media source. Pixabay is free and does not require a credit card.',
     required: true,
     why: 'Provides free stock footage to fill your videos. Takes 30 seconds to get a key.',
     portalUrl: 'https://pixabay.com/api/',
@@ -283,9 +283,10 @@ async function loadApiStatus() {
       : ok
         ? `<span class="pill pill-done">✓ Connected</span>`
         : `<span class="pill ${svc.required ? 'pill-error' : 'pill-pending'}">${svc.required ? 'Required' : 'Optional'}</span>`;
+    const svcIdx = API_SERVICES.indexOf(svc);
     const btn = ok && !isWrongVal
-      ? `<button class="btn btn-ghost btn-sm" onclick='openKeyWizard(${JSON.stringify(svc)})'>Update Key</button>`
-      : `<button class="btn btn-primary btn-sm" onclick='openKeyWizard(${JSON.stringify(svc)})'>Connect →</button>`;
+      ? `<button class="btn btn-ghost btn-sm" onclick="openKeyWizard(API_SERVICES[${svcIdx}])">Update Key</button>`
+      : `<button class="btn btn-primary btn-sm" onclick="openKeyWizard(API_SERVICES[${svcIdx}])">Connect →</button>`;
 
     list.innerHTML += `
       <div class="api-card ${cardClass}">

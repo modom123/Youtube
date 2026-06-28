@@ -4392,6 +4392,14 @@ bmLoadKit(0);
 
 /* ── (old simple BEAT SEQUENCER kept as spare — START) ─── */
 const STEPS = 16;
+const TRACKS = [
+  {name: 'Kick', color: '#e53e3e'},
+  {name: 'Snare', color: '#ed8936'},
+  {name: 'HiHat', color: '#ecc94b'},
+  {name: 'Open HH', color: '#48bb78'},
+  {name: '808', color: '#4299e1'},
+  {name: 'Clap', color: '#9f7aea'},
+];
 let beatPattern = Array.from({length: TRACKS.length}, () => new Array(STEPS).fill(false));
 let beatPlaying = false;
 let beatStep = 0;
@@ -4411,6 +4419,7 @@ beatPattern = DEFAULT_PATTERN.map(r => r.map(Boolean));
 
 function buildBeatGrid() {
   const grid = document.getElementById('beatGrid');
+  if (!grid) return;
   grid.innerHTML = '';
   TRACKS.forEach((track, ti) => {
     const row = document.createElement('div');

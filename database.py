@@ -569,6 +569,56 @@ def init_db():
             if col not in ac_cols:
                 conn.execute(f"ALTER TABLE agency_clients ADD COLUMN {col} TEXT DEFAULT {default}")
 
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS agents (
+            id               TEXT PRIMARY KEY,
+            codename         TEXT NOT NULL,
+            title            TEXT DEFAULT '',
+            team             TEXT DEFAULT 'command_center',
+            role_description TEXT DEFAULT '',
+            expertise        TEXT DEFAULT '',
+            status           TEXT DEFAULT 'online',
+            config           TEXT DEFAULT '{}',
+            tasks_completed  INTEGER DEFAULT 0,
+            tasks_failed     INTEGER DEFAULT 0,
+            last_active      TEXT,
+            created_at       TEXT DEFAULT (datetime('now'))
+        );
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS agent_logs (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent_id    TEXT,
+            event_type  TEXT DEFAULT 'info',
+            message     TEXT DEFAULT '',
+            created_at  TEXT DEFAULT (datetime('now'))
+        );
+        """)
+        _seed_agents(conn)
+
+
+def _seed_agents(conn):
+    count = conn.execute("SELECT COUNT(*) FROM agents").fetchone()[0]
+    if count > 0:
+        return
+    agents = [
+        ("showrunner", "The Showrunner", "Chief Orchestrator", "command_center", "Orchestrates all content pipelines end-to-end", "pipeline orchestration, scheduling, resource allocation", '{"icon":"crown"}'),
+        ("ledger", "Cost Engineer", "Financial Optimizer", "command_center", "Routes tasks to cheapest viable AI provider", "cost optimization, provider routing, budget tracking", '{"icon":"calculator"}'),
+        ("ghost", "The Ghost", "Spintax & Variation Engine", "command_center", "Generates unique content variations at scale", "spintax processing, content variation, deduplication", '{"icon":"ghost"}'),
+        ("scout", "The Scout", "Trend Intelligence", "command_center", "Monitors trends, competitors, and viral content", "trend analysis, competitor monitoring, content intelligence", '{"icon":"radar"}'),
+        ("guardian", "The Guardian", "QA & Compliance", "command_center", "Reviews all output for quality and brand safety", "quality assurance, compliance checking, content review", '{"icon":"shield-check"}'),
+        ("architect", "The Architect", "UI/UX Engine", "website", "Manages dashboard rendering and real-time updates", "frontend rendering, real-time updates, UI optimization", '{"icon":"layout"}'),
+        ("conduit", "The Conduit", "API Bridge", "website", "Handles all API communication and data flow", "API routing, data transformation, rate limiting", '{"icon":"plug-zap"}'),
+        ("native", "The Native", "Mobile Bridge", "mobile", "Manages mobile app bridge and push notifications", "mobile optimization, push notifications, offline sync", '{"icon":"smartphone"}'),
+        ("courier", "The Courier", "Notification Engine", "mobile", "Delivers push notifications and alerts", "push delivery, notification scheduling, engagement tracking", '{"icon":"bell-ring"}'),
+        ("growth_engine", "The Growth Engine", "Platform Optimizer", "social_optimize", "Optimizes content for each social platform", "platform optimization, hashtag strategy, posting schedule", '{"icon":"trending-up"}'),
+        ("editor", "The Editor", "Post-Production", "client_pipeline", "Handles video editing, transitions, and effects", "video editing, audio mixing, subtitle generation", '{"icon":"film"}'),
+    ]
+    for a in agents:
+        conn.execute(
+            "INSERT INTO agents (id, codename, title, team, role_description, expertise, config) VALUES (?,?,?,?,?,?,?)", a
+        )
+
 
 def row_to_dict(row):
     if row is None:
@@ -2104,3 +2154,63 @@ def update_agency_followup(followup_id, data):
 def delete_agency_followup(user_id, followup_id):
     with get_conn() as conn:
         conn.execute("DELETE FROM agency_followups WHERE user_id=? AND id=?", (user_id, followup_id))
+
+
+# ── Agent operations ────────────────────────────────────────────────────────
+
+def get_agents():
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM agents ORDER BY team, codename").fetchall()
+        return [dict(r) for r in rows]
+
+def get_agent(agent_id):
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM agents WHERE id=?", (agent_id,)).fetchone()
+        return dict(row) if row else None
+
+def update_agent(agent_id, **kwargs):
+    with get_conn() as conn:
+        fields = []
+        vals = []
+        for k, v in kwargs.items():
+            fields.append(f"{k}=?")
+            vals.append(v)
+        if fields:
+            vals.append(agent_id)
+            conn.execute(f"UPDATE agents SET {','.join(fields)} WHERE id=?", vals)
+
+def add_agent_log(agent_id, event_type, message):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO agent_logs (agent_id, event_type, message) VALUES (?,?,?)",
+            (agent_id, event_type, message)
+        )
+        conn.execute(
+            "UPDATE agents SET last_active=datetime('now') WHERE id=?", (agent_id,)
+        )
+        if event_type == "task_completed":
+            conn.execute("UPDATE agents SET tasks_completed = tasks_completed + 1 WHERE id=?", (agent_id,))
+        elif event_type == "error":
+            conn.execute("UPDATE agents SET tasks_failed = tasks_failed + 1 WHERE id=?", (agent_id,))
+
+def get_agent_logs(agent_id=None, limit=30):
+    with get_conn() as conn:
+        if agent_id:
+            return [dict(r) for r in conn.execute(
+                "SELECT * FROM agent_logs WHERE agent_id=? ORDER BY created_at DESC LIMIT ?",
+                (agent_id, limit)
+            ).fetchall()]
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM agent_logs ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()]
+
+def get_agent_stats():
+    with get_conn() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM agents").fetchone()[0]
+        online = conn.execute("SELECT COUNT(*) FROM agents WHERE status='online'").fetchone()[0]
+        done = conn.execute("SELECT COALESCE(SUM(tasks_completed),0) FROM agents").fetchone()[0]
+        failed = conn.execute("SELECT COALESCE(SUM(tasks_failed),0) FROM agents").fetchone()[0]
+        return {
+            "total_agents": total, "online": online, "offline": total - online,
+            "tasks_completed": done, "tasks_failed": failed,
+        }

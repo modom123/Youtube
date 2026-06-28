@@ -160,6 +160,7 @@ let sections = [];
 let visualMode = 'gradient';
 let bgmTrackId = new URLSearchParams(window.location.search).get('bgm') || null;
 let bgmType = new URLSearchParams(window.location.search).get('bgm_type') || 'track';
+let sectionMedia = {};  // {sectionIndex: [{media_id, path, type, filename}]}
 
 const defaultSections = {
   hollywood: [
@@ -294,7 +295,6 @@ function startTimer() {
 function stopTimer() { if (_tmrInt) { clearInterval(_tmrInt); _tmrInt = null; } }
 
 // ── Section Media ─────────────────────────────────────────────────────
-let sectionMedia = {};  // {sectionIndex: [{media_id, path, type, filename}]}
 
 async function uploadSectionMedia(secIdx, files) {
   if (!sectionMedia[secIdx]) sectionMedia[secIdx] = [];

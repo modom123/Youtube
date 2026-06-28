@@ -1,6 +1,7 @@
 """Admin Blueprint — client management, provisioning, audit log, settings."""
 import os
 import secrets
+import shutil
 import smtplib
 from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
@@ -12,6 +13,7 @@ from werkzeug.security import generate_password_hash
 
 import database as db
 import config
+from agent_dispatch import get_system_status
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -331,3 +333,278 @@ def admin_set_env():
     db.set_setting(f"env:{var_name}", var_value)
     return jsonify({"ok": True, "name": var_name,
                     "masked": var_value[:4] + "••••" + var_value[-4:] if len(var_value) > 8 else "••••••"})
+
+
+# ── API: Overview ────────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/overview")
+@login_required
+def admin_overview():
+    _require_admin()
+    with db.get_conn() as conn:
+        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        new_today = conn.execute("SELECT COUNT(*) FROM users WHERE created_at >= ?", (today,)).fetchone()[0]
+        total_jobs = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+        jobs_today = conn.execute("SELECT COUNT(*) FROM jobs WHERE created_at >= ?", (today,)).fetchone()[0]
+        completed = conn.execute("SELECT COUNT(*) FROM jobs WHERE status='done'").fetchone()[0]
+        failed = conn.execute("SELECT COUNT(*) FROM jobs WHERE status='error'").fetchone()[0]
+        tiers = {}
+        for row in conn.execute("SELECT COALESCE(subscription_tier,'free') AS t, COUNT(*) AS c FROM users GROUP BY t"):
+            tiers[row["t"]] = row["c"]
+        try:
+            total_media = conn.execute("SELECT COUNT(*) FROM media_files").fetchone()[0]
+            media_size = conn.execute("SELECT COALESCE(SUM(file_size),0) FROM media_files").fetchone()[0]
+        except Exception:
+            total_media, media_size = 0, 0
+        try:
+            total_campaigns = conn.execute("SELECT COUNT(*) FROM monetizer_campaigns").fetchone()[0]
+        except Exception:
+            total_campaigns = 0
+        try:
+            total_actions = conn.execute("SELECT COUNT(*) FROM agent_logs").fetchone()[0]
+        except Exception:
+            total_actions = 0
+    return jsonify({
+        "total_users": total_users, "new_users_today": new_today,
+        "total_jobs": total_jobs, "jobs_today": jobs_today,
+        "completed_jobs": completed, "failed_jobs": failed,
+        "users_by_tier": tiers,
+        "total_media": total_media, "media_size_bytes": media_size,
+        "total_campaigns": total_campaigns, "total_actions": total_actions,
+    })
+
+
+# ── API: Revenue ─────────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/revenue")
+@login_required
+def admin_revenue():
+    _require_admin()
+    tier_prices = {"free": 0, "starter": 29, "creator": 79, "agency": 199}
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT COALESCE(subscription_tier,'free') AS tier, COUNT(*) AS cnt FROM users GROUP BY tier"
+        ).fetchall()
+    breakdown = {}
+    mrr = 0
+    for r in rows:
+        t, cnt = r["tier"], r["cnt"]
+        price = tier_prices.get(t, 0)
+        rev = price * cnt
+        mrr += rev
+        breakdown[t] = {"users": cnt, "price": price, "revenue": rev}
+    return jsonify({"mrr": mrr, "arr": mrr * 12, "breakdown": breakdown})
+
+
+# ── API: Users (paginated) ───────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/users")
+@login_required
+def admin_users_api():
+    _require_admin()
+    limit = int(request.args.get("limit", 25))
+    offset = int(request.args.get("offset", 0))
+    search = request.args.get("search", "").strip()
+    tier_filter = request.args.get("tier", "").strip()
+    with db.get_conn() as conn:
+        where, params = [], []
+        if search:
+            where.append("(name LIKE ? OR email LIKE ?)")
+            params.extend([f"%{search}%", f"%{search}%"])
+        if tier_filter:
+            where.append("COALESCE(subscription_tier,'free') = ?")
+            params.append(tier_filter)
+        clause = ("WHERE " + " AND ".join(where)) if where else ""
+        total = conn.execute(f"SELECT COUNT(*) FROM users {clause}", params).fetchone()[0]
+        users = conn.execute(
+            f"SELECT * FROM users {clause} ORDER BY id DESC LIMIT ? OFFSET ?",
+            params + [limit, offset]
+        ).fetchall()
+    return jsonify({
+        "total": total,
+        "users": [{
+            "id": u["id"], "name": u["name"], "email": u["email"],
+            "tier": u["subscription_tier"] or "free",
+            "videos_used_this_month": u["videos_used"] or 0,
+            "is_admin": u["is_admin"] or 0,
+            "created_at": u["created_at"] or "",
+        } for u in users],
+    })
+
+
+@admin_bp.route("/api/admin/users/<int:uid>", methods=["PATCH"])
+@login_required
+def admin_update_user(uid):
+    _require_admin()
+    data = request.get_json(silent=True) or {}
+    updates = {}
+    if "tier" in data:
+        updates["subscription_tier"] = data["tier"]
+    if "is_admin" in data:
+        updates["is_admin"] = int(data["is_admin"])
+    if "name" in data:
+        updates["name"] = data["name"]
+    if updates:
+        db.update_user(uid, **updates)
+    return jsonify({"ok": True})
+
+
+# ── API: Jobs / Content ──────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/jobs")
+@login_required
+def admin_jobs_api():
+    _require_admin()
+    with db.get_conn() as conn:
+        by_status = {}
+        for row in conn.execute("SELECT status, COUNT(*) AS c FROM jobs GROUP BY status"):
+            by_status[row["status"]] = row["c"]
+        top_niches = {}
+        for row in conn.execute("SELECT COALESCE(format,'general') AS n, COUNT(*) AS c FROM jobs GROUP BY n ORDER BY c DESC LIMIT 10"):
+            top_niches[row["n"]] = row["c"]
+        daily = []
+        for row in conn.execute(
+            "SELECT DATE(created_at) AS date, COUNT(*) AS count FROM jobs "
+            "WHERE created_at >= DATE('now','-7 days') GROUP BY DATE(created_at) ORDER BY date"
+        ):
+            daily.append({"date": row["date"], "count": row["count"]})
+    return jsonify({"by_status": by_status, "top_niches": top_niches, "daily_7d": daily})
+
+
+# ── API: Growth ──────────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/growth")
+@login_required
+def admin_growth_api():
+    _require_admin()
+    with db.get_conn() as conn:
+        total = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        paid = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE subscription_tier IN ('starter','creator','agency')"
+        ).fetchone()[0]
+        rate = round(paid / max(total, 1) * 100, 1)
+        signups_7d, signups_30d = [], []
+        for row in conn.execute(
+            "SELECT DATE(created_at) AS date, COUNT(*) AS count FROM users "
+            "WHERE created_at >= DATE('now','-7 days') GROUP BY DATE(created_at) ORDER BY date"
+        ):
+            signups_7d.append({"date": row["date"], "count": row["count"]})
+        for row in conn.execute(
+            "SELECT DATE(created_at) AS date, COUNT(*) AS count FROM users "
+            "WHERE created_at >= DATE('now','-30 days') GROUP BY DATE(created_at) ORDER BY date"
+        ):
+            signups_30d.append({"date": row["date"], "count": row["count"]})
+    return jsonify({
+        "total_users": total, "paid_users": paid, "conversion_rate": rate,
+        "signups_7d": signups_7d, "signups_30d": signups_30d,
+    })
+
+
+# ── API: System Health ───────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/health")
+@login_required
+def admin_health_api():
+    _require_admin()
+    db_path = os.path.join(os.path.dirname(__file__), "social_optimize.db")
+    db_size = os.path.getsize(db_path) if os.path.exists(db_path) else 0
+    upload_dir = os.path.join(os.path.dirname(__file__), "static", "uploads")
+    upload_size = 0
+    if os.path.isdir(upload_dir):
+        for root, _, files in os.walk(upload_dir):
+            for f in files:
+                upload_size += os.path.getsize(os.path.join(root, f))
+    disk = shutil.disk_usage("/")
+    return jsonify({
+        "db_size_bytes": db_size,
+        "upload_size_bytes": upload_size,
+        "disk_total_bytes": disk.total,
+        "disk_used_bytes": disk.used,
+        "disk_free_bytes": disk.free,
+        "disk_pct_used": round(disk.used / disk.total * 100, 1),
+    })
+
+
+# ── API: Config ──────────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/config")
+@login_required
+def admin_config_api():
+    _require_admin()
+    api_keys = {}
+    for _, vlist in _ENV_VAR_MAP:
+        for var_name, _ in vlist:
+            val = os.getenv(var_name, "") or db.get_setting(f"env:{var_name}") or ""
+            api_keys[var_name] = "configured" if val else "missing"
+    tiers = {
+        "free":    {"label": "Free",    "price_monthly": 0,   "videos_per_month": 3,   "higgsfield_credits": 0,   "features": ["Basic AI", "3 videos/mo"]},
+        "starter": {"label": "Starter", "price_monthly": 29,  "videos_per_month": 15,  "higgsfield_credits": 50,  "features": ["All platforms", "15 videos/mo", "Analytics"]},
+        "creator": {"label": "Creator", "price_monthly": 79,  "videos_per_month": 50,  "higgsfield_credits": 200, "features": ["Priority render", "50 videos/mo", "Hollywood Studio"]},
+        "agency":  {"label": "Agency",  "price_monthly": 199, "videos_per_month": -1,  "higgsfield_credits": 500, "features": ["Unlimited", "White-label", "API access", "Team"]},
+    }
+    return jsonify({"api_keys": api_keys, "tiers": tiers})
+
+
+# ── API: Agents ──────────────────────────────────────────────────────────────
+
+@admin_bp.route("/api/admin/agents")
+@login_required
+def admin_agents_api():
+    _require_admin()
+    agents = db.get_agents()
+    stats = db.get_agent_stats()
+    return jsonify({"agents": agents, "stats": stats})
+
+
+@admin_bp.route("/api/admin/system-status")
+@login_required
+def admin_system_status():
+    _require_admin()
+    return jsonify(get_system_status())
+
+
+@admin_bp.route("/api/admin/agents/<agent_id>")
+@login_required
+def admin_agent_detail(agent_id):
+    _require_admin()
+    agent = db.get_agent(agent_id)
+    if not agent:
+        return jsonify({"error": "Agent not found"}), 404
+    logs = db.get_agent_logs(agent_id, limit=20)
+    return jsonify({"agent": agent, "logs": logs})
+
+
+@admin_bp.route("/api/admin/agents/<agent_id>/status", methods=["PATCH"])
+@login_required
+def admin_agent_set_status(agent_id):
+    _require_admin()
+    data = request.get_json(silent=True) or {}
+    status = data.get("status", "online")
+    db.update_agent(agent_id, status=status)
+    return jsonify({"ok": True})
+
+
+@admin_bp.route("/api/admin/agents/<agent_id>/dispatch", methods=["POST"])
+@login_required
+def admin_agent_dispatch(agent_id):
+    _require_admin()
+    data = request.get_json(silent=True) or {}
+    task = data.get("task", "")
+    db.add_agent_log(agent_id, "task_dispatched", task)
+    return jsonify({"ok": True})
+
+
+@admin_bp.route("/api/admin/agents/logs")
+@login_required
+def admin_agent_logs():
+    _require_admin()
+    limit = int(request.args.get("limit", 30))
+    with db.get_conn() as conn:
+        try:
+            logs = conn.execute(
+                "SELECT * FROM agent_logs ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+            return jsonify({"logs": [dict(l) for l in logs]})
+        except Exception:
+            return jsonify({"logs": []})
