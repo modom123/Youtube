@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block title %}Editing Room — Social Optimize{% endblock %}
+{% block topbar_title %}Editing Room{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;">
+    <div>
+      <h2 style="margin:0;font-size:22px;font-weight:700;">Editing Room</h2>
+      <p style="margin:4px 0 0;color:var(--muted);font-size:13px;">Produce, remix, and re-edit videos from any studio</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+    <!-- Left: Studio Selector + Script Editor -->
+    <div>
+      <!-- Studio Picker -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Choose Studio</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <label class="studio-card" data-studio="hollywood" style="cursor:pointer;">
+            <input type="radio" name="studio" value="hollywood" checked style="display:none;">
+            <div class="studio-inner" id="studio-hollywood" style="border:2px solid var(--accent);border-radius:10px;padding:14px;text-align:center;transition:all .2s;">
+              <div style="font-size:28px;">🎬</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px;">Hollywood</div>
+              <div style="font-size:11px;color:var(--muted);">Cinematic 16:9</div>
+            </div>
+          </label>
+          <label class="studio-card" data-studio="studio56" style="cursor:pointer;">
+            <input type="radio" name="studio" value="studio56" style="display:none;">
+            <div class="studio-inner" id="studio-studio56" style="border:2px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all .2s;">
+              <div style="font-size:28px;">📱</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px;">Studio 56</div>
+              <div style="font-size:11px;color:var(--muted);">Vertical 9:16</div>
+            </div>
+          </label>
+          <label class="studio-card" data-studio="commercials" style="cursor:pointer;">
+            <input type="radio" name="studio" value="commercials" style="display:none;">
+            <div class="studio-inner" id="studio-commercials" style="border:2px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all .2s;">
+              <div style="font-size:28px;">📺</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px;">Commercials</div>
+              <div style="font-size:11px;color:var(--muted);">Product Ads 16:9</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Title & Subtitle -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Video Details</h3>
+        <label style="display:block;margin-bottom:10px;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">Title</span>
+          <input type="text" id="video-title" placeholder="Enter video title..." value="{{ remix_job.topic if remix_job else '' }}"
+            style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+        </label>
+        <label style="display:block;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">Subtitle</span>
+          <input type="text" id="video-subtitle" placeholder="Optional subtitle or tagline..."
+            style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+        </label>
+      </div>
+
+      <!-- Script / Sections Editor -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h3 style="margin:0;font-size:15px;font-weight:600;">Sections</h3>
+          <button onclick="addSection()" style="padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;">+ Add Section</button>
+        </div>
+        <div id="sections-list">
+          <!-- Sections rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Preview + Actions + Job History -->
+    <div>
+      <!-- Produce Button -->
+      <div class="card" style="margin-bottom:16px;">
+        <button onclick="startProduction()" id="produce-btn"
+          style="width:100%;padding:14px;background:linear-gradient(135deg,#e53e3e,#dd6b20);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.5px;">
+          Start Production
+        </button>
+        <!-- Progress -->
+        <div id="progress-area" style="display:none;margin-top:14px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span id="progress-step" style="font-size:12px;color:var(--muted);">Starting...</span>
+            <span id="progress-pct" style="font-size:12px;font-weight:700;color:var(--accent);">0%</span>
+          </div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div id="progress-bar" style="height:100%;background:linear-gradient(90deg,#e53e3e,#dd6b20);width:0%;transition:width .4s;border-radius:3px;"></div>
+          </div>
+        </div>
+        <!-- Result -->
+        <div id="result-area" style="display:none;margin-top:14px;">
+          <div style="padding:12px;background:rgba(72,187,120,.1);border:1px solid rgba(72,187,120,.3);border-radius:8px;">
+            <div style="font-weight:700;color:#48bb78;font-size:14px;">Production Complete!</div>
+            <div id="result-info" style="font-size:12px;color:var(--muted);margin-top:4px;"></div>
+            <a id="result-download" href="#" style="display:inline-block;margin-top:8px;padding:6px 16px;background:#48bb78;color:#fff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">Download Video</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Remix from existing job -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Remix Existing Job</h3>
+        <p style="margin:0 0 10px;font-size:12px;color:var(--muted);">Pick any past job to load its content into the editor for remixing.</p>
+        {% if jobs %}
+        <div style="max-height:300px;overflow-y:auto;">
+          {% for job in jobs %}
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">{{ job.title or job.topic }}</div>
+              <div style="font-size:11px;color:var(--muted);">{{ job.format }} &middot; {{ job.created_at[:10] }}</div>
+            </div>
+            <a href="/editing-room/remix/{{ job.id }}" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;color:var(--accent);text-decoration:none;">Remix</a>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">No jobs yet. Create your first video above!</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let selectedStudio = 'hollywood';
+let sections = [];
+
+const defaultSections = {
+  hollywood: [
+    {heading: 'THE HOOK', narration: 'Open with something dramatic that grabs attention instantly.'},
+    {heading: 'THE PROBLEM', narration: 'Describe the challenge your audience faces.'},
+    {heading: 'THE SOLUTION', narration: 'Present the transformation or answer.'},
+    {heading: 'THE FUTURE', narration: 'End with inspiration and a call to action.'},
+  ],
+  studio56: [
+    {heading: 'STOP SCROLLING', narration: 'Hook them in the first 3 seconds.'},
+    {heading: 'TIP 1', narration: 'Your first key insight.'},
+    {heading: 'TIP 2', narration: 'Your second game-changer.'},
+    {heading: 'TIP 3', narration: 'The tip that seals the deal.'},
+    {heading: 'FOLLOW FOR MORE', narration: 'Call to action — follow, save, share.'},
+  ],
+  commercials: [
+    {heading: 'THE PROBLEM', narration: 'What pain does your customer feel?'},
+    {heading: 'THE SOLUTION', narration: 'How your product solves it.'},
+    {heading: 'START FREE', narration: 'Clear call to action.'},
+  ],
+};
+
+// ── Init ───────────────────────────────────────────────────────────────────
+{% if remix_job %}
+  // Pre-fill from remix job
+  document.getElementById('video-title').value = {{ remix_job.topic | tojson }};
+  sections = [
+    {heading: 'SECTION 1', narration: {{ (remix_job.title or remix_job.topic) | tojson }} },
+  ];
+{% endif %}
+
+if (sections.length === 0) {
+  sections = JSON.parse(JSON.stringify(defaultSections[selectedStudio]));
+}
+renderSections();
+
+// ── Studio selection ──────────────────────────────────────────────────────
+document.querySelectorAll('.studio-card').forEach(card => {
+  card.addEventListener('click', () => {
+    selectedStudio = card.dataset.studio;
+    document.querySelectorAll('.studio-inner').forEach(el => {
+      el.style.borderColor = 'var(--border)';
+    });
+    card.querySelector('.studio-inner').style.borderColor = 'var(--accent)';
+    // Load default sections for this studio if user hasn't edited
+    if (confirm('Load default sections for this studio? (Current sections will be replaced)')) {
+      sections = JSON.parse(JSON.stringify(defaultSections[selectedStudio]));
+      renderSections();
+    }
+  });
+});
+
+// ── Sections editor ───────────────────────────────────────────────────────
+function renderSections() {
+  const container = document.getElementById('sections-list');
+  container.innerHTML = '';
+  sections.forEach((sec, i) => {
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;background:var(--surface);';
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <input type="text" value="${sec.heading}" onchange="sections[${i}].heading=this.value"
+          style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;font-weight:700;">
+        <button onclick="removeSection(${i})" style="margin-left:8px;padding:4px 8px;border:1px solid rgba(229,62,62,.3);border-radius:6px;background:transparent;color:#e53e3e;cursor:pointer;font-size:11px;">Remove</button>
+      </div>
+      <textarea onchange="sections[${i}].narration=this.value" rows="3"
+        style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;resize:vertical;font-family:inherit;">${sec.narration}</textarea>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function addSection() {
+  sections.push({heading: `SECTION ${sections.length + 1}`, narration: 'Enter narration text here...'});
+  renderSections();
+}
+
+function removeSection(i) {
+  if (sections.length <= 1) return alert('Need at least one section.');
+  sections.splice(i, 1);
+  renderSections();
+}
+
+// ── Production ────────────────────────────────────────────────────────────
+function startProduction() {
+  const title = document.getElementById('video-title').value.trim();
+  if (!title) return alert('Enter a video title.');
+  if (sections.length === 0) return alert('Add at least one section.');
+
+  // Read current section values from DOM inputs
+  document.querySelectorAll('#sections-list > div').forEach((div, i) => {
+    const heading = div.querySelector('input[type=text]');
+    const narration = div.querySelector('textarea');
+    if (heading) sections[i].heading = heading.value;
+    if (narration) sections[i].narration = narration.value;
+  });
+
+  const btn = document.getElementById('produce-btn');
+  btn.disabled = true;
+  btn.textContent = 'Producing...';
+  btn.style.opacity = '0.6';
+  document.getElementById('progress-area').style.display = 'block';
+  document.getElementById('result-area').style.display = 'none';
+
+  fetch('/api/editing-room/produce', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      studio: selectedStudio,
+      topic: title,
+      subtitle: document.getElementById('video-subtitle').value.trim(),
+      sections: sections,
+      source_job_id: {{ remix_job.id if remix_job else 'null' }},
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      alert(data.error);
+      btn.disabled = false;
+      btn.textContent = 'Start Production';
+      btn.style.opacity = '1';
+      document.getElementById('progress-area').style.display = 'none';
+      return;
+    }
+    // Stream progress
+    const es = new EventSource(`/api/editing-room/stream/${data.editing_job_id}`);
+    es.onmessage = (e) => {
+      const d = JSON.parse(e.data);
+      if (d.progress !== undefined) {
+        document.getElementById('progress-bar').style.width = d.progress + '%';
+        document.getElementById('progress-pct').textContent = d.progress + '%';
+      }
+      if (d.step) {
+        document.getElementById('progress-step').textContent = d.step;
+      }
+      if (d.status === 'done') {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = 'Start Production';
+        btn.style.opacity = '1';
+        document.getElementById('result-area').style.display = 'block';
+        const r = d.result || {};
+        document.getElementById('result-info').textContent =
+          `${r.label || selectedStudio} | ${(r.duration||0).toFixed(1)}s | ${r.resolution || ''} | ${r.file_size_mb || '?'} MB`;
+        if (d.db_job_id) {
+          document.getElementById('result-download').href = `/api/jobs/${d.db_job_id}/download`;
+        }
+      }
+      if (d.status === 'error') {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = 'Start Production';
+        btn.style.opacity = '1';
+        alert('Production failed: ' + (d.step || 'Unknown error'));
+      }
+    };
+    es.onerror = () => {
+      es.close();
+      btn.disabled = false;
+      btn.textContent = 'Start Production';
+      btn.style.opacity = '1';
+    };
+  })
+  .catch(err => {
+    alert('Request failed: ' + err);
+    btn.disabled = false;
+    btn.textContent = 'Start Production';
+    btn.style.opacity = '1';
+  });
+}
+</script>
+{% endblock %}

@@ -1596,6 +1596,174 @@ def start_background_threads():
     t2.start()
 
 
+# ── Editing Room ──────────────────────────────────────────────────────────────
+
+_editing_jobs: dict = {}
+_editing_events: dict = {}
+_editing_lock = threading.Lock()
+
+
+def _push_editing_event(job_id: str, data: dict):
+    payload = f"data: {json.dumps(data)}\n\n"
+    with _editing_lock:
+        if job_id not in _editing_events:
+            _editing_events[job_id] = []
+        _editing_events[job_id].append(payload)
+
+
+def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
+    from generators.editing_room import produce, STUDIO_PRESETS
+    from pathlib import Path as P
+
+    def _cb(msg, pct):
+        with _editing_lock:
+            if editing_job_id in _editing_jobs:
+                _editing_jobs[editing_job_id].update({"progress": pct, "step": msg, "status": "running"})
+        _push_editing_event(editing_job_id, {"progress": pct, "step": msg, "status": "running"})
+
+    with _editing_lock:
+        _editing_jobs[editing_job_id] = {"status": "running", "progress": 0, "step": "Starting..."}
+
+    try:
+        studio = params.get("studio", "hollywood")
+        topic = params.get("topic", STUDIO_PRESETS.get(studio, {}).get("default_topic", "Untitled"))
+        sections = params.get("sections", [])
+        subtitle = params.get("subtitle", "")
+        source_job_id = params.get("source_job_id")
+
+        output_dir = P(config.OUTPUT_DIR) / "editing_room" / editing_job_id
+        result = produce(
+            studio=studio, topic=topic, sections=sections,
+            output_dir=output_dir, subtitle=subtitle, progress_cb=_cb,
+        )
+
+        # Create a job record in the DB so it shows in /jobs and can be remixed
+        db_job_id = db.create_job(
+            topic=topic, format=f"editing_{studio}",
+            platforms=[], audience="general public",
+            voice="espeak", style=studio, privacy="private",
+            user_id=user_id,
+        )
+        db.update_job(
+            db_job_id, status="done", progress=100,
+            current_step="Complete!", title=topic,
+            duration=result["duration"],
+            video_path=result["output_path"],
+            manifest_path=str(output_dir / "manifest.json"),
+            completed_at=datetime.now().isoformat(),
+        )
+        # Save manifest
+        import json as _json
+        manifest = {**result, "db_job_id": db_job_id, "source_job_id": source_job_id, "sections": sections}
+        with open(output_dir / "manifest.json", "w") as f:
+            _json.dump(manifest, f, indent=2)
+
+        if user_id:
+            db.increment_user_usage(user_id, videos=1)
+
+        with _editing_lock:
+            _editing_jobs[editing_job_id].update({
+                "status": "done", "progress": 100, "step": "Complete!",
+                "result": result, "db_job_id": db_job_id,
+            })
+        _push_editing_event(editing_job_id, {
+            "progress": 100, "step": "Complete!", "status": "done",
+            "result": result, "db_job_id": db_job_id,
+        })
+
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        with _editing_lock:
+            _editing_jobs[editing_job_id].update({"status": "error", "step": f"Error: {e}", "traceback": tb})
+        _push_editing_event(editing_job_id, {"status": "error", "step": f"Error: {e}", "traceback": tb})
+
+
+@app.route("/editing-room")
+@login_required
+def editing_room_page():
+    jobs = db.get_jobs(limit=50, user_id=current_user.id)
+    return render_template("editing_room.html", jobs=jobs, active_page="editing-room")
+
+
+@app.route("/editing-room/remix/<int:job_id>")
+@login_required
+def editing_room_remix(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return redirect("/editing-room")
+    jobs = db.get_jobs(limit=50, user_id=current_user.id)
+    return render_template("editing_room.html", jobs=jobs, remix_job=job, active_page="editing-room")
+
+
+@app.route("/api/editing-room/produce", methods=["POST"])
+@login_required
+def api_editing_room_produce():
+    allowed, err = check_usage_gate(current_user.id)
+    if not allowed:
+        return jsonify({"error": err, "upgrade": True}), 403
+
+    data = request.json or {}
+    studio = data.get("studio", "hollywood")
+    topic = (data.get("topic") or "").strip()
+    if not topic:
+        return jsonify({"error": "Topic/title is required"}), 400
+
+    sections = data.get("sections", [])
+    if not sections:
+        return jsonify({"error": "At least one section is required"}), 400
+
+    editing_job_id = str(uuid.uuid4())
+    params = {
+        "studio": studio,
+        "topic": topic,
+        "sections": sections,
+        "subtitle": (data.get("subtitle") or "").strip(),
+        "source_job_id": data.get("source_job_id"),
+    }
+
+    t = threading.Thread(
+        target=_run_editing_thread,
+        args=(editing_job_id, params, current_user.id),
+        daemon=True,
+    )
+    t.start()
+    return jsonify({"editing_job_id": editing_job_id})
+
+
+@app.route("/api/editing-room/stream/<editing_job_id>")
+@login_required
+def editing_room_stream(editing_job_id):
+    def generate():
+        last_idx = 0
+        while True:
+            with _editing_lock:
+                events = _editing_events.get(editing_job_id, [])
+                new = events[last_idx:]
+                last_idx = len(events)
+                job = _editing_jobs.get(editing_job_id, {})
+            for event in new:
+                yield event
+            if job.get("status") in ("done", "error"):
+                if not new:
+                    yield f"data: {json.dumps({'status': job.get('status'), 'progress': job.get('progress', 0)})}\n\n"
+                time.sleep(0.3)
+                break
+            time.sleep(0.4)
+    return Response(stream_with_context(generate()), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.route("/api/editing-room/status/<editing_job_id>")
+@login_required
+def editing_room_status(editing_job_id):
+    with _editing_lock:
+        job = _editing_jobs.get(editing_job_id)
+    if job is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(job)
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 db.init_db()
