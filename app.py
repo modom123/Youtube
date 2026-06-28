@@ -4423,6 +4423,9 @@ def commercial_broadcast_youtube(job_id):
     if not video_path:
         return jsonify({"error": "Video not ready. Generate the commercial first."}), 400
 
+    if not config.YOUTUBE_CLIENT_ID or not config.YOUTUBE_CLIENT_SECRET:
+        return jsonify({"error": "YouTube OAuth not configured. Set YOUTUBE_CLIENT_ID and YOUTUBE_CLIENT_SECRET in Render environment variables."}), 400
+
     accounts = db.get_accounts(current_user.id)
     yt_account = next((a for a in accounts if a["platform"] == "youtube"), None)
     if not yt_account:
