@@ -5910,6 +5910,18 @@ _start_followup()
 from agents.asset_tracker import start as _start_asset_tracker  # noqa: E402
 _start_asset_tracker()
 
+# Start executive C-suite agents (IEBC Consultants)
+from agents.executive_bus import init_bus_tables as _init_bus  # noqa: E402
+_init_bus()
+from agents.marcus_growth import start as _start_marcus  # noqa: E402
+_start_marcus()
+from agents.elena_enterprise import start as _start_elena  # noqa: E402
+_start_elena()
+from agents.julian_retention import start as _start_julian  # noqa: E402
+_start_julian()
+from agents.sterling_business import start as _start_sterling  # noqa: E402
+_start_sterling()
+
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")
     print("  Open → http://localhost:5000\n")

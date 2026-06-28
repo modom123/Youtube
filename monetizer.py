@@ -3,6 +3,12 @@ MONETIZER — Business Operating System for Social Optimize Machine
 =================================================================
 Central command for revenue, users, costs, growth, content ops,
 and platform health.  Runs as a Flask Blueprint mounted at /monetizer.
+
+IEBC Consultant C-Suite:
+  - Marcus Vance (CGO) — Growth & PLG
+  - Elena Rostova (VP Enterprise) — Outbound & B2B
+  - Dr. Julian Vance (Retention) — Churn & LTV
+  - Sterling Croft (CBO) — Unit Economics & Margins
 """
 
 from datetime import datetime, timedelta
@@ -1040,3 +1046,113 @@ def export_report(report_type):
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment; filename=monetizer_{report_type}_{_today()}.csv"}
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# IEBC CONSULTANT C-SUITE — Executive Agent Dashboard
+# ═══════════════════════════════════════════════════════════════════════════════
+
+EXEC_PERSONAS = {
+    "marcus_vance": {
+        "name": "Marcus Vance", "title": "Chief Growth Officer",
+        "role": "Product-Led Growth, Virality Loops, Acquisition Engineering",
+        "avatar": "M", "color": "#7c3aed",
+        "status": "active", "interval": "10 min"
+    },
+    "elena_rostova": {
+        "name": "Elena Rostova", "title": "VP of Enterprise Development",
+        "role": "B2B Sales Automation, Enterprise Lead Scraping, Intent Detection",
+        "avatar": "E", "color": "#2563eb",
+        "status": "active", "interval": "15 min"
+    },
+    "julian_vance": {
+        "name": "Dr. Julian Vance", "title": "Director of Retention & LTV",
+        "role": "Churn Mitigation, Predictive Analytics, User Engagement",
+        "avatar": "J", "color": "#059669",
+        "status": "active", "interval": "10 min"
+    },
+    "sterling_croft": {
+        "name": "Sterling Croft", "title": "Chief Business Officer",
+        "role": "Unit Economics, Strategic Partnerships, Pricing Models",
+        "avatar": "S", "color": "#d97706",
+        "status": "active", "interval": "30 min"
+    },
+}
+
+
+@monetizer_bp.route("/executives")
+@login_required
+@owner_required
+def executives_page():
+    return render_template("monetizer_executives.html")
+
+
+@monetizer_bp.route("/api/executives/overview")
+@login_required
+@owner_required
+def api_executives_overview():
+    from agents import executive_bus as bus
+    stats = bus.get_agent_stats()
+    personas = {}
+    for key, persona in EXEC_PERSONAS.items():
+        s = stats.get(key, {})
+        personas[key] = {**persona, **s}
+    return jsonify({"agents": personas})
+
+
+@monetizer_bp.route("/api/executives/events")
+@login_required
+@owner_required
+def api_executives_events():
+    from agents import executive_bus as bus
+    limit = request.args.get("limit", 50, type=int)
+    return jsonify(bus.get_recent_events(limit))
+
+
+@monetizer_bp.route("/api/executives/actions")
+@login_required
+@owner_required
+def api_executives_actions():
+    from agents import executive_bus as bus
+    agent = request.args.get("agent")
+    limit = request.args.get("limit", 50, type=int)
+    return jsonify(bus.get_recent_actions(agent, limit))
+
+
+@monetizer_bp.route("/api/executives/log")
+@login_required
+@owner_required
+def api_executives_log():
+    from agents import executive_bus as bus
+    agent = request.args.get("agent")
+    limit = request.args.get("limit", 100, type=int)
+    return jsonify(bus.get_agent_log(agent, limit))
+
+
+@monetizer_bp.route("/api/executives/trigger", methods=["POST"])
+@login_required
+@owner_required
+def api_executives_trigger():
+    """Manually trigger an executive agent to run now."""
+    data = request.get_json(force=True)
+    agent = data.get("agent")
+    if agent == "marcus_vance":
+        from agents.marcus_growth import _compute_growth_metrics, _check_upgrade_triggers
+        metrics = _compute_growth_metrics()
+        _check_upgrade_triggers()
+        return jsonify({"ok": True, "metrics": metrics})
+    elif agent == "elena_rostova":
+        from agents.elena_enterprise import _identify_high_value_accounts, _compute_pipeline_metrics
+        _identify_high_value_accounts()
+        _compute_pipeline_metrics()
+        return jsonify({"ok": True})
+    elif agent == "julian_vance":
+        from agents.julian_retention import _detect_churn_risks, _compute_retention_metrics
+        risks = _detect_churn_risks()
+        metrics = _compute_retention_metrics()
+        return jsonify({"ok": True, "at_risk": len(risks), "metrics": metrics})
+    elif agent == "sterling_croft":
+        from agents.sterling_business import _compute_unit_economics
+        economics = _compute_unit_economics()
+        return jsonify({"ok": True, "economics": economics})
+    return jsonify({"error": "Unknown agent"}), 400
