@@ -126,6 +126,56 @@ class EngagementPlan(BaseModel):
     notes: str = ""
 
 
+# ── Ad Copywriter output ─────────────────────────────────────────────────
+
+class AdCopyVariant(BaseModel):
+    framework: Literal["AIDA", "PAS", "BAB", "4U", "FAB"]
+    headline: str = Field(description="Ad headline, max 40 chars")
+    body: str = Field(description="Primary ad copy text")
+    cta: str = Field(description="Call to action")
+
+
+class AdCopyPackage(BaseModel):
+    variants: list[AdCopyVariant] = Field(min_length=3, max_length=5)
+    hashtags: list[str] = Field(min_length=3, max_length=15)
+    video_hooks: list[str] = Field(min_length=2, max_length=5, description="Video ad opening hooks")
+    email_subjects: list[str] = Field(min_length=2, max_length=5)
+    social_captions: list[str] = Field(min_length=1, max_length=3)
+
+
+# ── Market Strategist output ──────────────────────────────────────────────
+
+class MarketStrategy(BaseModel):
+    product_category: str = Field(description="Product category (e.g. SaaS, fashion, food)")
+    unique_selling_point: str = Field(description="Single strongest USP in one sentence")
+    target_persona: str = Field(description="Ideal customer persona in 2-3 sentences")
+    pain_points: list[str] = Field(min_length=2, max_length=5, description="Customer pain points this solves")
+    emotional_triggers: list[str] = Field(min_length=2, max_length=4, description="Emotions to leverage in the ad")
+    ad_angle: Literal["pain_solution", "aspirational", "social_proof", "urgency", "storytelling", "demonstration"]
+    tone: Literal["authoritative", "conversational", "dramatic", "inspiring", "urgent", "playful"]
+    hook_suggestions: list[str] = Field(min_length=3, max_length=5, description="3-5 scroll-stopping hook lines")
+    cta_suggestions: list[str] = Field(min_length=2, max_length=3, description="Strong call-to-action options")
+    competitive_edge: str = Field(description="What sets this apart from competitors")
+
+
+# ── Commercial Script output ─────────────────────────────────────────────
+
+class CommercialSection(BaseModel):
+    label: str = Field(description="Section label: Hook, Problem, Solution, CTA")
+    narration: str = Field(description="Voiceover text for this section")
+    visual_direction: str = Field(description="What should appear on screen")
+    duration_seconds: int = Field(ge=1, le=30)
+
+
+class CommercialScript(BaseModel):
+    headline: str = Field(description="Ad headline / title")
+    sections: list[CommercialSection] = Field(min_length=3, max_length=6)
+    voiceover_full: str = Field(description="Complete voiceover narration joined")
+    video_prompt: str = Field(description="Detailed cinematic AI video generation prompt")
+    tagline_final: str = Field(description="Final tagline for end card")
+    total_duration_seconds: int
+
+
 # ── Pipeline result ──────────────────────────────────────────────────────────
 
 class ProductionResult(BaseModel):

@@ -177,6 +177,10 @@
         <input type="text" id="brand" placeholder="e.g. Nike, iPhone 16, your company name">
       </div>
       <div class="form-row">
+        <label>Product Description *</label>
+        <textarea id="productDesc" rows="3" placeholder="Describe your product — what it does, key features, price point, what makes it special. The more detail, the better the ad."></textarea>
+      </div>
+      <div class="form-row">
         <label>Tagline (optional)</label>
         <input type="text" id="tagline" placeholder="e.g. Just Do It · Think Different">
       </div>
@@ -297,10 +301,16 @@
         </div>
 
         <div class="tab-content" id="tab-vision">
-          <h2 style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:12px;">AI Vision Analysis</h2>
+          <h2 style="font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:12px;">AI Agent Analysis</h2>
           <div class="description-box">
             <strong>What AI saw in your media</strong>
             <span id="visionBox">—</span>
+          </div>
+          <div id="strategyBox" style="display:none;margin-top:12px;">
+            <div class="description-box">
+              <strong>Market Strategist Agent</strong>
+              <div id="strategyContent">—</div>
+            </div>
           </div>
         </div>
       </div>
@@ -471,6 +481,7 @@ async function runCommercial() {
   const fd = new FormData();
   fd.append('media', fileInput.files[0] || selectedFile);
   fd.append('brand',    document.getElementById('brand').value);
+  fd.append('product_description', document.getElementById('productDesc').value);
   fd.append('tagline',  document.getElementById('tagline').value);
   fd.append('audience', document.getElementById('audience').value);
   fd.append('style',    document.getElementById('style').value);
@@ -563,6 +574,22 @@ function showResults(d) {
 
   // Vision analysis
   document.getElementById('visionBox').textContent = d.media_description || 'Not available';
+
+  // Strategy agent results
+  if (d.strategy) {
+    const s = d.strategy;
+    document.getElementById('strategyBox').style.display = 'block';
+    document.getElementById('strategyContent').innerHTML = `
+      <div style="margin-top:6px;font-size:13px;line-height:1.7;">
+        <div><strong>USP:</strong> ${s.usp || ''}</div>
+        <div><strong>Target:</strong> ${s.target || ''}</div>
+        <div><strong>Ad Angle:</strong> ${s.angle || ''}</div>
+        <div style="margin-top:6px;"><strong>Hook Options:</strong></div>
+        <ul style="margin:4px 0 0 16px;padding:0;">${(s.hooks||[]).map(h => '<li>'+h+'</li>').join('')}</ul>
+        <div style="margin-top:6px;"><strong>CTA Options:</strong></div>
+        <ul style="margin:4px 0 0 16px;padding:0;">${(s.ctas||[]).map(c => '<li>'+c+'</li>').join('')}</ul>
+      </div>`;
+  }
 }
 
 function showError(msg) {

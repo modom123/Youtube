@@ -4111,6 +4111,7 @@ def api_commercial_run():
 
     file = request.files.get("media")
     brand     = (request.form.get("brand") or "").strip()
+    product_description = (request.form.get("product_description") or "").strip()
     tagline   = (request.form.get("tagline") or "").strip()
     audience  = (request.form.get("audience") or "general consumers").strip()
     style     = request.form.get("style") or "energetic"
@@ -4127,7 +4128,8 @@ def api_commercial_run():
     file.save(str(media_path))
 
     params = {
-        "brand": brand, "tagline": tagline, "audience": audience,
+        "brand": brand, "product_description": product_description,
+        "tagline": tagline, "audience": audience,
         "style": style, "duration": duration, "platforms": platforms,
         "voice": voice, "media_path": str(media_path), "ext": ext,
     }
@@ -4202,12 +4204,13 @@ def _run_commercial_thread(job_id: str, params: dict, user_id: int):
         _push_commercial(job_id, {"status": "running", "step": msg, "progress": pct})
 
     try:
-        step("Analyzing your media with AI...", 10)
+        step("Analyzing your media with AI vision...", 5)
 
         media_path = Path(params["media_path"])
         ext = params["ext"]
         is_video = ext in {"mp4", "mov", "avi", "webm"}
         brand    = params.get("brand") or "our product"
+        product_description = params.get("product_description") or ""
         tagline  = params.get("tagline") or ""
         audience = params.get("audience") or "general consumers"
         style    = params.get("style") or "energetic"
@@ -4217,83 +4220,122 @@ def _run_commercial_thread(job_id: str, params: dict, user_id: int):
         client = _ant.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
         if is_video:
-            media_description = f"a {ext} video clip"
-            image_content = []
+            media_description = f"a {ext} video clip of {brand}"
         else:
             img_bytes = media_path.read_bytes()
             b64 = base64.standard_b64encode(img_bytes).decode()
             mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
                     "png": "image/png", "webp": "image/webp",
                     "gif": "image/gif"}.get(ext, "image/jpeg")
-            image_content = [
-                {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
-                {"type": "text", "text": "Describe this image in detail: what product or subject is shown, colors, mood, setting, and what makes it visually compelling for advertising."}
-            ]
             analysis = client.messages.create(
-                model="claude-opus-4-8",
+                model=config.TIER_CLAUDE_MODEL.get("creator", "claude-sonnet-4-6"),
                 max_tokens=400,
-                messages=[{"role": "user", "content": image_content}]
+                messages=[{"role": "user", "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
+                    {"type": "text", "text": "Describe this image in detail: what product or subject is shown, colors, mood, setting, and what makes it visually compelling for advertising."}
+                ]}]
             )
             media_description = analysis.content[0].text
 
-        step("Writing commercial script...", 30)
+        # ── Step 2: Agent 1 — Market Strategist ──────────────────────────────
+        step("Agent 1: Market Strategist analyzing your product...", 15)
+        from generators.agents.market_strategist import MarketStrategist
+        strategist = MarketStrategist()
+        strategy = strategist.run(
+            product_description=product_description or media_description,
+            media_analysis=media_description,
+            brand_name=brand,
+            target_audience=audience,
+        )
 
-        # ── Step 2: Write commercial script ──────────────────────────────────
-        script_prompt = f"""You are a world-class commercial director and copywriter.
+        # ── Step 3: Agent 2 — Ad Copywriter ──────────────────────────────────
+        step("Agent 2: Ad Copywriter writing your commercial...", 30)
+        from generators.agents.ad_copywriter import AdCopywriter
+        copywriter = AdCopywriter()
+        ad_copy = copywriter.run(
+            product_name=brand,
+            description=f"{product_description}\n\nVisual: {media_description}\n\nStrategy: {strategy.unique_selling_point}. Target: {strategy.target_persona}. Angle: {strategy.ad_angle}. Emotion: {', '.join(strategy.emotional_triggers)}",
+            target_audience=strategy.target_persona,
+            tone=strategy.tone,
+        )
 
-Media description: {media_description}
-Brand: {brand}
-Tagline: {tagline or '(none)'}
-Target audience: {audience}
-Ad style: {style}
-Duration: {duration} seconds
+        # ── Step 4: Agent 3 — Creative Director (script + video prompt) ──────
+        step("Agent 3: Creative Director crafting your commercial script...", 45)
+        best_hook = strategy.hook_suggestions[0] if strategy.hook_suggestions else ""
+        best_cta = strategy.cta_suggestions[0] if strategy.cta_suggestions else ""
+        best_ad = ad_copy.variants[0] if ad_copy.variants else None
 
-Write a {duration}-second commercial script with:
-1. HOOK (0-3s): An attention-grabbing opening line or visual
-2. PROBLEM/DESIRE (3-8s): What the viewer wants or their pain point
-3. SOLUTION (8-{duration-3}s): How this product/brand solves it, key benefit
-4. CTA ({duration-3}-{duration}s): Strong call to action
+        script_prompt = f"""You are a world-class commercial director. Using the market strategy and ad copy below, write a {duration}-second commercial script.
 
-Then write an AI VIDEO PROMPT (2-3 sentences) describing the exact visual to generate — cinematic, specific camera movements, lighting, colors. Make it feel like a real commercial.
+PRODUCT: {brand}
+DESCRIPTION: {product_description or media_description}
+VISUAL ANALYSIS: {media_description}
+TAGLINE: {tagline or '(generate one)'}
 
-Format:
-SCRIPT:
-[Hook]: ...
-[Problem]: ...
-[Solution]: ...
-[CTA]: ...
+MARKET STRATEGY:
+- USP: {strategy.unique_selling_point}
+- Target: {strategy.target_persona}
+- Pain Points: {', '.join(strategy.pain_points)}
+- Ad Angle: {strategy.ad_angle}
+- Emotional Triggers: {', '.join(strategy.emotional_triggers)}
+- Best Hook: {best_hook}
+- Best CTA: {best_cta}
 
-VOICEOVER: [The actual words spoken, {duration} seconds worth]
+AD COPY (use as inspiration):
+{best_ad.body if best_ad else 'Write fresh copy'}
 
-VIDEO_PROMPT: [Detailed cinematic prompt for AI video generation]"""
+STYLE: {style}
+DURATION: {duration} seconds
+
+Write:
+1. A complete {duration}-second voiceover script that flows naturally
+2. A detailed AI video generation prompt for the visuals
+
+Format your response EXACTLY as:
+
+VOICEOVER:
+[The complete spoken narration, paced for {duration} seconds]
+
+VIDEO_PROMPT:
+[Detailed cinematic prompt: camera angles, lighting, product shots, transitions, mood. Make it feel like a Super Bowl ad.]
+
+SCRIPT_SECTIONS:
+[Hook] (0-3s): ...
+[Problem] (3-{min(8, duration//3)}s): ...
+[Solution] ({min(8, duration//3)}-{duration-3}s): ...
+[CTA] ({duration-3}-{duration}s): ..."""
 
         script_resp = client.messages.create(
-            model="claude-opus-4-8",
-            max_tokens=800,
+            model=config.TIER_CLAUDE_MODEL.get("creator", "claude-sonnet-4-6"),
+            max_tokens=1200,
             messages=[{"role": "user", "content": script_prompt}]
         )
         script_text = script_resp.content[0].text
 
-        # Parse video prompt
         video_prompt = ""
         if "VIDEO_PROMPT:" in script_text:
-            video_prompt = script_text.split("VIDEO_PROMPT:")[-1].strip()
+            video_prompt = script_text.split("VIDEO_PROMPT:")[-1].split("SCRIPT_SECTIONS:")[0].strip()
         else:
-            video_prompt = f"Cinematic product commercial for {brand}. {style} style. Professional lighting, close-up product shots, dynamic camera movement. 4K quality."
+            video_prompt = f"Cinematic product commercial for {brand}. {style} style. {strategy.unique_selling_point}. Professional lighting, close-up product shots, dynamic camera movement. 4K quality."
 
         voiceover_text = ""
         if "VOICEOVER:" in script_text:
             raw = script_text.split("VOICEOVER:")[-1]
             voiceover_text = raw.split("VIDEO_PROMPT:")[0].strip()
 
-        step("Generating AI commercial video...", 50)
+        # Build full script text for display
+        full_script_display = f"=== MARKET STRATEGY ===\nUSP: {strategy.unique_selling_point}\nTarget: {strategy.target_persona}\nAngle: {strategy.ad_angle}\nHooks: {' | '.join(strategy.hook_suggestions[:3])}\n\n=== AD COPY ===\n"
+        for v in ad_copy.variants[:3]:
+            full_script_display += f"\n[{v.framework}]\n{v.headline}\n{v.body}\n"
+        full_script_display += f"\n=== COMMERCIAL SCRIPT ===\n{script_text}"
 
-        # ── Step 3: Generate video with Higgsfield ───────────────────────────
+        step("Generating AI commercial video...", 55)
+
+        # ── Step 5: Generate video with Higgsfield ───────────────────────────
         from generators.ai_video_generator import generate_higgsville_clips
         out_dir = COMMERCIAL_UPLOADS / job_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # Use marketing_studio_video for product ads, grok for image-to-video
         model_id = "grok_video_v15" if not is_video else "marketing_studio_video"
 
         clips = generate_higgsville_clips(
@@ -4304,13 +4346,13 @@ VIDEO_PROMPT: [Detailed cinematic prompt for AI video generation]"""
             duration=min(duration, 10),
         )
 
-        step("Adding voiceover...", 75)
+        step("Adding voiceover...", 80)
 
-        # ── Step 4: Generate voiceover ────────────────────────────────────────
+        # ── Step 6: Generate voiceover ────────────────────────────────────────
         final_video = str(clips[0]) if clips else None
         audio_path = None
 
-        if voiceover_text and config.GOOGLE_API_KEY:
+        if voiceover_text:
             try:
                 from generators.audio_generator import generate_audio
                 audio_out = out_dir / "voiceover.mp3"
@@ -4319,6 +4361,16 @@ VIDEO_PROMPT: [Detailed cinematic prompt for AI video generation]"""
             except Exception as e:
                 print(f"[commercial] Voiceover error: {e}")
 
+        # Save manifest
+        manifest = {
+            "brand": brand, "product_description": product_description,
+            "strategy": strategy.model_dump(),
+            "script": script_text, "voiceover": voiceover_text,
+            "video_prompt": video_prompt,
+        }
+        with open(out_dir / "manifest.json", "w") as mf:
+            json.dump(manifest, mf, indent=2)
+
         step("Commercial ready!", 100)
 
         db.increment_credits_used(user_id, 1)
@@ -4326,15 +4378,24 @@ VIDEO_PROMPT: [Detailed cinematic prompt for AI video generation]"""
         _push_commercial(job_id, {
             "status": "done",
             "progress": 100,
-            "script": script_text,
+            "script": full_script_display,
             "voiceover": voiceover_text,
             "video_url": f"/api/commercial/{job_id}/download" if final_video else None,
             "video_path": final_video,
             "audio_path": audio_path,
             "media_description": media_description,
+            "strategy": {
+                "usp": strategy.unique_selling_point,
+                "target": strategy.target_persona,
+                "hooks": strategy.hook_suggestions,
+                "ctas": strategy.cta_suggestions,
+                "angle": strategy.ad_angle,
+            },
         })
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         _push_commercial(job_id, {"status": "error", "error": str(e), "progress": 0})
 
 
