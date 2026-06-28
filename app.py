@@ -1767,6 +1767,188 @@ def editing_room_status(editing_job_id):
     return jsonify(job)
 
 
+# ── Music Studio ──────────────────────────────────────────────────────────
+_music_jobs: dict = {}
+_music_events: dict = {}
+_music_lock = threading.Lock()
+
+def _push_music_event(job_id, data):
+    payload = json.dumps(data)
+    with _music_lock:
+        if job_id not in _music_events:
+            _music_events[job_id] = []
+        _music_events[job_id].append(payload)
+
+def _run_music_thread(job_id, params, user_id=None):
+    from generators.music_studio import (
+        generate_beat, generate_beat_from_freesound,
+        generate_vocals, mix_track,
+    )
+    from pathlib import Path as P
+
+    def _cb(msg, pct):
+        with _music_lock:
+            if job_id in _music_jobs:
+                _music_jobs[job_id].update({"progress": pct, "step": msg, "status": "running"})
+        _push_music_event(job_id, {"progress": pct, "step": msg, "status": "running"})
+
+    with _music_lock:
+        _music_jobs[job_id] = {"status": "running", "progress": 0, "step": "Starting..."}
+
+    try:
+        output_dir = P(config.OUTPUT_DIR) / "music_studio" / job_id
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        style = params.get("style", "trap")
+        duration = params.get("duration", 30)
+        bpm = params.get("bpm", 120)
+
+        # Generate beat — try Freesound first, fallback to synth
+        beat_path = output_dir / "beat.mp3"
+        _cb("Searching for beats...", 10)
+        used_freesound = generate_beat_from_freesound(beat_path, duration=duration, style=style)
+        if not used_freesound:
+            _cb("Generating beat...", 20)
+            generate_beat(beat_path, duration=duration, style=style, bpm=bpm)
+        else:
+            _cb("Found real beat from Freesound!", 25)
+
+        lyrics = (params.get("lyrics") or "").strip()
+        if lyrics:
+            _cb("Recording vocals...", 50)
+            vocal_path = output_dir / "vocals.mp3"
+            generate_vocals(
+                lyrics, vocal_path,
+                speed=params.get("speed", 140),
+                elevenlabs_voice_id=params.get("elevenlabs_voice_id"),
+            )
+
+            _cb("Mixing track...", 75)
+            final_path = output_dir / "track.mp3"
+            mix_track(vocal_path, beat_path, final_path)
+        else:
+            final_path = beat_path
+
+        # Save to track library
+        track_info = {
+            "id": job_id,
+            "style": params.get("style", "trap"),
+            "bpm": params.get("bpm", 120),
+            "duration": params.get("duration", 30),
+            "has_vocals": bool(lyrics),
+            "path": str(final_path),
+            "created_at": datetime.now().isoformat(),
+        }
+        # Save manifest
+        import json as _json
+        with open(output_dir / "manifest.json", "w") as f:
+            _json.dump(track_info, f, indent=2)
+
+        with _music_lock:
+            _music_jobs[job_id].update({
+                "status": "done", "progress": 100, "step": "Complete!",
+                "result": track_info,
+            })
+        _push_music_event(job_id, {
+            "progress": 100, "step": "Complete!", "status": "done",
+            "result": track_info,
+        })
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        with _music_lock:
+            _music_jobs[job_id].update({"status": "error", "step": f"Error: {e}"})
+        _push_music_event(job_id, {"status": "error", "step": f"Error: {e}"})
+
+
+@app.route("/music-studio")
+@login_required
+def music_studio_page():
+    # Load track library from filesystem
+    tracks = []
+    music_dir = Path(config.OUTPUT_DIR) / "music_studio"
+    if music_dir.exists():
+        for d in sorted(music_dir.iterdir(), reverse=True):
+            manifest = d / "manifest.json"
+            if manifest.exists():
+                try:
+                    with open(manifest) as f:
+                        tracks.append(json.load(f))
+                except Exception:
+                    pass
+    return render_template("music_studio.html", tracks=tracks[:20], active_page="music-studio")
+
+
+@app.route("/api/music-studio/create-track", methods=["POST"])
+@login_required
+def api_music_create_track():
+    data = request.json or {}
+    job_id = str(uuid.uuid4())
+    params = {
+        "style": data.get("style", "trap"),
+        "bpm": int(data.get("bpm", 120)),
+        "duration": int(data.get("duration", 30)),
+        "lyrics": (data.get("lyrics") or "").strip(),
+        "speed": int(data.get("speed", 140)),
+        "elevenlabs_voice_id": data.get("elevenlabs_voice_id"),
+    }
+    t = threading.Thread(target=_run_music_thread, args=(job_id, params, current_user.id), daemon=True)
+    t.start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/api/music-studio/stream/<job_id>")
+@login_required
+def music_studio_stream(job_id):
+    def gen():
+        sent = 0
+        while True:
+            with _music_lock:
+                events = _music_events.get(job_id, [])
+                new = events[sent:]
+                job = _music_jobs.get(job_id, {})
+            for ev in new:
+                yield f"data: {ev}\n\n"
+                sent += 1
+            if job.get("status") in ("done", "error"):
+                break
+            time.sleep(0.5)
+    return Response(stream_with_context(gen()), mimetype="text/event-stream")
+
+
+@app.route("/api/music-studio/track/<job_id>/play")
+@login_required
+def music_studio_play(job_id):
+    music_dir = Path(config.OUTPUT_DIR) / "music_studio" / job_id
+    track = music_dir / "track.mp3"
+    if not track.exists():
+        track = music_dir / "beat.mp3"
+    if not track.exists():
+        return "Not found", 404
+    return send_file(str(track), mimetype="audio/mpeg")
+
+
+@app.route("/api/music-studio/voices")
+@login_required
+def api_music_voices():
+    from generators.music_studio import elevenlabs_list_voices, _elevenlabs_available
+    if not _elevenlabs_available():
+        return jsonify({"voices": [], "available": False})
+    voices = elevenlabs_list_voices()
+    return jsonify({"voices": voices, "available": True})
+
+
+@app.route("/api/music-studio/sounds/search")
+@login_required
+def api_music_sounds_search():
+    from generators.music_studio import freesound_search, _freesound_available
+    if not _freesound_available():
+        return jsonify({"sounds": [], "available": False})
+    query = request.args.get("q", "beat loop")
+    sounds = freesound_search(query)
+    return jsonify({"sounds": sounds, "available": True})
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 db.init_db()

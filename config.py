@@ -76,6 +76,12 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 # Google Flow / Veo 2
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 
+# ElevenLabs — AI voice & vocal generation
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
+
+# Freesound — Sound library & music samples
+FREESOUND_API_KEY = os.getenv("FREESOUND_API_KEY", "")
+
 # Higgsfield AI — single token used by both the CLI and MCP HTTP client
 HIGGSFIELD_MCP_TOKEN = os.getenv("HIGGSFIELD_MCP_TOKEN", "")
 

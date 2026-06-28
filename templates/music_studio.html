@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% block title %}Music Studio — Social Optimize{% endblock %}
+{% block topbar_title %}Music Studio{% endblock %}
+
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;">
+    <div>
+      <h2 style="margin:0;font-size:22px;font-weight:700;">Music Studio</h2>
+      <p style="margin:4px 0 0;color:var(--muted);font-size:13px;">Create beats, record vocals with AI voices, and produce tracks</p>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+    <!-- Left Column -->
+    <div>
+      <!-- Beat Maker -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Beat Maker</h3>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;">
+          <div class="style-card active" data-style="trap" onclick="selectStyle(this)" style="cursor:pointer;border:2px solid var(--accent);border-radius:10px;padding:12px;text-align:center;transition:all .2s;">
+            <div style="font-size:24px;">🔥</div>
+            <div style="font-weight:700;font-size:12px;margin-top:4px;">Trap</div>
+            <div style="font-size:10px;color:var(--muted);">808 + hi-hats</div>
+          </div>
+          <div class="style-card" data-style="lofi" onclick="selectStyle(this)" style="cursor:pointer;border:2px solid var(--border);border-radius:10px;padding:12px;text-align:center;transition:all .2s;">
+            <div style="font-size:24px;">🌧</div>
+            <div style="font-weight:700;font-size:12px;margin-top:4px;">Lo-Fi</div>
+            <div style="font-size:10px;color:var(--muted);">Mellow chords</div>
+          </div>
+          <div class="style-card" data-style="pop" onclick="selectStyle(this)" style="cursor:pointer;border:2px solid var(--border);border-radius:10px;padding:12px;text-align:center;transition:all .2s;">
+            <div style="font-size:24px;">✨</div>
+            <div style="font-weight:700;font-size:12px;margin-top:4px;">Pop</div>
+            <div style="font-size:10px;color:var(--muted);">Upbeat synth</div>
+          </div>
+          <div class="style-card" data-style="drill" onclick="selectStyle(this)" style="cursor:pointer;border:2px solid var(--border);border-radius:10px;padding:12px;text-align:center;transition:all .2s;">
+            <div style="font-size:24px;">🥶</div>
+            <div style="font-weight:700;font-size:12px;margin-top:4px;">Drill</div>
+            <div style="font-size:10px;color:var(--muted);">Dark bass</div>
+          </div>
+          <div class="style-card" data-style="rnb" onclick="selectStyle(this)" style="cursor:pointer;border:2px solid var(--border);border-radius:10px;padding:12px;text-align:center;transition:all .2s;">
+            <div style="font-size:24px;">💜</div>
+            <div style="font-weight:700;font-size:12px;margin-top:4px;">R&B</div>
+            <div style="font-size:10px;color:var(--muted);">Smooth pads</div>
+          </div>
+        </div>
+
+        <label style="display:block;margin-bottom:12px;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">BPM: <span id="bpm-val">120</span></span>
+          <input type="range" id="bpm" min="60" max="180" value="120" oninput="document.getElementById('bpm-val').textContent=this.value"
+            style="width:100%;margin-top:4px;accent-color:var(--accent);">
+        </label>
+
+        <label style="display:block;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">Duration: <span id="dur-val">30</span>s</span>
+          <input type="range" id="duration" min="15" max="60" value="30" oninput="document.getElementById('dur-val').textContent=this.value"
+            style="width:100%;margin-top:4px;accent-color:var(--accent);">
+        </label>
+      </div>
+
+      <!-- Voice Selection -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h3 style="margin:0;font-size:15px;font-weight:600;">AI Voice</h3>
+          <button onclick="loadVoices()" id="load-voices-btn" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:11px;font-weight:600;">Load Voices</button>
+        </div>
+        <div id="voice-status" style="font-size:12px;color:var(--muted);margin-bottom:8px;">Click "Load Voices" to see available ElevenLabs voices</div>
+        <select id="voice-select" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;">
+          <option value="">Default (espeak-ng)</option>
+        </select>
+        <div id="voice-preview" style="margin-top:8px;display:none;">
+          <audio id="voice-preview-audio" controls style="width:100%;height:32px;"></audio>
+        </div>
+      </div>
+
+      <!-- Lyrics -->
+      <div class="card">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Lyrics / Vocals</h3>
+        <textarea id="lyrics" rows="6" placeholder="Enter lyrics here (leave empty for instrumental only)..."
+          style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;resize:vertical;font-family:inherit;"></textarea>
+        <label style="display:block;margin-top:12px;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">Voice Speed: <span id="speed-val">140</span></span>
+          <input type="range" id="speed" min="80" max="200" value="140" oninput="document.getElementById('speed-val').textContent=this.value"
+            style="width:100%;margin-top:4px;accent-color:var(--accent);">
+        </label>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div>
+      <!-- Sound Search (Freesound) -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Sound Library (Freesound)</h3>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="text" id="sound-query" placeholder="Search sounds..." value="beat loop"
+            style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;">
+          <button onclick="searchSounds()" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;">Search</button>
+        </div>
+        <div id="sounds-list" style="max-height:200px;overflow-y:auto;">
+          <div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Search Freesound for beats, loops, and samples</div>
+        </div>
+      </div>
+
+      <!-- Mix & Produce -->
+      <div class="card" style="margin-bottom:16px;">
+        <button id="create-btn" onclick="createTrack()" style="width:100%;padding:14px;background:linear-gradient(135deg,#e53e3e,#dd6b20);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.5px;">
+          Create Track
+        </button>
+        <div id="progress-area" style="display:none;margin-top:14px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <span id="progress-step" style="font-size:12px;color:var(--muted);">Starting...</span>
+            <span id="progress-pct" style="font-size:12px;font-weight:700;color:var(--accent);">0%</span>
+          </div>
+          <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
+            <div id="progress-bar" style="height:100%;background:linear-gradient(90deg,#e53e3e,#dd6b20);width:0%;transition:width .4s;border-radius:3px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Track Player -->
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Track Player</h3>
+        <div id="player-empty" style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">
+          No track loaded. Create a new track or select one from the library.
+        </div>
+        <div id="player-active" style="display:none;">
+          <div id="player-info" style="font-size:13px;color:var(--muted);margin-bottom:10px;"></div>
+          <audio id="audio-player" controls style="width:100%;margin-bottom:10px;"></audio>
+          <a id="download-btn" href="#" download="track.mp3" style="display:inline-block;padding:6px 16px;background:var(--accent);color:#fff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:600;">
+            Download Track
+          </a>
+        </div>
+      </div>
+
+      <!-- Track Library -->
+      <div class="card">
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Track Library</h3>
+        {% if tracks %}
+        <div style="max-height:250px;overflow-y:auto;">
+          {% for track in tracks %}
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:600;text-transform:capitalize;">{{ track.style }} — {{ track.bpm }} BPM</div>
+              <div style="font-size:11px;color:var(--muted);">{{ track.duration }}s {% if track.has_vocals %}+ vocals{% endif %} — {{ track.created_at[:16] }}</div>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button onclick="loadTrack('{{ track.id }}')" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:11px;font-weight:600;">Play</button>
+              <a href="/editing-room?bgm={{ track.id }}" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;color:var(--accent);text-decoration:none;font-size:11px;font-weight:600;">Use in Video</a>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">No tracks yet. Create your first track above!</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedStyle = 'trap';
+let selectedVoiceId = '';
+
+function selectStyle(el) {
+  document.querySelectorAll('.style-card').forEach(c => {
+    c.style.borderColor = 'var(--border)';
+    c.classList.remove('active');
+  });
+  el.style.borderColor = 'var(--accent)';
+  el.classList.add('active');
+  selectedStyle = el.dataset.style;
+}
+
+// ── Voices ────────────────────────────────────────────────────────────
+function loadVoices() {
+  const btn = document.getElementById('load-voices-btn');
+  const status = document.getElementById('voice-status');
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+  status.textContent = 'Fetching voices from ElevenLabs...';
+
+  fetch('/api/music-studio/voices')
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.textContent = 'Refresh';
+      if (!data.available) {
+        status.textContent = 'ElevenLabs not configured. Add ELEVENLABS_API_KEY to .env';
+        return;
+      }
+      const sel = document.getElementById('voice-select');
+      sel.innerHTML = '<option value="">Default (espeak-ng)</option>';
+      data.voices.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v.voice_id;
+        const cat = v.category ? ` (${v.category})` : '';
+        const labels = v.labels ? Object.values(v.labels).join(', ') : '';
+        opt.textContent = v.name + cat + (labels ? ' — ' + labels : '');
+        opt.dataset.previewUrl = v.preview_url || '';
+        sel.appendChild(opt);
+      });
+      status.textContent = `${data.voices.length} voices loaded`;
+
+      sel.addEventListener('change', function() {
+        selectedVoiceId = this.value;
+        const opt = this.options[this.selectedIndex];
+        const preview = opt.dataset.previewUrl;
+        const previewDiv = document.getElementById('voice-preview');
+        if (preview) {
+          previewDiv.style.display = 'block';
+          document.getElementById('voice-preview-audio').src = preview;
+        } else {
+          previewDiv.style.display = 'none';
+        }
+      });
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = 'Load Voices';
+      status.textContent = 'Failed to load voices: ' + err.message;
+    });
+}
+
+// ── Freesound Search ──────────────────────────────────────────────────
+function searchSounds() {
+  const query = document.getElementById('sound-query').value.trim();
+  if (!query) return;
+  const list = document.getElementById('sounds-list');
+  list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Searching...</div>';
+
+  fetch('/api/music-studio/sounds/search?q=' + encodeURIComponent(query))
+    .then(r => r.json())
+    .then(data => {
+      if (!data.available) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Freesound not configured. Add FREESOUND_API_KEY to .env</div>';
+        return;
+      }
+      if (data.sounds.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">No results found</div>';
+        return;
+      }
+      list.innerHTML = data.sounds.map(s => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:1px solid var(--border);">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.name}</div>
+            <div style="font-size:10px;color:var(--muted);">${s.duration}s by ${s.username}</div>
+          </div>
+          ${s.preview_url ? `<button onclick="previewSound('${s.preview_url}')" style="padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:10px;font-weight:600;margin-left:6px;">Play</button>` : ''}
+        </div>
+      `).join('');
+    })
+    .catch(() => {
+      list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Search failed</div>';
+    });
+}
+
+function previewSound(url) {
+  const audio = document.getElementById('audio-player');
+  document.getElementById('player-empty').style.display = 'none';
+  document.getElementById('player-active').style.display = 'block';
+  document.getElementById('player-info').textContent = 'Freesound Preview';
+  audio.src = url;
+  audio.play();
+}
+
+// ── Track Creation ────────────────────────────────────────────────────
+function createTrack() {
+  const btn = document.getElementById('create-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+  btn.style.opacity = '0.6';
+  document.getElementById('progress-area').style.display = 'block';
+
+  fetch('/api/music-studio/create-track', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      style: selectedStyle,
+      bpm: parseInt(document.getElementById('bpm').value),
+      duration: parseInt(document.getElementById('duration').value),
+      lyrics: document.getElementById('lyrics').value,
+      speed: parseInt(document.getElementById('speed').value),
+      elevenlabs_voice_id: selectedVoiceId || null,
+    }),
+  })
+  .then(r => r.json())
+  .then(data => {
+    const es = new EventSource('/api/music-studio/stream/' + data.job_id);
+    es.onmessage = function(e) {
+      const d = JSON.parse(e.data);
+      document.getElementById('progress-bar').style.width = (d.progress || 0) + '%';
+      document.getElementById('progress-pct').textContent = (d.progress || 0) + '%';
+      if (d.step) document.getElementById('progress-step').textContent = d.step;
+
+      if (d.status === 'done') {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = 'Create Track';
+        btn.style.opacity = '1';
+        loadTrack(data.job_id);
+      } else if (d.status === 'error') {
+        es.close();
+        btn.disabled = false;
+        btn.textContent = 'Create Track';
+        btn.style.opacity = '1';
+        alert('Error: ' + (d.step || 'Unknown'));
+      }
+    };
+    es.onerror = function() {
+      es.close();
+      btn.disabled = false;
+      btn.textContent = 'Create Track';
+      btn.style.opacity = '1';
+    };
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.textContent = 'Create Track';
+    btn.style.opacity = '1';
+    alert('Request failed: ' + err);
+  });
+}
+
+function loadTrack(jobId) {
+  const url = '/api/music-studio/track/' + jobId + '/play';
+  document.getElementById('player-empty').style.display = 'none';
+  document.getElementById('player-active').style.display = 'block';
+  document.getElementById('player-info').textContent = 'Track: ' + jobId.substring(0, 8) + '...';
+  const audio = document.getElementById('audio-player');
+  audio.src = url;
+  audio.load();
+  document.getElementById('download-btn').href = url;
+}
+</script>
+{% endblock %}
