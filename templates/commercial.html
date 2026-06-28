@@ -160,16 +160,17 @@
 
       <!-- Upload Zone -->
       <div class="upload-zone" id="uploadZone">
-        <input type="file" id="mediaFile" accept="image/*,video/*" onchange="previewMedia(this)">
+        <input type="file" id="mediaFile" accept="image/*,video/*" multiple onchange="previewMedia(this)">
         <div class="uz-icon">📸</div>
-        <div class="uz-title">Drop your photo or video here</div>
-        <div class="uz-sub">JPG, PNG, WEBP, MP4, MOV — product shots, lifestyle, anything</div>
+        <div class="uz-title">Drop your photos or videos here</div>
+        <div class="uz-sub">JPG, PNG, WEBP, MP4, MOV — multiple product shots, lifestyle, anything</div>
       </div>
 
-      <div class="preview-wrap" id="previewWrap">
-        <img id="previewImg" src="" alt="" style="display:none">
-        <video id="previewVid" src="" muted autoplay loop style="display:none"></video>
-        <button class="preview-clear" onclick="clearMedia()">✕</button>
+      <div id="previewGrid" style="display:none; gap:8px; flex-wrap:wrap; margin-bottom:16px;">
+      </div>
+      <div id="previewActions" style="display:none; margin-bottom:16px; display:flex; gap:8px;">
+        <button onclick="addMoreMedia()" style="font-size:12px; padding:6px 12px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); cursor:pointer;">+ Add More</button>
+        <button onclick="clearMedia()" style="font-size:12px; padding:6px 12px; background:rgba(255,59,48,.15); border:1px solid rgba(255,59,48,.3); border-radius:8px; color:#ff3b30; cursor:pointer;">Clear All</button>
       </div>
 
       <div class="form-row">
@@ -417,38 +418,68 @@ function stopTimer() {
 }
 const _tvSelected = new Set();
 
-// ── Media preview ─────────────────────────────────────────────────────────────
+// ── Media preview (multi-file) ───────────────────────────────────────────────
+
+let selectedFiles = [];
 
 function previewMedia(input) {
-  const file = input.files[0];
-  if (!file) return;
-  selectedFile = file;
-  const url = URL.createObjectURL(file);
-  const wrap = document.getElementById('previewWrap');
-  const img  = document.getElementById('previewImg');
-  const vid  = document.getElementById('previewVid');
+  for (const f of input.files) {
+    if (!selectedFiles.some(s => s.name === f.name && s.size === f.size)) {
+      selectedFiles.push(f);
+    }
+  }
+  input.value = '';
+  renderPreviews();
+}
+
+function renderPreviews() {
+  const grid = document.getElementById('previewGrid');
+  const actions = document.getElementById('previewActions');
   const zone = document.getElementById('uploadZone');
 
-  if (file.type.startsWith('video/')) {
-    img.style.display = 'none';
-    vid.src = url;
-    vid.style.display = 'block';
-  } else {
-    vid.style.display = 'none';
-    img.src = url;
-    img.style.display = 'block';
+  if (!selectedFiles.length) {
+    grid.style.display = 'none';
+    actions.style.display = 'none';
+    zone.style.display = 'block';
+    grid.innerHTML = '';
+    return;
   }
-  wrap.style.display = 'block';
+
   zone.style.display = 'none';
+  grid.style.display = 'flex';
+  actions.style.display = 'flex';
+  grid.innerHTML = '';
+
+  selectedFiles.forEach((file, idx) => {
+    const card = document.createElement('div');
+    card.style.cssText = 'position:relative;width:100px;height:100px;border-radius:8px;overflow:hidden;border:1px solid var(--border);flex-shrink:0;';
+    const url = URL.createObjectURL(file);
+    if (file.type.startsWith('video/')) {
+      const vid = document.createElement('video');
+      vid.src = url; vid.muted = true; vid.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      card.appendChild(vid);
+    } else {
+      const img = document.createElement('img');
+      img.src = url; img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+      card.appendChild(img);
+    }
+    const rm = document.createElement('button');
+    rm.textContent = '✕';
+    rm.style.cssText = 'position:absolute;top:3px;right:3px;background:rgba(0,0,0,.7);border:none;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;';
+    rm.onclick = () => { selectedFiles.splice(idx, 1); renderPreviews(); };
+    card.appendChild(rm);
+    grid.appendChild(card);
+  });
+}
+
+function addMoreMedia() {
+  document.getElementById('mediaFile').click();
 }
 
 function clearMedia() {
-  selectedFile = null;
+  selectedFiles = [];
   document.getElementById('mediaFile').value = '';
-  document.getElementById('previewWrap').style.display = 'none';
-  document.getElementById('uploadZone').style.display = 'block';
-  document.getElementById('previewImg').src = '';
-  document.getElementById('previewVid').src = '';
+  renderPreviews();
 }
 
 // Drag-and-drop
@@ -457,8 +488,12 @@ zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add(
 zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
 zone.addEventListener('drop', e => {
   e.preventDefault(); zone.classList.remove('drag');
-  const f = e.dataTransfer.files[0];
-  if (f) { const dt = new DataTransfer(); dt.items.add(f); document.getElementById('mediaFile').files = dt.files; previewMedia(document.getElementById('mediaFile')); }
+  for (const f of e.dataTransfer.files) {
+    if (!selectedFiles.some(s => s.name === f.name && s.size === f.size)) {
+      selectedFiles.push(f);
+    }
+  }
+  renderPreviews();
 });
 
 // ── Platform chips ────────────────────────────────────────────────────────────
@@ -481,9 +516,8 @@ function switchTab(name, btn) {
 // ── Run commercial ────────────────────────────────────────────────────────────
 
 async function runCommercial() {
-  const fileInput = document.getElementById('mediaFile');
-  if (!fileInput.files[0] && !selectedFile) {
-    alert('Please upload a photo or video first.');
+  if (!selectedFiles.length) {
+    alert('Please upload at least one photo or video.');
     return;
   }
 
@@ -502,7 +536,7 @@ async function runCommercial() {
   startTimer();
 
   const fd = new FormData();
-  fd.append('media', fileInput.files[0] || selectedFile);
+  selectedFiles.forEach(f => fd.append('media', f));
   fd.append('brand',    document.getElementById('brand').value);
   fd.append('product_description', document.getElementById('productDesc').value);
   fd.append('tagline',  document.getElementById('tagline').value);

@@ -4109,7 +4109,7 @@ def api_commercial_run():
     if not allowed:
         return jsonify({"error": err, "upgrade": True}), 403
 
-    file = request.files.get("media")
+    files = request.files.getlist("media")
     brand     = (request.form.get("brand") or "").strip()
     product_description = (request.form.get("product_description") or "").strip()
     tagline   = (request.form.get("tagline") or "").strip()
@@ -4119,19 +4119,25 @@ def api_commercial_run():
     platforms = request.form.getlist("platforms")
     voice     = request.form.get("voice") or config.DEFAULT_VOICE
 
-    if not file or not _allowed_commercial(file.filename):
+    valid_files = [f for f in files if f and _allowed_commercial(f.filename)]
+    if not valid_files:
         return jsonify({"error": "Please upload a photo or video (jpg, png, mp4, mov)"}), 400
 
     job_id = str(uuid.uuid4())
-    ext = secure_filename(file.filename).rsplit(".", 1)[-1].lower()
-    media_path = COMMERCIAL_UPLOADS / f"{job_id}.{ext}"
-    file.save(str(media_path))
+    media_paths = []
+    for i, file in enumerate(valid_files):
+        ext = secure_filename(file.filename).rsplit(".", 1)[-1].lower()
+        fpath = COMMERCIAL_UPLOADS / f"{job_id}_{i}.{ext}"
+        file.save(str(fpath))
+        media_paths.append({"path": str(fpath), "ext": ext})
 
     params = {
         "brand": brand, "product_description": product_description,
         "tagline": tagline, "audience": audience,
         "style": style, "duration": duration, "platforms": platforms,
-        "voice": voice, "media_path": str(media_path), "ext": ext,
+        "voice": voice,
+        "media_path": media_paths[0]["path"], "ext": media_paths[0]["ext"],
+        "all_media": media_paths,
     }
 
     t = threading.Thread(target=_run_commercial_thread,
@@ -4224,22 +4230,30 @@ def _run_commercial_thread(job_id: str, params: dict, user_id: int):
         client = _ant.Anthropic(api_key=config.ANTHROPIC_API_KEY)
         model = config.TIER_CLAUDE_MODEL.get("creator", "claude-sonnet-4-6")
 
-        if is_video:
-            media_description = f"a {ext} video clip of {brand}. {product_description}"
-        else:
-            img_bytes = media_path.read_bytes()
-            b64 = base64.standard_b64encode(img_bytes).decode()
-            mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
-                    "png": "image/png", "webp": "image/webp",
-                    "gif": "image/gif"}.get(ext, "image/jpeg")
+        all_media = params.get("all_media", [{"path": str(media_path), "ext": ext}])
+        image_media = [m for m in all_media if m["ext"] not in {"mp4", "mov", "avi", "webm"}]
+        video_media = [m for m in all_media if m["ext"] in {"mp4", "mov", "avi", "webm"}]
+
+        if image_media:
+            content_blocks = []
+            for m in image_media:
+                img_bytes = Path(m["path"]).read_bytes()
+                b64 = base64.standard_b64encode(img_bytes).decode()
+                mime = {"jpg": "image/jpeg", "jpeg": "image/jpeg",
+                        "png": "image/png", "webp": "image/webp",
+                        "gif": "image/gif"}.get(m["ext"], "image/jpeg")
+                content_blocks.append({"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}})
+            photo_count = len(image_media)
+            content_blocks.append({"type": "text", "text": f"Analyze {'these ' + str(photo_count) + ' product images' if photo_count > 1 else 'this product image'} for advertising.\nBrand: {brand}\nDescription: {product_description or 'not provided'}\nTarget audience: {audience}\n\nProvide:\n1. Detailed visual description (colors, mood, setting, product details)\n2. The single strongest selling point for an ad\n3. 3 scroll-stopping ad hooks\n4. The ideal emotional trigger for this product\n5. A strong call-to-action\n\nBe specific and concise."})
             analysis = client.messages.create(
                 model=model, max_tokens=500,
-                messages=[{"role": "user", "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
-                    {"type": "text", "text": f"Analyze this product image for advertising.\nBrand: {brand}\nDescription: {product_description or 'not provided'}\nTarget audience: {audience}\n\nProvide:\n1. Detailed visual description (colors, mood, setting, product details)\n2. The single strongest selling point for an ad\n3. 3 scroll-stopping ad hooks\n4. The ideal emotional trigger for this product\n5. A strong call-to-action\n\nBe specific and concise."}
-                ]}]
+                messages=[{"role": "user", "content": content_blocks}]
             )
             media_description = analysis.content[0].text
+        elif video_media:
+            media_description = f"a {ext} video clip of {brand}. {product_description}"
+        else:
+            media_description = product_description or f"Product: {brand}"
 
         # ── Step 2: Ad Copy + Script in parallel ─────────────────────────────
         step("AI agents writing your commercial...", 25)
