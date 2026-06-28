@@ -155,6 +155,8 @@
 let selectedStudio = 'hollywood';
 let sections = [];
 let visualMode = 'gradient';
+let bgmTrackId = new URLSearchParams(window.location.search).get('bgm') || null;
+let bgmType = new URLSearchParams(window.location.search).get('bgm_type') || 'track';
 
 const defaultSections = {
   hollywood: [
@@ -296,6 +298,8 @@ function startProduction() {
       sections: sections,
       source_job_id: {{ remix_job.id if remix_job else 'null' }},
       use_ai_clips: visualMode === 'ai',
+      bgm_track_id: bgmTrackId,
+      bgm_type: bgmType,
     })
   })
   .then(r => r.json())

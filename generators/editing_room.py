@@ -447,6 +447,7 @@ def produce(
     progress_cb: Optional[Callable] = None,
     clip_paths: Optional[dict] = None,
     use_ai_clips: bool = False,
+    custom_bgm_path: Optional[str] = None,
 ) -> dict:
     """
     Produce a complete enhanced video.
@@ -516,7 +517,15 @@ def produce(
     mixed_path = output_dir / "mixed.mp3"
     has_music = False
     try:
-        _synth_bgm(music_path, full_dur, preset.get("music_key", "ambient_dark"))
+        if custom_bgm_path and Path(custom_bgm_path).exists():
+            # Use custom track from Music Studio — loop/trim to fit duration
+            subprocess.run(
+                ["ffmpeg", "-y", "-stream_loop", "-1", "-i", str(custom_bgm_path),
+                 "-t", str(full_dur), "-codec:a", "libmp3lame", "-b:a", "192k", str(music_path)],
+                check=True, capture_output=True,
+            )
+        else:
+            _synth_bgm(music_path, full_dur, preset.get("music_key", "ambient_dark"))
         _mix_audio(voice_path, music_path, mixed_path, pad_before=title_dur, pad_after=outro_dur)
         final_audio = AudioFileClip(str(mixed_path))
         has_music = True

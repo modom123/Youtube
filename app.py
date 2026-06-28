@@ -1633,10 +1633,11 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
 
         output_dir = P(config.OUTPUT_DIR) / "editing_room" / editing_job_id
         use_ai_clips = params.get("use_ai_clips", False)
+        custom_bgm = params.get("custom_bgm_path")
         result = produce(
             studio=studio, topic=topic, sections=sections,
             output_dir=output_dir, subtitle=subtitle, progress_cb=_cb,
-            use_ai_clips=use_ai_clips,
+            use_ai_clips=use_ai_clips, custom_bgm_path=custom_bgm,
         )
 
         # Create a job record in the DB so it shows in /jobs and can be remixed
@@ -1715,6 +1716,23 @@ def api_editing_room_produce():
     if not sections:
         return jsonify({"error": "At least one section is required"}), 400
 
+    # Resolve custom BGM track
+    bgm_track_id = data.get("bgm_track_id")
+    bgm_type = data.get("bgm_type", "track")
+    custom_bgm_path = None
+    if bgm_track_id:
+        if bgm_type == "catalog":
+            p = Path(config.OUTPUT_DIR) / "music_catalog" / f"{bgm_track_id}.mp3"
+            if p.exists():
+                custom_bgm_path = str(p)
+        else:
+            bgm_dir = Path(config.OUTPUT_DIR) / "music_studio" / bgm_track_id
+            for name in ("track.mp3", "beat.mp3"):
+                p = bgm_dir / name
+                if p.exists():
+                    custom_bgm_path = str(p)
+                    break
+
     editing_job_id = str(uuid.uuid4())
     params = {
         "studio": studio,
@@ -1723,6 +1741,7 @@ def api_editing_room_produce():
         "subtitle": (data.get("subtitle") or "").strip(),
         "source_job_id": data.get("source_job_id"),
         "use_ai_clips": bool(data.get("use_ai_clips", False)),
+        "custom_bgm_path": custom_bgm_path,
     }
 
     t = threading.Thread(
@@ -1926,6 +1945,25 @@ def music_studio_play(job_id):
     if not track.exists():
         return "Not found", 404
     return send_file(str(track), mimetype="audio/mpeg")
+
+
+@app.route("/api/music-studio/catalog")
+@login_required
+def api_music_catalog():
+    catalog_path = Path(config.OUTPUT_DIR) / "music_catalog" / "catalog.json"
+    if catalog_path.exists():
+        with open(catalog_path) as f:
+            return jsonify(json.load(f))
+    return jsonify([])
+
+
+@app.route("/api/music-studio/catalog/<track_id>/play")
+@login_required
+def api_music_catalog_play(track_id):
+    track_path = Path(config.OUTPUT_DIR) / "music_catalog" / f"{track_id}.mp3"
+    if not track_path.exists():
+        return "Not found", 404
+    return send_file(str(track_path), mimetype="audio/mpeg")
 
 
 @app.route("/api/music-studio/voices")

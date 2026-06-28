@@ -134,9 +134,27 @@
         </div>
       </div>
 
-      <!-- Track Library -->
+      <!-- Song Catalog -->
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <h3 style="margin:0;font-size:15px;font-weight:600;">Song Catalog</h3>
+          <div style="display:flex;gap:4px;" id="catalog-filters">
+            <button onclick="filterCatalog('all')" class="cat-filter active" style="padding:3px 10px;border:1px solid var(--accent);border-radius:6px;background:var(--accent);color:#fff;cursor:pointer;font-size:10px;font-weight:600;">All</button>
+            <button onclick="filterCatalog('trap')" class="cat-filter" style="padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:10px;font-weight:600;">Trap</button>
+            <button onclick="filterCatalog('lofi')" class="cat-filter" style="padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:10px;font-weight:600;">Lo-Fi</button>
+            <button onclick="filterCatalog('pop')" class="cat-filter" style="padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:10px;font-weight:600;">Pop</button>
+            <button onclick="filterCatalog('drill')" class="cat-filter" style="padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:10px;font-weight:600;">Drill</button>
+            <button onclick="filterCatalog('rnb')" class="cat-filter" style="padding:3px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:10px;font-weight:600;">R&B</button>
+          </div>
+        </div>
+        <div id="catalog-list" style="max-height:300px;overflow-y:auto;">
+          <div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Loading catalog...</div>
+        </div>
+      </div>
+
+      <!-- My Tracks -->
       <div class="card">
-        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">Track Library</h3>
+        <h3 style="margin:0 0 12px;font-size:15px;font-weight:600;">My Tracks</h3>
         {% if tracks %}
         <div style="max-height:250px;overflow-y:auto;">
           {% for track in tracks %}
@@ -163,6 +181,8 @@
 <script>
 let selectedStyle = 'trap';
 let selectedVoiceId = '';
+let catalogData = [];
+let catalogFilter = 'all';
 
 function selectStyle(el) {
   document.querySelectorAll('.style-card').forEach(c => {
@@ -334,5 +354,74 @@ function loadTrack(jobId) {
   audio.load();
   document.getElementById('download-btn').href = url;
 }
+
+// ── Song Catalog ──────────────────────────────────────────────────────
+function loadCatalog() {
+  fetch('/api/music-studio/catalog')
+    .then(r => r.json())
+    .then(data => {
+      catalogData = data;
+      renderCatalog();
+    })
+    .catch(() => {
+      document.getElementById('catalog-list').innerHTML =
+        '<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">Failed to load catalog</div>';
+    });
+}
+
+function filterCatalog(style) {
+  catalogFilter = style;
+  document.querySelectorAll('.cat-filter').forEach(b => {
+    if ((style === 'all' && b.textContent === 'All') || b.textContent.toLowerCase().replace('-','').replace('&','') === style) {
+      b.style.borderColor = 'var(--accent)';
+      b.style.background = 'var(--accent)';
+      b.style.color = '#fff';
+    } else {
+      b.style.borderColor = 'var(--border)';
+      b.style.background = 'var(--surface)';
+      b.style.color = 'var(--text)';
+    }
+  });
+  renderCatalog();
+}
+
+function renderCatalog() {
+  const list = document.getElementById('catalog-list');
+  const filtered = catalogFilter === 'all' ? catalogData : catalogData.filter(t => t.style === catalogFilter);
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-size:12px;">No tracks in this category</div>';
+    return;
+  }
+  const styleEmoji = {trap:'🔥', lofi:'🌧', pop:'✨', drill:'🥶', rnb:'💜'};
+  list.innerHTML = filtered.map(t => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+        <span style="font-size:20px;">${styleEmoji[t.style] || '🎵'}</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;">${t.name}</div>
+          <div style="font-size:11px;color:var(--muted);">${t.style} &middot; ${t.bpm} BPM &middot; ${t.duration}s</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="playCatalogTrack('${t.id}','${t.name}')" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);cursor:pointer;font-size:11px;font-weight:600;">Play</button>
+        <a href="/editing-room?bgm=${t.id}&bgm_type=catalog" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;color:var(--accent);text-decoration:none;font-size:11px;font-weight:600;">Use in Video</a>
+      </div>
+    </div>
+  `).join('');
+}
+
+function playCatalogTrack(trackId, name) {
+  const url = '/api/music-studio/catalog/' + trackId + '/play';
+  document.getElementById('player-empty').style.display = 'none';
+  document.getElementById('player-active').style.display = 'block';
+  document.getElementById('player-info').textContent = name;
+  const audio = document.getElementById('audio-player');
+  audio.src = url;
+  audio.play();
+  document.getElementById('download-btn').href = url;
+}
+
+// Load catalog on page load
+loadCatalog();
 </script>
 {% endblock %}
