@@ -6050,6 +6050,10 @@ _start_julian()
 from agents.sterling_business import start as _start_sterling  # noqa: E402
 _start_sterling()
 
+# Start Scale-Ops agent (monitors business health, recommends infra upgrades)
+from agents.scale_ops import start_scale_ops_agent as _start_scale_ops  # noqa: E402
+_start_scale_ops()
+
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")
     print("  Open → http://localhost:5000\n")

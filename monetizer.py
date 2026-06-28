@@ -224,8 +224,8 @@ def init_monetizer_tables():
 
 
 def _seed_milestones():
-    """Populate business plan milestones. Re-seeds if plan version changed."""
-    PLAN_VERSION = "v2_smooth"
+    """Populate 5-year business plan milestones to $100M ARR."""
+    PLAN_VERSION = "v3_100m_5yr"
     with _conn() as conn:
         saved_ver = None
         try:
@@ -241,74 +241,150 @@ def _seed_milestones():
         except Exception:
             pass
 
+        # (phase, phase_name, week, dates, focus, deliverables, target_users, target_mrr)
+        # YEAR 1: $0 → $317K ARR (1,200 paying)
         milestones = [
-            (1,"Launch & Validate",1,"Jul 4-10","LAUNCH","Public launch, ProductHunt post, social blast",5,149),
-            (1,"Launch & Validate",2,"Jul 11-17","Onboarding","Fix friction, welcome flow, tutorial video",8,149),
-            (1,"Launch & Validate",3,"Jul 18-24","Stability","Monitor errors, fix crashes, add Sentry",10,149),
-            (1,"Launch & Validate",4,"Jul 25-31","Feedback Loop","User interviews, NPS survey, prioritize complaints",12,149),
-            (1,"Launch & Validate",5,"Aug 1-7","Conversion","Optimize free->paid funnel, trial nudges, email drip",15,223),
-            (1,"Launch & Validate",6,"Aug 8-14","Content","Create 10 demo videos, post on socials",15,223),
-            (1,"Launch & Validate",7,"Aug 15-21","SEO","Blog posts, landing page optimization",18,223),
-            (1,"Launch & Validate",8,"Aug 22-28","Referral v1","Invite a friend, get 5 free videos",20,223),
-            (2,"Product-Market Fit",9,"Aug 29-Sep 4","Analytics","Add Mixpanel/Amplitude, track funnel",25,446),
-            (2,"Product-Market Fit",10,"Sep 5-11","Templates","20 pre-built video templates",30,446),
-            (2,"Product-Market Fit",11,"Sep 12-18","Mobile Web","Responsive UI overhaul",35,446),
-            (2,"Product-Market Fit",12,"Sep 19-25","Speed","Redis caching, async queue, 2x faster",40,446),
-            (2,"Product-Market Fit",13,"Sep 26-Oct 2","Niche Targeting","Creator-focused landing pages",50,893),
-            (2,"Product-Market Fit",14,"Oct 3-9","Partnerships","50 micro-influencer affiliate deals",60,893),
-            (2,"Product-Market Fit",15,"Oct 10-16","Self-Marketing v1","App generates own TikTok/IG ads",70,893),
-            (2,"Product-Market Fit",16,"Oct 17-23","Iteration","A/B test pricing page",80,893),
-            (3,"Growth Engine",17,"Oct 24-30","Paid Ads v1","$200 Meta ads, test 5 creatives",95,1786),
-            (3,"Growth Engine",18,"Oct 31-Nov 6","Viral Loop","Watermark on free tier, share buttons",110,1786),
-            (3,"Growth Engine",19,"Nov 7-13","DB Migration","SQLite -> PostgreSQL",130,1786),
-            (3,"Growth Engine",20,"Nov 14-20","Workers","Celery + Redis async video gen",150,1786),
-            (3,"Growth Engine",21,"Nov 21-27","Holiday Push","Black Friday 40% off annual",180,3571),
-            (3,"Growth Engine",22,"Nov 28-Dec 4","API v1","Public API for Agency tier",210,3571),
-            (3,"Growth Engine",23,"Dec 5-11","Multi-Region","Deploy to EU Frankfurt",250,3571),
-            (3,"Growth Engine",24,"Dec 12-18","Team Features","Multi-seat Agency, shared workspace",300,3571),
-            (3,"Growth Engine",25,"Dec 19-25","Year-End Push","New Year Content Kit",320,3571),
-            (3,"Growth Engine",26,"Dec 26-Jan 1","Infra Hardening","Load testing, auto-scaling",320,3571),
-            (4,"Scale",27,"Jan 2-8","Mobile App","React Native shell, auth, preview",400,7142),
-            (4,"Scale",28,"Jan 9-15","Mobile Create","Video creation from phone",500,7142),
-            (4,"Scale",29,"Jan 16-22","Mobile Publish","One-tap publish from phone",600,7142),
-            (4,"Scale",30,"Jan 23-29","App Store","iOS + Android, ASO optimization",700,7142),
-            (4,"Scale",31,"Jan 30-Feb 5","Ad Ramp","$2K/mo across Meta, Google, TikTok",850,14285),
-            (4,"Scale",32,"Feb 6-12","Affiliates","20% recurring commission program",1000,14285),
-            (4,"Scale",33,"Feb 13-19","Enterprise","SSO, custom branding, SLA",1100,14285),
-            (4,"Scale",34,"Feb 20-26","Content Machine","50 YouTube tutorials, weekly blog",1280,14285),
-            (4,"Scale",35,"Feb 27-Mar 5","Marketplace v1","Users sell templates (10% cut)",1500,28570),
-            (4,"Scale",36,"Mar 6-12","AI Improvements","Better scripts, more styles, faster",1800,28570),
-            (4,"Scale",37,"Mar 13-19","Localization","Spanish, Portuguese, French, German",2100,28570),
-            (4,"Scale",38,"Mar 20-26","CRM Integration","HubSpot, Salesforce connectors",2400,28570),
-            (4,"Scale",39,"Mar 27-Apr 2","Webinars","Weekly AI Video Masterclass",2580,57586),
-            (4,"Scale",40,"Apr 3-9","Scaling Infra","Kubernetes, auto-scaling, global CDN",3000,57586),
-            (5,"Hockey Stick",41,"Apr 10-16","Ad Spend $5K","Scale winning creatives",3500,57586),
-            (5,"Hockey Stick",42,"Apr 17-23","TikTok Shop","Sell through TikTok marketplace",4000,57586),
-            (5,"Hockey Stick",43,"Apr 24-30","White-Label v2","Agencies resell, rev share",4500,111600),
-            (5,"Hockey Stick",44,"May 1-7","Conferences","VidCon, Creator Economy Expo",5000,111600),
-            (5,"Hockey Stick",45,"May 8-14","Ad Spend $10K","Double down on best channels",6000,111600),
-            (5,"Hockey Stick",46,"May 15-21","Self-Marketing v2","App optimizes own ad spend",7000,111600),
-            (5,"Hockey Stick",47,"May 22-28","Partnerships","Canva, Notion, Shopify integrations",8000,223200),
-            (5,"Hockey Stick",48,"May 29-Jun 4","Press/PR","TechCrunch, Product Hunt relaunch",9000,223200),
-            (5,"Hockey Stick",49,"Jun 5-11","Series A Prep","Pitch deck, financial model",9500,223200),
-            (5,"Hockey Stick",50,"Jun 12-18","Enterprise Push","2 outbound reps, Fortune 500",10000,223200),
-            (5,"Hockey Stick",51,"Jun 19-25","Platform Stability","Security audit, SOC 2 prep",10000,223200),
-            (5,"Hockey Stick",52,"Jun 26-Jul 2","YEAR ONE","Celebrate, retro, plan Year 2",10000,223200),
-            (6,"Scale-Up",55,"Jul-Aug 2027","Growth Acceleration","Ambassador program, referral 2.0",15000,334800),
-            (6,"Scale-Up",58,"Aug-Sep 2027","Channel Expansion","TikTok challenges, YT shorts, IG reels",22000,491040),
-            (6,"Scale-Up",61,"Sep-Oct 2027","Enterprise v2","Dedicated sales, custom onboarding",32000,714240),
-            (6,"Scale-Up",64,"Oct-Nov 2027","International v1","Spanish + Portuguese, LATAM partners",47000,1049040),
-            (6,"Scale-Up",67,"Nov-Dec 2027","Platform Play","Marketplace, plugin ecosystem, dev API",68000,1517760),
-            (6,"Scale-Up",70,"Dec 2027-Jan 2028","International v2","Japan, Korea, India launch",100000,2232000),
-            (6,"Scale-Up",73,"Jan-Feb 2028","Scale Operations","SOC 2, enterprise SLAs, infra team",145000,3236400),
-            (7,"Dominance",78,"Feb-Apr 2028","Market Leadership","Acquire competitors, Fortune 500",305000,6807600),
-            (7,"Dominance",86,"Apr-May 2028","Category Ownership","Industry partnerships, standards",620000,13838400),
-            (7,"Dominance",96,"May-Jul 2028","IPO Runway","$100M+ ARR, board, IPO prep",1000000,22320000),
+            # Phase 1: Launch & Validate (Weeks 1-8)
+            (1, "Launch & Validate", 1, "Jul 4-10 2026", "LAUNCH", "Public launch, Product Hunt, social blast, Whop listing", 5, 50),
+            (1, "Launch & Validate", 2, "Jul 11-17", "Onboarding", "Welcome flow, tutorial video, email drip sequence", 12, 100),
+            (1, "Launch & Validate", 3, "Jul 18-24", "Stability", "Error monitoring, Sentry, fix top 5 user complaints", 20, 150),
+            (1, "Launch & Validate", 4, "Jul 25-31", "Feedback Loop", "User interviews, NPS survey, prioritize features", 30, 200),
+            (1, "Launch & Validate", 5, "Aug 1-7", "Conversion", "Free-to-paid funnel optimization, trial nudges", 40, 300),
+            (1, "Launch & Validate", 6, "Aug 8-14", "Dogfooding", "Create 20 demo videos with own tool, post everywhere", 50, 400),
+            (1, "Launch & Validate", 7, "Aug 15-21", "SEO", "10 blog posts, landing pages for long-tail keywords", 65, 500),
+            (1, "Launch & Validate", 8, "Aug 22-28", "Referral v1", "Invite a friend = 5 free videos, watermark virality", 80, 650),
+
+            # Phase 2: Product-Market Fit (Weeks 9-16) — Target: 100 paying users
+            (2, "Product-Market Fit", 9, "Aug 29-Sep 4", "Whop Revenue", "Activate Whop storefront, first Discover sales", 100, 800),
+            (2, "Product-Market Fit", 10, "Sep 5-11", "AI Clipper v2", "Speaker detection, auto-thumbnails, B-roll split", 120, 1000),
+            (2, "Product-Market Fit", 11, "Sep 12-18", "Mobile Web", "Responsive dashboard, touch-friendly clipper", 150, 1200),
+            (2, "Product-Market Fit", 12, "Sep 19-25", "Templates", "20 pre-built templates, template marketplace", 180, 1500),
+            (2, "Product-Market Fit", 13, "Sep 26-Oct 2", "Creator Partnerships", "50 micro-influencer affiliate deals (20% recurring)", 220, 2000),
+            (2, "Product-Market Fit", 14, "Oct 3-9", "Analytics v1", "Platform analytics, view counts, engagement rates", 280, 2500),
+            (2, "Product-Market Fit", 15, "Oct 10-16", "Zapier", "New Video trigger, Create Clip action", 350, 3200),
+            (2, "Product-Market Fit", 16, "Oct 17-23", "A/B Pricing", "Test $9.99 vs $12.99 starter, optimize conversion", 400, 4000),
+
+            # Phase 3: Growth Engine (Weeks 17-30) — Scale to 1,200 paying
+            (3, "Growth Engine", 17, "Oct 24-30", "Paid Ads v1", "$500 Meta/TikTok ads, test 10 creatives", 500, 5000),
+            (3, "Growth Engine", 18, "Oct 31-Nov 6", "Viral Loop", "Free tier watermark, share buttons, embed codes", 600, 6000),
+            (3, "Growth Engine", 20, "Nov 14-27", "ScaleOps Phase 1", "PostgreSQL + Redis + S3 migration (100 client trigger)", 800, 8000),
+            (3, "Growth Engine", 22, "Nov 28-Dec 11", "Holiday Push", "Black Friday 40% off annual, New Year Content Kit", 1000, 12000),
+            (3, "Growth Engine", 24, "Dec 12-25", "API v1 Beta", "Public REST API for Agency tier developers", 1100, 15000),
+            (3, "Growth Engine", 26, "Dec 26-Jan 8 2027", "Team Features", "Multi-seat workspaces, shared asset library", 1200, 18000),
+            (3, "Growth Engine", 30, "Jan 9-Feb 5", "Collaboration v1", "Team roles, approval workflows, client portals", 1500, 22000),
+
+            # Phase 4: Scale (Weeks 31-52) — End Y1 at $317K ARR
+            (4, "Y1 Scale", 34, "Feb 6-Mar 5", "Ad Ramp $2K/mo", "Scale winning ad creatives across 3 platforms", 2000, 28000),
+            (4, "Y1 Scale", 38, "Mar 6-Apr 2", "Affiliates", "20% recurring commission, SaaS review sites", 2800, 35000),
+            (4, "Y1 Scale", 42, "Apr 3-30", "AI Clipper v3", "Real-time stream clipping, live-to-short pipeline", 3500, 45000),
+            (4, "Y1 Scale", 46, "May 1-28", "Enterprise v1", "SSO, custom branding, SLA, dedicated onboarding", 4500, 55000),
+            (4, "Y1 Scale", 50, "May 29-Jun 25", "Content Machine", "50 tutorials, weekly blog, creator podcast", 5500, 65000),
+            (4, "Y1 Scale", 52, "Jun 26-Jul 2 2027", "Y1 RETRO", "1,200 paying, $317K ARR, plan Year 2", 6000, 70000),
+
+            # YEAR 2: $317K → $2.5M ARR (6,500 paying)
+            (5, "Y2 Growth", 56, "Jul-Aug 2027", "ScaleOps Phase 2", "AWS ECS + RDS Multi-AZ + dedicated workers", 8000, 100000),
+            (5, "Y2 Growth", 60, "Aug-Sep 2027", "Multi-Language", "Script + voiceover in 15 languages", 10000, 130000),
+            (5, "Y2 Growth", 64, "Sep-Oct 2027", "Ad Spend $10K/mo", "Scale paid acquisition, LTV:CAC > 4:1", 13000, 170000),
+            (5, "Y2 Growth", 68, "Oct-Nov 2027", "White-Label v2", "Custom domains, branded dashboards, client portals", 16000, 210000),
+            (5, "Y2 Growth", 72, "Nov-Dec 2027", "International v1", "Spanish, Portuguese, LATAM partnerships", 20000, 260000),
+            (5, "Y2 Growth", 78, "Jan-Feb 2028", "Auto-Scheduling AI", "ML model picks optimal post times per platform", 25000, 330000),
+            (5, "Y2 Growth", 84, "Mar-Apr 2028", "Mobile App v1", "React Native, create + publish from phone", 32000, 420000),
+            (5, "Y2 Growth", 90, "May-Jun 2028", "Platform Ecosystem", "Third-party plugins, effects marketplace", 40000, 520000),
+            (5, "Y2 Growth", 96, "Jun 2028", "Y2 RETRO", "6,500 paying, $2.5M ARR", 50000, 625000),
+
+            # YEAR 3: $2.5M → $10M ARR (20,325 paying)
+            (6, "Y3 Dominance", 100, "Jul-Aug 2028", "ScaleOps Phase 3", "Service-oriented arch, FastAPI, React frontend", 60000, 750000),
+            (6, "Y3 Dominance", 108, "Sep-Oct 2028", "Enterprise SSO", "SAML, audit logs, SOC 2 compliance", 75000, 950000),
+            (6, "Y3 Dominance", 116, "Nov-Dec 2028", "AI Creative Director", "Full content strategy agent, weekly auto-plans", 95000, 1200000),
+            (6, "Y3 Dominance", 124, "Jan-Feb 2029", "Ad Spend $50K/mo", "3 SDRs for Pro/Agency outbound", 120000, 1600000),
+            (6, "Y3 Dominance", 132, "Mar-Apr 2029", "Series A", "Raise $5-10M at $40-60M valuation", 140000, 2000000),
+            (6, "Y3 Dominance", 140, "May-Jun 2029", "International v2", "Japan, Korea, India, MENA launch", 160000, 2500000),
+            (6, "Y3 Dominance", 148, "Jun 2029", "Y3 RETRO", "20,325 paying, $10M ARR", 180000, 2800000),
+
+            # YEAR 4: $10M → $40M ARR
+            (7, "Y4 Hypergrowth", 156, "Jul-Sep 2029", "ScaleOps Phase 4", "Kubernetes, multi-region US+EU+APAC", 250000, 4500000),
+            (7, "Y4 Hypergrowth", 168, "Oct-Dec 2029", "Acquisitions", "Acquire 2 complementary tools, consolidate", 400000, 7000000),
+            (7, "Y4 Hypergrowth", 180, "Jan-Mar 2030", "Enterprise Sales Team", "10 SDRs, Fortune 500 pipeline, $50K+ ACVs", 600000, 10000000),
+            (7, "Y4 Hypergrowth", 192, "Apr-Jun 2030", "Data Moat", "Content performance ML, predictive virality", 800000, 13500000),
+            (7, "Y4 Hypergrowth", 200, "Jun 2030", "Y4 RETRO", "50K+ paying, $40M ARR", 1000000, 16700000),
+
+            # YEAR 5: $40M → $100M ARR
+            (8, "Y5 Category King", 208, "Jul-Sep 2030", "ScaleOps Phase 5", "Microservices, data lake, ML infrastructure", 1500000, 22000000),
+            (8, "Y5 Category King", 220, "Oct-Dec 2030", "Series B/C", "Raise $30-50M, expand globally, 200+ employees", 2500000, 33000000),
+            (8, "Y5 Category King", 232, "Jan-Mar 2031", "Platform Dominance", "Industry standard for AI content, API ecosystem", 4000000, 50000000),
+            (8, "Y5 Category King", 244, "Apr-Jun 2031", "IPO Prep", "Board, CFO, SOX compliance, $100M ARR run rate", 6000000, 70000000),
+            (8, "Y5 Category King", 252, "Jun 2031", "$100M ARR", "150K paying at $56 ARPU, IPO or strategic exit", 8000000, 100000000),
         ]
         for m in milestones:
             conn.execute("""INSERT INTO business_plan_milestones
                 (phase, phase_name, week_number, week_dates, focus, deliverables, target_users, target_mrr)
                 VALUES (?,?,?,?,?,?,?,?)""", m)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SCALE-OPS — Infrastructure upgrade monitoring
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@monetizer_bp.route("/api/scale-ops/status")
+@login_required
+@owner_required
+def scale_ops_status():
+    """Current infrastructure phase, metrics, and recommendations."""
+    from agents.scale_ops import PHASES, _collect_metrics, _determine_phase
+    metrics = _collect_metrics()
+    phase = _determine_phase(metrics["total_users"])
+    phase_info = PHASES[phase]
+
+    with _conn() as conn:
+        recs = _rows_to_list(conn.execute("""
+            SELECT * FROM scale_ops_recommendations ORDER BY
+            CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1
+            WHEN 'medium' THEN 2 ELSE 3 END, created_at DESC
+        """).fetchall())
+        pending = [r for r in recs if r["status"] == "pending"]
+        completed = [r for r in recs if r["status"] == "completed"]
+
+    next_phase = phase + 1 if phase < 6 else None
+    next_info = PHASES.get(next_phase) if next_phase else None
+    users_to_next = (next_info["max_users"] if next_info
+                     else None)
+
+    return jsonify({
+        "current_phase": phase,
+        "phase_label": phase_info["label"],
+        "phase_stack": phase_info["stack"],
+        "next_phase": next_phase,
+        "next_phase_label": next_info["label"] if next_info else None,
+        "users_until_upgrade": (users_to_next - metrics["total_users"]) if users_to_next else None,
+        "metrics": metrics,
+        "recommendations": {"pending": pending, "completed": completed},
+    })
+
+
+@monetizer_bp.route("/api/scale-ops/recommendation/<int:rec_id>", methods=["PATCH"])
+@login_required
+@owner_required
+def scale_ops_update_rec(rec_id):
+    data = request.json or {}
+    status = data.get("status", "pending")
+    with _conn() as conn:
+        sets = ["status=?"]
+        vals = [status]
+        if status == "completed":
+            sets.append("completed_at=datetime('now')")
+        vals.append(rec_id)
+        conn.execute(f"UPDATE scale_ops_recommendations SET {','.join(sets)} WHERE id=?", vals)
+    return jsonify({"ok": True})
+
+
+@monetizer_bp.route("/api/scale-ops/trigger", methods=["POST"])
+@login_required
+@owner_required
+def scale_ops_trigger():
+    """Manually trigger a scale-ops check."""
+    from agents.scale_ops import _run_check
+    _run_check()
+    return jsonify({"ok": True})
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -614,6 +690,7 @@ def growth_overview():
         total = conn.execute("SELECT COUNT(*) as c FROM users").fetchone()["c"]
         starter = conn.execute("SELECT COUNT(*) as c FROM users WHERE subscription_tier='starter' AND subscription_status='active'").fetchone()["c"]
         creator = conn.execute("SELECT COUNT(*) as c FROM users WHERE subscription_tier='creator' AND subscription_status='active'").fetchone()["c"]
+        pro = conn.execute("SELECT COUNT(*) as c FROM users WHERE subscription_tier='pro' AND subscription_status='active'").fetchone()["c"]
         agency = conn.execute("SELECT COUNT(*) as c FROM users WHERE subscription_tier='agency' AND subscription_status='active'").fetchone()["c"]
         churned = conn.execute("SELECT COUNT(*) as c FROM users WHERE subscription_status='canceled'").fetchone()["c"]
 
@@ -626,9 +703,10 @@ def growth_overview():
         "daily_signups": daily_signups,
         "funnel": {
             "total_users": total,
-            "free": total - starter - creator - agency,
+            "free": total - starter - creator - pro - agency,
             "starter": starter,
             "creator": creator,
+            "pro": pro,
             "agency": agency,
             "churned": churned,
         },
@@ -1272,13 +1350,21 @@ def api_executives_trigger():
 
 PLAN_TARGETS = {
     "launch_date": "2026-07-04",
-    "target_arr": 10_000_000,
-    "target_users": 1_000_000,
-    "gross_margin_target": 92,
-    "arpu_target": 74.40,
-    "ltv_target": 595,
-    "cac_target": 20,
-    "breakeven_month": 3,
+    "target_arr_y1": 317_000,
+    "target_arr_y2": 2_500_000,
+    "target_arr_y3": 10_000_000,
+    "target_arr_y4": 40_000_000,
+    "target_arr_y5": 100_000_000,
+    "target_users_y3": 20_325,
+    "target_users_y5": 150_000,
+    "gross_margin_target": 87,
+    "arpu_target_y1": 22,
+    "arpu_target_y3": 41,
+    "arpu_target_y5": 56,
+    "ltv_target": 780,
+    "cac_target": 65,
+    "breakeven_month": 20,
+    "infra_upgrade_at": 100,
 }
 
 

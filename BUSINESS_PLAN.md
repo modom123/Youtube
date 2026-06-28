@@ -1,5 +1,5 @@
-# Social Optimize — 3-Year Business Plan
-## Path to $10M ARR by Year 3
+# Social Optimize — 5-Year Business Plan
+## Path to $100M ARR by Year 5
 
 ---
 
