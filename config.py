@@ -48,6 +48,7 @@ BYPASS_USAGE_GATE = os.getenv("BYPASS_USAGE_GATE", "0") not in ("", "0", "false"
 
 # ── Whop Marketplace ────────────────────────────────────────────────────────
 WHOP_API_KEY        = os.getenv("WHOP_API_KEY", "")
+WHOP_APP_API_KEY    = os.getenv("WHOP_APP_API_KEY", "")
 WHOP_WEBHOOK_SECRET = os.getenv("WHOP_WEBHOOK_SECRET", "")
 WHOP_COMPANY_ID     = os.getenv("WHOP_COMPANY_ID", "")
 

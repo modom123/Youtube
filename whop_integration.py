@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 whop_bp = Blueprint("whop", __name__, url_prefix="/whop")
 
 WHOP_API_KEY = os.getenv("WHOP_API_KEY", "")
+WHOP_APP_API_KEY = os.getenv("WHOP_APP_API_KEY", "")
 WHOP_WEBHOOK_SECRET = os.getenv("WHOP_WEBHOOK_SECRET", "")
 WHOP_COMPANY_ID = os.getenv("WHOP_COMPANY_ID", "")
 
@@ -85,9 +86,16 @@ WHOP_PRODUCTS = {
 }
 
 
-def _get_whop_client():
-    """Get authenticated Whop SDK client."""
-    api_key = WHOP_API_KEY or config.__dict__.get("WHOP_API_KEY", "")
+def _get_whop_client(use_app_key: bool = False):
+    """Get authenticated Whop SDK client.
+
+    use_app_key=True for member-facing operations (iframe validation, experience access).
+    use_app_key=False (default) for admin/account operations (setup, stats, memberships).
+    """
+    if use_app_key:
+        api_key = WHOP_APP_API_KEY or config.__dict__.get("WHOP_APP_API_KEY", "")
+    else:
+        api_key = WHOP_API_KEY or config.__dict__.get("WHOP_API_KEY", "")
     if not api_key:
         return None
     try:
@@ -451,7 +459,7 @@ def whop_experience(experience_id):
 @whop_bp.route("/dashboard/<company_id>")
 def whop_dashboard(company_id):
     """Dashboard path — Whop loads this for creators managing the app."""
-    client = _get_whop_client()
+    client = _get_whop_client(use_app_key=True)
     stats = {}
     if client:
         try:
@@ -487,7 +495,7 @@ def whop_app_validate():
     if not membership_id:
         return jsonify({"valid": False, "error": "No membership ID"}), 400
 
-    client = _get_whop_client()
+    client = _get_whop_client(use_app_key=True)
     if not client:
         return jsonify({"valid": True, "tier": "clipper_basic"})
 
