@@ -1,491 +1,404 @@
-# Social Optimize — 2-Year Business Plan & Financial Projections
-
-**Launch Date:** July 4, 2026
-**Target:** $10M+ ARR by Month 24
+# Social Optimize — 3-Year Business Plan
+## Path to $10M ARR by Year 3
 
 ---
 
-## 1. PRICING MODEL (Current)
+## Executive Summary
 
-| Tier | Monthly | Annual (20% off) | Videos/mo | HF Credits | Claude Model |
-|------|---------|-------------------|-----------|------------|--------------|
-| Free | $0 | — | 3 | 10 | Haiku (cheapest) |
-| Starter | $29 | $23/mo ($276/yr) | 15 | 150 | Sonnet |
-| Creator | $79 | $63/mo ($756/yr) | 50 | 500 | Sonnet |
-| Agency | $199 | $159/mo ($1,908/yr) | 125 | 2,000 | Sonnet |
+Social Optimize is an AI-powered content creation and distribution platform that lets creators go from idea to published video across 8 platforms in minutes. Our competitive edge is the **AI Clipper** — an engine that automatically identifies viral moments in long-form content and produces platform-ready short clips with captions, hooks, and reframing. Combined with multi-platform publishing, batch creation, and a full production suite, we are building the operating system for content creators.
 
-**Assumed tier distribution at scale:**
-- Free: 70% of signups (conversion funnel)
-- Starter: 15%
-- Creator: 10%
-- Agency: 5%
-
-**Blended ARPU (paying users only):** ($29×0.50) + ($79×0.33) + ($199×0.17) = $14.50 + $26.07 + $33.83 = **$74.40/mo**
+**Target:** $10M ARR by end of Year 3 (June 2029)
 
 ---
 
-## 2. CUSTOMER GROWTH TRAJECTORY
+## 1. Revenue Model & Unit Economics
 
-Growth is modeled as doubling monthly in early stage (months 0-11), then transitioning to a steady ~45% monthly growth rate for scale-up. This avoids unrealistic jumps and lets infrastructure scale proportionally.
+### Pricing Tiers (Monthly)
 
-| Month | Date | Total Customers | Paying (30%) | New This Month | MRR | ARR |
-|-------|------|-----------------|--------------|----------------|-----|-----|
-| 0 | Jul 2026 | 5 | 2 | 5 | $149 | $1,784 |
-| 1 | Aug 2026 | 10 | 3 | 5 | $223 | $2,678 |
-| 2 | Sep 2026 | 20 | 6 | 10 | $446 | $5,357 |
-| 3 | Oct 2026 | 40 | 12 | 20 | $893 | $10,714 |
-| 4 | Nov 2026 | 80 | 24 | 40 | $1,786 | $21,427 |
-| 5 | Dec 2026 | 160 | 48 | 80 | $3,571 | $42,854 |
-| 6 | Jan 2027 | 320 | 96 | 160 | $7,142 | $85,709 |
-| 7 | Feb 2027 | 640 | 192 | 320 | $14,285 | $171,418 |
-| 8 | Mar 2027 | 1,280 | 384 | 640 | $28,570 | $342,835 |
-| 9 | Apr 2027 | 2,580 | 774 | 1,300 | $57,586 | $691,027 |
-| 10 | May 2027 | 5,000 | 1,500 | 2,420 | $111,600 | $1,339,200 |
-| 11 | Jun 2027 | 10,000 | 3,000 | 5,000 | $223,200 | $2,678,400 |
-| 12 | Jul 2027 | 15,000 | 4,500 | 5,000 | $334,800 | $4,017,600 |
-| 13 | Aug 2027 | 22,000 | 6,600 | 7,000 | $491,040 | $5,892,480 |
-| 14 | Sep 2027 | 32,000 | 9,600 | 10,000 | $714,240 | $8,570,880 |
-| 15 | Oct 2027 | 47,000 | 14,100 | 15,000 | $1,049,040 | $12,588,480 |
-| 16 | Nov 2027 | 68,000 | 20,400 | 21,000 | $1,517,760 | $18,213,120 |
-| 17 | Dec 2027 | 100,000 | 30,000 | 32,000 | $2,232,000 | $26,784,000 |
-| 18 | Jan 2028 | 145,000 | 43,500 | 45,000 | $3,236,400 | $38,836,800 |
-| 19 | Feb 2028 | 210,000 | 63,000 | 65,000 | $4,687,200 | $56,246,400 |
-| 20 | Mar 2028 | 305,000 | 91,500 | 95,000 | $6,807,600 | $81,691,200 |
-| 21 | Apr 2028 | 440,000 | 132,000 | 135,000 | $9,820,800 | $117,849,600 |
-| 22 | May 2028 | 620,000 | 186,000 | 180,000 | $13,838,400 | $166,060,800 |
-| 23 | Jun 2028 | 820,000 | 246,000 | 200,000 | $18,302,400 | $219,628,800 |
-| 24 | Jul 2028 | 1,000,000 | 300,000 | 180,000 | $22,320,000 | $267,840,000 |
+| Tier | Price | Videos | Key Feature Gate | Target Customer |
+|------|-------|--------|-----------------|-----------------|
+| Free | $0 | 3/mo | Watermark, YouTube only | Tire-kickers, top-of-funnel |
+| Starter | $9.99/mo | 10/mo | No watermark, 8 platforms, scheduling | Hobbyists, side-hustlers |
+| Creator | $29/mo | 30/mo | AI Clipper (10 clips), batch, Studio 56 | Full-time creators |
+| Pro | $79/mo | 100/mo | Unlimited clips, Hollywood AI, 3 seats | Power creators, small teams |
+| Agency | $199/mo | 200/mo | White-label, API, CRM, 10 seats | Agencies, brands |
 
-> **$10M ARR milestone: ~Month 15 (October 2027)**
-> **Growth rate: ~45% month-over-month in scale-up phase (months 12-24)**
+### Annual Pricing (20% discount)
 
----
+| Tier | Annual Price | Effective Monthly |
+|------|-------------|-------------------|
+| Starter | $95.88 | $7.99 |
+| Creator | $276 | $23 |
+| Pro | $756 | $63 |
+| Agency | $1,908 | $159 |
 
-## 3. COST STRUCTURE — VARIABLE (Per-User)
+### Whop Marketplace (Secondary Revenue)
 
-### Cost Per Video Generated
+- Clipper Basic: $19/mo (30 clips)
+- Clipper Pro: $49/mo (unlimited clips)
+- Clipper PAYG: $0.50/clip
+- Whop takes 3% on direct sales, up to 30% on Discover marketplace
 
-| Component | Cost/Video | Notes |
-|-----------|-----------|-------|
-| Anthropic Claude Sonnet (script) | $0.08 | ~2K input + 1K output tokens |
-| Anthropic Claude Haiku (free tier) | $0.005 | Cheapest model |
-| Higgsfield video generation | $0.15 | ~3 clips × $0.05 avg |
-| Pexels/stock media | $0.00 | Free API |
-| Edge TTS / Google TTS | $0.01 | Near-free |
-| YouTube Data API | $0.00 | Free quota |
-| yt-dlp audio extraction | $0.00 | Open source |
-| **Total cost/video (paid tier)** | **$0.24** | |
-| **Total cost/video (free tier)** | **$0.02** | Haiku + stock only |
+### Blended ARPU Target by Year
 
-### Average Videos Per User Per Month
-
-| Tier | Videos/mo Used (est.) | Cost/User/Mo |
-|------|----------------------|--------------|
-| Free | 2 | $0.04 |
-| Starter | 8 | $1.92 |
-| Creator | 25 | $6.00 |
-| Agency | 60 | $14.40 |
-
-### Blended Variable Cost Per Paying User: ~$5.50/mo
-### Gross Margin Per Paying User: $74.40 - $5.50 = **$68.90 (93% gross margin)**
+| Year | Blended ARPU/mo | Rationale |
+|------|----------------|-----------|
+| Y1 | $22 | Heavy free/starter mix during growth |
+| Y2 | $32 | Creator tier becomes dominant as product matures |
+| Y3 | $41 | Pro/Agency mix increases with enterprise features |
 
 ---
 
-## 4. COST STRUCTURE — INFRASTRUCTURE (Scales With Users)
+## 2. Growth Roadmap — Subscribers Needed
 
-Infrastructure costs scale proportionally with user count rather than jumping in bands. Each cost center has a base cost plus a per-user component.
+### The Math to $10M ARR
 
-| Cost Center | Base/mo | Per-User/mo | Scaling Notes |
-|-------------|---------|-------------|---------------|
-| **Hosting (Render → K8s)** | $25 | $0.015 | Scales with compute; Kubernetes at 5K+ users |
-| **CDN** | $0 | $0.005 | Scales with video delivery bandwidth |
-| **Database** | $7 | $0.002 | PostgreSQL managed; read replicas at 10K+ |
-| **Redis/queue workers** | $0 | $0.002 | Needed from 100+ users for async jobs |
-| **Domain/SSL** | $15 | $0.00 | Flat |
-| **Stripe fees** | $0 | 3.5% of MRR | Payment processing (2.9% + $0.30 avg) |
-| **Monitoring** | $0 | $0.001 | Sentry/Datadog from month 7+ |
-| **Email (Sendgrid)** | $0 | $0.001 | Transactional + marketing at scale |
+$10M ARR = $833,333/month revenue
 
-### API Costs (Variable, Largest Cost Center)
+At $41 blended ARPU in Year 3: **~20,325 paying subscribers** needed
 
-API costs are the dominant expense and scale directly with videos generated:
+### Year-by-Year Targets
 
-| Scale | Paying Users | Est. Videos/mo | Anthropic Cost | Higgsfield Cost | TTS Cost | Total API |
-|-------|-------------|----------------|----------------|-----------------|----------|-----------|
-| 50 paying | 50 | 600 | $48 | $90 | $6 | **$144** |
-| 500 paying | 500 | 6,000 | $480 | $900 | $60 | **$1,440** |
-| 5,000 paying | 5,000 | 60,000 | $4,800 | $9,000 | $600 | **$14,400** |
-| 50,000 paying | 50,000 | 600,000 | $48,000 | $90,000 | $6,000 | **$144,000** |
-| 300,000 paying | 300,000 | 3,600,000 | $288,000 | $540,000 | $36,000 | **$864,000** |
+| Metric | Year 1 | Year 2 | Year 3 |
+|--------|--------|--------|--------|
+| **Free users** | 15,000 | 50,000 | 120,000 |
+| **Paying subscribers** | 1,200 | 6,500 | 20,325 |
+| **Free-to-paid conversion** | 8% | 13% | 17% |
+| **Monthly churn** | 8% | 5% | 3.5% |
+| **Blended ARPU** | $22 | $32 | $41 |
+| **MRR (end of year)** | $26,400 | $208,000 | $833,000 |
+| **ARR (end of year)** | $317K | $2.5M | $10M |
+| **Cumulative revenue** | ~$160K | ~$1.4M | ~$6.5M |
 
-> **Cost mitigation at scale:** Volume API discounts (est. 20-30% at 100K+ users), aggressive caching of repeated prompts, model routing (Haiku for simple scripts), batch processing discounts.
+### Subscriber Mix (End of Year 3)
 
----
-
-## 5. PEOPLE / OPERATING EXPENSES
-
-Headcount grows in stages tied to revenue milestones, not arbitrary dates:
-
-| Role | Pre-Revenue (Mo 1-6) | $5K+ MRR (Mo 7-9) | $25K+ MRR (Mo 10-12) | $100K+ MRR (Mo 13-18) | $1M+ MRR (Mo 19-24) |
-|------|----------------------|--------------------|-----------------------|------------------------|----------------------|
-| Founder (you) | $0 (sweat) | $5,000/mo | $8,000/mo | $12,000/mo | $15,000/mo |
-| Contract developer | $0 | $3,000/mo | $5,000/mo | $10,000/mo | $20,000/mo |
-| Customer support | $0 | $0 | $0 | $4,000/mo | $12,000/mo |
-| Marketing/growth | $0 | $0 | $2,000/mo | $6,000/mo | $15,000/mo |
-| Legal/accounting | $0 | $500/mo | $500/mo | $1,500/mo | $3,000/mo |
-| **Total People** | **$0** | **$8,500/mo** | **$15,500/mo** | **$33,500/mo** | **$65,000/mo** |
+| Tier | % of Paid | Count | MRR Contribution |
+|------|-----------|-------|-----------------|
+| Starter $9.99 | 30% | 6,098 | $60,916 |
+| Creator $29 | 35% | 7,114 | $206,300 |
+| Pro $79 | 25% | 5,081 | $401,425 |
+| Agency $199 | 10% | 2,033 | $404,500 |
+| **Total** | **100%** | **20,325** | **$833,141** |
 
 ---
 
-## 6. MARKETING & ACQUISITION COSTS
+## 3. Customer Acquisition Strategy
 
-Marketing spend scales as a percentage of MRR (target: 15-20% of revenue):
+### Phase 1: Year 1 — Product-Market Fit ($0-$317K ARR)
 
-| MRR Range | Marketing Budget | Channels | CAC Target |
-|-----------|-----------------|----------|------------|
-| $0-$1K | $0 (organic only) | ProductHunt, social, content | $0 |
-| $1K-$5K | $200-$500/mo | Meta ads, TikTok | $15 |
-| $5K-$25K | $1K-$4K/mo | Multi-channel paid, affiliates | $18 |
-| $25K-$100K | $5K-$15K/mo | Full paid stack, influencers | $20 |
-| $100K-$500K | $15K-$50K/mo | + conferences, PR, content team | $22 |
-| $500K-$2M | $75K-$200K/mo | + enterprise outbound, events | $25 |
-| $2M+ | $300K-$500K/mo | Full GTM org, brand campaigns | $25 |
+**Channels:**
+- **Content marketing / own-dogfooding** — Use Social Optimize to create content about Social Optimize. 30 videos/week across YouTube, TikTok, Instagram Reels, X. Show the product in action.
+- **Whop Marketplace** — List AI Clipper on Whop Discover. Whop drives traffic; we pay 30% commission but acquire customers at zero CAC.
+- **YouTube creator partnerships** — Offer free Pro accounts to 50 creators with 10K-100K subscribers. They demo the tool in exchange for 20% recurring affiliate commissions.
+- **SEO / landing pages** — Target long-tail: "AI video clipper", "auto clip YouTube to TikTok", "batch video creator", "AI shorts generator"
+- **Product Hunt launch** — Target top 5 product of the day.
+- **Free tier virality** — Watermark on free exports = organic brand impressions. Every free video is an ad.
 
-**Target CAC (Customer Acquisition Cost):**
-- Organic/viral: $0
-- Paid: $5-15 per free signup, $25-50 per paying customer
-- Blended CAC target: <$25 per paying customer
-- LTV:CAC ratio target: >10:1 (LTV = $74.40 × 8 months avg = $595)
+**CAC target:** < $25 (blended across channels)
+**LTV:CAC target:** > 3:1
 
----
+### Phase 2: Year 2 — Scale ($317K-$2.5M ARR)
 
-## 7. PROFIT & LOSS — MONTHLY SUMMARY
+**Channels:**
+- **Paid ads** — Meta, YouTube, TikTok ads targeting content creators. Budget: $30K-$80K/mo.
+- **Affiliate program** — 20% recurring commission. Target SaaS review sites, creator economy newsletters.
+- **Agency partnerships** — White-label deals with social media agencies. Each agency = 5-20 seats.
+- **Whop scaling** — Expand to Whop affiliate network. Create a "certified clipper" badge.
+- **Integrations** — Zapier, Make.com integrations to reach automation audiences.
+- **Conference presence** — VidCon, VidSummit, Social Media Marketing World.
 
-### Year 1 (Jul 2026 — Jun 2027)
+**CAC target:** < $60
+**LTV:CAC target:** > 4:1
 
-| Month | Users | Paying | Revenue | COGS (API+Infra) | Gross Profit | People | Marketing | **Net P/L** | **Cumulative** |
-|-------|-------|--------|---------|-------------------|--------------|--------|-----------|-------------|-----------------|
-| Jul 26 | 5 | 2 | $149 | $15 | $134 | $0 | $0 | **$134** | $134 |
-| Aug 26 | 10 | 3 | $223 | $18 | $205 | $0 | $0 | **$205** | $339 |
-| Sep 26 | 20 | 6 | $446 | $38 | $408 | $0 | $0 | **$408** | $747 |
-| Oct 26 | 40 | 12 | $893 | $100 | $793 | $0 | $100 | **$693** | $1,440 |
-| Nov 26 | 80 | 24 | $1,786 | $192 | $1,594 | $0 | $200 | **$1,394** | $2,834 |
-| Dec 26 | 160 | 48 | $3,571 | $404 | $3,167 | $0 | $400 | **$2,767** | $5,601 |
-| Jan 27 | 320 | 96 | $7,142 | $780 | $6,362 | $8,500 | $1,000 | **($3,138)** | $2,463 |
-| Feb 27 | 640 | 192 | $14,285 | $1,540 | $12,745 | $8,500 | $2,000 | **$2,245** | $4,708 |
-| Mar 27 | 1,280 | 384 | $28,570 | $3,050 | $25,520 | $8,500 | $4,000 | **$13,020** | $17,728 |
-| Apr 27 | 2,580 | 774 | $57,586 | $6,100 | $51,486 | $15,500 | $8,000 | **$27,986** | $45,714 |
-| May 27 | 5,000 | 1,500 | $111,600 | $15,300 | $96,300 | $15,500 | $15,000 | **$65,800** | $111,514 |
-| Jun 27 | 10,000 | 3,000 | $223,200 | $30,200 | $193,000 | $15,500 | $30,000 | **$147,500** | $259,014 |
+### Phase 3: Year 3 — Dominance ($2.5M-$10M ARR)
 
-**Year 1 Totals:**
-- **Revenue: $449,451**
-- **COGS: $57,737**
-- **Gross Profit: $391,714 (87.2% margin)**
-- **People: $72,000**
-- **Marketing: $60,700**
-- **Net Profit: $259,014**
+**Channels:**
+- **Enterprise sales** — Outbound to media companies, podcast networks, news organizations.
+- **API monetization** — Developers build on our clipper engine. Usage-based pricing.
+- **International expansion** — Multi-language support (15 languages) opens non-English markets.
+- **Strategic partnerships** — Integration with Riverside.fm, Descript, Opus Pro as complementary tool.
+- **Self-serve to sales-assist** — Hire 3-5 SDRs for Pro/Agency tier conversion.
 
 ---
 
-### Year 2 (Jul 2027 — Jun 2028)
+## 4. Product Roadmap
 
-COGS is calculated per month: API costs (paying × avg 12 videos × $0.24) + infra ($25 base + $0.025/user) + Stripe (3.5% MRR). People and marketing scale with revenue milestones.
+### Year 1: Foundation (Q3 2026 - Q2 2027)
 
-| Month | Users | Paying | Revenue | COGS | Gross Profit | People | Marketing | **Net P/L** | **Cumulative** |
-|-------|-------|--------|---------|------|--------------|--------|-----------|-------------|-----------------|
-| Jul 27 | 15,000 | 4,500 | $334,800 | $47,100 | $287,700 | $33,500 | $50,000 | **$204,200** | $463,214 |
-| Aug 27 | 22,000 | 6,600 | $491,040 | $69,500 | $421,540 | $33,500 | $75,000 | **$313,040** | $776,254 |
-| Sep 27 | 32,000 | 9,600 | $714,240 | $101,200 | $613,040 | $33,500 | $100,000 | **$479,540** | $1,255,794 |
-| Oct 27 | 47,000 | 14,100 | $1,049,040 | $149,300 | $899,740 | $33,500 | $150,000 | **$716,240** | $1,972,034 |
-| Nov 27 | 68,000 | 20,400 | $1,517,760 | $216,800 | $1,300,960 | $33,500 | $200,000 | **$1,067,460** | $3,039,494 |
-| Dec 27 | 100,000 | 30,000 | $2,232,000 | $319,800 | $1,912,200 | $65,000 | $300,000 | **$1,547,200** | $4,586,694 |
-| Jan 28 | 145,000 | 43,500 | $3,236,400 | $464,400 | $2,772,000 | $65,000 | $400,000 | **$2,307,000** | $6,893,694 |
-| Feb 28 | 210,000 | 63,000 | $4,687,200 | $674,000 | $4,013,200 | $65,000 | $500,000 | **$3,448,200** | $10,341,894 |
-| Mar 28 | 305,000 | 91,500 | $6,807,600 | $980,000 | $5,827,600 | $65,000 | $500,000 | **$5,262,600** | $15,604,494 |
-| Apr 28 | 440,000 | 132,000 | $9,820,800 | $1,416,000 | $8,404,800 | $65,000 | $500,000 | **$7,839,800** | $23,444,294 |
-| May 28 | 620,000 | 186,000 | $13,838,400 | $1,998,000 | $11,840,400 | $65,000 | $500,000 | **$11,275,400** | $34,719,694 |
-| Jun 28 | 820,000 | 246,000 | $18,302,400 | $2,644,000 | $15,658,400 | $65,000 | $500,000 | **$15,093,400** | $49,813,094 |
+| Quarter | Milestone | Impact |
+|---------|-----------|--------|
+| Q3 2026 | **AI Clipper v2** — speaker detection, A-roll/B-roll split, auto-thumbnails | Core differentiator |
+| Q3 2026 | **Whop marketplace live** — 3 products listed, webhook billing active | Secondary revenue stream |
+| Q4 2026 | **Mobile-responsive dashboard** — full functionality on mobile/tablet | 40% of creators work mobile |
+| Q4 2026 | **Analytics v1** — view counts, engagement rates pulled from platform APIs | Retention driver |
+| Q1 2027 | **Template marketplace** — user-created templates, revenue share | Community flywheel |
+| Q1 2027 | **Zapier integration** — "New video" trigger, "Create clip" action | Distribution channel |
+| Q2 2027 | **Collaboration v1** — team workspaces, role-based access, shared asset library | Pro/Agency value |
 
-**Year 2 Totals:**
-- **Revenue: $63,031,680**
-- **COGS: $9,081,100**
-- **Gross Profit: $53,950,580 (85.6% margin)**
-- **People: $622,000**
-- **Marketing: $3,775,000**
-- **Net Profit: $49,554,080**
+### Year 2: Scale (Q3 2027 - Q2 2028)
 
-> **$10M ARR crossed in Month 15 (Oct 2027). $10M net profit crossed by Month 20 (Mar 2028).**
+| Quarter | Milestone | Impact |
+|---------|-----------|--------|
+| Q3 2027 | **API public beta** — REST API for clip creation, video generation | Agency/developer revenue |
+| Q3 2027 | **Auto-scheduling AI** — ML model picks optimal post times per platform | Upgrade driver to Creator+ |
+| Q4 2027 | **White-label v2** — custom domains, branded dashboards, client portals | Agency tier anchor |
+| Q4 2027 | **Multi-language AI** — script generation + voiceover in 15 languages | International expansion |
+| Q1 2028 | **Advanced analytics** — revenue attribution, audience overlap, competitor tracking | Pro tier stickiness |
+| Q2 2028 | **AI Clipper v3** — real-time stream clipping, live-to-short pipeline | New market segment |
 
----
+### Year 3: Dominance (Q3 2028 - Q2 2029)
 
-### Month-over-Month Cost Scaling (Smooth Ramp)
-
-This shows how total costs grow proportionally — no cliff jumps:
-
-| Month | Users | Total COGS | COGS % of Revenue | MoM Cost Increase |
-|-------|-------|------------|--------------------|--------------------|
-| 6 (Jan 27) | 320 | $780 | 10.9% | — |
-| 7 (Feb 27) | 640 | $1,540 | 10.8% | +97% |
-| 8 (Mar 27) | 1,280 | $3,050 | 10.7% | +98% |
-| 9 (Apr 27) | 2,580 | $6,100 | 10.6% | +100% |
-| 10 (May 27) | 5,000 | $15,300 | 13.7% | +151% |
-| 11 (Jun 27) | 10,000 | $30,200 | 13.5% | +97% |
-| 12 (Jul 27) | 15,000 | $47,100 | 14.1% | +56% |
-| 13 (Aug 27) | 22,000 | $69,500 | 14.2% | +48% |
-| 14 (Sep 27) | 32,000 | $101,200 | 14.2% | +46% |
-| 15 (Oct 27) | 47,000 | $149,300 | 14.2% | +48% |
-| 16 (Nov 27) | 68,000 | $216,800 | 14.3% | +45% |
-| 17 (Dec 27) | 100,000 | $319,800 | 14.3% | +48% |
-
-> **COGS stays at 10-14% of revenue throughout — no surprise cost jumps.**
+| Quarter | Milestone | Impact |
+|---------|-----------|--------|
+| Q3 2028 | **Enterprise SSO + audit logs** — SAML, activity logging, compliance | Enterprise readiness |
+| Q4 2028 | **AI Creative Director** — full content strategy agent, weekly plans, auto-execution | 10x product moat |
+| Q1 2029 | **Marketplace ecosystem** — third-party plugins, effects, transitions | Platform lock-in |
+| Q2 2029 | **Mobile app** (React Native) — create, edit, publish from phone | TAM expansion |
 
 ---
 
-## 8. KEY METRICS DASHBOARD
+## 5. Technology Stack — Honest Assessment
 
-| Metric | Target |
-|--------|--------|
-| **ARPU (paying)** | $74.40/mo |
-| **Gross Margin** | 85-93% |
-| **Free→Paid Conversion** | 30% |
-| **Monthly Churn** | <5% |
-| **LTV (8-mo avg retention)** | $595 |
-| **CAC (blended)** | <$25 |
-| **LTV:CAC** | >23:1 |
-| **Payback Period** | <1 month |
-| **Net Revenue Retention** | 110%+ (upsells) |
-| **COGS as % of Revenue** | <15% |
+### Current Stack
 
----
+| Component | Current | Verdict |
+|-----------|---------|---------|
+| **Web framework** | Flask (Python) | OK for now |
+| **Database** | SQLite (single file) | WILL NOT SCALE |
+| **Background jobs** | Python threading (daemon threads) | WILL NOT SCALE |
+| **File storage** | Local disk (20GB Render persistent) | WILL NOT SCALE |
+| **Caching** | None (in-memory dicts) | WILL NOT SCALE |
+| **Server** | Gunicorn, single Render instance (2GB RAM) | WILL NOT SCALE |
+| **Video processing** | ffmpeg + MoviePy (on web server) | WILL NOT SCALE |
+| **Auth** | Custom SQLite + Flask-Login | OK for now |
+| **Payments** | Stripe + Whop SDK | GOOD |
+| **AI services** | Claude, OpenAI, DeepSeek, Groq, Higgsfield | GOOD |
+| **TTS** | Edge-TTS, ElevenLabs, Google Cloud TTS | GOOD |
+| **CDN** | None | NEEDED |
 
-## 9. EIGHTEEN-MONTH EXECUTION PLAN (Week by Week)
+### Verdict: Current stack supports ~500 users. It CANNOT reach $10M.
 
-### PHASE 1: LAUNCH & VALIDATE (Weeks 1-8 / Jul-Aug 2026)
+**The critical bottlenecks:**
 
-| Week | Dates | Focus | Deliverables | Target |
-|------|-------|-------|-------------|--------|
-| **1** | Jul 4-10 | LAUNCH | Public launch, ProductHunt post, social media blast | 5 signups |
-| **2** | Jul 11-17 | Onboarding | Fix first-user friction, add welcome flow, tutorial video | 8 signups |
-| **3** | Jul 18-24 | Stability | Monitor errors, fix crashes, add Sentry logging | 10 signups |
-| **4** | Jul 25-31 | Feedback loop | User interviews, NPS survey, prioritize top 3 complaints | 12 signups |
-| **5** | Aug 1-7 | Conversion | Optimize free-to-paid funnel, add trial nudges, email drip | First paid user |
-| **6** | Aug 8-14 | Content | Create 10 demo videos showing the product, post on socials | 15 signups |
-| **7** | Aug 15-21 | SEO | Blog: "AI Video Tools 2026", landing page optimization | 18 signups |
-| **8** | Aug 22-28 | Referral v1 | "Invite a friend, get 5 free videos" referral system | 20 signups |
+1. **SQLite** — One concurrent writer. At 500+ users making simultaneous requests, you hit lock contention and "database is locked" errors. No read replicas, no connection pooling.
 
-### PHASE 2: PRODUCT-MARKET FIT (Weeks 9-16 / Sep-Oct 2026)
+2. **Local file storage** — 20GB fills up with ~200 videos. At scale you need thousands of TB. No CDN means every video streams through your single server.
 
-| Week | Dates | Focus | Deliverables | Target |
-|------|-------|-------|-------------|--------|
-| **9** | Aug 29-Sep 4 | Analytics | Add Mixpanel/Amplitude, track funnel, identify drop-offs | 25 users |
-| **10** | Sep 5-11 | Templates | 20 pre-built video templates (real estate, fitness, food, etc.) | 30 users |
-| **11** | Sep 12-18 | Mobile web | Responsive UI overhaul, mobile-first beat maker | 35 users |
-| **12** | Sep 19-25 | Speed | Redis caching, async video gen queue, 2x faster generation | 40 users |
-| **13** | Sep 26-Oct 2 | Niche targeting | Creator-focused landing pages (realtors, coaches, restaurants) | 50 users |
-| **14** | Oct 3-9 | Partnerships | Reach out to 50 micro-influencers for affiliate deals | 60 users |
-| **15** | Oct 10-16 | Self-marketing v1 | App generates its own TikTok/IG ads, auto-posts daily | 70 users |
-| **16** | Oct 17-23 | Iteration | A/B test pricing page, test $19 starter tier | 80 users |
+3. **Threading for jobs** — Video processing is CPU/memory intensive. 5 concurrent clip jobs on a 2GB server = OOM kill. No retry, no queue, no priority.
 
-### PHASE 3: GROWTH ENGINE (Weeks 17-26 / Nov 2026-Jan 2027)
+4. **Single server** — No horizontal scaling. One deploy = downtime. One crash = everything down.
 
-| Week | Dates | Focus | Deliverables | Target |
-|------|-------|-------|-------------|--------|
-| **17** | Oct 24-30 | Paid ads v1 | $200 Meta ads budget, test 5 ad creatives (made by the app) | 95 users |
-| **18** | Oct 31-Nov 6 | Viral loop | "Made with Social Optimize" watermark on free tier, share buttons | 110 users |
-| **19** | Nov 7-13 | Database migration | SQLite to PostgreSQL, prepare for scale | 130 users |
-| **20** | Nov 14-20 | Background workers | Celery + Redis for async video generation | 150 users |
-| **21** | Nov 21-27 | Holiday push | Black Friday: 40% off annual plans, email blast | 180 users |
-| **22** | Nov 28-Dec 4 | API v1 | Public API for Agency tier, documentation | 210 users |
-| **23** | Dec 5-11 | Multi-region | Deploy to EU (Frankfurt), reduce latency for EU users | 250 users |
-| **24** | Dec 12-18 | Team features | Multi-seat for Agency, shared workspace | 300 users |
-| **25** | Dec 19-25 | Year-end push | "New Year Content Kit" — 30 templates for Jan content | 320 users |
-| **26** | Dec 26-Jan 1 | Infra hardening | Load testing, auto-scaling, 99.9% uptime target | 320 users |
-
-### PHASE 4: SCALE (Weeks 27-40 / Jan-Apr 2027)
-
-| Week | Dates | Focus | Deliverables | Target |
-|------|-------|-------|-------------|--------|
-| **27** | Jan 2-8 | Mobile app kickoff | React Native shell, auth, video preview | 400 users |
-| **28** | Jan 9-15 | Mobile: create flow | Video creation from phone, camera to AI video | 500 users |
-| **29** | Jan 16-22 | Mobile: publish | One-tap publish to all platforms from phone | 600 users |
-| **30** | Jan 23-29 | App Store launch | iOS + Android submission, ASO optimization | 700 users |
-| **31** | Jan 30-Feb 5 | Ad spend ramp | $2K/mo across Meta, Google, TikTok | 850 users |
-| **32** | Feb 6-12 | Affiliate program | 20% recurring commission, affiliate dashboard | 1,000 users |
-| **33** | Feb 13-19 | Enterprise features | SSO, custom branding, SLA, dedicated support | 1,100 users |
-| **34** | Feb 20-26 | Content machine | 50 YouTube tutorials, SEO blog posts weekly | 1,280 users |
-| **35** | Feb 27-Mar 5 | Marketplace v1 | Users sell templates to other users (10% cut) | 1,500 users |
-| **36** | Mar 6-12 | AI improvements | Better scripts, more video styles, faster gen | 1,800 users |
-| **37** | Mar 13-19 | Localization | Spanish, Portuguese, French, German UI | 2,100 users |
-| **38** | Mar 20-26 | CRM integration | HubSpot, Salesforce connectors for Agency tier | 2,400 users |
-| **39** | Mar 27-Apr 2 | Webinar system | Weekly "AI Video Masterclass" — lead gen funnel | 2,580 users |
-| **40** | Apr 3-9 | Scaling infra | Kubernetes, auto-scaling, global CDN | 3,000 users |
-
-### PHASE 5: HOCKEY STICK (Weeks 41-52 / Apr-Jun 2027)
-
-| Week | Dates | Focus | Deliverables | Target |
-|------|-------|-------|-------------|--------|
-| **41** | Apr 10-16 | Ad spend $5K/mo | Scale winning ad creatives, lookalike audiences | 3,500 users |
-| **42** | Apr 17-23 | TikTok Shop | Sell directly through TikTok marketplace | 4,000 users |
-| **43** | Apr 24-30 | White-label v2 | Agencies resell under their brand, rev share | 4,500 users |
-| **44** | May 1-7 | Conference/events | Sponsor VidCon, Creator Economy Expo | 5,000 users |
-| **45** | May 8-14 | Ad spend $10K/mo | Double down on best-performing channels | 6,000 users |
-| **46** | May 15-21 | AI self-marketing v2 | App analyzes own metrics, optimizes own ad spend | 7,000 users |
-| **47** | May 22-28 | Strategic partnerships | Integration with Canva, Notion, Shopify | 8,000 users |
-| **48** | May 29-Jun 4 | Press/PR | TechCrunch pitch, Product Hunt relaunch | 9,000 users |
-| **49** | Jun 5-11 | Series A prep | Pitch deck, financial model, investor outreach | 9,500 users |
-| **50** | Jun 12-18 | Enterprise push | Outbound sales team (2 reps), Fortune 500 targets | 10,000 users |
-| **51** | Jun 19-25 | Platform stability | Performance audit, security audit, SOC 2 prep | 10,000 users |
-| **52** | Jun 26-Jul 2 | YEAR ONE | Celebrate, retro, plan Year 2 | 10,000 users |
-
-### PHASE 6: SCALE-UP (Weeks 53-78 / Jul 2027-Jun 2028)
-
-Steady ~45% monthly growth. No single month adds more than 1.5x the previous.
-
-| Week Range | Focus | Key Milestones | Target |
-|------------|-------|----------------|--------|
-| **53-56** | Growth acceleration | Creator ambassador program, referral 2.0 | 15,000 |
-| **57-60** | Channel expansion | TikTok challenges, YouTube shorts, IG reels | 22,000 |
-| **61-64** | Enterprise v2 | Dedicated sales team, custom onboarding | 32,000 |
-| **65-68** | International v1 | Spanish + Portuguese launch, LATAM partnerships | 47,000 |
-| **69-72** | Platform play | Marketplace, plugin ecosystem, developer API | 68,000 |
-| **73-76** | International v2 | Japan, Korea, India launch, local partnerships | 100,000 |
-| **77-78** | Scale operations | SOC 2, enterprise SLAs, dedicated infra team | 145,000 |
-
-### PHASE 7: DOMINANCE (Weeks 79-104 / Jul 2028+)
-
-| Week Range | Focus | Key Milestones | Target |
-|------------|-------|----------------|--------|
-| **79-86** | Market leadership | Acquire competitors, Fortune 500 pipeline | 305,000 |
-| **87-92** | Category ownership | AI video standard, industry partnerships | 620,000 |
-| **93-104** | IPO runway | $100M+ ARR, board assembly, IPO prep | 1,000,000 |
+5. **No caching** — Every page load queries SQLite. At 1000 concurrent users, response times crater.
 
 ---
 
-## 10. RISK FACTORS & MITIGATIONS
+## 6. Infrastructure Migration Plan
 
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| **Anthropic API price increase** | Margin compression | Multi-model routing (Groq, OpenRouter fallbacks already built) |
-| **Higgsfield discontinues** | Core feature loss | Abstract video gen behind router, add Runway/Pika/Kling |
-| **YouTube blocks yt-dlp** | Music feature breaks | Partner with music licensing service, use royalty-free |
-| **High churn (>10%)** | Growth stalls | Invest in onboarding, templates, community |
-| **Competition (CapCut, Opus Clip)** | Market share | Differentiate on multi-platform + full pipeline (script to publish) |
-| **Scaling costs exceed revenue** | Cash burn | Aggressive caching, tiered model routing, volume API discounts |
-| **Low free-to-paid conversion** | Revenue miss | Test lower starter price ($19), better trial experience |
-| **Infra can't keep up with growth** | User experience degradation | Pre-provision 2 months ahead, auto-scaling from day 1 |
+### Phase 1: Survive to 2,000 Users (Year 1, Months 1-6) — Cost: ~$100/mo to ~$300/mo
 
----
+| Change | From | To | Why | Effort |
+|--------|------|----|-----|--------|
+| Database | SQLite | **PostgreSQL** (Render managed, $7/mo) | Concurrent writes, real queries, JSONB | 2 weeks |
+| Storage | Local disk | **AWS S3** + CloudFront CDN | Unlimited storage, global delivery | 1 week |
+| Background jobs | Threading | **Redis Queue (RQ)** + worker dyno | Reliable job processing, retries, priority | 1 week |
+| Caching | None | **Redis** (Render, $10/mo) | Session store, query cache, rate limiting | 3 days |
+| Server | 1x Render Standard | 2x Render Standard behind load balancer | Basic redundancy | 1 day |
 
-## 11. FUNDING REQUIREMENTS
+**This is the minimum viable migration. Do it before you hit 500 paying users.**
 
-| Phase | Cash Needed | Source |
-|-------|-------------|--------|
-| Phase 1-2 (Month 1-4) | $0-2K | Bootstrapped / revenue |
-| Phase 3 (Month 5-8) | $5-10K | Revenue + small savings |
-| Phase 4 (Month 9-12) | $20-50K | Revenue (should be self-sustaining) |
-| Phase 5 (Month 13-15) | Revenue-funded | Self-sustaining at $300K+ MRR |
-| Phase 6-7 (Month 16-24) | $0 OR $2-5M | Revenue OR Series A to accelerate |
+### Phase 2: Scale to 10,000 Users (Year 2, Months 7-18) — Cost: ~$1,500-$3,000/mo
 
-**Breakeven: Month 3 (September 2026)** — Revenue exceeds costs with ~20 users.
+| Change | From | To | Why |
+|--------|------|----|-----|
+| Hosting | Render | **AWS ECS** or **Railway** | Auto-scaling, better control |
+| Database | Render Postgres | **AWS RDS PostgreSQL** (Multi-AZ) | Failover, read replicas, backups |
+| Video processing | On web server | **Dedicated GPU workers** (Lambda/ECS tasks) | Isolate CPU-heavy work from web |
+| CDN | CloudFront | **CloudFront + S3 presigned URLs** | Direct upload/download, no server bottleneck |
+| Search | SQL LIKE | **Meilisearch** or **Typesense** | Fast full-text search across content |
+| Monitoring | None | **Datadog** or **Grafana Cloud** | Know before users tell you |
+| CI/CD | Manual push | **GitHub Actions** auto-deploy | Zero-downtime deploys |
 
-The business is designed to be **bootstrappable**. With 85-93% gross margins, every paying customer funds the next month's growth. No VC required unless you want to accelerate the hockey stick in Phase 6-7.
+### Phase 3: Scale to 20,000+ Users (Year 3, Months 19-36) — Cost: ~$5,000-$15,000/mo
 
----
+| Change | From | To | Why |
+|--------|------|----|-----|
+| Architecture | Monolith | **Service-oriented** (API + Workers + Frontend) | Independent scaling |
+| Frontend | Jinja templates | **React/Next.js** SPA | Better UX, mobile app code sharing |
+| API | Flask routes | **FastAPI** (async, typed) | 10x throughput, auto-docs, WebSocket |
+| Queue | Redis Queue | **AWS SQS** or **BullMQ** | Guaranteed delivery, dead-letter queues |
+| Auth | Custom | **Auth0** or **Clerk** | SSO, MFA, enterprise compliance |
+| Database | Single Postgres | **Read replicas + connection pooling** (PgBouncer) | Handle 10K+ concurrent connections |
+| Video | ffmpeg on ECS | **MediaConvert** or dedicated encoding cluster | Parallel transcoding at scale |
+| Multi-region | US only | **US + EU** (GDPR) | International customers |
 
-## 12. GO-TO-MARKET ROADMAP
+### Infrastructure Cost Projection
 
-### Product Vision
+| Year | Monthly Infra | Annual | % of Revenue |
+|------|--------------|--------|--------------|
+| Y1 (end) | $300 | $3,600 | 2.3% of $160K |
+| Y2 (end) | $3,000 | $36,000 | 2.6% of $1.4M |
+| Y3 (end) | $12,000 | $144,000 | 2.2% of $6.5M |
 
-Social Optimize is an AI-powered video content factory. One prompt creates a full video with script, voiceover, music, visuals, and captions — then publishes to 8+ platforms. It replaces a $5,000/mo content team with a $29-199/mo subscription.
-
-### Target Audiences (by Adoption Phase)
-
-**EARLY ADOPTERS (Month 1-6, 5-160 users)**
-- Solo content creators struggling to post consistently
-- Small business owners (restaurants, realtors, fitness coaches) who know they need video but can't afford editors
-- Side-hustle creators testing TikTok/YouTube Shorts
-- Marketing freelancers looking for a competitive edge
-
-**GROWTH PHASE (Month 7-12, 320-10K users)**
-- Social media managers at SMBs (managing 3-10 accounts)
-- E-commerce brands needing product videos at scale
-- Real estate agents (listing videos, market updates)
-- Course creators and coaches needing promo content
-- Marketing agencies serving multiple clients
-
-**SCALE PHASE (Month 13-24, 10K-1M users)**
-- Enterprise marketing teams (consistent brand content across channels)
-- Media agencies (white-label video production for their clients)
-- SaaS companies (demo videos, onboarding content)
-- Healthcare/education (patient education, student engagement)
-- International creators (localized content in multiple languages)
-
-### Use Cases That Drive Adoption
-
-1. **DAILY SOCIAL POSTING** — Creator types a topic, gets a ready-to-post video in 2 minutes. This is the core hook that converts free users.
-2. **BATCH CONTENT** — Agency creates 20 videos for 5 clients in one afternoon. This is the Agency tier driver ($199/mo).
-3. **REPURPOSING** — One idea becomes a TikTok, YouTube Short, IG Reel, and LinkedIn post. Multi-platform output is the moat.
-4. **TREND RIDING** — AI monitors trends, suggests topics, auto-creates timely content. Keeps users engaged and reduces churn.
-5. **BRAND ADS** — Commercial Studio creates professional ads. Upsells free users to paid tiers.
-
-### Adoption Strategy by Phase
-
-**PHASE 1-2: ORGANIC PULL (Month 1-4)**
-- ProductHunt launch + social proof (testimonials, case studies)
-- App generates its own demo content (eats own dog food)
-- Free tier with watermark = viral distribution at zero cost
-- NPS-driven iteration: fix top 3 user complaints weekly
-- Community building: Discord/Telegram creator group
-- **Target:** 80 users, first 12 paying customers
-
-**PHASE 3: PAID IGNITION (Month 5-8)**
-- $200-500/mo ad spend on winning creatives (made by the app itself)
-- Niche landing pages: "AI videos for realtors", "AI videos for restaurants"
-- Affiliate deals with micro-influencers (20% recurring commission)
-- Viral loop: "Made with Social Optimize" watermark drives signups
-- Holiday campaigns (Black Friday, New Year content kits)
-- **Target:** 640 users, $14K MRR
-
-**PHASE 4: CHANNEL DIVERSIFICATION (Month 9-12)**
-- Mobile app launch (React Native, iOS + Android)
-- Weekly webinars as lead generation funnel
-- SEO content machine (50 YouTube tutorials, weekly blog posts)
-- Template marketplace (users sell to users, 10% platform cut)
-- Localization: Spanish, Portuguese, French, German
-- Public API for Agency tier
-- **Target:** 10,000 users, $223K MRR
-
-**PHASE 5-7: SCALE MACHINE (Month 13-24)**
-- $15K-500K/mo marketing budget (15-20% of MRR)
-- Enterprise outbound sales team (2 reps, then scaling)
-- Strategic partnerships (Canva, Shopify, Notion integrations)
-- International expansion (LATAM first, then Asia)
-- Conference sponsorships (VidCon, Creator Economy Expo)
-- White-label product for agencies
-- Series A fundraise (optional — business is self-sustaining)
-- **Target:** 1M users, $22.3M MRR
-
-### Competitive Moat
-
-1. **FULL PIPELINE** — Competitors do one thing (CapCut=editing, Opus Clip=clipping). We do script→shoot→edit→publish.
-2. **MULTI-PLATFORM** — One click publishes to TikTok, YouTube, IG, LinkedIn, X, Facebook, Pinterest, Snapchat.
-3. **AI AGENTS** — Hollywood Studio, Music Studio, Commercial Studio — specialized AI workflows competitors don't have.
-4. **SELF-MARKETING** — The app markets itself by generating its own ads. Zero marginal marketing cost.
-5. **AGENCY TOOLS** — CRM, client management, white-label exports — no competitor serves agencies this way.
+Target: Keep infrastructure under 5% of revenue.
 
 ---
 
-## 13. THE $10M PATH — SUMMARY
+## 7. Team Plan
 
-```
-Month 1-6:    Build > Validate > 160 customers > $3.5K MRR
-Month 7-11:   Scale > Grow    > 10K customers > $223K MRR > $2.7M ARR
-Month 12-15:  Accelerate      > 47K customers > $1M MRR > $12.6M ARR
-Month 16-24:  Dominate        > 1M customers > $22M MRR > $268M ARR
-```
+### Year 1: Founder + Contractors (2-4 people)
 
-**Conservative scenario (half the growth):** $10M ARR by Month 20 instead of Month 15.
-**Aggressive scenario (viral hit):** $10M ARR by Month 13.
+| Role | Type | Focus |
+|------|------|-------|
+| Founder/CEO | Full-time | Product, sales, content marketing |
+| Backend engineer | Contract/FT | PostgreSQL migration, API, scaling |
+| AI/ML engineer | Contract | Clipper engine improvements, model fine-tuning |
+| Content marketer | Part-time | Social media, SEO, community |
 
-The unit economics are strong: 85-93% gross margin, <1 month payback, LTV:CAC >23:1. The constraint isn't profitability — it's distribution. Every dollar of marketing spend returns $23+ in lifetime value. Costs scale smoothly with users — no cliffs, no surprises. The machine prints money once you feed it users.
+### Year 2: Core Team (8-12 people)
+
+| Role | Count | Focus |
+|------|-------|-------|
+| Engineering | 4 | Backend, frontend, infra, AI |
+| Product | 1 | Roadmap, UX research, analytics |
+| Growth marketing | 2 | Paid ads, SEO, partnerships |
+| Sales (SDR) | 2 | Pro/Agency tier outbound |
+| Customer success | 1 | Onboarding, churn reduction |
+| Design | 1 | UI/UX, brand |
+
+### Year 3: Scaling Team (20-30 people)
+
+| Department | Count | Focus |
+|------------|-------|-------|
+| Engineering | 10 | Platform, API, mobile, AI, infra |
+| Sales + Account Mgmt | 6 | Enterprise, agency partnerships |
+| Marketing | 5 | Content, paid, brand, events |
+| Customer success | 4 | Onboarding, support, retention |
+| Product + Design | 3 | Strategy, UX, research |
+| Operations | 2 | Finance, HR, legal |
+
+### Payroll Projection
+
+| Year | Headcount | Annual Payroll | % of Revenue |
+|------|-----------|---------------|--------------|
+| Y1 | 3 | $180K | 113% (investing) |
+| Y2 | 10 | $850K | 61% |
+| Y3 | 25 | $2.5M | 38% |
+
+---
+
+## 8. Financial Projections
+
+### Profit & Loss Summary
+
+| Line Item | Year 1 | Year 2 | Year 3 |
+|-----------|--------|--------|--------|
+| **Revenue** | $160K | $1.4M | $6.5M |
+| COGS (AI API, hosting, video) | ($32K) | ($210K) | ($845K) |
+| **Gross profit** | $128K | $1.19M | $5.65M |
+| **Gross margin** | 80% | 85% | 87% |
+| Payroll | ($180K) | ($850K) | ($2.5M) |
+| Marketing/ads | ($30K) | ($400K) | ($1.2M) |
+| Software/tools | ($12K) | ($48K) | ($120K) |
+| Office/misc | ($6K) | ($36K) | ($100K) |
+| **Total OpEx** | ($228K) | ($1.33M) | ($3.92M) |
+| **Net income** | ($100K) | ($144K) | $1.73M |
+| **Net margin** | -63% | -10% | 27% |
+
+### Key Metrics Targets
+
+| Metric | Year 1 | Year 2 | Year 3 |
+|--------|--------|--------|--------|
+| CAC (blended) | $25 | $55 | $65 |
+| LTV (blended) | $180 | $420 | $780 |
+| LTV:CAC | 7.2x | 7.6x | 12x |
+| Monthly churn | 8% | 5% | 3.5% |
+| Net revenue retention | 95% | 110% | 125% |
+| Payback period | 1.1 mo | 1.7 mo | 1.6 mo |
+
+---
+
+## 9. Competitive Landscape
+
+| Competitor | Price | Weakness | Our Advantage |
+|-----------|-------|----------|--------------|
+| **Descript Clips** | $24-$33/mo | Editing-focused, no multi-platform publish | Full pipeline: clip to edit to publish to 8 platforms |
+| **Opus Clip** | $19-$68/mo | Clipper only, no content creation | We do clips AND original video creation |
+| **Repurpose.io** | $25-$125/mo | Distribution only, no AI creation | AI generation + distribution in one tool |
+| **Pictory** | $19-$99/mo | Text-to-video only, no clipper | Clipper + creation + publishing |
+| **InVideo** | $25-$60/mo | Generic templates, no AI clipper | AI-driven, competitive clipper |
+
+**Our moat:** The only platform that does AI content creation + AI clipping + multi-platform publishing + scheduling in one product at a price point starting at $9.99.
+
+---
+
+## 10. Risks & Mitigations
+
+| Risk | Probability | Impact | Mitigation |
+|------|------------|--------|------------|
+| SQLite crashes at scale | HIGH | CRITICAL | Migrate to PostgreSQL in Month 1-2 |
+| AI API costs spike | MEDIUM | HIGH | Cache common generations, negotiate volume pricing, use cheaper models for lower tiers |
+| Competitor copies features | HIGH | MEDIUM | Move fast, build integrations moat, community |
+| Churn too high | MEDIUM | HIGH | Onboarding sequence, usage emails, annual plan incentives |
+| Funding gap (Y1 losses) | MEDIUM | HIGH | Bootstrap with Whop revenue, consider seed round at $300K ARR |
+| Platform API changes | MEDIUM | MEDIUM | Multi-platform redundancy, abstract API layer |
+| Single founder risk | HIGH | CRITICAL | Bring on technical co-founder by Month 6 |
+
+---
+
+## 11. Funding Strategy
+
+### Option A: Bootstrap (Recommended if possible)
+- Y1 losses: ~$100K (fund from savings or day job)
+- Break even: Month 18-20
+- Advantage: Keep 100% equity
+
+### Option B: Seed Round at $300K ARR
+- Raise $500K-$1M at $3-5M pre-money
+- Use for: hiring (2 engineers), paid marketing ($30K/mo)
+- Advantage: Accelerate to $10M faster
+
+### Option C: Revenue-Based Financing (Pipe, Clearco)
+- Borrow against MRR at $50K+ MRR
+- Non-dilutive, pay back from revenue
+- Advantage: No equity given up
+
+---
+
+## 12. Immediate Action Items (Next 30 Days)
+
+### Week 1-2: Infrastructure (CRITICAL)
+- [ ] Migrate SQLite to PostgreSQL (Render managed, $7/mo)
+- [ ] Set up AWS S3 bucket for video/media storage
+- [ ] Add Redis for caching + session store
+- [ ] Replace threading with Redis Queue (RQ) for background jobs
+
+### Week 3: Revenue
+- [ ] Set up Stripe products for all 5 tiers with correct pricing
+- [ ] Configure annual pricing in Stripe (20% discount)
+- [ ] Activate Whop marketplace listing
+- [ ] Add watermark to free tier video exports
+
+### Week 4: Growth
+- [ ] Create 20 demo videos using Social Optimize (dogfooding)
+- [ ] Submit to Product Hunt
+- [ ] Set up affiliate program (20% recurring)
+- [ ] Create onboarding email sequence (7 emails over 14 days)
+- [ ] Set up Plausible/PostHog analytics for conversion tracking
+
+---
+
+## Summary: Can We Hit $10M?
+
+**Yes, but only if the infrastructure migrates NOW.**
+
+The current SQLite + local storage + threading stack will break at ~500 concurrent users. The pricing structure is solid — the $9.99 entry point is strong for conversion, the feature gating creates natural upgrade pressure, and the $79 Pro tier is where the real margin lives.
+
+The math works: 20,325 paying subscribers at $41 ARPU = $10M ARR. That is achievable in the creator economy — Opus Clip hit $10M ARR with a narrower product and higher prices. The key sequence:
+
+1. **Month 1-2:** PostgreSQL + S3 + Redis migration (survival)
+2. **Month 3-6:** AI Clipper v2 + Whop marketplace (product-market fit)
+3. **Month 6-12:** Paid acquisition + affiliate program (growth engine)
+4. **Year 2:** Enterprise features + API (ARPU expansion)
+5. **Year 3:** Platform ecosystem + international (scale)
+
+The product is strong. The pricing is right. The technology needs to catch up.
