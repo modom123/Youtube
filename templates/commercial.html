@@ -616,9 +616,10 @@ function showResults(d) {
   if (d.video_url) {
     const vid = document.getElementById('resultVideo');
     vid.src = d.video_url;
+    vid.load();
     document.getElementById('videoWrap').style.display = 'block';
     document.getElementById('noVideoMsg').style.display = 'none';
-    document.getElementById('downloadBtn').href = d.video_url;
+    document.getElementById('downloadBtn').href = d.video_url + '?dl=1';
   } else {
     document.getElementById('videoWrap').style.display = 'none';
     document.getElementById('noVideoMsg').style.display = 'block';

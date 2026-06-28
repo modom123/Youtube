@@ -4631,6 +4631,7 @@ def commercial_audio(job_id):
 @app.route("/api/commercial/<job_id>/download")
 @login_required
 def commercial_download(job_id):
+    force_dl = request.args.get("dl") == "1"
     with _commercial_lock:
         events = _commercial_jobs.get(job_id, [])
     import json as _json
@@ -4638,9 +4639,18 @@ def commercial_download(job_id):
         if ev.startswith("data: "):
             try:
                 data = _json.loads(ev[6:])
-                if data.get("video_path") and Path(data["video_path"]).exists():
-                    return send_file(data["video_path"], as_attachment=True,
-                                     download_name="commercial.mp4")
+                vp = data.get("video_path")
+                if vp and Path(vp).exists():
+                    p = Path(vp)
+                    mime = "video/mp4"
+                    ext = p.suffix.lower()
+                    if ext == ".webm":
+                        mime = "video/webm"
+                    elif ext == ".mov":
+                        mime = "video/quicktime"
+                    return send_file(p, mimetype=mime,
+                                     as_attachment=force_dl,
+                                     download_name=f"commercial{ext or '.mp4'}")
             except Exception:
                 pass
     return jsonify({"error": "Video not ready"}), 404
@@ -4669,6 +4679,75 @@ def set_higgsfield_token():
     import generators.higgsfield_cli as _hf_cli
     _hf_cli._SEEDED = False
     return jsonify({"ok": True, "message": "Higgsfield CLI token updated"})
+
+
+# ── Credit / Cost Manager (Admin) ─────────────────────────────────────────────
+
+@app.route("/admin/credits")
+@login_required
+def admin_credits_page():
+    if not current_user.is_admin:
+        abort(403)
+    return render_template("admin/credits.html")
+
+
+@app.route("/api/admin/credits")
+@login_required
+def admin_credits_api():
+    if not current_user.is_admin:
+        return jsonify({"error": "Admin only"}), 403
+    import requests as _req
+    from generators.ai_video_generator import HIGGSVILLE_API_BASE
+    try:
+        token = config.HIGGSFIELD_MCP_TOKEN
+        if not token:
+            from generators.higgsfield_cli import _CRED_FILE
+            if _CRED_FILE.exists():
+                token = json.loads(_CRED_FILE.read_text()).get("access_token", "")
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"} if token else {}
+        bal_r = _req.get(f"{HIGGSVILLE_API_BASE}/billing/balance", headers=headers, timeout=10)
+        bal = bal_r.json() if bal_r.ok else {}
+        txn_r = _req.get(f"{HIGGSVILLE_API_BASE}/billing/transactions?size=50", headers=headers, timeout=10)
+        txn = txn_r.json() if txn_r.ok else {}
+    except Exception:
+        bal, txn = {}, {}
+
+    credits = bal.get("credits", 0)
+    plan = bal.get("subscription_plan_type", "unknown")
+    items = txn.get("items", [])
+
+    total_spent = sum(abs(t["credits"]) for t in items if t.get("action") == "spend")
+    total_refund = sum(abs(t["credits"]) for t in items if t.get("action") == "refund")
+    total_grant = sum(abs(t["credits"]) for t in items if t.get("action") == "grant")
+    net_used = total_spent - total_refund
+
+    model_costs = {}
+    for t in items:
+        if t.get("action") == "spend":
+            name = t.get("display_name", "Unknown")
+            model_costs.setdefault(name, {"count": 0, "total": 0})
+            model_costs[name]["count"] += 1
+            model_costs[name]["total"] += abs(t["credits"])
+
+    user_count = 0
+    try:
+        user_count = db.get_admin_stats().get("total_users", 0)
+    except Exception:
+        pass
+
+    return jsonify({
+        "credits": credits,
+        "plan": plan,
+        "total_spent": total_spent,
+        "total_refund": total_refund,
+        "total_grant": total_grant,
+        "net_used": net_used,
+        "model_costs": model_costs,
+        "transactions": items[:30],
+        "user_count": user_count,
+        "low_credit_warning": credits < 50,
+        "critical_warning": credits < 20,
+    })
 
 
 # ── Background Threads ────────────────────────────────────────────────────────
