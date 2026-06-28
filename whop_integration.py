@@ -36,51 +36,84 @@ WHOP_COMPANY_ID = os.getenv("WHOP_COMPANY_ID", "")
 # ── Product tiers we sell on Whop ────────────────────────────────────────────
 
 WHOP_PRODUCTS = {
-    "clipper_basic": {
-        "name": "AI Clipper — Basic",
-        "description": "Turn any video into 5 viral shorts per month. AI scene detection, auto-captions, virality scoring.",
-        "price": 19.0,
-        "billing_period": "month",
-        "clips_per_month": 30,
-        "features": [
-            "5 clipping jobs/month (up to 10 clips each)",
-            "AI-powered viral moment detection",
-            "Auto-reframe to 9:16, 16:9, 1:1",
-            "Animated captions",
-            "Hook text overlays",
-            "Download as MP4 or ZIP",
-        ],
-    },
-    "clipper_pro": {
-        "name": "AI Clipper — Pro",
-        "description": "Unlimited clipping with premium features. Perfect for agencies and power creators.",
-        "price": 49.0,
-        "billing_period": "month",
-        "clips_per_month": -1,
-        "features": [
-            "Unlimited clipping jobs",
-            "Up to 15 clips per job",
-            "Priority processing queue",
-            "AI-powered viral moment detection",
-            "All output formats (9:16, 16:9, 1:1, 4:5)",
-            "Animated captions + hook overlays",
-            "Batch download ZIP",
-            "Trim & re-cut editor",
-            "Publish to 8 platforms",
-            "API access",
-        ],
-    },
-    "clipper_payg": {
-        "name": "AI Clipper — Pay Per Clip",
-        "description": "Pay only for what you use. $0.50 per clip generated.",
-        "price": 0.50,
+    "free": {
+        "name": "Social Optimize — Free",
+        "description": "3 AI videos per month. Basic AI generation, vertical reframe, animated captions.",
+        "price": 0.0,
         "billing_period": None,
-        "clips_per_month": 0,
+        "videos_per_month": 3,
         "features": [
-            "$0.50 per clip — no monthly fee",
-            "AI-powered viral moment detection",
-            "Auto-reframe & captions",
+            "3 AI videos/month",
+            "Basic AI generation",
+            "Auto-reframe to 9:16",
+            "Animated captions",
             "Download as MP4",
+            "YouTube publishing",
+        ],
+    },
+    "starter": {
+        "name": "Social Optimize — Starter",
+        "description": "10 AI videos per month. 8-platform publishing, scheduling, analytics, no watermark.",
+        "price": 9.99,
+        "billing_period": "month",
+        "videos_per_month": 10,
+        "features": [
+            "10 AI videos/month",
+            "Publish to 8 platforms",
+            "Scheduling & auto-publish",
+            "50 Social Optimize Credits",
+            "Basic analytics",
+            "No watermark",
+        ],
+    },
+    "creator": {
+        "name": "Social Optimize — Creator",
+        "description": "30 AI videos per month. AI Clipper, batch creation, Studio 56, virality scoring.",
+        "price": 29.0,
+        "billing_period": "month",
+        "videos_per_month": 30,
+        "features": [
+            "30 AI videos/month",
+            "AI Clipper — viral moment detection",
+            "Batch video creation",
+            "Studio 56 production suite",
+            "200 Social Optimize Credits",
+            "Virality scoring",
+            "Priority rendering",
+        ],
+    },
+    "pro": {
+        "name": "Social Optimize — Pro",
+        "description": "100 AI videos per month. Hollywood AI, multi-language, team seats, advanced analytics.",
+        "price": 79.0,
+        "billing_period": "month",
+        "videos_per_month": 100,
+        "features": [
+            "100 AI videos/month",
+            "Hollywood AI agent",
+            "Multi-language support",
+            "500 Social Optimize Credits",
+            "Team seats included",
+            "Advanced analytics",
+            "All output formats (9:16, 16:9, 1:1, 4:5)",
+            "Commercial license",
+        ],
+    },
+    "agency": {
+        "name": "Social Optimize — Agency",
+        "description": "200 AI videos per month. White-label, API access, 10 team seats, dedicated account manager.",
+        "price": 199.0,
+        "billing_period": "month",
+        "videos_per_month": 200,
+        "features": [
+            "200 AI videos/month",
+            "White-label exports",
+            "Full API access",
+            "1000 Social Optimize Credits",
+            "10 team seats",
+            "Dedicated account manager",
+            "Custom integrations",
+            "Priority support",
         ],
     },
 }
@@ -137,14 +170,21 @@ def whop_setup():
                 visibility="visible",
             )
 
+            if tier["price"] == 0:
+                plan_type = "one_time"
+            elif tier["billing_period"]:
+                plan_type = "renewal"
+            else:
+                plan_type = "one_time"
+
             plan_params = {
                 "company_id": company_id,
                 "product_id": product.id,
-                "plan_type": "renewal" if tier["billing_period"] else "one_time",
+                "plan_type": plan_type,
                 "initial_price": tier["price"],
                 "currency": "usd",
             }
-            if tier["billing_period"]:
+            if tier["billing_period"] and tier["price"] > 0:
                 plan_params["billing_period"] = tier["billing_period"]
                 plan_params["renewal_price"] = tier["price"]
 
@@ -327,14 +367,14 @@ def _handle_membership_activated(data: dict):
         logger.warning("Could not find user for Whop membership %s", membership_id)
         return
 
-    clips_per_month = WHOP_PRODUCTS.get(tier, {}).get("clips_per_month", 30)
+    videos_per_month = WHOP_PRODUCTS.get(tier, {}).get("videos_per_month", 3)
 
     with db.get_conn() as conn:
         conn.execute("""
             INSERT OR REPLACE INTO whop_subscriptions
-            (user_id, membership_id, tier, status, clips_remaining, activated_at, updated_at)
+            (user_id, membership_id, tier, status, videos_remaining, activated_at, updated_at)
             VALUES (?, ?, ?, 'active', ?, ?, ?)
-        """, (uid, membership_id, tier, clips_per_month,
+        """, (uid, membership_id, tier, videos_per_month,
               datetime.now(timezone.utc).isoformat(),
               datetime.now(timezone.utc).isoformat()))
         conn.commit()
@@ -400,18 +440,18 @@ def check_whop_access(user_id: int) -> dict:
         ).fetchone()
 
     if not row:
-        return {"has_access": False, "tier": None, "clips_remaining": 0}
+        return {"has_access": False, "tier": None, "videos_remaining": 0}
 
     return {
         "has_access": True,
         "tier": row["tier"],
-        "clips_remaining": row["clips_remaining"],
+        "videos_remaining": row["videos_remaining"],
         "membership_id": row["membership_id"],
-        "unlimited": row["clips_remaining"] == -1,
+        "unlimited": row["videos_remaining"] == -1,
     }
 
 
-def use_whop_clip(user_id: int) -> bool:
+def use_whop_video(user_id: int) -> bool:
     """Decrement clip count for a Whop user. Returns False if no clips left."""
     access = check_whop_access(user_id)
     if not access["has_access"]:
@@ -421,7 +461,7 @@ def use_whop_clip(user_id: int) -> bool:
 
     with db.get_conn() as conn:
         result = conn.execute(
-            "UPDATE whop_subscriptions SET clips_remaining = clips_remaining - 1, updated_at=? WHERE user_id=? AND status='active' AND clips_remaining > 0",
+            "UPDATE whop_subscriptions SET videos_remaining = videos_remaining - 1, updated_at=? WHERE user_id=? AND status='active' AND videos_remaining > 0",
             (datetime.now(timezone.utc).isoformat(), user_id),
         )
         conn.commit()
@@ -542,7 +582,7 @@ def whop_api_products():
             "price": tier["price"],
             "billing_period": tier["billing_period"],
             "features": tier["features"],
-            "clips_per_month": tier["clips_per_month"],
+            "videos_per_month": tier["videos_per_month"],
         })
     return jsonify({"products": products})
 
@@ -700,7 +740,7 @@ def init_whop_tables():
                 membership_id TEXT UNIQUE,
                 tier TEXT DEFAULT 'clipper_basic',
                 status TEXT DEFAULT 'active',
-                clips_remaining INTEGER DEFAULT 30,
+                videos_remaining INTEGER DEFAULT 3,
                 activated_at TEXT,
                 updated_at TEXT,
                 FOREIGN KEY (user_id) REFERENCES users(id)

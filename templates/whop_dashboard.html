@@ -48,7 +48,7 @@ th{color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spa
   <div class="product-row">
     <div>
       <div class="product-name">{{ p.name }}</div>
-      <div style="color:#888;font-size:12px;margin-top:2px;">{{ p.clips_per_month }} clips/mo{% if p.clips_per_month == -1 %} (unlimited){% endif %}</div>
+      <div style="color:#888;font-size:12px;margin-top:2px;">{{ p.videos_per_month }} videos/mo</div>
     </div>
     <div class="product-price">${{ '%.2f' % p.price }}/{% if p.billing_period %}mo{% else %}clip{% endif %}</div>
   </div>
