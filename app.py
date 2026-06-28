@@ -273,7 +273,13 @@ def landing():
 def pricing():
     if current_user.is_authenticated:
         return redirect(url_for("billing.billing_page"))
-    return render_template("pricing.html", tiers=config.TIERS)
+    whop_plans = {
+        "starter": config.WHOP_PLAN_STARTER,
+        "creator": config.WHOP_PLAN_CREATOR,
+        "pro": config.WHOP_PLAN_PRO,
+        "agency": config.WHOP_PLAN_AGENCY,
+    }
+    return render_template("pricing.html", tiers=config.TIERS, whop_plans=whop_plans)
 
 
 # ── Quick Post ────────────────────────────────────────────────────────────────
