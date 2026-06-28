@@ -162,11 +162,12 @@ def main():
             url=webhook_url,
             resource_id=COMPANY_ID,
             events=[
-                "membership.went_valid",
-                "membership.went_invalid",
-                "membership.cancelled",
-                "payment.succeeded",
-                "payment.failed",
+                "membership_went_valid",
+                "membership_went_invalid",
+                "membership_cancel_at_period_end_changed",
+                "payment_succeeded",
+                "payment_failed",
+                "payment_created",
             ],
         )
         print(f"  Webhook created: {webhook.id} -> {webhook_url}")

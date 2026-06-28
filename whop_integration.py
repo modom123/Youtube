@@ -210,11 +210,12 @@ def whop_setup():
             url=webhook_url,
             resource_id=company_id,
             events=[
-                "membership.went_valid",
-                "membership.went_invalid",
-                "membership.cancelled",
-                "payment.succeeded",
-                "payment.failed",
+                "membership_went_valid",
+                "membership_went_invalid",
+                "membership_cancel_at_period_end_changed",
+                "payment_succeeded",
+                "payment_failed",
+                "payment_created",
             ],
         )
         results["webhook"] = {"id": webhook.id, "url": webhook_url}
@@ -316,13 +317,13 @@ def whop_webhook():
 
     logger.info("Whop webhook: %s", event_type)
 
-    if event_type == "membership.went_valid":
+    if event_type == "membership_went_valid":
         _handle_membership_activated(data)
-    elif event_type in ("membership.went_invalid", "membership.cancelled"):
+    elif event_type in ("membership_went_invalid", "membership_cancel_at_period_end_changed"):
         _handle_membership_deactivated(data)
-    elif event_type == "payment.succeeded":
+    elif event_type in ("payment_succeeded", "payment_created"):
         _handle_payment_succeeded(data)
-    elif event_type == "payment.failed":
+    elif event_type == "payment_failed":
         _handle_payment_failed(data)
 
     return jsonify({"ok": True})
