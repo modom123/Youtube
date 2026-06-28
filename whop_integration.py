@@ -38,7 +38,7 @@ WHOP_PRODUCTS = {
     "clipper_basic": {
         "name": "AI Clipper — Basic",
         "description": "Turn any video into 5 viral shorts per month. AI scene detection, auto-captions, virality scoring.",
-        "price_cents": 1900,
+        "price": 19.0,
         "billing_period": "month",
         "clips_per_month": 30,
         "features": [
@@ -53,7 +53,7 @@ WHOP_PRODUCTS = {
     "clipper_pro": {
         "name": "AI Clipper — Pro",
         "description": "Unlimited clipping with premium features. Perfect for agencies and power creators.",
-        "price_cents": 4900,
+        "price": 49.0,
         "billing_period": "month",
         "clips_per_month": -1,
         "features": [
@@ -72,7 +72,7 @@ WHOP_PRODUCTS = {
     "clipper_payg": {
         "name": "AI Clipper — Pay Per Clip",
         "description": "Pay only for what you use. $0.50 per clip generated.",
-        "price_cents": 50,
+        "price": 0.50,
         "billing_period": None,
         "clips_per_month": 0,
         "features": [
@@ -133,12 +133,12 @@ def whop_setup():
                 "company_id": company_id,
                 "product_id": product.id,
                 "plan_type": "renewal" if tier["billing_period"] else "one_time",
-                "initial_price": tier["price_cents"],
+                "initial_price": tier["price"],
                 "currency": "usd",
             }
             if tier["billing_period"]:
                 plan_params["billing_period"] = tier["billing_period"]
-                plan_params["renewal_price"] = tier["price_cents"]
+                plan_params["renewal_price"] = tier["price"]
 
             plan = client.plans.create(**plan_params)
 
@@ -218,10 +218,17 @@ def whop_checkout(tier):
     if not plan_id:
         return jsonify({"error": "Product not set up on Whop yet. Run /whop/setup first."}), 400
 
+    product_info = WHOP_PRODUCTS[tier]
     try:
         checkout = client.checkout_configurations.create(
-            plan={"id": plan_id},
             currency="usd",
+            plan={
+                "id": plan_id,
+                "initial_price": product_info["price"],
+                "plan_type": "renewal" if product_info["billing_period"] else "one_time",
+                "company_id": WHOP_COMPANY_ID,
+                "currency": "usd",
+            },
             metadata={
                 "user_id": str(current_user.id),
                 "tier": tier,
@@ -229,7 +236,8 @@ def whop_checkout(tier):
             },
             redirect_url=f"{config.APP_BASE_URL}/whop/success?tier={tier}",
         )
-        return jsonify({"checkout_url": checkout.url if hasattr(checkout, "url") else f"https://whop.com/checkout/{checkout.id}"})
+        checkout_url = f"https://whop.com/checkout/{checkout.plan.id}" if hasattr(checkout, "plan") else f"https://whop.com/checkout/{checkout.id}"
+        return jsonify({"checkout_url": checkout_url})
     except Exception as e:
         logger.error("Checkout creation failed: %s", e)
         return jsonify({"error": str(e)}), 500
@@ -282,7 +290,7 @@ def _verify_webhook(payload: bytes, signature: str) -> bool:
     """Verify Whop webhook signature."""
     if not WHOP_WEBHOOK_SECRET:
         return True
-    expected = hmac.new(
+    expected = hmac.HMAC(
         WHOP_WEBHOOK_SECRET.encode(),
         payload,
         hashlib.sha256,
@@ -480,7 +488,7 @@ def whop_api_products():
             "id": tier_key,
             "name": tier["name"],
             "description": tier["description"],
-            "price_cents": tier["price_cents"],
+            "price": tier["price"],
             "billing_period": tier["billing_period"],
             "features": tier["features"],
             "clips_per_month": tier["clips_per_month"],
@@ -507,12 +515,124 @@ def whop_api_stats():
             "SELECT tier, COUNT(*) as c FROM whop_subscriptions WHERE status='active' GROUP BY tier"
         ).fetchall()
 
-    return jsonify({
+    result = {
         "active_subscribers": active,
         "total_revenue_cents": total_revenue,
         "total_revenue_usd": f"${total_revenue / 100:.2f}",
         "by_tier": {row["tier"]: row["c"] for row in by_tier},
-    })
+    }
+
+    # Pull live data from Whop API if available
+    client = _get_whop_client()
+    if client and WHOP_COMPANY_ID:
+        try:
+            memberships = client.memberships.list(
+                company_id=WHOP_COMPANY_ID,
+                per=100,
+                status="active",
+            )
+            live_members = []
+            for m in memberships.data if hasattr(memberships, "data") else memberships:
+                live_members.append({
+                    "id": getattr(m, "id", ""),
+                    "email": getattr(m, "email", ""),
+                    "status": getattr(m, "status", ""),
+                    "product_id": getattr(m, "product_id", ""),
+                    "created_at": str(getattr(m, "created_at", "")),
+                })
+            result["live_memberships"] = live_members
+            result["live_active_count"] = len(live_members)
+        except Exception as e:
+            result["live_error"] = str(e)
+
+    return jsonify(result)
+
+
+@whop_bp.route("/api/memberships")
+@login_required
+def whop_api_memberships():
+    """Admin endpoint: pull all paying memberships from Whop API."""
+    user = db.get_user(current_user.id)
+    if not user or not user.get("is_admin"):
+        return jsonify({"error": "Admin only"}), 403
+
+    client = _get_whop_client()
+    if not client:
+        return jsonify({"error": "Whop API key not configured"}), 400
+
+    company_id = WHOP_COMPANY_ID
+    if not company_id:
+        return jsonify({"error": "WHOP_COMPANY_ID not set"}), 400
+
+    status_filter = request.args.get("status", "active")
+    per_page = min(int(request.args.get("per", 100)), 100)
+
+    try:
+        memberships = client.memberships.list(
+            company_id=company_id,
+            per=per_page,
+            status=status_filter,
+        )
+        members = []
+        for m in memberships.data if hasattr(memberships, "data") else memberships:
+            tier = _membership_to_tier(m) if hasattr(m, "product_id") else "unknown"
+            members.append({
+                "id": getattr(m, "id", ""),
+                "email": getattr(m, "email", ""),
+                "user_id": getattr(m, "user_id", ""),
+                "status": getattr(m, "status", ""),
+                "product_id": getattr(m, "product_id", ""),
+                "plan_id": getattr(m, "plan_id", ""),
+                "tier": tier,
+                "created_at": str(getattr(m, "created_at", "")),
+                "valid": getattr(m, "valid", False),
+                "metadata": getattr(m, "metadata", {}),
+            })
+        return jsonify({
+            "memberships": members,
+            "count": len(members),
+            "status_filter": status_filter,
+        })
+    except Exception as e:
+        logger.error("Failed to pull Whop memberships: %s", e)
+        return jsonify({"error": str(e)}), 500
+
+
+@whop_bp.route("/api/payments")
+@login_required
+def whop_api_payments():
+    """Admin endpoint: pull payment history from Whop API."""
+    user = db.get_user(current_user.id)
+    if not user or not user.get("is_admin"):
+        return jsonify({"error": "Admin only"}), 403
+
+    client = _get_whop_client()
+    if not client:
+        return jsonify({"error": "Whop API key not configured"}), 400
+
+    company_id = WHOP_COMPANY_ID
+    if not company_id:
+        return jsonify({"error": "WHOP_COMPANY_ID not set"}), 400
+
+    try:
+        payments = client.payments.list(
+            company_id=company_id,
+            per=min(int(request.args.get("per", 50)), 100),
+        )
+        items = []
+        for p in payments.data if hasattr(payments, "data") else payments:
+            items.append({
+                "id": getattr(p, "id", ""),
+                "amount": getattr(p, "amount", 0),
+                "currency": getattr(p, "currency", "usd"),
+                "status": getattr(p, "status", ""),
+                "membership_id": getattr(p, "membership_id", ""),
+                "created_at": str(getattr(p, "created_at", "")),
+            })
+        return jsonify({"payments": items, "count": len(items)})
+    except Exception as e:
+        logger.error("Failed to pull Whop payments: %s", e)
+        return jsonify({"error": str(e)}), 500
 
 
 # ═════════════════════════════════════════════════════════════════════════════
