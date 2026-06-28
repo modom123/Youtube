@@ -277,7 +277,7 @@ def check_usage_gate(user_id: int) -> tuple[bool, str]:
         return True, ""
     tier = user.get("subscription_tier", "free")
     tier_cfg = config.TIERS.get(tier, config.TIERS.get("free", {}))
-    limit = tier_cfg.get("videos_per_month", 2)
+    limit = tier_cfg.get("videos_per_month", 3)
     if limit == -1:
         return True, ""
     used = user.get("videos_used", 0)

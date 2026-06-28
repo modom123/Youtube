@@ -538,11 +538,10 @@ def admin_config_api():
             val = os.getenv(var_name, "") or db.get_setting(f"env:{var_name}") or ""
             api_keys[var_name] = "configured" if val else "missing"
     tiers = {
-        "free":    {"label": "Free",    "price_monthly": 0,     "videos_per_month": 3,   "higgsfield_credits": 0,   "features": ["Basic AI", "3 videos/mo"]},
-        "starter": {"label": "Starter", "price_monthly": 9.99,  "videos_per_month": 10,  "higgsfield_credits": 50,  "features": ["All platforms", "10 videos/mo", "Analytics"]},
-        "creator": {"label": "Creator", "price_monthly": 29,    "videos_per_month": 30,  "higgsfield_credits": 200, "features": ["AI Clipper", "30 videos/mo", "Batch creation"]},
-        "pro":     {"label": "Pro",     "price_monthly": 79,    "videos_per_month": 100, "higgsfield_credits": 500, "features": ["Hollywood AI", "100 videos/mo", "Multi-language", "Team seats"]},
-        "agency":  {"label": "Agency",  "price_monthly": 199,   "videos_per_month": 200, "higgsfield_credits": 1000, "features": ["200 videos/mo", "White-label", "API access", "10 seats"]},
+        "free":    {"label": "Free",    "price_monthly": 0,   "videos_per_month": 3,   "higgsfield_credits": 10,  "features": ["3 videos/mo", "3 platforms", "Basic AI scripts", "Editing Room"]},
+        "starter": {"label": "Starter", "price_monthly": 29,  "videos_per_month": 15,  "higgsfield_credits": 150, "features": ["8 platforms", "15 videos/mo", "Production Studio", "Commercial Studio", "Music Studio"]},
+        "creator": {"label": "Creator", "price_monthly": 79,  "videos_per_month": 50,  "higgsfield_credits": 500, "features": ["Everything in Starter", "50 videos/mo", "Hollywood AI", "AI Clipper", "Advanced analytics"]},
+        "agency":  {"label": "Agency",  "price_monthly": 199, "videos_per_month": 125, "higgsfield_credits": 2000,"features": ["Everything in Creator", "125 videos/mo", "White-label", "API access", "Team (5 seats)"]},
     }
     return jsonify({"api_keys": api_keys, "tiers": tiers})
 
