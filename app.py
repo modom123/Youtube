@@ -60,6 +60,9 @@ app.register_blueprint(billing_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(monetizer_bp)
 
+from admin import load_env_from_db
+load_env_from_db()
+
 @app.errorhandler(500)
 def _handle_500(e):
     if request.path.startswith("/api/"):

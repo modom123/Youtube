@@ -274,6 +274,17 @@ _ENV_VAR_MAP = [
 ]
 
 
+def load_env_from_db():
+    """Load saved API keys from DB into os.environ and config on startup."""
+    for _, vlist in _ENV_VAR_MAP:
+        for var_name, _ in vlist:
+            val = db.get_setting(f"env:{var_name}")
+            if val and not os.getenv(var_name):
+                os.environ[var_name] = val
+                if hasattr(config, var_name):
+                    setattr(config, var_name, val)
+
+
 @admin_bp.route("/admin/settings")
 @login_required
 def admin_settings():
@@ -284,7 +295,7 @@ def admin_settings():
     for group_name, vars_list in _ENV_VAR_MAP:
         items = []
         for var_name, description in vars_list:
-            val = os.getenv(var_name, "")
+            val = os.getenv(var_name, "") or db.get_setting(f"env:{var_name}") or ""
             is_set = bool(val)
             if is_set:
                 total_set += 1
@@ -315,8 +326,8 @@ def admin_set_env():
     if var_name not in allowed:
         return jsonify({"error": "Unknown variable"}), 400
     os.environ[var_name] = var_value
-    # Update config module if it has a matching attribute
     if hasattr(config, var_name):
         setattr(config, var_name, var_value)
+    db.set_setting(f"env:{var_name}", var_value)
     return jsonify({"ok": True, "name": var_name,
                     "masked": var_value[:4] + "••••" + var_value[-4:] if len(var_value) > 8 else "••••••"})
