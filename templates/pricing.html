@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pricing — Social Optimize</title>
   <meta name="description" content="Simple, transparent pricing for content creators. Start free, scale as you grow.">
+  <script async defer src="https://js.whop.com/static/checkout/loader.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
@@ -229,7 +230,7 @@
       <h3 class="pricing-name">Free</h3>
       <div class="pricing-price">$<span style="font-size:36px">0</span><span>/mo</span></div>
       <p class="pricing-desc">See what AI content creation feels like. No card, no strings.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free — No Card</button>
+      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free</button>
       <ul class="pricing-features">
         <li>3 AI videos/month</li>
         <li>10 Social Optimize Credits</li>
@@ -251,7 +252,7 @@
       <h3 class="pricing-name">Starter</h3>
       <div class="pricing-price"><span id="starter-price-big">$9.99</span><span>/mo</span></div>
       <p class="pricing-desc">Post consistently without breaking the bank. Scheduling, 8 platforms, no watermark.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=starter'">Start 7-Day Free Trial</button>
+      <button class="pricing-cta" onclick="openCheckout('starter')">Start 7-Day Free Trial</button>
       <ul class="pricing-features">
         <li>10 AI videos/month</li>
         <li>50 Social Optimize Credits/mo</li>
@@ -275,7 +276,7 @@
       <h3 class="pricing-name">Creator</h3>
       <div class="pricing-price"><span id="creator-price-big">$29</span><span>/mo</span></div>
       <p class="pricing-desc">The sweet spot. AI Clipper, batch creation, Studio 56 — everything a serious creator needs.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=creator'">Start 14-Day Free Trial</button>
+      <button class="pricing-cta" onclick="openCheckout('creator')">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
         <li>30 AI videos/month</li>
         <li>200 Social Optimize Credits/mo</li>
@@ -296,7 +297,7 @@
       <h3 class="pricing-name">Pro</h3>
       <div class="pricing-price"><span id="pro-price-big">$79</span><span>/mo</span></div>
       <p class="pricing-desc">Every tool unlocked. Unlimited clips, Hollywood AI, multi-language, team seats.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=pro'">Start 14-Day Free Trial</button>
+      <button class="pricing-cta" onclick="openCheckout('pro')">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
         <li>100 AI videos/month</li>
         <li>750 Social Optimize Credits/mo</li>
@@ -318,7 +319,7 @@
       <h3 class="pricing-name">Agency</h3>
       <div class="pricing-price"><span id="agency-price-big">$199</span><span>/mo</span></div>
       <p class="pricing-desc">White-label, API, CRM, 10 seats, and a dedicated manager. Built for agencies.</p>
-      <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}?plan=agency'">Start 14-Day Free Trial</button>
+      <button class="pricing-cta" onclick="openCheckout('agency')">Start 14-Day Free Trial</button>
       <ul class="pricing-features">
         <li>200 AI videos/month</li>
         <li>2,000 Social Optimize Credits/mo</li>
@@ -535,7 +536,49 @@
   </div>
 </div>
 
+<!-- Whop Embedded Checkout -->
+<div id="whopCheckoutOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);align-items:center;justify-content:center;">
+  <div style="position:relative;width:100%;max-width:480px;min-height:600px;background:#050507;border-radius:16px;border:1px solid var(--border);overflow:hidden;">
+    <button onclick="closeCheckout()" style="position:absolute;top:12px;right:12px;z-index:10;background:rgba(255,255,255,.1);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px;">&times;</button>
+    <div id="whopCheckoutContainer"
+      data-whop-checkout-theme="dark"
+      data-whop-checkout-theme-background-color="#050507"
+      style="width:100%;min-height:580px;">
+    </div>
+  </div>
+</div>
+
 <script>
+const whopPlanIds = {
+  starter: "{{ whop_plans.starter or '' }}",
+  creator: "{{ whop_plans.creator or '' }}",
+  pro: "{{ whop_plans.pro or '' }}",
+  agency: "{{ whop_plans.agency or '' }}"
+};
+
+function openCheckout(tier) {
+  const planId = whopPlanIds[tier];
+  if (!planId) {
+    window.location.href = '{{ url_for("auth.register") }}?plan=' + tier;
+    return;
+  }
+  const container = document.getElementById('whopCheckoutContainer');
+  container.setAttribute('data-whop-checkout-plan-id', planId);
+  document.getElementById('whopCheckoutOverlay').style.display = 'flex';
+  if (window.WhopCheckout) window.WhopCheckout.render();
+}
+
+function closeCheckout() {
+  document.getElementById('whopCheckoutOverlay').style.display = 'none';
+  const container = document.getElementById('whopCheckoutContainer');
+  container.removeAttribute('data-whop-checkout-plan-id');
+  container.innerHTML = '';
+}
+
+document.getElementById('whopCheckoutOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeCheckout();
+});
+
 const priceMap = {
   'monthly': { starter: '9.99', creator: '29', pro: '79', agency: '199' },
   'annual':  { starter: '7.99', creator: '23', pro: '63', agency: '159' }
