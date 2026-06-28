@@ -1,366 +1,988 @@
 {% extends "base.html" %}
 {% set active_page = "clipper" %}
-{% block title %}AI Clipper — Social Optimize Machine{% endblock %}
+{% block title %}AI Clipper — Social Optimize{% endblock %}
 {% block topbar_title %}AI Clipper{% endblock %}
-{% block topbar_sub %}Turn long videos into viral shorts automatically{% endblock %}
-{% block topbar_actions %}{% endblock %}
+{% block topbar_sub %}Turn long-form videos into viral shorts with AI{% endblock %}
+{% block topbar_actions %}
+<div id="batch-bar" style="display:none;" class="flex gap-8" style="align-items:center;">
+  <span class="pill pill-done" id="batch-clip-count">0 clips</span>
+  <span class="pill" id="batch-duration" style="background:var(--bg);border:1px solid var(--border);">0:00 total</span>
+  <button class="btn btn-ghost btn-sm" onclick="downloadAll()" title="Download all clips as ZIP">&#11015; Download All</button>
+  <button class="btn btn-green btn-sm" onclick="publishAll()">&#128225; Publish All</button>
+  <button class="btn btn-ghost btn-sm" onclick="regenerate()">&#8635; Regenerate</button>
+</div>
+{% endblock %}
 
 {% block content %}
 <style>
-  .clip-grid { display:grid; grid-template-columns:400px 1fr; gap:24px; align-items:start; }
-  @media (max-width:900px) { .clip-grid { grid-template-columns:1fr; } }
-  .cl-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:18px; }
-  .cl-card h2 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 16px; }
-  .form-row { margin-bottom:14px; }
-  .form-row label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.06em; }
-  .form-row input, .form-row select, .form-row textarea { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px; box-sizing:border-box; }
-  .form-row input:focus, .form-row select:focus { outline:none; border-color:var(--accent); }
-  .source-tabs { display:flex; gap:8px; margin-bottom:16px; }
-  .source-tab { padding:8px 16px; border-radius:8px; border:1px solid var(--border); background:var(--bg); cursor:pointer; font-size:13px; font-weight:600; color:var(--muted); transition:all .2s; }
-  .source-tab.active { border-color:var(--accent); color:var(--accent); background:rgba(255,59,48,.08); }
-  .clip-result { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:12px; display:flex; gap:16px; align-items:center; }
-  .clip-thumb { width:120px; height:68px; background:var(--border); border-radius:6px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:24px; }
-  .clip-info { flex:1; }
-  .clip-title { font-size:14px; font-weight:700; margin-bottom:4px; }
-  .clip-meta { font-size:11px; color:var(--muted); }
-  .clip-actions { display:flex; gap:6px; }
-  .empty-state { text-align:center; padding:60px 24px; color:var(--muted); }
-  .empty-state .big-icon { font-size:48px; margin-bottom:16px; }
-  .empty-state h3 { font-size:18px; font-weight:700; color:var(--text); margin-bottom:8px; }
+  /* Layout */
+  .clipper-layout { display:grid; grid-template-columns:320px 1fr; gap:0; min-height:calc(100vh - 80px); transition:grid-template-columns .4s ease; }
+  .clipper-layout.has-results { grid-template-columns:280px 1fr 380px; }
+  @media(max-width:1200px) { .clipper-layout.has-results { grid-template-columns:260px 1fr 320px; } }
+  @media(max-width:900px) { .clipper-layout, .clipper-layout.has-results { grid-template-columns:1fr; } }
+
+  /* Panels */
+  .panel-left { padding:20px; border-right:1px solid var(--border); overflow-y:auto; max-height:calc(100vh - 80px); }
+  .panel-center { padding:20px; display:flex; flex-direction:column; overflow-y:auto; max-height:calc(100vh - 80px); }
+  .panel-right { padding:20px; border-left:1px solid var(--border); overflow-y:auto; max-height:calc(100vh - 80px); }
+
+  /* Section headers */
+  .panel-heading { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin:0 0 12px; display:flex; align-items:center; justify-content:space-between; }
+  .panel-heading .collapse-btn { cursor:pointer; font-size:16px; color:var(--muted); background:none; border:none; padding:0; transition:transform .2s; }
+  .panel-heading .collapse-btn.collapsed { transform:rotate(-90deg); }
+
+  /* Collapsible sections */
+  .collapsible { overflow:hidden; transition:max-height .3s ease, opacity .2s ease; max-height:800px; opacity:1; }
+  .collapsible.collapsed { max-height:0; opacity:0; }
+
+  /* Source tabs */
+  .src-tabs { display:flex; gap:4px; margin-bottom:14px; background:var(--bg); border-radius:10px; padding:3px; }
+  .src-tab { flex:1; padding:7px 0; text-align:center; border-radius:8px; font-size:11px; font-weight:600; color:var(--muted); cursor:pointer; transition:all .2s; border:none; background:none; }
+  .src-tab.active { background:var(--card); color:var(--accent); box-shadow:0 1px 4px rgba(0,0,0,.3); }
+  .src-tab:hover:not(.active) { color:var(--text); }
+
+  /* Form elements */
+  .f-group { margin-bottom:12px; }
+  .f-label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
+  .f-input, .f-select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:var(--text); font-size:12px; box-sizing:border-box; transition:border-color .2s; }
+  .f-input:focus, .f-select:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(212,160,23,.15); }
+  .f-select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; padding-right:28px; }
+
+  /* Chip selectors */
+  .chip-row { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { padding:6px 12px; border-radius:20px; font-size:11px; font-weight:600; border:1px solid var(--border); background:var(--bg); color:var(--muted); cursor:pointer; transition:all .2s; white-space:nowrap; }
+  .chip.active { border-color:var(--accent); color:var(--accent); background:rgba(212,160,23,.1); }
+  .chip:hover:not(.active) { border-color:var(--text); color:var(--text); }
+
+  /* Toggle switch */
+  .toggle-row { display:flex; align-items:center; justify-content:space-between; padding:6px 0; }
+  .toggle-row .t-label { font-size:12px; color:var(--text); }
+  .toggle-track { width:36px; height:20px; border-radius:10px; background:var(--border); position:relative; cursor:pointer; transition:background .2s; flex-shrink:0; }
+  .toggle-track.on { background:var(--accent); }
+  .toggle-track .toggle-knob { width:16px; height:16px; border-radius:50%; background:#fff; position:absolute; top:2px; left:2px; transition:left .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+  .toggle-track.on .toggle-knob { left:18px; }
+
+  /* Drop zone */
+  .drop-zone { border:2px dashed var(--border); border-radius:10px; padding:28px 16px; text-align:center; cursor:pointer; transition:all .2s; position:relative; }
+  .drop-zone:hover, .drop-zone.dragover { border-color:var(--accent); background:rgba(212,160,23,.05); }
+  .drop-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .drop-zone .dz-icon { font-size:28px; margin-bottom:8px; }
+  .drop-zone .dz-text { font-size:12px; color:var(--muted); }
+  .drop-zone .dz-text strong { color:var(--accent); }
+
+  /* Big CTA */
+  .clip-cta { width:100%; padding:12px; font-size:14px; font-weight:700; border:none; border-radius:10px; cursor:pointer; background:linear-gradient(135deg, var(--accent), #e6b422); color:#000; transition:all .2s; display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px; }
+  .clip-cta:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(212,160,23,.35); }
+  .clip-cta:disabled { opacity:.5; cursor:not-allowed; transform:none; box-shadow:none; }
+  .clip-cta svg { width:18px; height:18px; }
+
+  /* Video player */
+  .player-wrap { background:#000; border-radius:12px; overflow:hidden; position:relative; aspect-ratio:16/9; width:100%; }
+  .player-wrap video { width:100%; height:100%; object-fit:contain; }
+  .player-placeholder { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--muted); gap:12px; }
+  .player-placeholder svg { width:48px; height:48px; opacity:.3; }
+
+  /* Timeline */
+  .timeline-wrap { margin-top:12px; }
+  .timeline-bar { height:48px; background:var(--bg); border-radius:8px; position:relative; overflow:hidden; border:1px solid var(--border); cursor:pointer; }
+  .timeline-waveform { position:absolute; inset:0; display:flex; align-items:flex-end; padding:4px 2px; gap:1px; }
+  .timeline-waveform .wave-bar { flex:1; background:var(--border); border-radius:1px 1px 0 0; min-height:2px; transition:background .2s; }
+  .timeline-clip-marker { position:absolute; top:0; bottom:0; background:rgba(212,160,23,.25); border-left:2px solid var(--accent); border-right:2px solid var(--accent); cursor:pointer; transition:background .15s; z-index:2; }
+  .timeline-clip-marker:hover { background:rgba(212,160,23,.4); }
+  .timeline-clip-marker.active { background:rgba(212,160,23,.45); }
+  .timeline-playhead { position:absolute; top:0; bottom:0; width:2px; background:var(--red); z-index:3; pointer-events:none; transition:left .1s linear; }
+  .timeline-time { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-top:4px; }
+
+  /* Trim handles */
+  .trim-handle { position:absolute; top:0; bottom:0; width:10px; cursor:col-resize; z-index:4; display:flex; align-items:center; justify-content:center; }
+  .trim-handle::after { content:''; width:3px; height:20px; border-radius:2px; background:var(--accent); }
+  .trim-handle-left { left:-5px; }
+  .trim-handle-right { right:-5px; }
+
+  /* Progress panel */
+  .progress-panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; text-align:center; }
+  .progress-ring { width:120px; height:120px; margin:0 auto 16px; position:relative; }
+  .progress-ring svg { transform:rotate(-90deg); }
+  .progress-ring .pct { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800; color:var(--accent); }
+  .progress-steps { text-align:left; margin-top:16px; }
+  .progress-step { padding:6px 0; font-size:12px; display:flex; align-items:center; gap:8px; color:var(--muted); }
+  .progress-step.active { color:var(--text); font-weight:600; }
+  .progress-step.done { color:var(--green); }
+  .progress-step .step-dot { width:8px; height:8px; border-radius:50%; background:var(--border); flex-shrink:0; }
+  .progress-step.active .step-dot { background:var(--accent); box-shadow:0 0 8px var(--accent); animation:pulse-dot 1.5s infinite; }
+  .progress-step.done .step-dot { background:var(--green); }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .progress-eta { font-size:11px; color:var(--muted); margin-top:12px; }
+
+  /* Clip cards */
+  .clip-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px; transition:all .2s; cursor:default; }
+  .clip-card:hover { border-color:var(--accent); }
+  .clip-card.active { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+  .clip-thumb-wrap { position:relative; border-radius:6px; overflow:hidden; aspect-ratio:16/9; background:#000; margin-bottom:8px; }
+  .clip-thumb-wrap img { width:100%; height:100%; object-fit:cover; }
+  .clip-thumb-wrap .play-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.4); opacity:0; transition:opacity .2s; cursor:pointer; }
+  .clip-thumb-wrap:hover .play-overlay { opacity:1; }
+  .play-overlay svg { width:32px; height:32px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+  .clip-card-title { font-size:13px; font-weight:700; margin-bottom:4px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .clip-card-time { font-size:11px; color:var(--muted); margin-bottom:6px; }
+
+  /* Virality gauge */
+  .virality-gauge { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .gauge-track { flex:1; height:6px; border-radius:3px; background:var(--bg); overflow:hidden; }
+  .gauge-fill { height:100%; border-radius:3px; transition:width .5s ease; }
+  .gauge-label { font-size:11px; font-weight:700; min-width:28px; text-align:right; }
+
+  /* Hook preview */
+  .hook-preview { font-size:11px; color:var(--accent); font-style:italic; margin-bottom:6px; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+
+  /* Transcript snippet */
+  .transcript-snippet { font-size:10px; color:var(--muted); line-height:1.5; margin-bottom:8px; }
+  .transcript-snippet.expanded { -webkit-line-clamp:unset; }
+  .transcript-toggle { font-size:10px; color:var(--accent); cursor:pointer; background:none; border:none; padding:0; }
+
+  /* Clip actions */
+  .clip-actions { display:flex; gap:4px; }
+  .clip-actions button { flex:1; }
+
+  /* Drag handle */
+  .drag-handle { cursor:grab; color:var(--muted); font-size:14px; padding:2px 4px; user-select:none; }
+  .drag-handle:active { cursor:grabbing; }
+
+  /* Empty state premium */
+  .empty-hero { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:60px 40px; text-align:center; }
+  .empty-hero-icon { width:80px; height:80px; border-radius:20px; background:linear-gradient(135deg, rgba(212,160,23,.15), rgba(212,160,23,.05)); display:flex; align-items:center; justify-content:center; margin-bottom:20px; }
+  .empty-hero-icon svg { width:40px; height:40px; color:var(--accent); }
+  .empty-hero h2 { font-size:22px; font-weight:800; margin:0 0 8px; }
+  .empty-hero p { font-size:13px; color:var(--muted); max-width:400px; line-height:1.6; margin:0 0 24px; }
+  .feature-pills { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+  .feature-pill { padding:6px 14px; border-radius:20px; font-size:11px; font-weight:600; background:var(--bg); border:1px solid var(--border); color:var(--muted); display:flex; align-items:center; gap:5px; }
+  .feature-pill svg { width:12px; height:12px; color:var(--accent); }
+
+  /* Modal */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity .25s; }
+  .modal-overlay.open { opacity:1; pointer-events:all; }
+  .modal-box { background:var(--card); border:1px solid var(--border); border-radius:14px; width:90%; max-width:720px; max-height:85vh; overflow-y:auto; padding:24px; transform:scale(.95); transition:transform .25s; }
+  .modal-overlay.open .modal-box { transform:scale(1); }
+  .modal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .modal-header h3 { font-size:16px; font-weight:700; margin:0; }
+  .modal-close { background:none; border:none; color:var(--muted); font-size:20px; cursor:pointer; padding:4px 8px; }
+  .modal-close:hover { color:var(--text); }
+
+  /* Trim controls */
+  .trim-controls { display:flex; gap:12px; margin-bottom:16px; }
+  .trim-field { flex:1; }
+  .trim-field label { font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); display:block; margin-bottom:4px; }
+  .trim-field .trim-input-row { display:flex; align-items:center; gap:4px; }
+  .trim-field input { width:80px; text-align:center; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:6px; color:var(--text); font-size:13px; font-family:'JetBrains Mono',monospace; }
+  .trim-btn { width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; }
+  .trim-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* Editor textarea */
+  .editor-area { width:100%; min-height:80px; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; color:var(--text); font-size:12px; line-height:1.6; resize:vertical; box-sizing:border-box; font-family:inherit; }
+  .editor-area:focus { outline:none; border-color:var(--accent); }
+
+  /* Scrollbar styling */
+  .panel-left::-webkit-scrollbar, .panel-right::-webkit-scrollbar { width:4px; }
+  .panel-left::-webkit-scrollbar-thumb, .panel-right::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  /* Animations */
+  @keyframes fade-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .fade-in { animation:fade-in .3s ease both; }
+  @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+  .shimmer { background:linear-gradient(90deg, var(--border) 25%, var(--bg-elevated) 50%, var(--border) 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; }
 </style>
 
-<div class="clip-grid">
+<div class="clipper-layout" id="clipperLayout">
 
-  <!-- Left: Source Input -->
-  <div>
+  <!-- LEFT SIDEBAR: Source + Settings -->
+  <div class="panel-left">
 
-    <div class="cl-card">
-      <h2>Video Source</h2>
+    <!-- Source Input -->
+    <div class="panel-heading">
+      Video Source
+      <button class="collapse-btn" onclick="toggleSection('source-section', this)" title="Collapse">&#9660;</button>
+    </div>
+    <div id="source-section" class="collapsible">
 
-      <div class="source-tabs">
-        <div class="source-tab active" onclick="switchSource('url',this)">URL Import</div>
-        <div class="source-tab" onclick="switchSource('upload',this)">Upload File</div>
-        <div class="source-tab" onclick="switchSource('job',this)">From My Jobs</div>
+      <div class="src-tabs">
+        <button class="src-tab active" onclick="switchSource('url',this)">URL</button>
+        <button class="src-tab" onclick="switchSource('upload',this)">Upload</button>
+        <button class="src-tab" onclick="switchSource('job',this)">My Jobs</button>
       </div>
 
-      <!-- URL Import -->
+      <!-- URL -->
       <div id="source-url">
-        <div class="form-row">
-          <label>Video URL</label>
-          <input type="text" id="clip_url" placeholder="https://youtube.com/watch?v=... or any video URL">
+        <div class="f-group">
+          <label class="f-label">Video URL</label>
+          <input type="text" class="f-input" id="clip_url" placeholder="Paste YouTube, TikTok, IG, Vimeo, X, or MP4 URL">
         </div>
-        <div class="text-xs text-dim mt-4">Supports YouTube, TikTok, Instagram, Vimeo, X, and direct MP4 links.</div>
+        <div class="text-xs text-dim" style="line-height:1.5;">YouTube, TikTok, Instagram Reels, Vimeo, X/Twitter, and direct video links.</div>
       </div>
 
       <!-- Upload -->
       <div id="source-upload" style="display:none;">
-        <div class="form-row">
-          <label>Upload Video</label>
-          <input type="file" id="clip_file" accept="video/*" style="padding:10px;">
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="clip_file" accept="video/*" onchange="handleFileSelect(this)">
+          <div class="dz-icon">&#128228;</div>
+          <div class="dz-text"><strong>Click to upload</strong> or drag & drop<br>MP4, MOV, AVI, WEBM up to 500 MB</div>
         </div>
-        <div class="text-xs text-dim mt-4">Max 500 MB. MP4, MOV, AVI, WEBM supported.</div>
+        <div id="file-name" class="text-xs text-dim mt-4" style="display:none;"></div>
       </div>
 
       <!-- From Jobs -->
       <div id="source-job" style="display:none;">
-        <div class="form-row">
-          <label>Select a completed video</label>
-          <select id="clip_job_id">
-            <option value="">— Choose a video —</option>
+        <div class="f-group">
+          <label class="f-label">Select completed video</label>
+          <select class="f-select" id="clip_job_id">
+            <option value="">-- Choose a video --</option>
             {% for j in completed_jobs %}
-            <option value="{{ j.id }}">{{ j.title or j.topic }} ({{ j.format }}, Job #{{ j.id }})</option>
+            <option value="{{ j.id }}">{{ j.title or j.topic }} ({{ j.format }}{% if j.duration %}, {{ j.duration }}{% endif %})</option>
             {% endfor %}
           </select>
         </div>
         {% if not completed_jobs %}
-        <div class="text-xs text-dim mt-4">No completed videos yet. Create some content first!</div>
+        <div class="text-xs text-dim">No completed videos yet. Create content first.</div>
         {% endif %}
       </div>
     </div>
 
-    <div class="cl-card">
-      <h2>Clip Settings</h2>
+    <div class="divider" style="margin:14px 0;"></div>
 
-      <div class="form-row">
-        <label>Number of Clips</label>
-        <select id="clip_count">
-          <option value="3">3 clips — Quick batch</option>
-          <option value="5" selected>5 clips — Standard</option>
-          <option value="10">10 clips — Maximum coverage</option>
+    <!-- Clip Settings -->
+    <div class="panel-heading">
+      Clip Settings
+      <button class="collapse-btn" onclick="toggleSection('settings-section', this)" title="Collapse">&#9660;</button>
+    </div>
+    <div id="settings-section" class="collapsible">
+
+      <div class="f-group">
+        <label class="f-label">Number of Clips</label>
+        <div class="chip-row" id="chip-count">
+          <div class="chip" data-val="3" onclick="selectChip(this,'chip-count')">3</div>
+          <div class="chip active" data-val="5" onclick="selectChip(this,'chip-count')">5</div>
+          <div class="chip" data-val="8" onclick="selectChip(this,'chip-count')">8</div>
+          <div class="chip" data-val="10" onclick="selectChip(this,'chip-count')">10</div>
+          <div class="chip" data-val="15" onclick="selectChip(this,'chip-count')">15</div>
+        </div>
+      </div>
+
+      <div class="f-group">
+        <label class="f-label">Target Length</label>
+        <div class="chip-row" id="chip-length">
+          <div class="chip" data-val="15" onclick="selectChip(this,'chip-length')">15s</div>
+          <div class="chip active" data-val="30" onclick="selectChip(this,'chip-length')">30s</div>
+          <div class="chip" data-val="45" onclick="selectChip(this,'chip-length')">45s</div>
+          <div class="chip" data-val="60" onclick="selectChip(this,'chip-length')">60s</div>
+          <div class="chip" data-val="90" onclick="selectChip(this,'chip-length')">90s</div>
+        </div>
+      </div>
+
+      <div class="f-group">
+        <label class="f-label">Output Format</label>
+        <div class="chip-row" id="chip-ratio">
+          <div class="chip active" data-val="9:16" onclick="selectChip(this,'chip-ratio')">9:16 Portrait</div>
+          <div class="chip" data-val="16:9" onclick="selectChip(this,'chip-ratio')">16:9 Landscape</div>
+          <div class="chip" data-val="1:1" onclick="selectChip(this,'chip-ratio')">1:1 Square</div>
+        </div>
+      </div>
+
+      <div class="f-group">
+        <label class="f-label">AI Style</label>
+        <select class="f-select" id="clip_style">
+          <option value="viral">Viral Hooks -- Most engaging moments</option>
+          <option value="highlights">Key Highlights -- Summary of main points</option>
+          <option value="quotes">Best Quotes -- Memorable soundbites</option>
+          <option value="tutorial">Tutorial Steps -- How-to segments</option>
+          <option value="emotional">Emotional Peaks -- High-impact moments</option>
+          <option value="debate">Controversy / Debate -- Hot takes & disagreements</option>
         </select>
       </div>
 
-      <div class="form-row">
-        <label>Clip Length</label>
-        <select id="clip_length">
-          <option value="15">15 seconds — TikTok punchy</option>
-          <option value="30" selected>30 seconds — Reels sweet spot</option>
-          <option value="60">60 seconds — YouTube Shorts max</option>
-          <option value="90">90 seconds — Extended highlight</option>
-        </select>
+      <div style="margin-top:8px;">
+        <div class="toggle-row">
+          <span class="t-label">Animated captions</span>
+          <div class="toggle-track on" id="tog-captions" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="toggle-row">
+          <span class="t-label">Hook text overlay</span>
+          <div class="toggle-track on" id="tog-hook" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="toggle-row">
+          <span class="t-label">Auto-optimize audio</span>
+          <div class="toggle-track" id="tog-audio" onclick="toggleSwitch(this)"><div class="toggle-knob"></div></div>
+        </div>
       </div>
-
-      <div class="form-row">
-        <label>Output Format</label>
-        <select id="clip_ratio">
-          <option value="9:16" selected>9:16 Portrait (TikTok / Reels / Shorts)</option>
-          <option value="16:9">16:9 Landscape (YouTube / X)</option>
-          <option value="1:1">1:1 Square (Instagram / Facebook)</option>
-        </select>
-      </div>
-
-      <div class="form-row">
-        <label>Clip Style</label>
-        <select id="clip_style">
-          <option value="viral" selected>Viral Hooks — Most engaging moments</option>
-          <option value="highlights">Highlights — Key points summary</option>
-          <option value="quotes">Best Quotes — Memorable soundbites</option>
-          <option value="tutorial">Tutorial Steps — How-to segments</option>
-        </select>
-      </div>
-
-      <label class="flex-center gap-8 mt-12" style="cursor:pointer;font-size:13px;">
-        <input type="checkbox" id="clip_captions" checked> Add animated captions
-      </label>
-      <label class="flex-center gap-8 mt-8" style="cursor:pointer;font-size:13px;">
-        <input type="checkbox" id="clip_hook" checked> Add hook text overlay
-      </label>
     </div>
 
-    <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;" onclick="startClipping()" id="clip-btn">
-      ✂️ Start Clipping
+    <!-- CTA -->
+    <button class="clip-cta" id="clip-btn" onclick="startClipping()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+      Start Clipping
     </button>
 
   </div>
 
-  <!-- Right: Results -->
-  <div>
+  <!-- CENTER: Player + Timeline -->
+  <div class="panel-center">
 
-    <!-- Progress -->
-    <div class="cl-card" id="clipProgress" style="display:none;">
-      <h2>Clipping Progress</h2>
-      <div class="progress-track mb-8">
-        <div class="progress-bar" id="clip-bar" style="width:0%"></div>
+    <!-- Progress (hidden by default) -->
+    <div id="clipProgress" style="display:none;">
+      <div class="progress-panel fade-in">
+        <div class="progress-ring">
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--border)" stroke-width="8"/>
+            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="326.7" id="progress-circle"/>
+          </svg>
+          <div class="pct" id="progress-pct">0%</div>
+        </div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px;" id="progress-title">Preparing...</div>
+        <div class="progress-steps" id="progress-steps">
+          <div class="progress-step active" data-step="download"><span class="step-dot"></span> Downloading source video</div>
+          <div class="progress-step" data-step="analyze"><span class="step-dot"></span> Analyzing content</div>
+          <div class="progress-step" data-step="scenes"><span class="step-dot"></span> Detecting scenes</div>
+          <div class="progress-step" data-step="scoring"><span class="step-dot"></span> AI scoring viral potential</div>
+          <div class="progress-step" data-step="cutting"><span class="step-dot"></span> Cutting clips</div>
+          <div class="progress-step" data-step="captions"><span class="step-dot"></span> Adding captions & overlays</div>
+          <div class="progress-step" data-step="finalize"><span class="step-dot"></span> Finalizing</div>
+        </div>
+        <div class="progress-eta" id="progress-eta"></div>
       </div>
-      <div class="text-sm text-dim" id="clip-step">Analyzing video for viral moments...</div>
     </div>
 
-    <!-- Results -->
-    <div class="cl-card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <h2 style="margin:0;">Generated Clips</h2>
-        <span class="pill pill-done" id="clip-total" style="display:none;">0 clips</span>
+    <!-- Player -->
+    <div id="playerSection">
+      <div class="player-wrap" id="playerWrap">
+        <video id="mainPlayer" controls style="display:none;"></video>
+        <div class="player-placeholder" id="playerPlaceholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/></svg>
+          <div style="font-size:13px;">Select a source video to preview</div>
+        </div>
       </div>
 
-      <div id="clipResults">
-        <div class="empty-state">
-          <div class="big-icon">✂️</div>
-          <h3>No clips yet</h3>
-          <p>Import a video or select a completed job, then hit "Start Clipping" to generate viral shorts.</p>
+      <!-- Timeline -->
+      <div class="timeline-wrap" id="timelineWrap" style="display:none;">
+        <div class="timeline-bar" id="timelineBar" onclick="seekTimeline(event)">
+          <div class="timeline-waveform" id="timelineWaveform"></div>
+          <div class="timeline-playhead" id="timelinePlayhead" style="left:0;"></div>
+        </div>
+        <div class="timeline-time">
+          <span id="tl-current">0:00</span>
+          <span id="tl-duration">0:00</span>
         </div>
       </div>
     </div>
 
-    <!-- Tips -->
-    <div class="cl-card">
-      <h2>Pro Tips</h2>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div style="background:var(--bg);padding:14px;border-radius:8px;">
-          <div style="font-size:20px;margin-bottom:6px;">🎯</div>
-          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Best for Clipping</div>
-          <div style="font-size:11px;color:var(--muted);line-height:1.5;">Documentaries, podcasts, and long-form videos produce the most clips. More content = more viral moments.</div>
+    <!-- Empty state (shown when no results yet and not processing) -->
+    <div id="emptyHero" class="empty-hero" style="flex:1;">
+      <div class="empty-hero-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+      </div>
+      <h2>Turn any video into viral shorts</h2>
+      <p>Our AI analyzes your content for hooks, emotional peaks, quotable moments, and surprising facts -- then auto-cuts, reframes, and captions each clip for maximum engagement.</p>
+      <div class="feature-pills">
+        <div class="feature-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          AI Scene Detection
         </div>
-        <div style="background:var(--bg);padding:14px;border-radius:8px;">
-          <div style="font-size:20px;margin-bottom:6px;">📈</div>
-          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">10x Your Output</div>
-          <div style="font-size:11px;color:var(--muted);line-height:1.5;">One 30-min documentary can produce 10+ shorts. That's a month of TikTok content from a single video.</div>
+        <div class="feature-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+          Virality Scoring
         </div>
-        <div style="background:var(--bg);padding:14px;border-radius:8px;">
-          <div style="font-size:20px;margin-bottom:6px;">🧠</div>
-          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">AI Virality Detection</div>
-          <div style="font-size:11px;color:var(--muted);line-height:1.5;">Our AI identifies hooks, emotional peaks, surprising facts, and quotable moments — the clips people actually share.</div>
+        <div class="feature-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M7 15l3-3 2 2 5-5"/></svg>
+          Auto Captions
         </div>
-        <div style="background:var(--bg);padding:14px;border-radius:8px;">
-          <div style="font-size:20px;margin-bottom:6px;">🔄</div>
-          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">Create → Clip → Publish</div>
-          <div style="font-size:11px;color:var(--muted);line-height:1.5;">Generate a documentary, auto-clip it into shorts, then publish all of them to 8 platforms. Full pipeline.</div>
+        <div class="feature-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16M12 4v16"/></svg>
+          Multi-Platform Export
+        </div>
+        <div class="feature-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          One-Click Publish
         </div>
       </div>
     </div>
 
   </div>
 
+  <!-- RIGHT SIDEBAR: Clip Results (hidden until results exist) -->
+  <div class="panel-right" id="panelRight" style="display:none;">
+    <div class="panel-heading">
+      Generated Clips
+      <span class="pill pill-done" id="clip-total" style="font-size:10px;">0 clips</span>
+    </div>
+    <div id="clipResults"></div>
+  </div>
+
 </div>
+
+<!-- CLIP EDITOR MODAL -->
+<div class="modal-overlay" id="editorModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="editor-title">Edit Clip</h3>
+      <button class="modal-close" onclick="closeEditor()">&times;</button>
+    </div>
+
+    <div class="player-wrap" style="aspect-ratio:16/9;margin-bottom:16px;">
+      <video id="editorPlayer" controls style="width:100%;height:100%;object-fit:contain;"></video>
+    </div>
+
+    <div class="trim-controls">
+      <div class="trim-field">
+        <label>Start Time</label>
+        <div class="trim-input-row">
+          <button class="trim-btn" onclick="trimClip(_editIdx,'start',-0.5)">-</button>
+          <input type="text" id="edit-start" readonly>
+          <button class="trim-btn" onclick="trimClip(_editIdx,'start',0.5)">+</button>
+        </div>
+      </div>
+      <div class="trim-field">
+        <label>End Time</label>
+        <div class="trim-input-row">
+          <button class="trim-btn" onclick="trimClip(_editIdx,'end',-0.5)">-</button>
+          <input type="text" id="edit-end" readonly>
+          <button class="trim-btn" onclick="trimClip(_editIdx,'end',0.5)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="f-group">
+      <label class="f-label">Caption / Transcript</label>
+      <textarea class="editor-area" id="edit-transcript" rows="4"></textarea>
+    </div>
+
+    <div class="f-group">
+      <label class="f-label">Hook Overlay Text</label>
+      <input type="text" class="f-input" id="edit-hook" placeholder="Enter hook text...">
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-ghost" onclick="previewEdit()">Preview</button>
+      <button class="btn btn-primary" onclick="saveClipEdit(_editIdx)">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-let _clipSource = 'url';
+(function(){
+  // ---- State ----
+  let _clipSource = 'url';
+  let _clipJobId = null;
+  let _clips = [];
+  let _sourceDuration = 0;
+  let _activeClipIdx = -1;
+  let _editIdx = -1;
+  window._editIdx = -1;
 
-// Auto-select job if passed via URL param
-(function() {
-  const params = new URLSearchParams(window.location.search);
-  const jobId = params.get('job');
-  if (jobId) {
-    _clipSource = 'job';
-    document.querySelectorAll('.source-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.source-tab')[2].classList.add('active');
-    document.getElementById('source-url').style.display = 'none';
-    document.getElementById('source-job').style.display = '';
-    setTimeout(() => { document.getElementById('clip_job_id').value = jobId; }, 100);
-  }
-})();
+  // ---- Helpers ----
+  function $(id){ return document.getElementById(id); }
+  function getChipVal(groupId){ const c = document.querySelector('#'+groupId+' .chip.active'); return c ? c.dataset.val : null; }
+  function fmtTime(s){ if(!s&&s!==0) return '0:00'; const m=Math.floor(s/60); const sec=Math.floor(s%60); return m+':'+(sec<10?'0':'')+sec; }
+  function gaugeColor(v){ if(v>=75) return 'var(--green)'; if(v>=50) return 'var(--accent)'; if(v>=25) return 'var(--yellow)'; return 'var(--red)'; }
 
-function switchSource(src, el) {
-  document.querySelectorAll('.source-tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  _clipSource = src;
-  document.getElementById('source-url').style.display = src === 'url' ? '' : 'none';
-  document.getElementById('source-upload').style.display = src === 'upload' ? '' : 'none';
-  document.getElementById('source-job').style.display = src === 'job' ? '' : 'none';
-}
-
-async function startClipping() {
-  const btn = document.getElementById('clip-btn');
-  btn.disabled = true;
-  btn.textContent = 'Clipping...';
-
-  const payload = {
-    source: _clipSource,
-    url: document.getElementById('clip_url').value || null,
-    job_id: document.getElementById('clip_job_id').value || null,
-    clip_count: parseInt(document.getElementById('clip_count').value),
-    clip_length: parseInt(document.getElementById('clip_length').value),
-    ratio: document.getElementById('clip_ratio').value,
-    style: document.getElementById('clip_style').value,
-    captions: document.getElementById('clip_captions').checked,
-    hook_overlay: document.getElementById('clip_hook').checked,
+  // ---- Section collapse ----
+  window.toggleSection = function(id, btn){
+    const el = $(id);
+    el.classList.toggle('collapsed');
+    btn.classList.toggle('collapsed');
   };
 
-  if (_clipSource === 'url' && !payload.url) {
-    toast('error', 'URL Required', 'Please enter a video URL.');
-    btn.disabled = false;
-    btn.textContent = '✂️ Start Clipping';
-    return;
-  }
-  if (_clipSource === 'job' && !payload.job_id) {
-    toast('error', 'Job Required', 'Please select a completed video.');
-    btn.disabled = false;
-    btn.textContent = '✂️ Start Clipping';
-    return;
-  }
+  // ---- Source tabs ----
+  window.switchSource = function(src, el){
+    document.querySelectorAll('.src-tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    _clipSource = src;
+    $('source-url').style.display = src==='url' ? '' : 'none';
+    $('source-upload').style.display = src==='upload' ? '' : 'none';
+    $('source-job').style.display = src==='job' ? '' : 'none';
+  };
 
-  const progress = document.getElementById('clipProgress');
-  progress.style.display = '';
+  // ---- Chip select ----
+  window.selectChip = function(el, groupId){
+    document.querySelectorAll('#'+groupId+' .chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+  };
 
-  const steps = [
-    [10, 'Downloading source video...'],
-    [25, 'Analyzing content for viral moments...'],
-    [40, 'Scoring engagement potential...'],
-    [55, 'Extracting top clips...'],
-    [70, 'Reframing to ' + payload.ratio + '...'],
-    [85, 'Adding captions & overlays...'],
-    [95, 'Finalizing clips...'],
-  ];
+  // ---- Toggle switch ----
+  window.toggleSwitch = function(el){
+    el.classList.toggle('on');
+  };
 
-  try {
-    const resp = await fetch('/api/clipper/create', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload),
+  // ---- File upload ----
+  window.handleFileSelect = function(input){
+    if(input.files && input.files[0]){
+      const fn = $('file-name');
+      fn.style.display = '';
+      fn.textContent = 'Selected: ' + input.files[0].name + ' (' + (input.files[0].size/1048576).toFixed(1) + ' MB)';
+    }
+  };
+
+  // Drag and drop
+  const dz = $('dropZone');
+  if(dz){
+    ['dragover','dragenter'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(e => dz.addEventListener(e, ev => { ev.preventDefault(); dz.classList.remove('dragover'); }));
+    dz.addEventListener('drop', ev => {
+      const f = ev.dataTransfer.files[0];
+      if(f){ $('clip_file').files = ev.dataTransfer.files; handleFileSelect($('clip_file')); }
     });
-    const result = await resp.json();
+  }
 
-    if (!resp.ok) {
-      toast('error', 'Clipping Failed', result.error || 'Unknown error');
-      progress.style.display = 'none';
-      btn.disabled = false;
-      btn.textContent = '✂️ Start Clipping';
+  // ---- Auto-select job from URL param ----
+  (function(){
+    const p = new URLSearchParams(window.location.search);
+    const jobId = p.get('job');
+    if(jobId){
+      _clipSource = 'job';
+      document.querySelectorAll('.src-tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('.src-tab')[2].classList.add('active');
+      $('source-url').style.display='none';
+      $('source-job').style.display='';
+      setTimeout(()=>{ $('clip_job_id').value = jobId; }, 50);
+    }
+  })();
+
+  // ---- Start Clipping ----
+  window.startClipping = async function(){
+    const btn = $('clip-btn');
+
+    const payload = {
+      source: _clipSource,
+      url: $('clip_url')?.value || null,
+      job_id: $('clip_job_id')?.value || null,
+      clip_count: parseInt(getChipVal('chip-count') || '5'),
+      clip_length: parseInt(getChipVal('chip-length') || '30'),
+      ratio: getChipVal('chip-ratio') || '9:16',
+      style: $('clip_style').value,
+      captions: $('tog-captions').classList.contains('on'),
+      hook_overlay: $('tog-hook').classList.contains('on'),
+      optimize_audio: $('tog-audio').classList.contains('on'),
+    };
+
+    // Handle file upload source
+    if(_clipSource === 'upload'){
+      const fileInput = $('clip_file');
+      if(!fileInput.files || !fileInput.files[0]){
+        toast('error','File Required','Please select a video file to upload.');
+        return;
+      }
+    }
+
+    if(_clipSource === 'url' && !payload.url){
+      toast('error','URL Required','Please enter a video URL.');
+      return;
+    }
+    if(_clipSource === 'job' && !payload.job_id){
+      toast('error','Job Required','Please select a completed video.');
       return;
     }
 
-    // Simulate progress while polling
-    let stepIdx = 0;
-    const progressInterval = setInterval(() => {
-      if (stepIdx < steps.length) {
-        document.getElementById('clip-bar').style.width = steps[stepIdx][0] + '%';
-        document.getElementById('clip-step').textContent = steps[stepIdx][1];
-        stepIdx++;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="shimmer" style="display:inline-block;width:18px;height:18px;border-radius:50%;"></span> Processing...';
+
+    // Show progress, hide empty
+    $('clipProgress').style.display = '';
+    $('emptyHero').style.display = 'none';
+    $('playerSection').style.display = 'none';
+
+    const stepNames = ['download','analyze','scenes','scoring','cutting','captions','finalize'];
+    let currentStepIdx = 0;
+
+    function setProgressStep(idx, pct){
+      const steps = $('progress-steps').children;
+      for(let i=0; i<steps.length; i++){
+        steps[i].classList.remove('active','done');
+        if(i < idx) steps[i].classList.add('done');
+        else if(i === idx) steps[i].classList.add('active');
       }
-    }, 2000);
+      const circle = $('progress-circle');
+      const offset = 326.7 - (326.7 * pct / 100);
+      circle.style.strokeDashoffset = offset;
+      $('progress-pct').textContent = Math.round(pct) + '%';
+    }
 
-    // Poll for results
-    const clipJobId = result.clip_job_id;
-    const pollClips = async () => {
-      try {
-        const statusResp = await fetch('/api/clipper/' + clipJobId + '/status');
-        const statusData = await statusResp.json();
-
-        if (statusData.status === 'done') {
-          clearInterval(progressInterval);
-          document.getElementById('clip-bar').style.width = '100%';
-          document.getElementById('clip-step').textContent = 'Complete!';
-          renderClips(statusData.clips || []);
-          btn.disabled = false;
-          btn.textContent = '✂️ Start Clipping';
-          toast('success', 'Clips Ready!', (statusData.clips || []).length + ' viral clips generated');
-          return;
-        }
-        if (statusData.status === 'error') {
-          clearInterval(progressInterval);
-          progress.style.display = 'none';
-          toast('error', 'Clipping Failed', statusData.error || 'Unknown error');
-          btn.disabled = false;
-          btn.textContent = '✂️ Start Clipping';
-          return;
-        }
-        setTimeout(pollClips, 3000);
-      } catch (e) {
-        setTimeout(pollClips, 5000);
+    try {
+      // Build form data for upload, or JSON for other sources
+      let resp;
+      if(_clipSource === 'upload'){
+        const fd = new FormData();
+        fd.append('file', $('clip_file').files[0]);
+        Object.keys(payload).forEach(k => { if(k !== 'url' && k !== 'job_id') fd.append(k, payload[k]); });
+        resp = await fetch('/api/clipper/create', { method:'POST', body: fd });
+      } else {
+        resp = await fetch('/api/clipper/create', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(payload),
+        });
       }
-    };
-    setTimeout(pollClips, 5000);
 
-  } catch (e) {
-    toast('error', 'Network Error', e.message);
-    progress.style.display = 'none';
+      const result = await resp.json();
+      if(!resp.ok){
+        toast('error','Clipping Failed', result.error || 'Unknown error');
+        resetBtn(); return;
+      }
+
+      _clipJobId = result.clip_job_id;
+      const startTime = Date.now();
+
+      // Poll for status
+      const poll = async () => {
+        try {
+          const sr = await fetch('/api/clipper/' + _clipJobId + '/status');
+          const sd = await sr.json();
+
+          // Update progress from server
+          if(sd.progress !== undefined){
+            const pct = Math.min(sd.progress, 99);
+            const stepMap = { downloading:0, analyzing:1, detecting:2, scoring:3, cutting:4, captions:5, finalizing:6 };
+            const si = stepMap[sd.step] !== undefined ? stepMap[sd.step] : currentStepIdx;
+            currentStepIdx = si;
+            setProgressStep(si, pct);
+
+            // ETA
+            const elapsed = (Date.now() - startTime) / 1000;
+            if(pct > 5){
+              const total = elapsed / (pct/100);
+              const remaining = Math.max(0, total - elapsed);
+              $('progress-eta').textContent = 'About ' + Math.ceil(remaining/60) + ' min remaining';
+            }
+            $('progress-title').textContent = sd.step_label || 'Processing...';
+          }
+
+          if(sd.status === 'done'){
+            setProgressStep(7, 100);
+            _sourceDuration = sd.source_duration || 0;
+            setTimeout(() => {
+              $('clipProgress').style.display = 'none';
+              $('playerSection').style.display = '';
+              renderClips(sd.clips || []);
+              loadSourceVideo();
+              resetBtn();
+              toast('success','Clips Ready!', (sd.clips||[]).length + ' viral clips generated');
+            }, 600);
+            return;
+          }
+          if(sd.status === 'error'){
+            toast('error','Clipping Failed', sd.error || 'Unknown error');
+            resetBtn(); return;
+          }
+          setTimeout(poll, 2500);
+        } catch(e){
+          setTimeout(poll, 4000);
+        }
+      };
+
+      // Start simulated progress while waiting for first poll
+      setProgressStep(0, 5);
+      setTimeout(poll, 3000);
+
+    } catch(e){
+      toast('error','Network Error', e.message);
+      resetBtn();
+    }
+  };
+
+  function resetBtn(){
+    const btn = $('clip-btn');
     btn.disabled = false;
-    btn.textContent = '✂️ Start Clipping';
-  }
-}
-
-function renderClips(clips) {
-  const container = document.getElementById('clipResults');
-  const total = document.getElementById('clip-total');
-  total.style.display = '';
-  total.textContent = clips.length + ' clips';
-
-  if (!clips.length) {
-    container.innerHTML = '<div class="empty-state"><div class="big-icon">🤔</div><h3>No clips found</h3><p>The AI couldn\'t find strong viral moments. Try a longer video or different style.</p></div>';
-    return;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg> Start Clipping';
+    $('clipProgress').style.display = 'none';
+    $('playerSection').style.display = '';
   }
 
-  container.innerHTML = clips.map((clip, i) => `
-    <div class="clip-result">
-      <div class="clip-thumb">🎬</div>
-      <div class="clip-info">
-        <div class="clip-title">${clip.title || 'Clip ' + (i+1)}</div>
-        <div class="clip-meta">
-          ${clip.start_time || '0:00'} — ${clip.end_time || '0:30'} ·
-          Virality: ${clip.virality_score || '—'}/100 ·
-          ${clip.hook || ''}
+  // ---- Load source video ----
+  function loadSourceVideo(){
+    if(!_clipJobId) return;
+    const video = $('mainPlayer');
+    video.src = '/api/clipper/' + _clipJobId + '/source-video';
+    video.style.display = '';
+    $('playerPlaceholder').style.display = 'none';
+    $('timelineWrap').style.display = '';
+
+    video.addEventListener('loadedmetadata', () => {
+      _sourceDuration = video.duration || _sourceDuration;
+      $('tl-duration').textContent = fmtTime(_sourceDuration);
+      generateWaveform();
+      updateTimeline();
+    });
+
+    video.addEventListener('timeupdate', () => {
+      if(!_sourceDuration) return;
+      const pct = (video.currentTime / _sourceDuration) * 100;
+      $('timelinePlayhead').style.left = pct + '%';
+      $('tl-current').textContent = fmtTime(video.currentTime);
+    });
+  }
+
+  function generateWaveform(){
+    const wf = $('timelineWaveform');
+    wf.innerHTML = '';
+    const bars = 120;
+    for(let i=0; i<bars; i++){
+      const h = 15 + Math.random() * 75;
+      const bar = document.createElement('div');
+      bar.className = 'wave-bar';
+      bar.style.height = h + '%';
+      wf.appendChild(bar);
+    }
+  }
+
+  // ---- Render Clips ----
+  window.renderClips = function(clips){
+    _clips = clips;
+    if(!clips.length){
+      $('clipResults').innerHTML = '<div style="text-align:center;padding:40px 16px;color:var(--muted);"><div style="font-size:32px;margin-bottom:12px;">&#128269;</div><div style="font-size:13px;font-weight:600;">No viral moments found</div><div style="font-size:12px;margin-top:4px;">Try a longer video or different AI style.</div></div>';
+      return;
+    }
+
+    // Show right panel, switch to 3-col
+    $('panelRight').style.display = '';
+    $('clipperLayout').classList.add('has-results');
+    $('emptyHero').style.display = 'none';
+    $('clip-total').textContent = clips.length + ' clips';
+
+    // Batch bar
+    const bb = $('batch-bar');
+    bb.style.display = 'flex';
+    $('batch-clip-count').textContent = clips.length + ' clips';
+    const totalDur = clips.reduce((s,c) => s + ((c.end_sec||0)-(c.start_sec||0)), 0);
+    $('batch-duration').textContent = fmtTime(totalDur) + ' total';
+
+    let html = '';
+    clips.forEach((clip, i) => {
+      const vs = clip.virality_score || 0;
+      const thumbUrl = _clipJobId ? '/api/clipper/'+_clipJobId+'/clips/'+i+'/thumbnail' : '';
+      html += `
+      <div class="clip-card fade-in" style="animation-delay:${i*0.05}s" id="clip-card-${i}" onclick="playClip(${i})">
+        <div style="display:flex;align-items:flex-start;gap:4px;">
+          <span class="drag-handle" title="Drag to reorder">&#9776;</span>
+          <div style="flex:1;">
+            <div class="clip-thumb-wrap">
+              ${thumbUrl ? '<img src="'+thumbUrl+'" alt="Clip '+(i+1)+'" loading="lazy">' : '<div style="width:100%;height:100%;background:var(--border);display:flex;align-items:center;justify-content:center;color:var(--muted);">&#127916;</div>'}
+              <div class="play-overlay" onclick="event.stopPropagation();playClip(${i})">
+                <svg viewBox="0 0 24 24" fill="white"><polygon points="8,5 19,12 8,19"/></svg>
+              </div>
+            </div>
+            <div class="clip-card-title">${clip.title || 'Clip '+(i+1)}</div>
+            <div class="clip-card-time">${fmtTime(clip.start_sec)} -- ${fmtTime(clip.end_sec)}</div>
+            <div class="virality-gauge">
+              <div class="gauge-track"><div class="gauge-fill" style="width:${vs}%;background:${gaugeColor(vs)};"></div></div>
+              <span class="gauge-label" style="color:${gaugeColor(vs)};">${vs}</span>
+            </div>
+            ${clip.hook ? '<div class="hook-preview">"'+clip.hook+'"</div>' : ''}
+            ${clip.transcript ? '<div class="transcript-snippet" id="trans-'+i+'" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">'+clip.transcript+'</div><button class="transcript-toggle" onclick="event.stopPropagation();toggleTranscript('+i+')">Show more</button>' : ''}
+            <div class="clip-actions" style="margin-top:6px;">
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();playClip(${i})" title="Preview">&#9654;</button>
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();downloadClip(${i})" title="Download">&#11015;</button>
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openClipEditor(${i})" title="Edit">&#9998;</button>
+              <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();publishClip(${i})" title="Publish">&#128225;</button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="clip-actions">
-        ${clip.download_url ? '<a href="' + clip.download_url + '" class="btn btn-ghost btn-sm">⬇</a>' : ''}
-        <button class="btn btn-ghost btn-sm" onclick="publishClip(${i})">📡</button>
-      </div>
-    </div>
-  `).join('');
-}
+      </div>`;
+    });
 
-function publishClip(idx) {
-  toast('info', 'Coming Soon', 'One-click publish for clips is coming soon!');
-}
+    $('clipResults').innerHTML = html;
+    updateTimeline();
+  };
+
+  // ---- Toggle transcript ----
+  window.toggleTranscript = function(i){
+    const el = $('trans-'+i);
+    if(!el) return;
+    const expanded = el.style.webkitLineClamp === 'unset';
+    el.style.webkitLineClamp = expanded ? '2' : 'unset';
+    el.nextElementSibling.textContent = expanded ? 'Show more' : 'Show less';
+  };
+
+  // ---- Play clip ----
+  window.playClip = function(idx){
+    if(!_clipJobId || !_clips[idx]) return;
+    _activeClipIdx = idx;
+
+    // Highlight active card
+    document.querySelectorAll('.clip-card').forEach(c=>c.classList.remove('active'));
+    const card = $('clip-card-'+idx);
+    if(card) card.classList.add('active');
+
+    // Play in main player
+    const video = $('mainPlayer');
+    const clip = _clips[idx];
+    video.src = '/api/clipper/'+_clipJobId+'/clips/'+idx+'/video';
+    video.style.display = '';
+    $('playerPlaceholder').style.display = 'none';
+    video.play().catch(()=>{});
+
+    updateTimeline();
+  };
+
+  // ---- Seek to clip on source timeline ----
+  window.seekToClip = function(idx){
+    if(!_clips[idx]) return;
+    const video = $('mainPlayer');
+    video.src = '/api/clipper/'+_clipJobId+'/source-video';
+    video.currentTime = _clips[idx].start_sec || 0;
+    video.style.display = '';
+    $('playerPlaceholder').style.display = 'none';
+    video.play().catch(()=>{});
+  };
+
+  // ---- Timeline ----
+  window.updateTimeline = function(){
+    if(!_sourceDuration || !_clips.length) return;
+    // Remove old markers
+    document.querySelectorAll('.timeline-clip-marker').forEach(m=>m.remove());
+    const bar = $('timelineBar');
+
+    _clips.forEach((clip, i) => {
+      const left = ((clip.start_sec||0) / _sourceDuration) * 100;
+      const width = (((clip.end_sec||0) - (clip.start_sec||0)) / _sourceDuration) * 100;
+      const marker = document.createElement('div');
+      marker.className = 'timeline-clip-marker' + (i === _activeClipIdx ? ' active' : '');
+      marker.style.left = left + '%';
+      marker.style.width = Math.max(width, 0.5) + '%';
+      marker.title = 'Clip ' + (i+1) + ': ' + fmtTime(clip.start_sec) + ' - ' + fmtTime(clip.end_sec);
+      marker.onclick = (e) => { e.stopPropagation(); seekToClip(i); };
+      bar.appendChild(marker);
+    });
+  };
+
+  window.seekTimeline = function(e){
+    const bar = $('timelineBar');
+    const rect = bar.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    const video = $('mainPlayer');
+    if(video.src && _sourceDuration){
+      video.currentTime = pct * _sourceDuration;
+    }
+  };
+
+  // ---- Downloads ----
+  window.downloadClip = function(idx){
+    if(!_clipJobId) return;
+    const a = document.createElement('a');
+    a.href = '/api/clipper/'+_clipJobId+'/clips/'+idx+'/video';
+    a.download = 'clip-'+(idx+1)+'.mp4';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  window.downloadAll = function(){
+    if(!_clipJobId) return;
+    window.location.href = '/api/clipper/'+_clipJobId+'/download-all';
+  };
+
+  // ---- Publish ----
+  window.publishClip = function(idx){
+    toast('info','Coming Soon','One-click publish for individual clips is coming soon.');
+  };
+
+  window.publishAll = function(){
+    toast('info','Coming Soon','Batch publishing is coming soon.');
+  };
+
+  // ---- Regenerate ----
+  window.regenerate = function(){
+    _clips = [];
+    _activeClipIdx = -1;
+    $('panelRight').style.display = 'none';
+    $('clipperLayout').classList.remove('has-results');
+    $('batch-bar').style.display = 'none';
+    $('emptyHero').style.display = '';
+    $('clipResults').innerHTML = '';
+    document.querySelectorAll('.timeline-clip-marker').forEach(m=>m.remove());
+    toast('info','Ready','Adjust settings and click Start Clipping again.');
+  };
+
+  // ---- Clip Editor ----
+  window.openClipEditor = function(idx){
+    if(!_clips[idx]) return;
+    _editIdx = idx;
+    window._editIdx = idx;
+    const clip = _clips[idx];
+    $('editor-title').textContent = 'Edit: ' + (clip.title || 'Clip '+(idx+1));
+    $('edit-start').value = fmtTime(clip.start_sec);
+    $('edit-end').value = fmtTime(clip.end_sec);
+    $('edit-transcript').value = clip.transcript || '';
+    $('edit-hook').value = clip.hook || '';
+
+    const ep = $('editorPlayer');
+    ep.src = '/api/clipper/'+_clipJobId+'/clips/'+idx+'/video';
+
+    $('editorModal').classList.add('open');
+  };
+
+  window.closeEditor = function(){
+    $('editorModal').classList.remove('open');
+    $('editorPlayer').pause();
+    _editIdx = -1;
+    window._editIdx = -1;
+  };
+
+  window.previewEdit = function(){
+    $('editorPlayer').currentTime = 0;
+    $('editorPlayer').play().catch(()=>{});
+  };
+
+  // ---- Trim ----
+  window.trimClip = function(idx, field, delta){
+    if(!_clips[idx]) return;
+    const clip = _clips[idx];
+    if(field === 'start'){
+      clip.start_sec = Math.max(0, (clip.start_sec||0) + delta);
+      $('edit-start').value = fmtTime(clip.start_sec);
+    } else {
+      clip.end_sec = Math.max(clip.start_sec + 1, (clip.end_sec||0) + delta);
+      $('edit-end').value = fmtTime(clip.end_sec);
+    }
+  };
+
+  // ---- Save clip edit ----
+  window.saveClipEdit = async function(idx){
+    if(!_clipJobId || !_clips[idx]) return;
+    const clip = _clips[idx];
+    try {
+      const resp = await fetch('/api/clipper/'+_clipJobId+'/clips/'+idx+'/trim', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          start_sec: clip.start_sec,
+          end_sec: clip.end_sec,
+          transcript: $('edit-transcript').value,
+          hook: $('edit-hook').value,
+        }),
+      });
+      if(resp.ok){
+        clip.transcript = $('edit-transcript').value;
+        clip.hook = $('edit-hook').value;
+        toast('success','Saved','Clip '+(idx+1)+' updated.');
+        closeEditor();
+        renderClips(_clips);
+      } else {
+        const d = await resp.json();
+        toast('error','Save Failed', d.error || 'Unknown error');
+      }
+    } catch(e){
+      toast('error','Network Error', e.message);
+    }
+  };
+
+  // Close modal on overlay click
+  $('editorModal').addEventListener('click', function(e){
+    if(e.target === this) closeEditor();
+  });
+
+  // Close modal on Escape
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && $('editorModal').classList.contains('open')) closeEditor();
+  });
+
+})();
 </script>
 {% endblock %}
