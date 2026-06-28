@@ -20,7 +20,7 @@ from whop_sdk import Whop
 
 API_KEY = os.getenv(
     "WHOP_API_KEY",
-    "apik_hHvRSw1u64Z3c_C5535154_C_30d86cec65dd125d10e1915f67ba91c228933dfaedc6ef48887427d8416a9b",
+    "apik_jtEnC1U6RpmOY_C5535154_C_820460e30d8a00899668845b9af33b909425c775f575984011fe891faabd6b",
 )
 COMPANY_ID = os.getenv("WHOP_COMPANY_ID", "")
 
@@ -73,10 +73,24 @@ def main():
         try:
             companies = client.companies.list()
             for c in companies.data if hasattr(companies, "data") else companies:
-                print(f"  Found: {getattr(c, 'id', '?')} — {getattr(c, 'title', '?')}")
-            print("\nSet WHOP_COMPANY_ID to one of the IDs above and re-run.")
+                cid = getattr(c, "id", "?")
+                ctitle = getattr(c, "title", "?")
+                print(f"  Found: {cid} — {ctitle}")
+            print("\nSet WHOP_COMPANY_ID to one of the IDs above and re-run:")
+            print('  $env:WHOP_COMPANY_ID="biz_XXXXX"')
+            print("  python scripts/push_whop_products.py")
         except Exception as e:
             print(f"  Could not list companies: {e}")
+            print("\nTrying direct API call...")
+            try:
+                import httpx
+                resp = httpx.get(
+                    "https://api.whop.com/api/v1/companies",
+                    headers={"Authorization": f"Bearer {API_KEY}"},
+                )
+                print(f"  API response ({resp.status_code}): {resp.text[:500]}")
+            except Exception as e2:
+                print(f"  Direct API also failed: {e2}")
         sys.exit(1)
 
     client = Whop(api_key=API_KEY)
@@ -160,7 +174,7 @@ def main():
         import httpx
         webhook_url = f"{APP_BASE_URL}/whop/webhook"
         resp = httpx.post(
-            "https://api.whop.com/api/v5/webhooks",
+            "https://api.whop.com/api/v1/webhooks",
             headers={"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"},
             json={
                 "url": webhook_url,
