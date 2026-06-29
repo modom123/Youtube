@@ -14,9 +14,9 @@ services:
       - key: SECRET_KEY
         generateValue: true
 
-      # ── Database (Supabase) ──────────────────────────────────
+      # ── Database (Supabase pooler — IPv4, works on Render Oregon) ──
       - key: DATABASE_URL
-        value: postgresql://postgres:$1Billion@db.ktojldpofqxmjipoibbu.supabase.co:5432/postgres?sslmode=require
+        value: postgresql://postgres.ktojldpofqxmjipoibbu:$1Billion@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require
 
       # ── App ─────────────────────────────────────────────────
       - key: APP_BASE_URL
