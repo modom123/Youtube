@@ -83,7 +83,7 @@
               <span class="text-dim">—</span>
             {% endif %}
           </td>
-          <td class="text-xs text-dim">{{ job.created_at[:16].replace('T',' ') }}</td>
+          <td class="text-xs text-dim">{{ job.created_at | datefmt }}</td>
           <td>
             <div class="flex gap-8" style="flex-wrap:wrap;">
               <a href="/jobs/{{ job.id }}" class="btn btn-ghost btn-sm">View</a>

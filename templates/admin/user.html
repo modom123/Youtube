@@ -100,7 +100,7 @@
       <td>{{ j.topic }}</td>
       <td style="color:var(--muted);">{{ j.format }}</td>
       <td class="status-{{ j.status }}">{{ j.status }}</td>
-      <td style="color:var(--muted);font-size:12px;">{{ (j.created_at or '')[:16] }}</td>
+      <td style="color:var(--muted);font-size:12px;">{{ j.created_at | datefmt if j.created_at else '' }}</td>
       <td><a href="/jobs/{{ j.id }}" style="font-size:12px;color:var(--gold);">View</a></td>
     </tr>
     {% endfor %}

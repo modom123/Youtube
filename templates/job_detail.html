@@ -66,12 +66,12 @@
         </div>
         <div>
           <div class="text-xs text-dim mb-4">Created</div>
-          <div class="text-sm">{{ job.created_at[:16].replace('T',' ') }}</div>
+          <div class="text-sm">{{ job.created_at | datefmt }}</div>
         </div>
         {% if job.completed_at %}
         <div>
           <div class="text-xs text-dim mb-4">Completed</div>
-          <div class="text-sm">{{ job.completed_at[:16].replace('T',' ') }}</div>
+          <div class="text-sm">{{ job.completed_at | datefmt }}</div>
         </div>
         {% endif %}
       </div>

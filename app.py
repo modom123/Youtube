@@ -34,6 +34,16 @@ from monetizer import monetizer_bp, init_monetizer_tables
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
+@app.template_filter("datefmt")
+def _datefmt(val, fmt="%Y-%m-%d %H:%M"):
+    """Format a datetime object or ISO string for display in templates."""
+    if val is None:
+        return ""
+    if hasattr(val, "strftime"):
+        return val.strftime(fmt)
+    s = str(val)
+    return s[:16].replace("T", " ")
+
 # Trust Render's reverse-proxy headers so request.url_root returns the
 # correct public HTTPS URL instead of the internal http://service:10000 address.
 from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
@@ -503,6 +513,21 @@ Only include platforms in captions that were requested: {platforms}"""
 @app.route("/privacy")
 def privacy():
     return render_template("privacy.html")
+
+
+@app.route("/docs")
+def docs():
+    return render_template("docs.html")
+
+
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+
+@app.route("/blog")
+def blog():
+    return render_template("blog.html")
 
 
 @app.route("/tiktoktZP2Ao6MnBjhPb6PTnJsMZ2dzTLrSfPy.txt")

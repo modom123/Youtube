@@ -40,8 +40,8 @@
         <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px;">{{ c.name }}</div>
         <div style="font-size:12px;color:var(--muted);">
           {{ c.type|upper }} &nbsp;·&nbsp;
-          Created {{ c.created_at[:10] if c.created_at else '—' }}
-          {% if c.sent_at %}&nbsp;·&nbsp; Sent {{ c.sent_at[:10] }}{% endif %}
+          Created {{ c.created_at | datefmt("%Y-%m-%d") if c.created_at else '—' }}
+          {% if c.sent_at %}&nbsp;·&nbsp; Sent {{ c.sent_at | datefmt("%Y-%m-%d") }}{% endif %}
         </div>
       </div>
       <!-- Stats -->
