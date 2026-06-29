@@ -37,34 +37,34 @@ STRIPE_SECRET_KEY       = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY  = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET   = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
-STRIPE_PRICE_BASIC    = os.getenv("STRIPE_PRICE_BASIC", "")
 STRIPE_PRICE_STARTER  = os.getenv("STRIPE_PRICE_STARTER", "")
 STRIPE_PRICE_CREATOR  = os.getenv("STRIPE_PRICE_CREATOR", "")
+STRIPE_PRICE_PRO      = os.getenv("STRIPE_PRICE_PRO", "")
 STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 
 # ── Whop ─────────────────────────────────────────────────────────────────────
 WHOP_API_KEY          = os.getenv("WHOP_API_KEY", "")
 WHOP_WEBHOOK_SECRET   = os.getenv("WHOP_WEBHOOK_SECRET", "")
-WHOP_PLAN_BASIC       = os.getenv("WHOP_PLAN_BASIC", "")
 WHOP_PLAN_STARTER     = os.getenv("WHOP_PLAN_STARTER", "")
 WHOP_PLAN_CREATOR     = os.getenv("WHOP_PLAN_CREATOR", "")
+WHOP_PLAN_PRO         = os.getenv("WHOP_PLAN_PRO", "")
 WHOP_PLAN_AGENCY      = os.getenv("WHOP_PLAN_AGENCY", "")
 
 # ── Gumroad ───────────────────────────────────────────────────────────────────
 GUMROAD_ACCESS_TOKEN    = os.getenv("GUMROAD_ACCESS_TOKEN", "")
 GUMROAD_WEBHOOK_SECRET  = os.getenv("GUMROAD_WEBHOOK_SECRET", "")
-GUMROAD_PRODUCT_BASIC   = os.getenv("GUMROAD_PRODUCT_BASIC", "")
 GUMROAD_PRODUCT_STARTER = os.getenv("GUMROAD_PRODUCT_STARTER", "")
 GUMROAD_PRODUCT_CREATOR = os.getenv("GUMROAD_PRODUCT_CREATOR", "")
+GUMROAD_PRODUCT_PRO     = os.getenv("GUMROAD_PRODUCT_PRO", "")
 GUMROAD_PRODUCT_AGENCY  = os.getenv("GUMROAD_PRODUCT_AGENCY", "")
 
 # ── LemonSqueezy ──────────────────────────────────────────────────────────────
 LEMONSQUEEZY_API_KEY        = os.getenv("LEMONSQUEEZY_API_KEY", "")
 LEMONSQUEEZY_WEBHOOK_SECRET = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
 LEMONSQUEEZY_STORE_ID       = os.getenv("LEMONSQUEEZY_STORE_ID", "")
-LEMONSQUEEZY_VARIANT_BASIC   = os.getenv("LEMONSQUEEZY_VARIANT_BASIC", "")
 LEMONSQUEEZY_VARIANT_STARTER = os.getenv("LEMONSQUEEZY_VARIANT_STARTER", "")
 LEMONSQUEEZY_VARIANT_CREATOR = os.getenv("LEMONSQUEEZY_VARIANT_CREATOR", "")
+LEMONSQUEEZY_VARIANT_PRO     = os.getenv("LEMONSQUEEZY_VARIANT_PRO", "")
 LEMONSQUEEZY_VARIANT_AGENCY  = os.getenv("LEMONSQUEEZY_VARIANT_AGENCY", "")
 
 # ── AppSumo ───────────────────────────────────────────────────────────────────
@@ -77,9 +77,9 @@ PAYPAL_CLIENT_ID        = os.getenv("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET    = os.getenv("PAYPAL_CLIENT_SECRET", "")
 PAYPAL_WEBHOOK_ID       = os.getenv("PAYPAL_WEBHOOK_ID", "")
 PAYPAL_MODE             = os.getenv("PAYPAL_MODE", "sandbox")
-PAYPAL_PLAN_BASIC       = os.getenv("PAYPAL_PLAN_BASIC", "")
 PAYPAL_PLAN_STARTER     = os.getenv("PAYPAL_PLAN_STARTER", "")
 PAYPAL_PLAN_CREATOR     = os.getenv("PAYPAL_PLAN_CREATOR", "")
+PAYPAL_PLAN_PRO         = os.getenv("PAYPAL_PLAN_PRO", "")
 PAYPAL_PLAN_AGENCY      = os.getenv("PAYPAL_PLAN_AGENCY", "")
 
 # ── Affiliate Program ────────────────────────────────────────────────────────
@@ -114,15 +114,15 @@ TIERS = {
             "Community support",
         ],
     },
-    "basic": {
-        "label": "Basic",
+    "starter": {
+        "label": "Starter",
         "description": "Essential tools to start growing your brand — just $9.99/mo.",
         "price_monthly": 9.99,
         "trial_days": 7,
         "videos_per_month": 7,
         "higgsfield_credits": 50,
-        "stripe_price_id": STRIPE_PRICE_BASIC,
-        "whop_plan_id": WHOP_PLAN_BASIC,
+        "stripe_price_id": STRIPE_PRICE_STARTER,
+        "whop_plan_id": WHOP_PLAN_STARTER,
         "features": [
             "7-day free trial",
             "7 AI videos/month",
@@ -138,15 +138,15 @@ TIERS = {
             "Email support",
         ],
     },
-    "starter": {
-        "label": "Starter",
+    "creator": {
+        "label": "Creator",
         "description": "Built for entrepreneurs and small businesses. 14-day free trial, then $29.99/mo.",
         "price_monthly": 29.99,
         "trial_days": 14,
         "videos_per_month": 15,
         "higgsfield_credits": 150,
-        "stripe_price_id": STRIPE_PRICE_STARTER,
-        "whop_plan_id": WHOP_PLAN_STARTER,
+        "stripe_price_id": STRIPE_PRICE_CREATOR,
+        "whop_plan_id": WHOP_PLAN_CREATOR,
         "features": [
             "14-day free trial",
             "15 AI videos/month",
@@ -164,23 +164,22 @@ TIERS = {
             "Email support",
         ],
     },
-    "creator": {
-        "label": "Creator",
+    "pro": {
+        "label": "Pro",
         "description": "The full creative suite for serious creators. 14-day free trial, then $79.99/mo.",
         "price_monthly": 79.99,
         "trial_days": 14,
         "videos_per_month": 50,
         "higgsfield_credits": 500,
-        "stripe_price_id": STRIPE_PRICE_CREATOR,
-        "whop_plan_id": WHOP_PLAN_CREATOR,
+        "stripe_price_id": STRIPE_PRICE_PRO,
+        "whop_plan_id": WHOP_PLAN_PRO,
         "features": [
             "14-day free trial",
             "50 AI videos/month",
             "Publish to all 8 platforms",
             "500 Social Optimize Credits/mo",
-            "Everything in Starter",
+            "Everything in Creator",
             "Studio 56 — full production suite",
-            "Commercial Studio — photo → ad",
             "Hollywood AI agent",
             "Music Studio — DJ & beat maker",
             "AI Clipper — auto-clip to shorts",
@@ -207,7 +206,7 @@ TIERS = {
             "125 AI videos/month",
             "Publish to all 8 platforms",
             "2,000 Social Optimize Credits/mo",
-            "Everything in Creator",
+            "Everything in Pro",
             "AI Clipper — unlimited clips",
             "Team management (5 seats)",
             "White-label exports",
