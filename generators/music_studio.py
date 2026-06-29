@@ -16,6 +16,42 @@ from typing import Optional
 
 import config
 
+LOOP_LIBRARY = [
+    {"id":"c01","name":"Trap 808 Bass Loop","bpm":140,"key":"C","tags":["trap","hip-hop","808","bass","dark"],"duration":8,"style":"trap"},
+    {"id":"c02","name":"Boom Bap Drums","bpm":90,"key":"—","tags":["boom-bap","hip-hop","drums","classic","90s"],"duration":8,"style":"trap"},
+    {"id":"c03","name":"Trap Hi-Hat Pattern","bpm":140,"key":"—","tags":["trap","hi-hat","drums","808","modern"],"duration":8,"style":"trap"},
+    {"id":"c04","name":"Drill Beat Loop","bpm":140,"key":"—","tags":["drill","uk-drill","trap","dark","bass"],"duration":8,"style":"drill"},
+    {"id":"c05","name":"Lo-Fi Chill Piano","bpm":75,"key":"Dm","tags":["lo-fi","chill","piano","relaxing","study"],"duration":10,"style":"lofi"},
+    {"id":"c06","name":"Lo-Fi Hip Hop Beat","bpm":80,"key":"Am","tags":["lo-fi","hip-hop","drums","vinyl","nostalgic"],"duration":10,"style":"lofi"},
+    {"id":"c07","name":"Chill Jazzy Vibes","bpm":72,"key":"F","tags":["lo-fi","jazz","chill","mellow"],"duration":10,"style":"lofi"},
+    {"id":"c08","name":"R&B Smooth Groove","bpm":88,"key":"Gm","tags":["r&b","smooth","neo-soul","groove"],"duration":8,"style":"rnb"},
+    {"id":"c09","name":"Neo-Soul Keys","bpm":85,"key":"Eb","tags":["r&b","neo-soul","keys","soulful","smooth"],"duration":10,"style":"rnb"},
+    {"id":"c10","name":"Soul Bass Groove","bpm":92,"key":"Am","tags":["r&b","soul","bass","funk","groove"],"duration":8,"style":"rnb"},
+    {"id":"c11","name":"Pop Synth Beat","bpm":125,"key":"C","tags":["pop","synth","uplifting","bright","commercial"],"duration":8,"style":"pop"},
+    {"id":"c12","name":"Uplifting Pop Drums","bpm":128,"key":"—","tags":["pop","drums","punchy","radio"],"duration":8,"style":"pop"},
+    {"id":"c13","name":"Dark Drill Melody","bpm":145,"key":"Cm","tags":["drill","dark","minor","sinister","trap"],"duration":8,"style":"drill"},
+    {"id":"c14","name":"Deep House Groove","bpm":122,"key":"Am","tags":["house","edm","deep","electronic","dance"],"duration":10,"style":"pop"},
+    {"id":"c15","name":"Trap Percussion Loop","bpm":140,"key":"—","tags":["trap","percussion","808","modern"],"duration":8,"style":"trap"},
+    {"id":"c16","name":"Smooth R&B Beat","bpm":90,"key":"Dm","tags":["r&b","smooth","drums","modern","slow-jam"],"duration":8,"style":"rnb"},
+    {"id":"c17","name":"Lo-Fi Study Beats","bpm":70,"key":"G","tags":["lo-fi","study","chill","ambient","soft"],"duration":10,"style":"lofi"},
+    {"id":"c18","name":"UK Drill Bass","bpm":142,"key":"—","tags":["drill","uk-drill","bass","dark","sliding"],"duration":8,"style":"drill"},
+    {"id":"c19","name":"Pop Dance Beat","bpm":120,"key":"G","tags":["pop","dance","upbeat","commercial"],"duration":8,"style":"pop"},
+    {"id":"c20","name":"Trap Soul Vibes","bpm":130,"key":"Em","tags":["trap","soul","hip-hop","moody"],"duration":8,"style":"trap"},
+]
+
+
+def generate_loop(loop_id, output_path):
+    """Generate an audio loop from the LOOP_LIBRARY by ID."""
+    entry = next((e for e in LOOP_LIBRARY if e["id"] == loop_id), None)
+    if not entry:
+        return False
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    generate_beat(str(output_path), duration=entry["duration"],
+                  style=entry.get("style", "trap"), bpm=entry["bpm"])
+    return output_path.exists() and output_path.stat().st_size > 1000
+
+
 BEAT_STYLES = {
     "trap": {
         "label": "Trap",

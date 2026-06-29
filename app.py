@@ -3154,124 +3154,11 @@ def api_music_loops():
         except Exception as e:
             print(f"[loops] Pixabay Music error: {e}")
 
-    # ── 3. Large curated fallback (always available, tag-filtered) ────────────
-    # Proxy through server to avoid CORS / hotlink blocks in browser
-    def _p(u): return f"/api/music/loops/proxy?url={requests.utils.quote(u, safe='')}"
-
+    # ── 3. Generated loop library (always available, no API keys needed) ───────
+    from generators.music_studio import LOOP_LIBRARY
     LIBRARY = [
-        # ── Hip Hop / Trap ─────────────────────────────────────────────────
-        {"id":"c01","name":"Trap 808 Bass Loop","bpm":140,"key":"C","tags":["trap","hip-hop","808","bass","dark"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/02/28/audio_4d9879ca46.mp3")},
-        {"id":"c02","name":"Boom Bap Drums","bpm":90,"key":"—","tags":["boom-bap","hip-hop","drums","classic","90s"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/10/30/audio_eef65cf5a8.mp3")},
-        {"id":"c03","name":"Trap Hi-Hat Pattern","bpm":140,"key":"—","tags":["trap","hi-hat","drums","808","modern"],"duration":2,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/11/22/audio_febc508520.mp3")},
-        {"id":"c04","name":"Hip Hop Percussion Loop","bpm":95,"key":"—","tags":["hip-hop","percussion","groove","drums"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/03/21/audio_2b8fc10a0d.mp3")},
-        {"id":"c05","name":"Drill Beat Loop","bpm":140,"key":"—","tags":["drill","uk-drill","trap","dark","bass"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/06/08/audio_b2a8e8855c.mp3")},
-
-        # ── Lo-Fi / Chillhop ───────────────────────────────────────────────
-        {"id":"c06","name":"Lo-Fi Chill Piano","bpm":75,"key":"Dm","tags":["lo-fi","chill","piano","relaxing","study"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/10/19/audio_64b42c6f01.mp3")},
-        {"id":"c07","name":"Lo-Fi Hip Hop Beat","bpm":80,"key":"Am","tags":["lo-fi","hip-hop","drums","vinyl","nostalgic"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3")},
-        {"id":"c08","name":"Chill Jazzy Guitar","bpm":72,"key":"F","tags":["lo-fi","jazz","guitar","chill","mellow"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/08/23/audio_7a7e7ea034.mp3")},
-        {"id":"c09","name":"Bedroom Pop Beat","bpm":82,"key":"G","tags":["lo-fi","bedroom-pop","dreamy","soft","indie"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/01/16/audio_4dc93e9783.mp3")},
-
-        # ── R&B / Soul ──────────────────────────────────────────────────────
-        {"id":"c10","name":"R&B Guitar Loop","bpm":88,"key":"Gm","tags":["r&b","guitar","smooth","neo-soul","groove"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2021/11/25/audio_5fe43da10d.mp3")},
-        {"id":"c11","name":"Neo-Soul Keys","bpm":85,"key":"Eb","tags":["r&b","neo-soul","keys","soulful","smooth"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/04/10/audio_7e64db6cfa.mp3")},
-        {"id":"c12","name":"Soul Bass Groove","bpm":92,"key":"Am","tags":["r&b","soul","bass","funk","groove"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/09/05/audio_2b2ae0bf25.mp3")},
-        {"id":"c13","name":"Smooth R&B Beat","bpm":90,"key":"Dm","tags":["r&b","smooth","drums","modern","slow-jam"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/05/29/audio_c1fc25f1d1.mp3")},
-
-        # ── EDM / House / Electronic ────────────────────────────────────────
-        {"id":"c14","name":"Deep House Groove","bpm":122,"key":"Am","tags":["house","edm","deep","electronic","dance"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/09/13/audio_678e2e91f4.mp3")},
-        {"id":"c15","name":"Future Bass Drop","bpm":140,"key":"C","tags":["future-bass","edm","synth","drop","electronic"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/07/14/audio_6a7cc3be01.mp3")},
-        {"id":"c16","name":"Tech House Kick Loop","bpm":128,"key":"—","tags":["tech-house","house","kick","drums","club"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/03/03/audio_84f1e4b3b4.mp3")},
-        {"id":"c17","name":"Synth Wave Lead","bpm":110,"key":"Fm","tags":["synthwave","retro","synth","80s","electronic"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/12/16/audio_67fac99a9c.mp3")},
-        {"id":"c18","name":"EDM Build-Up Synth","bpm":128,"key":"Am","tags":["edm","build-up","synth","rave","electronic"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/02/07/audio_8a1b4c9ef7.mp3")},
-
-        # ── Afrobeats / Afropop ─────────────────────────────────────────────
-        {"id":"c19","name":"Afrobeats Drum Pattern","bpm":105,"key":"—","tags":["afrobeats","afro","drums","african","dancehall"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/05/03/audio_3f73d0a2a8.mp3")},
-        {"id":"c20","name":"Afropop Guitar Riff","bpm":108,"key":"Em","tags":["afropop","afro","guitar","tropical","vibes"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/06/20/audio_b79a3c2e94.mp3")},
-        {"id":"c21","name":"Amapiano Log Drum","bpm":112,"key":"Gm","tags":["amapiano","south-africa","log-drum","afro","deep"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/08/12/audio_f02c7dc4b9.mp3")},
-
-        # ── Latin / Reggaeton ───────────────────────────────────────────────
-        {"id":"c22","name":"Reggaeton Dembow Beat","bpm":100,"key":"—","tags":["reggaeton","latin","dembow","urban","dance"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/04/25/audio_c9f65a3d2b.mp3")},
-        {"id":"c23","name":"Latin Guitar Loop","bpm":96,"key":"Am","tags":["latin","guitar","salsa","acoustic","tropical"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/11/10/audio_7a3bc6d8e1.mp3")},
-        {"id":"c24","name":"Bachata Rhythm","bpm":125,"key":"Dm","tags":["bachata","latin","guitar","romantic","dance"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/01/30/audio_2e7d5a8f6c.mp3")},
-
-        # ── Jazz / Blues ────────────────────────────────────────────────────
-        {"id":"c25","name":"Jazz Piano Comping","bpm":120,"key":"Bb","tags":["jazz","piano","swing","classic","live"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/07/19/audio_17b45e1f8c.mp3")},
-        {"id":"c26","name":"Blues Guitar Loop","bpm":75,"key":"E","tags":["blues","guitar","electric","vintage","soul"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/06/12/audio_54a8e7e2b3.mp3")},
-        {"id":"c27","name":"Jazzy Bass Walk","bpm":110,"key":"F","tags":["jazz","bass","upright","walking","classic"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/02/14/audio_9c1d4e5a7b.mp3")},
-
-        # ── Pop / Indie ─────────────────────────────────────────────────────
-        {"id":"c28","name":"Indie Pop Acoustic","bpm":120,"key":"G","tags":["indie","pop","acoustic","guitar","uplifting"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/03/15/audio_1a2b3c4d5e.mp3")},
-        {"id":"c29","name":"Pop Drum Loop","bpm":125,"key":"—","tags":["pop","drums","punchy","commercial","radio"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/08/05/audio_6a3c9d0f12.mp3")},
-        {"id":"c30","name":"Uplifting Synth Pop","bpm":128,"key":"C","tags":["synth-pop","pop","uplifting","bright","anthem"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/04/02/audio_7b8c9e1a2f.mp3")},
-
-        # ── Rock / Metal ────────────────────────────────────────────────────
-        {"id":"c31","name":"Rock Drum Loop","bpm":130,"key":"—","tags":["rock","drums","punchy","live","energetic"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/09/28/audio_4e5f6a7b8c.mp3")},
-        {"id":"c32","name":"Electric Guitar Riff","bpm":120,"key":"Em","tags":["rock","guitar","electric","riff","distortion"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/01/09/audio_3d4e5f6a7b.mp3")},
-        {"id":"c33","name":"Hard Rock Power Chords","bpm":140,"key":"A","tags":["rock","metal","power-chords","heavy","guitar"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/12/01/audio_2c3d4e5f6a.mp3")},
-
-        # ── Gospel / Church ─────────────────────────────────────────────────
-        {"id":"c34","name":"Gospel Choir Swell","bpm":75,"key":"Bb","tags":["gospel","choir","church","worship","soulful"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/05/18/audio_1b2c3d4e5f.mp3")},
-        {"id":"c35","name":"Gospel Piano Loop","bpm":80,"key":"F","tags":["gospel","piano","church","praise","uplifting"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/10/14/audio_9a8b7c6d5e.mp3")},
-
-        # ── Drill / Dark ────────────────────────────────────────────────────
-        {"id":"c36","name":"Dark Melody Loop","bpm":145,"key":"Cm","tags":["drill","dark","minor","sinister","trap"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/07/02/audio_8e9f1a2b3c.mp3")},
-        {"id":"c37","name":"Sample Flip Chop","bpm":88,"key":"Gm","tags":["sample-flip","chop","soul","vintage","hip-hop"],"duration":2,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/11/30/audio_7d8e9f1a2b.mp3")},
-
-        # ── Dancehall / Caribbean ────────────────────────────────────────────
-        {"id":"c38","name":"Dancehall Riddim","bpm":110,"key":"—","tags":["dancehall","reggae","caribbean","riddim","patois"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/06/14/audio_6c7d8e9f1a.mp3")},
-        {"id":"c39","name":"Reggae Skank Guitar","bpm":95,"key":"C","tags":["reggae","guitar","skank","one-drop","chill"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/08/30/audio_5b6c7d8e9f.mp3")},
-
-        # ── Cinematic / Epic ─────────────────────────────────────────────────
-        {"id":"c40","name":"Cinematic Strings","bpm":60,"key":"Dm","tags":["cinematic","strings","epic","dramatic","film"],"duration":8,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/08/05/audio_4a5b6c7d8e.mp3")},
-        {"id":"c41","name":"Epic Trailer Hit","bpm":70,"key":"Cm","tags":["cinematic","trailer","epic","impact","drama"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/03/28/audio_3f4a5b6c7d.mp3")},
-
-        # ── Funk / Groove ────────────────────────────────────────────────────
-        {"id":"c42","name":"Funk Bass Line","bpm":100,"key":"E","tags":["funk","bass","groove","slap","classic"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2022/07/08/audio_2e3f4a5b6c.mp3")},
-        {"id":"c43","name":"Funky Drum Break","bpm":105,"key":"—","tags":["funk","break","drums","breakbeat","groove"],"duration":4,
-         "preview_url":_p("https://cdn.pixabay.com/audio/2023/04/18/audio_1d2e3f4a5b.mp3")},
+        {**entry, "preview_url": f"/api/music/loops/generated/{entry['id']}"}
+        for entry in LOOP_LIBRARY
     ]
 
     # Filter by query (match against name + tags)
@@ -3314,6 +3201,24 @@ def proxy_loop_audio():
                         headers={"Cache-Control": "public, max-age=3600"})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 502
+
+
+@app.route("/api/music/loops/generated/<loop_id>")
+@login_required
+def serve_generated_loop(loop_id):
+    """Generate and serve a synth loop on-demand, cached to disk."""
+    import re
+    if not re.match(r'^c\d{2}$', loop_id):
+        return jsonify({"error": "Invalid loop ID"}), 400
+    loops_dir = config.OUTPUT_DIR / "loops"
+    loops_dir.mkdir(parents=True, exist_ok=True)
+    loop_path = loops_dir / f"{loop_id}.mp3"
+    if not loop_path.exists():
+        from generators.music_studio import generate_loop
+        if not generate_loop(loop_id, loop_path):
+            return jsonify({"error": "Loop not found"}), 404
+    return send_file(str(loop_path), mimetype="audio/mpeg",
+                     download_name=f"{loop_id}.mp3")
 
 
 # ── YouTube Audio for Music Library ───────────────────────────────────────────
