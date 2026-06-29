@@ -16,28 +16,93 @@ from typing import Optional
 
 import config
 
-LOOP_LIBRARY = [
-    {"id":"c01","name":"Trap 808 Bass Loop","bpm":140,"key":"C","tags":["trap","hip-hop","808","bass","dark"],"duration":8,"style":"trap"},
-    {"id":"c02","name":"Boom Bap Drums","bpm":90,"key":"—","tags":["boom-bap","hip-hop","drums","classic","90s"],"duration":8,"style":"trap"},
-    {"id":"c03","name":"Trap Hi-Hat Pattern","bpm":140,"key":"—","tags":["trap","hi-hat","drums","808","modern"],"duration":8,"style":"trap"},
-    {"id":"c04","name":"Drill Beat Loop","bpm":140,"key":"—","tags":["drill","uk-drill","trap","dark","bass"],"duration":8,"style":"drill"},
-    {"id":"c05","name":"Lo-Fi Chill Piano","bpm":75,"key":"Dm","tags":["lo-fi","chill","piano","relaxing","study"],"duration":10,"style":"lofi"},
-    {"id":"c06","name":"Lo-Fi Hip Hop Beat","bpm":80,"key":"Am","tags":["lo-fi","hip-hop","drums","vinyl","nostalgic"],"duration":10,"style":"lofi"},
-    {"id":"c07","name":"Chill Jazzy Vibes","bpm":72,"key":"F","tags":["lo-fi","jazz","chill","mellow"],"duration":10,"style":"lofi"},
-    {"id":"c08","name":"R&B Smooth Groove","bpm":88,"key":"Gm","tags":["r&b","smooth","neo-soul","groove"],"duration":8,"style":"rnb"},
-    {"id":"c09","name":"Neo-Soul Keys","bpm":85,"key":"Eb","tags":["r&b","neo-soul","keys","soulful","smooth"],"duration":10,"style":"rnb"},
-    {"id":"c10","name":"Soul Bass Groove","bpm":92,"key":"Am","tags":["r&b","soul","bass","funk","groove"],"duration":8,"style":"rnb"},
-    {"id":"c11","name":"Pop Synth Beat","bpm":125,"key":"C","tags":["pop","synth","uplifting","bright","commercial"],"duration":8,"style":"pop"},
-    {"id":"c12","name":"Uplifting Pop Drums","bpm":128,"key":"—","tags":["pop","drums","punchy","radio"],"duration":8,"style":"pop"},
-    {"id":"c13","name":"Dark Drill Melody","bpm":145,"key":"Cm","tags":["drill","dark","minor","sinister","trap"],"duration":8,"style":"drill"},
-    {"id":"c14","name":"Deep House Groove","bpm":122,"key":"Am","tags":["house","edm","deep","electronic","dance"],"duration":10,"style":"pop"},
-    {"id":"c15","name":"Trap Percussion Loop","bpm":140,"key":"—","tags":["trap","percussion","808","modern"],"duration":8,"style":"trap"},
-    {"id":"c16","name":"Smooth R&B Beat","bpm":90,"key":"Dm","tags":["r&b","smooth","drums","modern","slow-jam"],"duration":8,"style":"rnb"},
-    {"id":"c17","name":"Lo-Fi Study Beats","bpm":70,"key":"G","tags":["lo-fi","study","chill","ambient","soft"],"duration":10,"style":"lofi"},
-    {"id":"c18","name":"UK Drill Bass","bpm":142,"key":"—","tags":["drill","uk-drill","bass","dark","sliding"],"duration":8,"style":"drill"},
-    {"id":"c19","name":"Pop Dance Beat","bpm":120,"key":"G","tags":["pop","dance","upbeat","commercial"],"duration":8,"style":"pop"},
-    {"id":"c20","name":"Trap Soul Vibes","bpm":130,"key":"Em","tags":["trap","soul","hip-hop","moody"],"duration":8,"style":"trap"},
-]
+def _build_loop_library():
+    """Generate a 1003-entry loop library with varied musical characteristics."""
+    _GENRES = [
+        {"style":"trap","genre":"trap","adjectives":["Dark","Hard","Bouncy","Heavy","Murky","Gritty","Sinister","Menacing","Aggressive","Hypnotic"],
+         "nouns":["808 Bass","Hi-Hats","Percussion","Kick Pattern","Snare Roll","Beat","Drums","Rhythm","Groove","Loop"],
+         "tags_pool":["trap","hip-hop","808","bass","dark","hard","bounce","modern","urban","street","ATL","drill","phonk","mumble","SoundCloud"],
+         "bpm_range":(130,160),"keys":["C","Cm","Dm","Em","Fm","Gm","Am","—"]},
+        {"style":"lofi","genre":"lo-fi","adjectives":["Chill","Mellow","Dreamy","Nostalgic","Hazy","Warm","Dusty","Soft","Peaceful","Sleepy"],
+         "nouns":["Piano","Guitar","Chords","Vinyl Loop","Rhodes","Keys","Melody","Pads","Atmosphere","Beat"],
+         "tags_pool":["lo-fi","chill","study","relax","jazz","vinyl","tape","warm","ambient","bedroom","cafe","rain","night","dreamy","nostalgic"],
+         "bpm_range":(60,90),"keys":["C","Dm","Em","F","G","Am","Bb","Eb"]},
+        {"style":"pop","genre":"pop","adjectives":["Uplifting","Bright","Catchy","Groovy","Punchy","Energetic","Shimmering","Happy","Driving","Anthemic"],
+         "nouns":["Synth","Beat","Drums","Hook","Rhythm","Clap Pattern","Bass","Chord Stab","Arp","Melody"],
+         "tags_pool":["pop","synth","dance","radio","commercial","upbeat","chart","EDM","house","future-bass","tropical","electro","club","anthem","festival"],
+         "bpm_range":(110,135),"keys":["C","D","Em","F","G","Am","Bb","A"]},
+        {"style":"drill","genre":"drill","adjectives":["Dark","Sinister","Cold","Sliding","Menacing","Icy","Eerie","Haunting","Ruthless","Grimy"],
+         "nouns":["Bass","Pattern","Melody","Percussion","Hi-Hats","Beat","Rhythm","Loop","Lead","Stab"],
+         "tags_pool":["drill","uk-drill","dark","bass","sliding","chicago","NY","trap","minor","grime","road","cold","sinister","aggressive","hard"],
+         "bpm_range":(138,148),"keys":["Cm","Dm","Em","Fm","Gm","Am","Bbm","—"]},
+        {"style":"rnb","genre":"r&b","adjectives":["Smooth","Silky","Lush","Warm","Sensual","Groovy","Mellow","Soulful","Dreamy","Intimate"],
+         "nouns":["Keys","Guitar","Chords","Pads","Bass","Beat","Groove","Melody","Rhythm","Vibe"],
+         "tags_pool":["r&b","soul","neo-soul","smooth","groove","funk","jazz","slow-jam","moody","soulful","velvet","late-night","romantic","sensual","mellow"],
+         "bpm_range":(75,100),"keys":["Dm","Em","F","Gm","Am","Bb","C","Eb"]},
+        {"style":"trap","genre":"afrobeats","adjectives":["Tribal","Tropical","Vibrant","Sunny","Rhythmic","Pulsing","Festive","Bouncy","Warm","Groovy"],
+         "nouns":["Drums","Percussion","Shaker","Log Drum","Guitar","Rhythm","Pattern","Beat","Loop","Groove"],
+         "tags_pool":["afrobeats","afro","african","dancehall","amapiano","tropical","caribbean","reggae","riddim","island","summer","vibrant","highlife","azonto","afropop"],
+         "bpm_range":(100,118),"keys":["C","Dm","Em","F","G","Am","Gm","—"]},
+        {"style":"pop","genre":"edm","adjectives":["Epic","Massive","Soaring","Pulsing","Euphoric","Driving","Glitchy","Rolling","Thumping","Rising"],
+         "nouns":["Synth","Drop","Build-Up","Lead","Arp","Kick","Bass","Pad","Chord","Riser"],
+         "tags_pool":["edm","electronic","house","techno","trance","dubstep","bass-music","rave","club","festival","synth","dance","future","progressive","tech-house"],
+         "bpm_range":(120,140),"keys":["Am","Cm","Dm","Em","Fm","C","F","G"]},
+        {"style":"lofi","genre":"jazz","adjectives":["Smooth","Swinging","Cool","Moody","Classic","Laid-Back","Improvisational","Breezy","Rich","Bluesy"],
+         "nouns":["Piano","Bass Walk","Brush Drums","Chords","Sax Line","Melody","Comping","Groove","Vamp","Riff"],
+         "tags_pool":["jazz","blues","swing","classic","live","sax","piano","upright-bass","brush","modal","bebop","cool","fusion","smooth-jazz","bossa"],
+         "bpm_range":(80,130),"keys":["Bb","Eb","F","Dm","Gm","Am","C","G"]},
+        {"style":"pop","genre":"rock","adjectives":["Heavy","Crunchy","Driving","Raw","Punchy","Distorted","Power","Thundering","Gritty","Raging"],
+         "nouns":["Guitar Riff","Drums","Power Chords","Bass","Beat","Groove","Break","Fill","Rhythm","Loop"],
+         "tags_pool":["rock","metal","punk","grunge","indie","guitar","distortion","power","live","garage","alternative","hard-rock","heavy","riff","shred"],
+         "bpm_range":(110,160),"keys":["E","Em","A","Am","D","Dm","G","C"]},
+        {"style":"rnb","genre":"gospel","adjectives":["Uplifting","Soulful","Majestic","Warm","Heavenly","Powerful","Glorious","Inspiring","Joyful","Triumphant"],
+         "nouns":["Choir","Piano","Organ","Chords","Pads","Clap","Beat","Groove","Keys","Swell"],
+         "tags_pool":["gospel","church","worship","praise","choir","organ","piano","soulful","spiritual","uplift","hymn","faith","inspirational","sacred","hallelujah"],
+         "bpm_range":(70,95),"keys":["Bb","C","Eb","F","G","Ab","Db","D"]},
+        {"style":"trap","genre":"latin","adjectives":["Fiery","Rhythmic","Tropical","Passionate","Groovy","Sultry","Festive","Spicy","Smooth","Lively"],
+         "nouns":["Dembow","Guitar","Percussion","Congas","Timbales","Beat","Rhythm","Bass","Claves","Bongos"],
+         "tags_pool":["reggaeton","latin","salsa","bachata","merengue","tropical","urban","dembow","cumbia","bossa-nova","tango","flamenco","rumba","son","guaguanco"],
+         "bpm_range":(90,130),"keys":["Am","Dm","Em","C","F","G","Gm","Cm"]},
+        {"style":"lofi","genre":"cinematic","adjectives":["Epic","Sweeping","Dramatic","Haunting","Ethereal","Vast","Brooding","Majestic","Tense","Atmospheric"],
+         "nouns":["Strings","Orchestra Hit","Pad","Texture","Drone","Melody","Theme","Motif","Ambience","Score"],
+         "tags_pool":["cinematic","film","trailer","epic","dramatic","orchestral","ambient","score","soundtrack","tension","suspense","emotional","dark","atmospheric","ethereal"],
+         "bpm_range":(55,80),"keys":["Dm","Cm","Em","Fm","Am","Gm","Bbm","C"]},
+        {"style":"pop","genre":"funk","adjectives":["Funky","Groovy","Slapping","Tight","Bouncy","Syncopated","Crisp","Dirty","Swinging","Snappy"],
+         "nouns":["Bass Line","Drums","Wah Guitar","Clav","Rhythm","Break","Groove","Loop","Pattern","Lick"],
+         "tags_pool":["funk","groove","slap","bass","disco","soul","rhythm","breakbeat","syncopation","wah","clavinet","motown","stax","p-funk","boogie"],
+         "bpm_range":(95,115),"keys":["E","Em","Am","Dm","G","C","F","A"]},
+    ]
+    library = []
+    idx = 0
+    while idx < 1003:
+        for genre_def in _GENRES:
+            if idx >= 1003:
+                break
+            slot = idx % len(genre_def["adjectives"])
+            noun_slot = idx % len(genre_def["nouns"])
+            adj = genre_def["adjectives"][slot]
+            noun = genre_def["nouns"][noun_slot]
+            bpm_lo, bpm_hi = genre_def["bpm_range"]
+            bpm = bpm_lo + (idx * 7) % (bpm_hi - bpm_lo + 1)
+            key = genre_def["keys"][idx % len(genre_def["keys"])]
+            tag_start = idx % max(1, len(genre_def["tags_pool"]) - 4)
+            raw_tags = [genre_def["genre"]] + genre_def["tags_pool"][tag_start:tag_start+4]
+            tags = list(dict.fromkeys(raw_tags))
+            dur = 8 + (idx % 3) * 2
+            library.append({
+                "id": f"c{idx+1:04d}",
+                "name": f"{adj} {genre_def['genre'].title()} {noun}",
+                "bpm": bpm,
+                "key": key,
+                "tags": tags,
+                "duration": dur,
+                "style": genre_def["style"],
+            })
+            idx += 1
+    return library
+
+
+LOOP_LIBRARY = _build_loop_library()
 
 
 def generate_loop(loop_id, output_path):

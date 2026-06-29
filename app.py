@@ -3208,7 +3208,7 @@ def proxy_loop_audio():
 def serve_generated_loop(loop_id):
     """Generate and serve a synth loop on-demand, cached to disk."""
     import re
-    if not re.match(r'^c\d{2}$', loop_id):
+    if not re.match(r'^c\d{2,4}$', loop_id):
         return jsonify({"error": "Invalid loop ID"}), 400
     loops_dir = config.OUTPUT_DIR / "loops"
     loops_dir.mkdir(parents=True, exist_ok=True)
