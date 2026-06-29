@@ -12,6 +12,13 @@ import psycopg2.extras
 
 _DATABASE_URL = _os.getenv("DATABASE_URL", "")
 
+# Supabase requires SSL — append sslmode=require if not already present
+def _ensure_ssl(url: str) -> str:
+    if url and "sslmode" not in url:
+        sep = "&" if "?" in url else "?"
+        return url + sep + "sslmode=require"
+    return url
+
 _pool = None
 
 def _get_pool():
@@ -19,7 +26,7 @@ def _get_pool():
     if _pool is None:
         if not _DATABASE_URL:
             raise RuntimeError("DATABASE_URL environment variable is not set")
-        _pool = psycopg2.pool.ThreadedConnectionPool(2, 20, _DATABASE_URL)
+        _pool = psycopg2.pool.ThreadedConnectionPool(2, 20, _ensure_ssl(_DATABASE_URL))
     return _pool
 
 
