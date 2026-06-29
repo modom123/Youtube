@@ -8,11 +8,14 @@ for each type of shot.
 """
 from __future__ import annotations
 import json
+import time
 import threading as _threading
 from pathlib import Path
 from typing import Callable, Optional
 
 import config
+from generators.studio_blueprints import get_blueprint, validate_output
+from generators.studio_intelligence import record_job, get_recommendations
 from generators.agents.trend_architect import TrendArchitect
 from generators.agents.narrative_designer import NarrativeDesigner
 from generators.agents.asset_curator import AssetCurator
@@ -239,8 +242,13 @@ class HollywoodEngine:
         from generators import higgsfield_mcp
         from utils import file_manager
 
-        # Voice selection — ElevenLabs > Google Neural2 > edge-tts
-        # (audio_generator auto-picks based on which API keys are configured)
+        _start_time = time.time()
+        _bp = get_blueprint("hollywood")
+        _recs = get_recommendations("hollywood", genre=topic)
+
+        if _recs.get("voice") and not voice:
+            voice = _recs["voice"]
+
         if not voice:
             if config.GOOGLE_API_KEY:
                 voice = config.GOOGLE_TTS_VOICE
@@ -653,6 +661,21 @@ class HollywoodEngine:
             audio_path=str(audio_path),
             thumbnail_path=str(thumbnail_path),
             manifest_path=str(job_dir / "manifest.json"),
+        )
+
+        _elapsed = time.time() - _start_time
+        record_job(
+            studio="hollywood", job_id=0, user_id=0,
+            topic=topic, genre=topic, format="cinematic",
+            clip_count=len(all_video_clips) if 'all_video_clips' in dir() else 0,
+            duration_seconds=target_duration,
+            voice_used=voice or "",
+            ai_provider="higgsfield",
+            completed=1 if result.status in ("success", "partial") else 0,
+            error_message="; ".join(errors) if errors else "",
+            generation_time_seconds=round(_elapsed, 1),
+            file_size_bytes=video_path.stat().st_size if video_path.exists() else 0,
+            quality_score=0.85 if result.status == "success" else 0.4,
         )
 
         self.cb("Hollywood production complete!", 100)

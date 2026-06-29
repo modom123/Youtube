@@ -233,6 +233,17 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
                 print(f"[job #{job_id}] increment_user_usage failed (non-fatal): {_ue}")
         job_title = manifest.get("title")
         blog.success("Job completed successfully")
+
+        from generators.studio_intelligence import record_job as _record
+        _record(
+            studio="create", job_id=job_id, user_id=user_id or 0,
+            topic=params.get("topic", ""), genre=params.get("topic", ""),
+            format=params.get("format", "long"),
+            voice_used=params.get("voice", ""),
+            completed=1,
+            duration_seconds=manifest.get("duration", 0),
+        )
+
         db.update_job(
             job_id, status="done", progress=100, current_step="Complete!",
             title=job_title, duration=manifest.get("duration", 0),
@@ -5580,10 +5591,63 @@ def editing_room_serve_media(media_id):
     return "", 404
 
 
+# ── Studio Intelligence API ──────────────────────────────────────────────────
+
+@app.route("/api/studio-intelligence")
+@login_required
+def api_studio_intelligence():
+    """Get learning stats and recommendations for all studios."""
+    from generators.studio_intelligence import get_studio_stats, get_recommendations
+    from generators.studio_blueprints import BLUEPRINTS
+    studios = {}
+    for name, bp in BLUEPRINTS.items():
+        studios[name] = {
+            "identity": bp["identity"],
+            "great_at": bp["great_at"],
+            "stats": get_studio_stats(name),
+            "recommendations": get_recommendations(name),
+        }
+    return jsonify(studios)
+
+
+@app.route("/api/studio-intelligence/<studio_name>")
+@login_required
+def api_studio_intelligence_detail(studio_name):
+    """Get detailed intelligence for a specific studio."""
+    from generators.studio_intelligence import get_studio_stats, get_recommendations
+    from generators.studio_blueprints import get_blueprint
+    try:
+        bp = get_blueprint(studio_name)
+    except ValueError:
+        return jsonify({"error": "Unknown studio"}), 404
+    genre = request.args.get("genre", "")
+    return jsonify({
+        "identity": bp["identity"],
+        "great_at": bp["great_at"],
+        "blueprint": bp,
+        "stats": get_studio_stats(studio_name),
+        "recommendations": get_recommendations(studio_name, genre=genre),
+    })
+
+
+@app.route("/api/job/<int:job_id>/rate", methods=["POST"])
+@login_required
+def api_rate_job(job_id):
+    """User rates a job output 1-5 to feed the learning loop."""
+    from generators.studio_intelligence import record_user_rating
+    rating = request.json.get("rating", 0)
+    if not 1 <= rating <= 5:
+        return jsonify({"error": "Rating must be 1-5"}), 400
+    record_user_rating(job_id, rating)
+    return jsonify({"ok": True, "rating": rating})
+
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 db.init_db()
 init_monetizer_tables()
+from generators.studio_intelligence import init_intelligence_tables
+init_intelligence_tables()
 _load_platform_creds_from_db()
 # ── Agency Command Center ─────────────────────────────────────────────────────
 

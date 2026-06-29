@@ -12,6 +12,8 @@ import requests
 from pydantic import BaseModel
 
 import config
+from generators.studio_blueprints import get_blueprint
+from generators.studio_intelligence import record_job, get_recommendations
 from generators.agents.base import BaseAgent
 
 log = logging.getLogger(__name__)
@@ -464,6 +466,18 @@ class MusicEngine:
                     provider = "ElevenLabs Vocals"
 
         cb("Finalizing track...", 85)
+
+        record_job(
+            studio="music", job_id=0, user_id=0,
+            topic=title, genre=genre, format=vocal_style,
+            duration_seconds=duration_seconds,
+            music_style=f"{genre}/{mood}",
+            ai_provider=provider,
+            completed=1 if audio_path else 0,
+            error_message="" if audio_path else "All providers failed",
+            file_size_bytes=Path(audio_path).stat().st_size if audio_path and Path(audio_path).exists() else 0,
+            quality_score=0.8 if audio_path else 0,
+        )
 
         return {
             "audio_path": audio_path,
