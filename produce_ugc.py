@@ -49,7 +49,7 @@ FONT_PATH_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 STUDIOS = {
     "hollywood": {
-        "label": "Hollywood Studio",
+        "label": "Cinema House",
         "voice": "en-us",
         "width": 1920,
         "height": 1080,
@@ -100,7 +100,7 @@ STUDIOS = {
         },
     },
     "studio56": {
-        "label": "Studio 56",
+        "label": "The Forge",
         "voice": "en-us",
         "width": 1080,
         "height": 1920,
@@ -109,7 +109,7 @@ STUDIOS = {
         "music_key": "upbeat",
         "script": {
             "title": "5 Things Nobody Tells You About Going Viral",
-            "subtitle": "Studio 56 — Viral Shorts",
+            "subtitle": "The Forge — Viral Shorts",
             "sections": [
                 {
                     "heading": "STOP SCROLLING",
@@ -160,7 +160,7 @@ STUDIOS = {
         },
     },
     "commercials": {
-        "label": "Commercial Studio",
+        "label": "Ad Lab",
         "voice": "en-us",
         "width": 1920,
         "height": 1080,

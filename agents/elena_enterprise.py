@@ -93,7 +93,7 @@ I'm Elena from Social Optimize's enterprise team. I noticed you've created {user
 Your current {tier.title()} plan is great, but with your volume, the {next_tier} plan ({price}/mo) would give you:
 
 {"- 50 AI videos/month" if next_tier == "Creator" else "- 125 AI videos/month"}
-{"- Hollywood AI agent + AI Clipper" if next_tier == "Creator" else "- Team management (5 seats)"}
+{"- Cinema House + The Scalpel" if next_tier == "Creator" else "- Team management (5 seats)"}
 {"- Multi-language (15 languages)" if next_tier == "Creator" else "- White-label exports"}
 {"- Advanced analytics & reporting" if next_tier == "Creator" else "- API access + dedicated support"}
 - 14-day free trial on the upgrade

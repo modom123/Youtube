@@ -90,7 +90,7 @@ You've been on fire — {video_count} videos created! You're getting close to th
 Upgrade to Starter ($29.99/mo) and unlock:
 - 15 AI videos/month (vs 3 on free)
 - Publish to 8 platforms (vs 3 on free)
-- Production Studio, Commercial Studio & Music Studio
+- The Forge, Ad Lab & Hit Factory
 - 150 Social Optimize Credits
 - 14-day free trial — no charge today
 

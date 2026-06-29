@@ -114,9 +114,9 @@ def _execute_retention_play(user, risk_level, recent, previous):
 We noticed you haven't created any content recently, and we want to make sure everything's okay.
 
 As a valued {user.get('subscription_tier', '').title()} member, here's what we've added since you were last active:
-- New Hollywood AI Studio for cinematic content
-- Music Studio with AI beat generation
-- Commercial Studio for brand ads
+- Cinema House for cinematic content
+- Hit Factory with AI beat generation
+- Ad Lab for brand ads
 
 To welcome you back, we're adding 50 bonus credits to your account.
 

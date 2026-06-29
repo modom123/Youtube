@@ -41,7 +41,7 @@ PRODUCTS = {
     },
     "creator": {
         "title": "Social Optimize — Creator",
-        "description": "30 AI videos per month. AI Clipper, batch creation, Studio 56, virality scoring.",
+        "description": "30 AI videos per month. The Scalpel, batch creation, The Forge, virality scoring.",
         "price": 29.0,
         "billing_period_days": 30,
         "videos_per_month": 30,

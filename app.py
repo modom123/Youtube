@@ -2546,7 +2546,7 @@ def api_test_ai_keys():
                     "verdict": "OK" if working else "ALL KEYS BROKEN"})
 
 
-# ── Production Studio ─────────────────────────────────────────────────────────
+# ── The Forge ─────────────────────────────────────────────────────────────────
 
 _studio_jobs: dict = {}
 _studio_events: dict = {}
@@ -2579,7 +2579,7 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
         privacy=params.get("privacy", "private"),
         user_id=user_id,
     )
-    db.update_job(db_job_id, status="running", progress=5, current_step="Starting Production Studio…")
+    db.update_job(db_job_id, status="running", progress=5, current_step="Starting The Forge…")
 
 
     def _cb(msg: str, pct: int):
@@ -2736,7 +2736,7 @@ def studio_status(studio_job_id):
     return jsonify(job)
 
 
-# ── Hollywood Studio ──────────────────────────────────────────────────────────
+# ── Cinema House ──────────────────────────────────────────────────────────────
 
 _hw_jobs: dict = {}
 _hw_events: dict = {}
@@ -2769,7 +2769,7 @@ def _run_hw_thread(hw_job_id: str, params: dict, user_id: int = None):
         privacy=params.get("privacy", "private"),
         user_id=user_id,
     )
-    db.update_job(db_job_id, status="running", progress=5, current_step="Starting Hollywood Studio…")
+    db.update_job(db_job_id, status="running", progress=5, current_step="Starting Cinema House…")
 
     def _cb(msg: str, pct: int):
         db.update_job(db_job_id, progress=pct, current_step=msg)
@@ -2948,7 +2948,7 @@ def api_hollywood_reassemble():
     return jsonify({"ok": True, "message": "Re-assembly queued", "job_id": db_job_id})
 
 
-# ── Music Studio ──────────────────────────────────────────────────────────────
+# ── Hit Factory ───────────────────────────────────────────────────────────────
 
 _music_jobs: dict = {}
 _music_events: dict = {}
@@ -3679,7 +3679,7 @@ def _load_music_catalog():
 def api_library():
     catalog = list(_load_music_catalog())
 
-    # Merge user-generated tracks from Music Studio
+    # Merge user-generated tracks from Hit Factory
     with db.get_conn() as conn:
         gen_rows = conn.execute("SELECT key, value FROM settings WHERE key LIKE 'music_track:%'").fetchall()
         yt_rows = conn.execute("SELECT key, value FROM settings WHERE key LIKE 'yt_search:%'").fetchall()
@@ -4121,7 +4121,7 @@ def api_competitor_inspire(comp_id):
     })
 
 
-# ── AI Clipper ────────────────────────────────────────────────────────────────
+# ── The Scalpel ───────────────────────────────────────────────────────────────
 
 _clip_jobs: dict = {}
 _clip_lock = threading.Lock()
@@ -4231,7 +4231,7 @@ def _run_clipper_thread(clip_job_id: str, clip_config: dict):
         }
 
 
-# ── Commercial Studio ─────────────────────────────────────────────────────────
+# ── Ad Lab ────────────────────────────────────────────────────────────────────
 
 COMMERCIAL_UPLOADS = Path(config.DATA_DIR) / "commercial_uploads"
 COMMERCIAL_UPLOADS.mkdir(parents=True, exist_ok=True)
@@ -5350,7 +5350,7 @@ def api_engagement_stats():
     return jsonify(stats)
 
 
-# ── Editing Room ──────────────────────────────────────────────────────────────
+# ── The Cut ───────────────────────────────────────────────────────────────────
 
 _editing_jobs: dict = {}
 _editing_events: dict = {}
@@ -5551,7 +5551,7 @@ def editing_room_status(editing_job_id):
     return jsonify(job)
 
 
-# ── Editing Room Media Upload ─────────────────────────────────────────────
+# ── The Cut Media Upload ──────────────────────────────────────────────────
 @app.route("/api/editing-room/upload-media", methods=["POST"])
 @login_required
 def editing_room_upload_media():

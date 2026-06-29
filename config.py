@@ -110,7 +110,7 @@ TIERS = {
             "Quick Post from photo/video",
             "Basic AI script writing",
             "Hashtag suggestions",
-            "Editing Room",
+            "The Cut",
             "Community support",
         ],
     },
@@ -130,7 +130,7 @@ TIERS = {
             "50 Social Optimize Credits/mo",
             "5-agent AI pipeline",
             "Content calendar & scheduling",
-            "Editing Room",
+            "The Cut",
             "Template Library",
             "Hashtag research",
             "Quick Post from photo/video",
@@ -153,9 +153,9 @@ TIERS = {
             "Publish to 8 platforms",
             "150 Social Optimize Credits/mo",
             "5-agent AI pipeline",
-            "Production Studio",
-            "Commercial Studio — photo → ad",
-            "Music Studio",
+            "The Forge — production suite",
+            "Ad Lab — photo → ad",
+            "Hit Factory",
             "Quick Post from photo/video",
             "Batch Generator",
             "Content calendar & scheduling",
@@ -179,16 +179,16 @@ TIERS = {
             "Publish to all 8 platforms",
             "500 Social Optimize Credits/mo",
             "Everything in Creator",
-            "Studio 56 — full production suite",
-            "Hollywood AI agent",
-            "Music Studio — DJ & beat maker",
-            "AI Clipper — auto-clip to shorts",
+            "The Forge — full production suite",
+            "Cinema House — cinematic AI",
+            "Hit Factory — DJ & beat maker",
+            "The Scalpel — auto-clip to shorts",
             "Documentary & Animation formats",
             "Competitor & trend analysis",
             "Multi-language (15 languages)",
             "Batch create 30 videos at once",
             "Advanced analytics & reporting",
-            "Editing Room — full suite",
+            "The Cut — full editing suite",
             "Priority support",
         ],
     },
@@ -207,7 +207,7 @@ TIERS = {
             "Publish to all 8 platforms",
             "2,000 Social Optimize Credits/mo",
             "Everything in Pro",
-            "AI Clipper — unlimited clips",
+            "The Scalpel — unlimited clips",
             "Team management (5 seats)",
             "White-label exports",
             "SMS/WhatsApp outreach (Twilio)",
@@ -255,7 +255,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # "Adam" — deep male narrator
 
-# Music Studio providers
+# Hit Factory providers
 SUNO_COOKIE = os.getenv("SUNO_COOKIE", "")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
 MUBERT_KEY = os.getenv("MUBERT_KEY", "")

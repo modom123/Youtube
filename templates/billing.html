@@ -123,7 +123,7 @@
             <div class="plan-row-desc">
               {{ tier.videos_per_month }} videos
               · {{ tier.higgsfield_credits }} Credits/mo
-              {% if 'AI Clipper' in (tier.features | join(' ')) %} · AI Clipper{% endif %}
+              {% if 'The Scalpel' in (tier.features | join(' ')) %} · The Scalpel{% endif %}
             </div>
           </div>
           <div class="plan-row-price">${{ tier.price_monthly }}<span style="font-size:12px;font-weight:500;color:var(--muted)">/mo</span></div>
@@ -168,9 +168,9 @@
         {% if current_tier == 'free' %}
           Upgrade to Starter for just $9.99/mo — 10 videos, scheduling, 8 platforms, and no watermark.
         {% elif current_tier == 'starter' %}
-          Unlock AI Clipper, batch creation, and Studio 56 with Creator at $29/mo — 3x the videos.
+          Unlock The Scalpel, batch creation, and The Forge with Creator at $29/mo — 3x the videos.
         {% elif current_tier == 'creator' %}
-          Go Pro for $79/mo — 100 videos, unlimited clips, Hollywood AI, multi-language, and team seats.
+          Go Pro for $79/mo — 100 videos, unlimited clips, Cinema House, multi-language, and team seats.
         {% else %}
           Scale your agency with 200 videos, 10 seats, white-label, API, and a dedicated account manager.
         {% endif %}

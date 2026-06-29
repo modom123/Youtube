@@ -1,5 +1,5 @@
 """
-Music Studio — Beat maker + vocal generator + mixer.
+Hit Factory — Beat maker + vocal generator + mixer.
 
 Vocal sources (priority order):
   1. ElevenLabs API — professional AI voices (requires ELEVENLABS_API_KEY)

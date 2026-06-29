@@ -1,6 +1,6 @@
 """
 Market Strategist Agent — analyzes a product and devises the optimal ad strategy.
-Part of the Social Optimize Machine Commercial Studio pipeline.
+Part of the Social Optimize Machine Ad Lab pipeline.
 """
 from __future__ import annotations
 from .base import BaseAgent
