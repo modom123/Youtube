@@ -569,6 +569,33 @@ def init_db():
             if col not in ac_cols:
                 conn.execute(f"ALTER TABLE agency_clients ADD COLUMN {col} TEXT DEFAULT {default}")
 
+        # Migrate: add sales channel tracking columns to users
+        for col, default in [("subscription_channel", "'stripe'"), ("subscription_external_id", "''"), ("referred_by", "''")]:
+            if col not in user_cols:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {col} TEXT DEFAULT {default}")
+
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS affiliates (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            code            TEXT UNIQUE NOT NULL,
+            commission_pct  REAL DEFAULT 20,
+            active          INTEGER DEFAULT 1,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS affiliate_earnings (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            affiliate_id    INTEGER REFERENCES affiliates(id),
+            user_id         INTEGER,
+            tier            TEXT,
+            amount          REAL DEFAULT 0,
+            paid            INTEGER DEFAULT 0,
+            created_at      TEXT DEFAULT (datetime('now'))
+        );
+        """)
+
         conn.execute("""
         CREATE TABLE IF NOT EXISTS agents (
             id               TEXT PRIMARY KEY,

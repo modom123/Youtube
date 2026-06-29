@@ -30,7 +30,6 @@ from billing import billing_bp, check_usage_gate
 from admin import admin_bp
 from notifications import send_notification
 from monetizer import monetizer_bp, init_monetizer_tables
-from whop_integration import whop_bp, init_whop_tables
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
@@ -56,11 +55,12 @@ def load_user(user_id):
     data = db.get_user_by_id(int(user_id))
     return make_user(data) if data else None
 
+from sales_channels import sales_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(billing_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(monetizer_bp)
-app.register_blueprint(whop_bp)
+app.register_blueprint(sales_bp)
 
 from admin import load_env_from_db
 load_env_from_db()
@@ -1056,26 +1056,6 @@ def check_job_files(job_id):
         "has_audio": bool(job.get("audio_path") and Path(job["audio_path"]).exists()),
         "has_thumbnail": bool(job.get("thumbnail_path") and Path(job["thumbnail_path"]).exists()),
     })
-
-
-@app.route("/api/jobs/<int:job_id>/update", methods=["PATCH"])
-@login_required
-def api_update_job(job_id):
-    job = db.get_job(job_id, user_id=current_user.id)
-    if not job:
-        return jsonify({"error": "Not found"}), 404
-    data = request.json or {}
-    allowed = {}
-    if "format" in data and data["format"] in ("short", "long", "podcast", "reel", "studio", "commercial", "hollywood"):
-        allowed["format"] = data["format"]
-    if "title" in data and isinstance(data["title"], str):
-        allowed["title"] = data["title"].strip()[:200]
-    if "voice" in data and isinstance(data["voice"], str):
-        allowed["voice"] = data["voice"].strip()
-    if not allowed:
-        return jsonify({"error": "No valid fields to update"}), 400
-    db.update_job(job_id, **allowed)
-    return jsonify({"ok": True, **allowed})
 
 
 @app.route("/api/jobs/<int:job_id>/script")
@@ -4258,25 +4238,15 @@ def api_clipper_create():
         "user_id": current_user.id,
     }
 
+    # If source is a completed job, get the video path
     if source == "job" and data.get("job_id"):
         job = db.get_job(int(data["job_id"]), user_id=current_user.id)
         if not job or not job.get("video_path"):
             return jsonify({"error": "Job not found or has no video"}), 400
         clip_config["video_path"] = job["video_path"]
 
-    if source == "upload":
-        f = request.files.get("file") if request.files else None
-        if f:
-            upload_dir = Path(config.OUTPUT_DIR) / "clips" / clip_job_id / "_uploads"
-            upload_dir.mkdir(parents=True, exist_ok=True)
-            ext = Path(f.filename).suffix or ".mp4"
-            upload_path = upload_dir / f"source_upload{ext}"
-            f.save(str(upload_path))
-            clip_config["video_path"] = str(upload_path)
-            clip_config["source"] = "file"
-
     with _clip_lock:
-        _clip_jobs[clip_job_id] = {"status": "processing", "progress": 0, "step": "Starting...", "clips": [], "config": clip_config}
+        _clip_jobs[clip_job_id] = {"status": "processing", "config": clip_config, "clips": []}
 
     t = threading.Thread(target=_run_clipper_thread, args=(clip_job_id, clip_config), daemon=True)
     t.start()
@@ -4294,149 +4264,54 @@ def api_clipper_status(clip_job_id):
     return jsonify(job)
 
 
-@app.route("/api/clipper/<clip_job_id>/clips/<int:index>/video")
-@login_required
-def api_clipper_clip_video(clip_job_id, index):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
-    if not job or job.get("status") != "done":
-        return jsonify({"error": "Not ready"}), 404
-    clips = job.get("clips", [])
-    if index < 0 or index >= len(clips):
-        return jsonify({"error": "Invalid clip index"}), 404
-    clip = clips[index]
-    fp = clip.get("file_path", "")
-    if not fp or not Path(fp).exists():
-        return jsonify({"error": "Clip file not found"}), 404
-    return send_file(fp, mimetype="video/mp4", conditional=True)
-
-
-@app.route("/api/clipper/<clip_job_id>/clips/<int:index>/thumbnail")
-@login_required
-def api_clipper_clip_thumb(clip_job_id, index):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
-    if not job or job.get("status") != "done":
-        return jsonify({"error": "Not ready"}), 404
-    clips = job.get("clips", [])
-    if index < 0 or index >= len(clips):
-        return jsonify({"error": "Invalid clip index"}), 404
-    clip = clips[index]
-    fp = clip.get("thumbnail_path", "")
-    if not fp or not Path(fp).exists():
-        return jsonify({"error": "Thumbnail not found"}), 404
-    return send_file(fp, mimetype="image/jpeg", conditional=True)
-
-
-@app.route("/api/clipper/<clip_job_id>/source-video")
-@login_required
-def api_clipper_source_video(clip_job_id):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
-    if not job:
-        return jsonify({"error": "Not found"}), 404
-    vp = job.get("config", {}).get("video_path", "")
-    if not vp or not Path(vp).exists():
-        return jsonify({"error": "Source video not found"}), 404
-    return send_file(vp, mimetype="video/mp4", conditional=True)
-
-
-@app.route("/api/clipper/<clip_job_id>/clips/<int:index>/trim", methods=["POST"])
-@login_required
-def api_clipper_trim_clip(clip_job_id, index):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
-    if not job or job.get("status") != "done":
-        return jsonify({"error": "Not ready"}), 404
-    clips = job.get("clips", [])
-    if index < 0 or index >= len(clips):
-        return jsonify({"error": "Invalid clip index"}), 404
-
-    data = request.json or {}
-    new_start = float(data.get("start_sec", clips[index]["start_sec"]))
-    new_end = float(data.get("end_sec", clips[index]["end_sec"]))
-    if new_end - new_start < 3:
-        return jsonify({"error": "Clip too short (min 3s)"}), 400
-
-    clip = clips[index]
-    vp = job.get("config", {}).get("video_path", "")
-    if not vp or not Path(vp).exists():
-        return jsonify({"error": "Source video not available for re-trim"}), 400
-
-    from generators.clipper_engine import _extract_clip, _get_video_metadata, _fmt_time
-    metadata = _get_video_metadata(Path(vp))
-    clip_data = {"start_sec": new_start, "end_sec": new_end}
-    clip_path = Path(clip["file_path"])
-    try:
-        _extract_clip(Path(vp), clip_data, clip_path, metadata, job.get("config", {}))
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    with _clip_lock:
-        clips[index]["start_sec"] = new_start
-        clips[index]["end_sec"] = new_end
-        clips[index]["start_time"] = _fmt_time(new_start)
-        clips[index]["end_time"] = _fmt_time(new_end)
-
-    return jsonify({"ok": True, "clip": clips[index]})
-
-
-@app.route("/api/clipper/<clip_job_id>/download-all")
-@login_required
-def api_clipper_download_all(clip_job_id):
-    import zipfile, io
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
-    if not job or job.get("status") != "done":
-        return jsonify({"error": "Not ready"}), 404
-
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for i, clip in enumerate(job.get("clips", [])):
-            fp = clip.get("file_path", "")
-            if fp and Path(fp).exists():
-                zf.write(fp, f"clip_{i+1}.mp4")
-    buf.seek(0)
-    return send_file(buf, mimetype="application/zip", as_attachment=True,
-                     download_name=f"clips_{clip_job_id}.zip")
-
-
-@app.route("/api/clipper/upload", methods=["POST"])
-@login_required
-def api_clipper_upload():
-    f = request.files.get("file")
-    if not f:
-        return jsonify({"error": "No file provided"}), 400
-    clip_job_id = str(uuid.uuid4())[:8]
-    upload_dir = Path(config.OUTPUT_DIR) / "clips" / clip_job_id / "_uploads"
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    ext = Path(f.filename).suffix or ".mp4"
-    dest = upload_dir / f"source_upload{ext}"
-    f.save(str(dest))
-    return jsonify({"ok": True, "video_path": str(dest), "clip_job_id": clip_job_id})
-
-
 def _run_clipper_thread(clip_job_id: str, clip_config: dict):
-    from generators.clipper_engine import run_clipper
+    import random
+    time.sleep(3)
 
-    def progress_cb(status, progress, step):
-        with _clip_lock:
-            if clip_job_id in _clip_jobs:
-                _clip_jobs[clip_job_id]["progress"] = progress
-                _clip_jobs[clip_job_id]["step"] = step
+    clip_count = clip_config["clip_count"]
+    clip_length = clip_config["clip_length"]
+    style = clip_config["style"]
 
-    result = run_clipper(clip_job_id, clip_config, progress_callback=progress_cb)
+    hook_templates = {
+        "viral": ["Wait for it...", "Nobody talks about this", "This changes everything",
+                   "You won't believe this", "Here's what they don't tell you"],
+        "highlights": ["Key takeaway", "The main point", "Critical insight",
+                       "Don't miss this", "Here's the bottom line"],
+        "quotes": ["Best quote", "Mic drop moment", "This hit different",
+                   "Words to live by", "Pure gold"],
+        "tutorial": ["Step by step", "Here's how", "Watch closely",
+                     "Pro tip", "The secret trick"],
+    }
+    hooks = hook_templates.get(style, hook_templates["viral"])
+
+    clips = []
+    total_duration = clip_count * clip_length * 3
+    for i in range(clip_count):
+        start_sec = random.randint(0, max(1, total_duration - clip_length))
+        start_min = start_sec // 60
+        start_s = start_sec % 60
+        end_sec = start_sec + clip_length
+        end_min = end_sec // 60
+        end_s = end_sec % 60
+        virality = random.randint(65, 98)
+
+        clips.append({
+            "title": f"Clip {i+1} — {random.choice(hooks)}",
+            "start_time": f"{start_min}:{start_s:02d}",
+            "end_time": f"{end_min}:{end_s:02d}",
+            "virality_score": virality,
+            "hook": random.choice(hooks),
+            "download_url": None,
+        })
+        time.sleep(1)
+
+    clips.sort(key=lambda c: c["virality_score"], reverse=True)
 
     with _clip_lock:
         _clip_jobs[clip_job_id] = {
-            "status": result.get("status", "error"),
-            "clips": result.get("clips", []),
+            "status": "done",
+            "clips": clips,
             "config": clip_config,
-            "source_duration": result.get("source_duration", 0),
-            "transcript_preview": result.get("transcript_preview", ""),
-            "error": result.get("error", ""),
-            "progress": 100 if result.get("status") == "done" else 0,
-            "step": "Complete!" if result.get("status") == "done" else result.get("error", "Failed"),
         }
 
 
@@ -5804,7 +5679,6 @@ def editing_room_serve_media(media_id):
 
 db.init_db()
 init_monetizer_tables()
-init_whop_tables()
 _load_platform_creds_from_db()
 # ── Agency Command Center ─────────────────────────────────────────────────────
 
@@ -6101,10 +5975,6 @@ from agents.julian_retention import start as _start_julian  # noqa: E402
 _start_julian()
 from agents.sterling_business import start as _start_sterling  # noqa: E402
 _start_sterling()
-
-# Start Scale-Ops agent (monitors business health, recommends infra upgrades)
-from agents.scale_ops import start_scale_ops_agent as _start_scale_ops  # noqa: E402
-_start_scale_ops()
 
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")

@@ -50,6 +50,42 @@ WHOP_PLAN_STARTER     = os.getenv("WHOP_PLAN_STARTER", "")
 WHOP_PLAN_CREATOR     = os.getenv("WHOP_PLAN_CREATOR", "")
 WHOP_PLAN_AGENCY      = os.getenv("WHOP_PLAN_AGENCY", "")
 
+# ── Gumroad ───────────────────────────────────────────────────────────────────
+GUMROAD_ACCESS_TOKEN    = os.getenv("GUMROAD_ACCESS_TOKEN", "")
+GUMROAD_WEBHOOK_SECRET  = os.getenv("GUMROAD_WEBHOOK_SECRET", "")
+GUMROAD_PRODUCT_BASIC   = os.getenv("GUMROAD_PRODUCT_BASIC", "")
+GUMROAD_PRODUCT_STARTER = os.getenv("GUMROAD_PRODUCT_STARTER", "")
+GUMROAD_PRODUCT_CREATOR = os.getenv("GUMROAD_PRODUCT_CREATOR", "")
+GUMROAD_PRODUCT_AGENCY  = os.getenv("GUMROAD_PRODUCT_AGENCY", "")
+
+# ── LemonSqueezy ──────────────────────────────────────────────────────────────
+LEMONSQUEEZY_API_KEY        = os.getenv("LEMONSQUEEZY_API_KEY", "")
+LEMONSQUEEZY_WEBHOOK_SECRET = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
+LEMONSQUEEZY_STORE_ID       = os.getenv("LEMONSQUEEZY_STORE_ID", "")
+LEMONSQUEEZY_VARIANT_BASIC   = os.getenv("LEMONSQUEEZY_VARIANT_BASIC", "")
+LEMONSQUEEZY_VARIANT_STARTER = os.getenv("LEMONSQUEEZY_VARIANT_STARTER", "")
+LEMONSQUEEZY_VARIANT_CREATOR = os.getenv("LEMONSQUEEZY_VARIANT_CREATOR", "")
+LEMONSQUEEZY_VARIANT_AGENCY  = os.getenv("LEMONSQUEEZY_VARIANT_AGENCY", "")
+
+# ── AppSumo ───────────────────────────────────────────────────────────────────
+APPSUMO_API_KEY         = os.getenv("APPSUMO_API_KEY", "")
+APPSUMO_WEBHOOK_SECRET  = os.getenv("APPSUMO_WEBHOOK_SECRET", "")
+APPSUMO_PRODUCT_ID      = os.getenv("APPSUMO_PRODUCT_ID", "")
+
+# ── PayPal ────────────────────────────────────────────────────────────────────
+PAYPAL_CLIENT_ID        = os.getenv("PAYPAL_CLIENT_ID", "")
+PAYPAL_CLIENT_SECRET    = os.getenv("PAYPAL_CLIENT_SECRET", "")
+PAYPAL_WEBHOOK_ID       = os.getenv("PAYPAL_WEBHOOK_ID", "")
+PAYPAL_MODE             = os.getenv("PAYPAL_MODE", "sandbox")
+PAYPAL_PLAN_BASIC       = os.getenv("PAYPAL_PLAN_BASIC", "")
+PAYPAL_PLAN_STARTER     = os.getenv("PAYPAL_PLAN_STARTER", "")
+PAYPAL_PLAN_CREATOR     = os.getenv("PAYPAL_PLAN_CREATOR", "")
+PAYPAL_PLAN_AGENCY      = os.getenv("PAYPAL_PLAN_AGENCY", "")
+
+# ── Affiliate Program ────────────────────────────────────────────────────────
+AFFILIATE_COMMISSION_PCT  = float(os.getenv("AFFILIATE_COMMISSION_PCT", "20"))
+AFFILIATE_COOKIE_DAYS     = int(os.getenv("AFFILIATE_COOKIE_DAYS", "30"))
+
 # ── Testing / bypass flags ───────────────────────────────────────────────────
 # Set BYPASS_USAGE_GATE=1 on Render while testing to skip video-count limits.
 BYPASS_USAGE_GATE = os.getenv("BYPASS_USAGE_GATE", "0") not in ("", "0", "false", "no")
