@@ -81,7 +81,7 @@
     display: block;
     font-size: 11px;
     font-weight: 700;
-    color: #888;
+    color: #aaa;
     text-transform: uppercase;
     letter-spacing: .07em;
     margin-bottom: 7px;
@@ -124,7 +124,7 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    color: #777;
+    color: #999;
     transition: all .2s;
     margin: 0;
     text-transform: none;
@@ -151,7 +151,7 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    color: #888;
+    color: #aaa;
     transition: all .2s;
     margin: 0;
     text-transform: none;
@@ -191,7 +191,7 @@
   }
   .hw-idle-icon { font-size: 56px; margin-bottom: 16px; }
   .hw-idle-title { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 10px; }
-  .hw-idle-desc { font-size: 14px; color: #777; line-height: 1.7; margin-bottom: 24px; }
+  .hw-idle-desc { font-size: 14px; color: #999; line-height: 1.7; margin-bottom: 24px; }
   .hw-idle-features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; }
   .hw-idle-feature {
     background: var(--cinema-elevated);
@@ -202,7 +202,7 @@
   }
   .hw-idle-feature-icon { font-size: 20px; margin-bottom: 6px; }
   .hw-idle-feature-name { font-weight: 700; color: var(--gold); margin-bottom: 4px; }
-  .hw-idle-feature-desc { color: #777; font-size: 12px; line-height: 1.5; }
+  .hw-idle-feature-desc { color: #999; font-size: 12px; line-height: 1.5; }
 
   /* Running state */
   .hw-running-layout { display: none; }
@@ -250,7 +250,7 @@
 
   .hw-step-info { flex: 1; min-width: 0; }
   .hw-step-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .hw-step-elapsed { font-size: 10px; color: #555; margin-top: 2px; }
+  .hw-step-elapsed { font-size: 10px; color: #888; margin-top: 2px; }
 
   .hw-step-badge {
     font-size: 10px;
@@ -258,7 +258,7 @@
     padding: 3px 8px;
     border-radius: 20px;
     background: var(--cinema-border);
-    color: #555;
+    color: #888;
     flex-shrink: 0;
   }
   .hw-step.active .hw-step-badge { background: var(--gold); color: #000; }
@@ -285,11 +285,11 @@
     border-bottom: 1px solid #1a1a1a;
   }
   .hw-terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
-  .hw-terminal-title { font-size: 11px; color: #555; margin-left: 4px; }
+  .hw-terminal-title { font-size: 11px; color: #888; margin-left: 4px; }
   .hw-log-line { margin: 2px 0; color: #30d158; }
   .hw-log-line.error { color: #ff453a; }
   .hw-log-line.warn  { color: #ffd60a; }
-  .hw-log-time { color: #555; margin-right: 6px; }
+  .hw-log-time { color: #888; margin-right: 6px; }
 
   /* Error banner */
   .hw-error-banner {
@@ -311,7 +311,7 @@
   .hw-result-section { margin-bottom: 20px; }
   .hw-result-section h3 {
     font-size: 11px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: .08em; color: #666; margin: 0 0 10px;
+    letter-spacing: .08em; color: #999; margin: 0 0 10px;
   }
 
   /* Script scenes */
@@ -326,7 +326,7 @@
   .hw-scene:last-child { margin-bottom: 0; }
   .hw-scene-label { font-size: 11px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; }
   .hw-scene-narration { font-size: 13px; line-height: 1.6; color: #ccc; margin-bottom: 8px; }
-  .hw-scene-visual { font-size: 11px; color: #666; font-style: italic; }
+  .hw-scene-visual { font-size: 11px; color: #999; font-style: italic; }
 
   /* Script editor */
   .hw-script-editor { margin-top: 20px; display: none; }
@@ -380,7 +380,7 @@
     text-align: center;
   }
   .hw-metric-val { font-size: 22px; font-weight: 800; color: var(--gold); }
-  .hw-metric-lbl { font-size: 11px; color: #666; margin-top: 3px; }
+  .hw-metric-lbl { font-size: 11px; color: #999; margin-top: 3px; }
 
   /* Separator */
   .hw-sep { border: none; border-top: 1px solid var(--cinema-border); margin: 20px 0; }
@@ -553,7 +553,7 @@
 
           <!-- Step tracker -->
           <div>
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;margin-bottom:10px;">Pipeline Steps</div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:10px;">Pipeline Steps</div>
             <div class="hw-steps" id="hw-steps">
 
               <div class="hw-step" data-keywords="research,researching">
@@ -633,7 +633,7 @@
 
           <!-- Live terminal log -->
           <div>
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#555;margin-bottom:10px;">Live Log</div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:10px;">Live Log</div>
             <div class="hw-terminal" id="hw-live-log">
               <div class="hw-terminal-header">
                 <div class="hw-terminal-dot" style="background:#ff5f57;"></div>
@@ -657,7 +657,7 @@
         <div class="hw-result-section">
           <h3>Film Title</h3>
           <div style="font-size:18px;font-weight:800;color:var(--gold);margin-bottom:8px;" id="hw-res-title"></div>
-          <div style="font-size:13px;color:#aaa;font-style:italic;" id="hw-res-hook"></div>
+          <div style="font-size:13px;color:#ccc;font-style:italic;" id="hw-res-hook"></div>
         </div>
 
         <hr class="hw-sep">
@@ -715,7 +715,7 @@
       <div id="hw-script-editor" class="hw-script-editor">
         <div class="hw-card" style="margin-top:16px;">
           <div class="hw-card-title">Edit Script</div>
-          <div style="font-size:13px;color:#777;margin-bottom:16px;">
+          <div style="font-size:13px;color:#999;margin-bottom:16px;">
             Edit each scene's narration below, then click Re-assemble to rebuild the video with your changes.
           </div>
           <div id="hw-scene-editors"></div>
