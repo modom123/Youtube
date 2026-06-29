@@ -25,7 +25,13 @@ def _get_pool():
     global _pool
     if _pool is None:
         if not _DATABASE_URL:
-            raise RuntimeError("DATABASE_URL environment variable is not set")
+            raise RuntimeError("DATABASE_URL is not set. Set it to: postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres")
+        if _DATABASE_URL.startswith("https://") or _DATABASE_URL.startswith("http://"):
+            raise RuntimeError(
+                f"DATABASE_URL looks like a project URL, not a Postgres connection string. "
+                f"Got: {_DATABASE_URL!r}. "
+                f"It must start with postgresql:// — e.g. postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres"
+            )
         _pool = psycopg2.pool.ThreadedConnectionPool(2, 20, _ensure_ssl(_DATABASE_URL))
     return _pool
 
