@@ -274,9 +274,9 @@ def pricing():
     if current_user.is_authenticated:
         return redirect(url_for("billing.billing_page"))
     whop_plans = {
-        "basic": config.WHOP_PLAN_BASIC,
         "starter": config.WHOP_PLAN_STARTER,
         "creator": config.WHOP_PLAN_CREATOR,
+        "pro": config.WHOP_PLAN_PRO,
         "agency": config.WHOP_PLAN_AGENCY,
     }
     return render_template("pricing.html", tiers=config.TIERS, whop_plans=whop_plans)
@@ -4464,7 +4464,7 @@ def _run_commercial_thread(job_id: str, params: dict, user_id: int):
 
         # ── Step 1: Analyze media + Market Strategy (single vision call) ────
         client = _ant.Anthropic(api_key=config.ANTHROPIC_API_KEY)
-        model = config.TIER_CLAUDE_MODEL.get("creator", "claude-sonnet-4-6")
+        model = config.TIER_CLAUDE_MODEL.get("pro", "claude-sonnet-4-6")
 
         all_media = params.get("all_media", [{"path": str(media_path), "ext": ext}])
         image_media = [m for m in all_media if m["ext"] not in {"mp4", "mov", "avi", "webm"}]

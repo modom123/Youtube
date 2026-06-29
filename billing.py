@@ -10,7 +10,7 @@ billing_bp = Blueprint("billing", __name__, url_prefix="/billing")
 
 stripe.api_key = config.STRIPE_SECRET_KEY
 
-TIER_ORDER = ["free", "basic", "starter", "creator", "agency"]
+TIER_ORDER = ["free", "starter", "creator", "pro", "agency"]
 
 
 @billing_bp.route("/")

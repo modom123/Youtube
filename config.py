@@ -236,9 +236,9 @@ for d in [VIDEOS_DIR, AUDIO_DIR, THUMBNAILS_DIR, SCRIPTS_DIR]:
 # Paid tiers get Sonnet for quality scripts and agents.
 TIER_CLAUDE_MODEL = {
     "free":    "claude-haiku-4-5-20251001",
-    "basic":   "claude-haiku-4-5-20251001",
-    "starter": "claude-sonnet-4-6",
+    "starter": "claude-haiku-4-5-20251001",
     "creator": "claude-sonnet-4-6",
+    "pro":     "claude-sonnet-4-6",
     "agency":  "claude-sonnet-4-6",
 }
 
