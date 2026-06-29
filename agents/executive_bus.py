@@ -25,33 +25,37 @@ def _now():
 
 def init_bus_tables():
     with db.get_conn() as conn:
-        conn.executescript("""
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS exec_agent_events (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             agent_name  TEXT NOT NULL,
             event_type  TEXT NOT NULL,
             payload     TEXT DEFAULT '{}',
             processed   INTEGER DEFAULT 0,
-            created_at  TEXT DEFAULT (datetime('now'))
-        );
+            created_at  TIMESTAMP DEFAULT NOW()
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS exec_agent_actions (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             agent_name  TEXT NOT NULL,
             action_type TEXT NOT NULL,
             target_user INTEGER,
             details     TEXT DEFAULT '{}',
             result      TEXT DEFAULT '',
             status      TEXT DEFAULT 'pending',
-            created_at  TEXT DEFAULT (datetime('now')),
-            completed_at TEXT
-        );
+            created_at  TIMESTAMP DEFAULT NOW(),
+            completed_at TIMESTAMP
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS exec_agent_log (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             agent_name  TEXT NOT NULL,
             severity    TEXT DEFAULT 'info',
             message     TEXT NOT NULL,
-            created_at  TEXT DEFAULT (datetime('now'))
-        );
+            created_at  TIMESTAMP DEFAULT NOW()
+        )
         """)
 
 
@@ -126,7 +130,7 @@ def get_agent_stats():
             actions = conn.execute(
                 "SELECT COUNT(*) FROM exec_agent_actions WHERE agent_name=?", (name,)).fetchone()[0]
             today_actions = conn.execute(
-                "SELECT COUNT(*) FROM exec_agent_actions WHERE agent_name=? AND date(created_at)=date('now')",
+                "SELECT COUNT(*) FROM exec_agent_actions WHERE agent_name=? AND created_at::date = CURRENT_DATE",
                 (name,)).fetchone()[0]
             events = conn.execute(
                 "SELECT COUNT(*) FROM exec_agent_events WHERE agent_name=?", (name,)).fetchone()[0]

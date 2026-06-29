@@ -475,12 +475,10 @@ class TestFollowTrackingDB:
 class TestEngagementEngineFeatures:
     def test_auto_unfollow(self, db_conn, test_user):
         db_conn.track_follow(test_user["id"], "twitter", "stale_user")
-        conn = db_conn.get_conn()
-        conn.execute(
-            "UPDATE follow_tracking SET followed_at=datetime('now', '-10 days') WHERE target_username='stale_user'"
-        )
-        conn.commit()
-        conn.close()
+        with db_conn.get_conn() as conn:
+            conn.execute(
+                "UPDATE follow_tracking SET followed_at=NOW() - INTERVAL '10 days' WHERE target_username='stale_user'"
+            )
         from generators.engagement_engine import auto_unfollow_stale
         results = auto_unfollow_stale(test_user["id"], days_threshold=3)
         assert len(results) >= 1

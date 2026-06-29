@@ -133,10 +133,15 @@ def _snapshot_kpis(economics):
     try:
         with db.get_conn() as conn:
             conn.execute("""
-                INSERT OR REPLACE INTO monetizer_kpi_snapshots
+                INSERT INTO monetizer_kpi_snapshots
                 (snapshot_date, mrr, arr, total_users, paying_users, free_users,
                  avg_revenue_per_user, conversion_rate, ltv)
                 VALUES (?,?,?,?,?,?,?,?,?)
+                ON CONFLICT (snapshot_date) DO UPDATE SET
+                mrr=EXCLUDED.mrr, arr=EXCLUDED.arr, total_users=EXCLUDED.total_users,
+                paying_users=EXCLUDED.paying_users, free_users=EXCLUDED.free_users,
+                avg_revenue_per_user=EXCLUDED.avg_revenue_per_user,
+                conversion_rate=EXCLUDED.conversion_rate, ltv=EXCLUDED.ltv
             """, (today, economics["mrr"], economics["arr"], total_users, paying,
                   tier_counts.get("free", 0), economics["arpu"], round(conv_rate, 2), economics["ltv"]))
     except Exception:
