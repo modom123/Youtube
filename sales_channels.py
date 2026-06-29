@@ -17,34 +17,34 @@ import database as db
 log = logging.getLogger(__name__)
 sales_bp = Blueprint("sales", __name__)
 
-TIER_ORDER = ["free", "basic", "starter", "creator", "agency"]
+TIER_ORDER = ["free", "starter", "creator", "pro", "agency"]
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _product_to_tier(channel: str, product_id: str) -> str | None:
     mapping = {
         "whop": {
-            config.WHOP_PLAN_BASIC: "basic",
             config.WHOP_PLAN_STARTER: "starter",
             config.WHOP_PLAN_CREATOR: "creator",
+            config.WHOP_PLAN_PRO: "pro",
             config.WHOP_PLAN_AGENCY: "agency",
         },
         "gumroad": {
-            config.GUMROAD_PRODUCT_BASIC: "basic",
             config.GUMROAD_PRODUCT_STARTER: "starter",
             config.GUMROAD_PRODUCT_CREATOR: "creator",
+            config.GUMROAD_PRODUCT_PRO: "pro",
             config.GUMROAD_PRODUCT_AGENCY: "agency",
         },
         "lemonsqueezy": {
-            config.LEMONSQUEEZY_VARIANT_BASIC: "basic",
             config.LEMONSQUEEZY_VARIANT_STARTER: "starter",
             config.LEMONSQUEEZY_VARIANT_CREATOR: "creator",
+            config.LEMONSQUEEZY_VARIANT_PRO: "pro",
             config.LEMONSQUEEZY_VARIANT_AGENCY: "agency",
         },
         "paypal": {
-            config.PAYPAL_PLAN_BASIC: "basic",
             config.PAYPAL_PLAN_STARTER: "starter",
             config.PAYPAL_PLAN_CREATOR: "creator",
+            config.PAYPAL_PLAN_PRO: "pro",
             config.PAYPAL_PLAN_AGENCY: "agency",
         },
     }
@@ -117,7 +117,7 @@ def whop_webhook():
     membership_id = membership.get("id", "")
 
     if event in ("membership.went_valid", "membership.created"):
-        tier = _product_to_tier("whop", plan_id) or "basic"
+        tier = _product_to_tier("whop", plan_id) or "starter"
         _activate_subscription(email, tier, "whop", membership_id)
     elif event in ("membership.went_invalid", "membership.cancelled"):
         _cancel_subscription(email=email, external_id=membership_id, channel="whop")
@@ -141,7 +141,7 @@ def gumroad_webhook():
     resource_name = data.get("resource_name", "")
 
     if resource_name in ("sale", ""):
-        tier = _product_to_tier("gumroad", product_id) or "basic"
+        tier = _product_to_tier("gumroad", product_id) or "starter"
         if email:
             _activate_subscription(email, tier, "gumroad", sale_id)
     elif resource_name in ("refund", "cancellation", "subscription_ended"):
@@ -172,7 +172,7 @@ def lemonsqueezy_webhook():
                  "order_created", "subscription_payment_success"):
         status = attrs.get("status", "active")
         if status in ("active", "on_trial", "paid"):
-            tier = _product_to_tier("lemonsqueezy", variant_id) or "basic"
+            tier = _product_to_tier("lemonsqueezy", variant_id) or "starter"
             _activate_subscription(email, tier, "lemonsqueezy", sub_id)
         elif status in ("cancelled", "expired", "unpaid"):
             _cancel_subscription(email=email, external_id=sub_id, channel="lemonsqueezy")
@@ -186,7 +186,7 @@ def lemonsqueezy_webhook():
 # APPSUMO
 # ═════════════════════════════════════════════════════════════════════════════
 
-APPSUMO_TIER_MAP = {1: "basic", 2: "starter", 3: "creator", 4: "agency", 5: "agency"}
+APPSUMO_TIER_MAP = {1: "starter", 2: "creator", 3: "pro", 4: "agency", 5: "agency"}
 
 @sales_bp.route("/appsumo/webhook", methods=["POST"])
 def appsumo_webhook():
@@ -203,16 +203,16 @@ def appsumo_webhook():
     tier_num = data.get("tier", 1)
 
     if action == "activate":
-        tier = APPSUMO_TIER_MAP.get(tier_num, "basic")
+        tier = APPSUMO_TIER_MAP.get(tier_num, "starter")
         _activate_subscription(email, tier, "appsumo", uuid_code)
     elif action == "enhance":
-        tier = APPSUMO_TIER_MAP.get(tier_num, "starter")
+        tier = APPSUMO_TIER_MAP.get(tier_num, "creator")
         _activate_subscription(email, tier, "appsumo", uuid_code)
     elif action in ("reduce", "deactivate"):
         if action == "deactivate":
             _cancel_subscription(email=email, external_id=uuid_code, channel="appsumo")
         else:
-            tier = APPSUMO_TIER_MAP.get(tier_num, "basic")
+            tier = APPSUMO_TIER_MAP.get(tier_num, "starter")
             _activate_subscription(email, tier, "appsumo", uuid_code)
     elif action == "refund":
         _cancel_subscription(email=email, external_id=uuid_code, channel="appsumo")
@@ -268,7 +268,7 @@ def paypal_webhook():
         email = resource.get("subscriber", {}).get("email_address", "")
         plan_id = resource.get("plan_id", "")
         sub_id = resource.get("id", "")
-        tier = _product_to_tier("paypal", plan_id) or "basic"
+        tier = _product_to_tier("paypal", plan_id) or "starter"
         if email:
             _activate_subscription(email, tier, "paypal", sub_id)
 
@@ -285,8 +285,8 @@ def paypal_webhook():
         items = resource.get("purchase_units", [{}])[0].get("items", [])
         if items and email:
             sku = items[0].get("sku", "")
-            tier_map = {"basic": "basic", "starter": "starter", "creator": "creator", "agency": "agency"}
-            tier = tier_map.get(sku, "basic")
+            tier_map = {"starter": "starter", "creator": "creator", "pro": "pro", "agency": "agency"}
+            tier = tier_map.get(sku, "starter")
             _activate_subscription(email, tier, "paypal", order_id)
 
     return jsonify({"ok": True})
@@ -312,7 +312,7 @@ def stripe_payment_link_webhook():
         session = event["data"]["object"]
         email = session.get("customer_email", "") or session.get("customer_details", {}).get("email", "")
         metadata = session.get("metadata", {})
-        tier = metadata.get("tier", "basic")
+        tier = metadata.get("tier", "starter")
         sub_id = session.get("subscription", "") or session.get("id", "")
         if email and tier in TIER_ORDER:
             _activate_subscription(email, tier, "stripe_link", sub_id)
@@ -408,26 +408,26 @@ def sales_channels_status():
         "whop": {
             "configured": bool(config.WHOP_WEBHOOK_SECRET),
             "webhook_url": f"{config.APP_BASE_URL}/whop/webhook",
-            "plans": {"basic": config.WHOP_PLAN_BASIC, "starter": config.WHOP_PLAN_STARTER,
-                      "creator": config.WHOP_PLAN_CREATOR, "agency": config.WHOP_PLAN_AGENCY},
+            "plans": {"starter": config.WHOP_PLAN_STARTER, "creator": config.WHOP_PLAN_CREATOR,
+                      "pro": config.WHOP_PLAN_PRO, "agency": config.WHOP_PLAN_AGENCY},
         },
         "stripe": {
             "configured": bool(config.STRIPE_SECRET_KEY),
             "webhook_url": f"{config.APP_BASE_URL}/stripe/payment-link/webhook",
-            "plans": {"basic": config.STRIPE_PRICE_BASIC, "starter": config.STRIPE_PRICE_STARTER,
-                      "creator": config.STRIPE_PRICE_CREATOR, "agency": config.STRIPE_PRICE_AGENCY},
+            "plans": {"starter": config.STRIPE_PRICE_STARTER, "creator": config.STRIPE_PRICE_CREATOR,
+                      "pro": config.STRIPE_PRICE_PRO, "agency": config.STRIPE_PRICE_AGENCY},
         },
         "gumroad": {
             "configured": bool(config.GUMROAD_ACCESS_TOKEN),
             "webhook_url": f"{config.APP_BASE_URL}/gumroad/webhook",
-            "products": {"basic": config.GUMROAD_PRODUCT_BASIC, "starter": config.GUMROAD_PRODUCT_STARTER,
-                         "creator": config.GUMROAD_PRODUCT_CREATOR, "agency": config.GUMROAD_PRODUCT_AGENCY},
+            "products": {"starter": config.GUMROAD_PRODUCT_STARTER, "creator": config.GUMROAD_PRODUCT_CREATOR,
+                         "pro": config.GUMROAD_PRODUCT_PRO, "agency": config.GUMROAD_PRODUCT_AGENCY},
         },
         "lemonsqueezy": {
             "configured": bool(config.LEMONSQUEEZY_API_KEY),
             "webhook_url": f"{config.APP_BASE_URL}/lemonsqueezy/webhook",
-            "variants": {"basic": config.LEMONSQUEEZY_VARIANT_BASIC, "starter": config.LEMONSQUEEZY_VARIANT_STARTER,
-                         "creator": config.LEMONSQUEEZY_VARIANT_CREATOR, "agency": config.LEMONSQUEEZY_VARIANT_AGENCY},
+            "variants": {"starter": config.LEMONSQUEEZY_VARIANT_STARTER, "creator": config.LEMONSQUEEZY_VARIANT_CREATOR,
+                         "pro": config.LEMONSQUEEZY_VARIANT_PRO, "agency": config.LEMONSQUEEZY_VARIANT_AGENCY},
         },
         "appsumo": {
             "configured": bool(config.APPSUMO_API_KEY),
@@ -438,8 +438,8 @@ def sales_channels_status():
             "configured": bool(config.PAYPAL_CLIENT_ID),
             "webhook_url": f"{config.APP_BASE_URL}/paypal/webhook",
             "mode": config.PAYPAL_MODE,
-            "plans": {"basic": config.PAYPAL_PLAN_BASIC, "starter": config.PAYPAL_PLAN_STARTER,
-                      "creator": config.PAYPAL_PLAN_CREATOR, "agency": config.PAYPAL_PLAN_AGENCY},
+            "plans": {"starter": config.PAYPAL_PLAN_STARTER, "creator": config.PAYPAL_PLAN_CREATOR,
+                      "pro": config.PAYPAL_PLAN_PRO, "agency": config.PAYPAL_PLAN_AGENCY},
         },
         "affiliates": {
             "configured": True,

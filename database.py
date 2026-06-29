@@ -723,7 +723,7 @@ def check_usage_allowed(user_id: int) -> dict:
     if user.get("is_admin"):
         return {"allowed": True, "reason": "admin"}
     tier = user.get("subscription_tier", "free")
-    limits = {"free": 3, "starter": 10, "creator": 30, "pro": 100, "agency": 200}
+    limits = {"free": 3, "starter": 7, "creator": 15, "pro": 50, "agency": 999999}
     limit = limits.get(tier, 2)
     used = user.get("videos_used", 0)
     if used >= limit:
@@ -1528,7 +1528,7 @@ def get_all_users(limit: int = 500, tier: str = None):
 
 def get_admin_stats():
     """Return MRR, tier counts, and status counts for the admin dashboard."""
-    tier_prices = {"starter": 9.99, "creator": 29, "pro": 79, "agency": 199}
+    tier_prices = {"starter": 9.99, "creator": 29.99, "pro": 79.99, "agency": 199.99}
     with get_conn() as conn:
         rows = conn.execute("SELECT subscription_tier, subscription_status FROM users").fetchall()
     total = len(rows)

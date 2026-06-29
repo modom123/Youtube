@@ -72,7 +72,7 @@ def _identify_high_value_accounts():
         bus.publish(AGENT_NAME, "enterprise_prospect", {"user_id": p["id"], "email": p.get("email"), "videos": p["video_count"]})
         db.set_setting(f"elena:enterprise_flagged:{p['id']}", datetime.now(timezone.utc).isoformat())
 
-        if p.get("subscription_tier") in ("starter", "creator"):
+        if p.get("subscription_tier") in ("starter", "creator", "pro"):
             _send_upsell_pitch(p)
 
 
@@ -82,8 +82,8 @@ def _send_upsell_pitch(user):
     if not email:
         return
     tier = user.get("subscription_tier", "starter")
-    next_tier = "Creator" if tier == "starter" else "Agency"
-    price = "$79.99" if tier == "starter" else "$199.99"
+    next_tier = {"starter": "Creator", "creator": "Pro", "pro": "Agency"}.get(tier, "Agency")
+    price = {"starter": "$29.99", "creator": "$79.99", "pro": "$199.99"}.get(tier, "$199.99")
 
     subject = f"Your content volume is impressive — let's talk {next_tier}"
     body = f"""Hi {(user.get('name') or 'there').split()[0]},

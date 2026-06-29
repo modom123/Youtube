@@ -45,9 +45,9 @@ COST_PER_VIDEO = {
 
 TIER_PRICING = {
     "free": {"monthly": 0, "videos": 3, "model": "haiku"},
-    "basic": {"monthly": 9.99, "videos": 7, "model": "haiku"},
-    "starter": {"monthly": 29.99, "videos": 15, "model": "sonnet"},
-    "creator": {"monthly": 79.99, "videos": 50, "model": "sonnet"},
+    "starter": {"monthly": 9.99, "videos": 7, "model": "haiku"},
+    "creator": {"monthly": 29.99, "videos": 15, "model": "sonnet"},
+    "pro": {"monthly": 79.99, "videos": 50, "model": "sonnet"},
     "agency": {"monthly": 199.99, "videos": 125, "model": "sonnet"},
 }
 
@@ -56,7 +56,7 @@ def _compute_unit_economics():
     """Audit cost vs revenue per tier and overall margins."""
     with db.get_conn() as conn:
         tier_counts = {}
-        for tier in ("free", "starter", "creator", "agency"):
+        for tier in ("free", "starter", "creator", "pro", "agency"):
             if tier == "free":
                 count = conn.execute(
                     "SELECT COUNT(*) FROM users WHERE subscription_tier IS NULL OR subscription_tier='' OR subscription_tier='free'"
@@ -73,8 +73,9 @@ def _compute_unit_economics():
     total_revenue = sum(tier_counts.get(t, 0) * TIER_PRICING[t]["monthly"] for t in TIER_PRICING)
     total_cost_estimate = (
         tier_counts.get("free", 0) * 2 * COST_PER_VIDEO["total_free"] +
-        tier_counts.get("starter", 0) * 8 * COST_PER_VIDEO["total_paid"] +
-        tier_counts.get("creator", 0) * 25 * COST_PER_VIDEO["total_paid"] +
+        tier_counts.get("starter", 0) * 4 * COST_PER_VIDEO["total_paid"] +
+        tier_counts.get("creator", 0) * 8 * COST_PER_VIDEO["total_paid"] +
+        tier_counts.get("pro", 0) * 25 * COST_PER_VIDEO["total_paid"] +
         tier_counts.get("agency", 0) * 60 * COST_PER_VIDEO["total_paid"]
     )
     infra_cost = 25  # Render base
@@ -83,7 +84,7 @@ def _compute_unit_economics():
     gross_profit = total_revenue - total_cost
     gross_margin = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
 
-    paying_users = sum(tier_counts.get(t, 0) for t in ("starter", "creator", "agency"))
+    paying_users = sum(tier_counts.get(t, 0) for t in ("starter", "creator", "pro", "agency"))
     arpu = total_revenue / paying_users if paying_users > 0 else 0
     ltv = arpu * 8  # 8-month avg retention
     cac = 20  # target blended CAC
@@ -126,7 +127,7 @@ def _snapshot_kpis(economics):
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     tier_counts = economics.get("tier_counts", {})
     total_users = sum(tier_counts.values())
-    paying = sum(tier_counts.get(t, 0) for t in ("starter", "creator", "agency"))
+    paying = sum(tier_counts.get(t, 0) for t in ("starter", "creator", "pro", "agency"))
     conv_rate = (paying / total_users * 100) if total_users > 0 else 0
 
     try:

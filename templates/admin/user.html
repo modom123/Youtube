@@ -42,6 +42,7 @@
     <option value="free"    {% if u.subscription_tier=='free'    %}selected{% endif %}>Free</option>
     <option value="starter" {% if u.subscription_tier=='starter' %}selected{% endif %}>Starter</option>
     <option value="creator" {% if u.subscription_tier=='creator' %}selected{% endif %}>Creator</option>
+    <option value="pro"     {% if u.subscription_tier=='pro'     %}selected{% endif %}>Pro</option>
     <option value="agency"  {% if u.subscription_tier=='agency'  %}selected{% endif %}>Agency</option>
   </select>
   <button class="btn-admin" onclick="setTier()">Save Tier</button>
