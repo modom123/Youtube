@@ -16,7 +16,7 @@ services:
 
       # ── Database (Supabase pooler — IPv4, works on Render Oregon) ──
       - key: DATABASE_URL
-        value: postgresql://postgres.ktojldpofqxmjipoibbu:%24Itspossible56%24@aws-0-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require
+        value: postgresql://postgres.ktojldpofqxmjipoibbu:%24Itspossible56%24@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require
 
       # ── App ─────────────────────────────────────────────────
       - key: APP_BASE_URL
