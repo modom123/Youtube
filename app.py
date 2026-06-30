@@ -2751,6 +2751,7 @@ def api_studio_run():
 def studio_stream(studio_job_id):
     def generate():
         last_idx = 0
+        heartbeat_counter = 0
         while True:
             with _studio_lock:
                 events = _studio_events.get(studio_job_id, [])
@@ -2764,6 +2765,13 @@ def studio_stream(studio_job_id):
                     yield f"data: {json.dumps({'status': job.get('status'), 'progress': job.get('progress', 0)})}\n\n"
                 time.sleep(0.3)
                 break
+            if new:
+                heartbeat_counter = 0
+            else:
+                heartbeat_counter += 1
+                if heartbeat_counter >= 20:
+                    yield ": heartbeat\n\n"
+                    heartbeat_counter = 0
             time.sleep(0.4)
     return Response(stream_with_context(generate()), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
@@ -2930,6 +2938,7 @@ def api_hollywood_run():
 def hollywood_stream(hw_job_id):
     def generate():
         last_idx = 0
+        heartbeat_counter = 0
         while True:
             with _hw_lock:
                 events = _hw_events.get(hw_job_id, [])
@@ -2943,6 +2952,15 @@ def hollywood_stream(hw_job_id):
                     yield f"data: {json.dumps({'status': job.get('status'), 'progress': job.get('progress', 0)})}\n\n"
                 time.sleep(0.3)
                 break
+            # Send a keepalive comment every ~8s so the connection survives long,
+            # silent stretches (e.g. final-cut ffmpeg assembly with no progress events).
+            if new:
+                heartbeat_counter = 0
+            else:
+                heartbeat_counter += 1
+                if heartbeat_counter >= 20:
+                    yield ": heartbeat\n\n"
+                    heartbeat_counter = 0
             time.sleep(0.4)
     return Response(
         stream_with_context(generate()),
@@ -3683,6 +3701,7 @@ def api_batch_list():
 def api_batch_stream(batch_id):
     def generate():
         last_idx = 0
+        heartbeat_counter = 0
         while True:
             with _batch_lock:
                 events = _batch_events.get(batch_id, [])
@@ -3696,6 +3715,13 @@ def api_batch_stream(batch_id):
                     yield f"data: {json.dumps({'done': True, 'status': batch['status']})}\n\n"
                 time.sleep(0.3)
                 break
+            if new:
+                heartbeat_counter = 0
+            else:
+                heartbeat_counter += 1
+                if heartbeat_counter >= 16:
+                    yield ": heartbeat\n\n"
+                    heartbeat_counter = 0
             time.sleep(0.5)
     return Response(stream_with_context(generate()), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
@@ -5604,6 +5630,7 @@ def api_editing_room_produce():
 def editing_room_stream(editing_job_id):
     def generate():
         last_idx = 0
+        heartbeat_counter = 0
         while True:
             with _editing_lock:
                 events = _editing_events.get(editing_job_id, [])
@@ -5617,6 +5644,13 @@ def editing_room_stream(editing_job_id):
                     yield f"data: {json.dumps({'status': job.get('status'), 'progress': job.get('progress', 0)})}\n\n"
                 time.sleep(0.3)
                 break
+            if new:
+                heartbeat_counter = 0
+            else:
+                heartbeat_counter += 1
+                if heartbeat_counter >= 20:
+                    yield ": heartbeat\n\n"
+                    heartbeat_counter = 0
             time.sleep(0.4)
     return Response(stream_with_context(generate()), mimetype="text/event-stream",
                     headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
