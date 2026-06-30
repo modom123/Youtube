@@ -35,6 +35,7 @@
 <div class="layout">
 
   <!-- Sidebar -->
+  {% if not request.args.get('embed') %}
   <aside class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-icon">🎬</div>
@@ -84,21 +85,12 @@
       <a href="/accounts" class="nav-item {% if active_page=='accounts' %}active{% endif %}">
         <span class="icon">🔗</span> Social Accounts
       </a>
-      <a href="/contacts" class="nav-item {% if active_page=='contacts' %}active{% endif %}">
-        <span class="icon">👥</span> Contacts
-      </a>
-      <a href="/outreach" class="nav-item {% if active_page=='outreach' %}active{% endif %}">
-        <span class="icon">📣</span> Outreach
-      </a>
-      <a href="/inbox" class="nav-item {% if active_page=='inbox' %}active{% endif %}">
-        <span class="icon">💬</span> Inbox
+      <a href="/madison-avenue" class="nav-item {% if active_page=='madison_avenue' %}active{% endif %}" title="Madison Avenue — Contacts, Inbox, Engagement &amp; Outreach in one place">
+        <span class="icon">📇</span> Madison Avenue
         <span id="inbox-badge" style="display:none;margin-left:auto;background:var(--accent);color:#fff;font-size:9px;font-weight:800;border-radius:10px;padding:1px 6px;"></span>
       </a>
       <a href="/competitors" class="nav-item {% if active_page=='competitors' %}active{% endif %}">
         <span class="icon">🔍</span> Competitors
-      </a>
-      <a href="/engagement" class="nav-item {% if active_page=='engagement' %}active{% endif %}">
-        <span class="icon">🤝</span> Engagement
       </a>
       <a href="/agency" class="nav-item {% if active_page=='agency' %}active{% endif %}" title="Agency Command Center — Clients, Deals, Projects, Revenue">
         <span class="icon">🏢</span> Agency
@@ -158,9 +150,11 @@
       {% endif %}
     </div>
   </aside>
+  {% endif %}
 
   <!-- Main Content -->
   <div class="main">
+    {% if not request.args.get('embed') %}
     <header class="topbar">
       <div>
         <div class="topbar-title">{% block topbar_title %}Dashboard{% endblock %}</div>
@@ -190,6 +184,7 @@
         {% endif %}
       </div>
     </header>
+    {% endif %}
 
     <div class="content">
       {% block content %}{% endblock %}
