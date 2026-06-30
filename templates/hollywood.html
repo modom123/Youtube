@@ -214,7 +214,10 @@
   .hw-progress-fill  { height: 100%; background: var(--gold); border-radius: 3px; transition: width .5s ease; width: 0%; }
   .hw-progress-meta  { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
   .hw-progress-label { font-size: 12px; color: #aaa; }
-  .hw-progress-pct   { font-size: 13px; font-weight: 700; color: var(--gold); }
+  .hw-progress-pct   { font-size: 13px; font-weight: 700; color: var(--gold); letter-spacing: 1.5px; font-family: 'Courier New', monospace; white-space: nowrap; }
+  .hw-progress-pct .hw-brand-letter { color: #3a3a3a; transition: color .25s ease; }
+  .hw-progress-pct .hw-brand-letter.revealed { color: var(--gold); text-shadow: 0 0 6px rgba(212,160,23,.4); }
+  .hw-progress-pct .hw-brand-pct { color: #777; font-weight: 600; margin-left: 8px; letter-spacing: 0; }
 
   /* Two-column running layout */
   .hw-live-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -533,7 +536,7 @@
           </div>
           <div class="hw-progress-meta">
             <div class="hw-progress-label" id="hw-progress-label">Initialising…</div>
-            <div class="hw-progress-pct" id="hw-progress-pct">0%</div>
+            <div class="hw-progress-pct" id="hw-progress-pct"><span class="hw-brand-letter">S</span><span class="hw-brand-letter">O</span><span class="hw-brand-letter">C</span><span class="hw-brand-letter">I</span><span class="hw-brand-letter">A</span><span class="hw-brand-letter">L</span><span class="hw-brand-space">&nbsp;</span><span class="hw-brand-letter">O</span><span class="hw-brand-letter">P</span><span class="hw-brand-letter">T</span><span class="hw-brand-letter">I</span><span class="hw-brand-letter">M</span><span class="hw-brand-letter">I</span><span class="hw-brand-letter">Z</span><span class="hw-brand-letter">E</span><span class="hw-brand-pct">0%</span></div>
           </div>
         </div>
 
@@ -845,6 +848,21 @@ function hwMarkActiveFailed() {
 
 /* ── Main event handler ─────────────────────────────────────────────────── */
 
+const HW_BRAND = 'SOCIAL OPTIMIZE';
+
+function hwBrandCounterHtml(pct) {
+  const total = HW_BRAND.length;
+  const revealed = Math.min(total, Math.round((pct / 100) * total));
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    const ch = HW_BRAND[i];
+    if (ch === ' ') { html += '<span class="hw-brand-space">&nbsp;</span>'; continue; }
+    html += '<span class="hw-brand-letter' + (i < revealed ? ' revealed' : '') + '">' + ch + '</span>';
+  }
+  html += '<span class="hw-brand-pct">' + pct + '%</span>';
+  return html;
+}
+
 function hwHandleEvent(d) {
   const pct = d.progress || 0;
   const step = d.step || d.log || '';
@@ -855,10 +873,10 @@ function hwHandleEvent(d) {
     hwAddLog(step, isErr ? 'error' : '');
   }
 
-  // Progress bar
+  // Progress bar — counter spells out "SOCIAL OPTIMIZE" as it fills
   if (pct > 0) {
     document.getElementById('hw-progress-fill').style.width = pct + '%';
-    document.getElementById('hw-progress-pct').textContent = pct + '%';
+    document.getElementById('hw-progress-pct').innerHTML = hwBrandCounterHtml(pct);
   }
   if (step) document.getElementById('hw-progress-label').textContent = step;
 
@@ -871,7 +889,7 @@ function hwHandleEvent(d) {
     hwStopPoll();
     hwAddLog('Production complete!', '');
     document.getElementById('hw-progress-fill').style.width = '100%';
-    document.getElementById('hw-progress-pct').textContent = '100%';
+    document.getElementById('hw-progress-pct').innerHTML = hwBrandCounterHtml(100);
     document.getElementById('hw-run-btn').disabled = false;
     document.getElementById('hw-run-btn').textContent = '🎬 Start Production';
     if (d.result) {
@@ -960,7 +978,7 @@ function hwStart() {
   document.getElementById('hw-run-btn').disabled = true;
   document.getElementById('hw-run-btn').textContent = 'Production in Progress…';
   document.getElementById('hw-progress-fill').style.width = '0%';
-  document.getElementById('hw-progress-pct').textContent = '0%';
+  document.getElementById('hw-progress-pct').innerHTML = hwBrandCounterHtml(0);
   document.getElementById('hw-progress-label').textContent = 'Initialising…';
   document.getElementById('hw-error-banner').classList.remove('visible');
   document.getElementById('hw-result-wrap').classList.remove('visible');
