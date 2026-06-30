@@ -564,8 +564,8 @@ def create_page():
     return render_template(
         "create.html",
         connected_platforms=connected,
-        voices=config.AVAILABLE_VOICES,
-        google_tts_voices=config.GOOGLE_TTS_VOICES,
+        voices=config.VOICE_CATALOG,
+        user_default_voice=current_user.default_voice,
         google_api_key=bool(config.GOOGLE_API_KEY),
         deepseek_api_key=bool(config.DEEPSEEK_API_KEY),
         ai_models=__import__("generators.ai_router", fromlist=["get_model_info"]).get_model_info(),
@@ -2331,7 +2331,7 @@ def api_reply_sms():
 @login_required
 def settings_page():
     user = db.get_user_by_id(current_user.id)
-    return render_template("settings.html", user=user)
+    return render_template("settings.html", user=user, voices=config.VOICE_CATALOG)
 
 
 @app.route("/api/settings", methods=["POST"])
@@ -2347,6 +2347,10 @@ def api_update_settings():
         updates["webhook_url"] = (data["webhook_url"] or "").strip()
     if "assistant_enabled" in data:
         updates["assistant_enabled"] = 1 if data["assistant_enabled"] else 0
+    if "default_voice" in data:
+        valid_ids = {v["id"] for v in config.VOICE_CATALOG}
+        if data["default_voice"] in valid_ids:
+            updates["default_voice"] = data["default_voice"]
     if updates:
         db.update_user(current_user.id, **updates)
     return jsonify({"status": "saved"})
@@ -2701,9 +2705,9 @@ def studio_page():
     connected = {a["platform"] for a in accounts if a["is_active"]}
     templates = db.get_templates(user_id=current_user.id)
     return render_template(
-        "studio.html", connected_platforms=connected, voices=config.AVAILABLE_VOICES,
+        "studio.html", connected_platforms=connected, voices=config.VOICE_CATALOG,
         higgsfield_models=config.HIGGSVILLE_MODELS, config=config, templates=templates,
-        google_tts_voices=config.GOOGLE_TTS_VOICES,
+        user_default_voice=current_user.default_voice,
         google_api_key=bool(config.GOOGLE_API_KEY),
     )
 
@@ -2888,8 +2892,8 @@ def hollywood_page():
     return render_template(
         "hollywood.html",
         connected_platforms=connected,
-        voices=config.AVAILABLE_VOICES,
-        google_tts_voices=config.GOOGLE_TTS_VOICES,
+        voices=config.VOICE_CATALOG,
+        user_default_voice=current_user.default_voice,
         google_api_key=bool(config.GOOGLE_API_KEY),
         higgsfield_token=bool(config.HIGGSFIELD_MCP_TOKEN),
         config=config,
@@ -3640,7 +3644,7 @@ def batch_page():
     batches = db.get_batch_jobs(user_id=current_user.id)
     jobs = db.get_jobs(limit=100, user_id=current_user.id)
     done_jobs = [j for j in jobs if j["status"] == "done"]
-    return render_template("batch.html", batches=batches, done_jobs=done_jobs)
+    return render_template("batch.html", batches=batches, done_jobs=done_jobs, voices=config.VOICE_CATALOG)
 
 
 @app.route("/api/batch/create", methods=["POST"])

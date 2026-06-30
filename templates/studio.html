@@ -179,22 +179,9 @@
         <div class="form-row">
           <label>Voice</label>
           <select id="s-voice">
-            {% if google_api_key and google_tts_voices %}
-            <optgroup label="Google Neural2 (HD quality)">
-              {% for v in google_tts_voices %}
-              <option value="{{ v.id }}" {% if v.id == 'en-US-Neural2-C' %}selected{% endif %}>{{ v.name }} ({{ v.locale }})</option>
-              {% endfor %}
-            </optgroup>
-            <optgroup label="Edge TTS (fallback)">
-              {% for v in voices %}
-              <option value="{{ v }}">{{ v }}</option>
-              {% endfor %}
-            </optgroup>
-            {% else %}
             {% for v in voices %}
-            <option value="{{ v }}" {% if loop.first %}selected{% endif %}>{{ v }}</option>
+            <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
             {% endfor %}
-            {% endif %}
           </select>
         </div>
         <div class="form-row">

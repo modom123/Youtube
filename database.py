@@ -150,10 +150,12 @@ def init_db():
             subscription_external_id TEXT DEFAULT '',
             referred_by             TEXT DEFAULT '',
             assistant_enabled       INTEGER DEFAULT 1,
+            default_voice           TEXT DEFAULT 'en-US-Studio-O',
             created_at              TIMESTAMP DEFAULT NOW()
         )
         """)
         conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_enabled INTEGER DEFAULT 1")
+        conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS default_voice TEXT DEFAULT 'en-US-Studio-O'")
         conn.execute("""
         CREATE TABLE IF NOT EXISTS social_accounts (
             id          SERIAL PRIMARY KEY,

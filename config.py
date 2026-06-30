@@ -332,7 +332,7 @@ PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID", "")
 
 # Video settings
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en-US")
-DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "en-US-AriaNeural")
+DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "en-US-Studio-O")
 VIDEO_WIDTH = int(os.getenv("DEFAULT_VIDEO_WIDTH", "1280"))
 VIDEO_HEIGHT = int(os.getenv("DEFAULT_VIDEO_HEIGHT", "720"))
 SHORT_WIDTH = int(os.getenv("SHORT_VIDEO_WIDTH", "720"))
@@ -343,14 +343,29 @@ SHORTS_MAX_DURATION = 60
 LONG_VIDEO_MIN_DURATION = 180
 PODCAST_MIN_DURATION = 300
 
-AVAILABLE_VOICES = [
-    "en-US-AriaNeural",
-    "en-US-GuyNeural",
-    "en-US-JennyNeural",
-    "en-US-DavisNeural",
-    "en-GB-SoniaNeural",
-    "en-AU-NatashaNeural",
+# Single canonical voice catalog used across every studio (Create, Studio,
+# Hollywood, Ad Lab, Batch, Settings). 10 distinct, highest-quality Google
+# Neural2/Studio/Journey voices — 6 female, 4 male — each with a real edge-tts
+# fallback of the SAME gender so a user's choice never silently flips gender
+# when Google/ElevenLabs TTS is unavailable.
+VOICE_CATALOG = [
+    {"id": "en-US-Studio-O",  "name": "Aria",   "gender": "Female", "style": "Warm & Professional",   "locale": "en-US", "edge": "en-US-AriaNeural"},
+    {"id": "en-US-Journey-F", "name": "Luna",    "gender": "Female", "style": "Conversational & Natural", "locale": "en-US", "edge": "en-US-JennyNeural"},
+    {"id": "en-US-Neural2-C", "name": "Maya",    "gender": "Female", "style": "Clear & Confident",     "locale": "en-US", "edge": "en-US-JennyNeural"},
+    {"id": "en-US-Neural2-F", "name": "Sophia",  "gender": "Female", "style": "Friendly & Upbeat",      "locale": "en-US", "edge": "en-US-AriaNeural"},
+    {"id": "en-US-Neural2-G", "name": "Grace",   "gender": "Female", "style": "Calm & Soothing",        "locale": "en-US", "edge": "en-US-JennyNeural"},
+    {"id": "en-US-Neural2-H", "name": "Nova",    "gender": "Female", "style": "Energetic & Bright",     "locale": "en-US", "edge": "en-US-AriaNeural"},
+    {"id": "en-US-Studio-Q",  "name": "Marcus",  "gender": "Male",   "style": "Deep & Authoritative",   "locale": "en-US", "edge": "en-US-GuyNeural"},
+    {"id": "en-US-Journey-D", "name": "Derek",   "gender": "Male",   "style": "Conversational & Natural", "locale": "en-US", "edge": "en-US-DavisNeural"},
+    {"id": "en-US-Neural2-A", "name": "Atlas",   "gender": "Male",   "style": "Warm & Trustworthy",     "locale": "en-US", "edge": "en-US-GuyNeural"},
+    {"id": "en-US-Neural2-I", "name": "Jaxon",   "gender": "Male",   "style": "Bold & Energetic",       "locale": "en-US", "edge": "en-US-DavisNeural"},
 ]
+for _v in VOICE_CATALOG:
+    _v["label"] = f"{_v['name']} — {_v['style']} ({_v['gender']})"
+del _v
+
+# Back-compat aliases — both now point at the same single catalog.
+AVAILABLE_VOICES = [v["id"] for v in VOICE_CATALOG]
 
 # SMTP (for email notifications — all optional, silently skipped if not set)
 SMTP_HOST = os.getenv("SMTP_HOST", "")
@@ -363,27 +378,9 @@ TWILIO_ACCOUNT_SID  = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN   = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER  = os.getenv("TWILIO_FROM_NUMBER", "")
 
-# Google Cloud TTS voices (Studio > Journey > Neural2 quality order)
+# Google Cloud TTS voice (Studio > Journey > Neural2 quality order)
 GOOGLE_TTS_VOICE = os.getenv("GOOGLE_TTS_VOICE", "en-US-Studio-O")
-GOOGLE_TTS_VOICES = [
-    {"id": "en-US-Studio-O", "name": "US Male Studio O (Best)", "locale": "en-US"},
-    {"id": "en-US-Studio-Q", "name": "US Male Studio Q (Best)", "locale": "en-US"},
-    {"id": "en-US-Journey-D", "name": "US Male Journey D", "locale": "en-US"},
-    {"id": "en-US-Journey-F", "name": "US Female Journey F", "locale": "en-US"},
-    {"id": "en-US-Journey-O", "name": "US Male Journey O", "locale": "en-US"},
-    {"id": "en-US-Neural2-A", "name": "US Male Neural2 A", "locale": "en-US"},
-    {"id": "en-US-Neural2-C", "name": "US Female Neural2 C", "locale": "en-US"},
-    {"id": "en-US-Neural2-D", "name": "US Male Neural2 D", "locale": "en-US"},
-    {"id": "en-US-Neural2-F", "name": "US Female Neural2 F", "locale": "en-US"},
-    {"id": "en-US-Neural2-G", "name": "US Female Neural2 G", "locale": "en-US"},
-    {"id": "en-US-Neural2-H", "name": "US Female H", "locale": "en-US"},
-    {"id": "en-US-Neural2-I", "name": "US Male I", "locale": "en-US"},
-    {"id": "en-US-Neural2-J", "name": "US Male J", "locale": "en-US"},
-    {"id": "en-GB-Neural2-A", "name": "UK Female A", "locale": "en-GB"},
-    {"id": "en-GB-Neural2-B", "name": "UK Male B", "locale": "en-GB"},
-    {"id": "en-AU-Neural2-A", "name": "AU Female A", "locale": "en-AU"},
-    {"id": "en-AU-Neural2-B", "name": "AU Male B", "locale": "en-AU"},
-]
+GOOGLE_TTS_VOICES = VOICE_CATALOG  # back-compat alias — single source of truth
 
 # Cloud Translation supported languages
 TRANSLATION_LANGUAGES = {

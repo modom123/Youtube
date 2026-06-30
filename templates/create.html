@@ -130,24 +130,11 @@
       <div class="form-group">
         <label>Narrator Voice</label>
         <select id="voice">
-          {% if google_api_key and google_tts_voices %}
-          <optgroup label="Google Neural2 (HD quality)">
-            {% for v in google_tts_voices %}
-            <option value="{{ v.id }}" {% if v.id == 'en-US-Neural2-C' %}selected{% endif %}>{{ v.name }} ({{ v.locale }})</option>
-            {% endfor %}
-          </optgroup>
-          <optgroup label="Edge TTS (fallback)">
-            {% for v in voices %}
-            <option value="{{ v }}">{{ v }}</option>
-            {% endfor %}
-          </optgroup>
-          {% else %}
           {% for v in voices %}
-          <option value="{{ v }}" {% if v == 'en-US-AriaNeural' %}selected{% endif %}>{{ v }}</option>
+          <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
           {% endfor %}
-          {% endif %}
         </select>
-        <div class="form-hint">{% if google_api_key %}Google Cloud Neural2 HD voices active{% else %}Using Microsoft Edge TTS — set GOOGLE_API_KEY for Neural2 HD{% endif %}</div>
+        <div class="form-hint">10 premium voices — 6 female, 4 male</div>
       </div>
       <div class="form-group">
         <label>Script Engine</label>

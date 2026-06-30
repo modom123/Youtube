@@ -72,7 +72,7 @@
       <div class="form-row">
         <label>Voice</label>
         <select id="b-voice">
-          {% for v in voices %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+          {% for v in voices %}<option value="{{ v.id }}">{{ v.label }}</option>{% endfor %}
         </select>
       </div>
       <div class="form-row">

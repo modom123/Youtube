@@ -14,15 +14,22 @@ import config
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-# Map edge-tts voice names to best Google TTS equivalents (Studio > Journey > Neural2)
+# Map legacy edge-tts voice names (from old saved jobs/templates) to today's
+# canonical Google TTS voices in config.VOICE_CATALOG (Studio > Journey > Neural2).
 _EDGE_TO_GOOGLE = {
-    "en-US-AriaNeural":    "en-US-Studio-O",
-    "en-US-JennyNeural":   "en-US-Journey-F",
-    "en-US-GuyNeural":     "en-US-Studio-Q",
-    "en-US-DavisNeural":   "en-US-Journey-D",
+    "en-US-AriaNeural":    "en-US-Studio-O",   # Female
+    "en-US-JennyNeural":   "en-US-Neural2-C",  # Female
+    "en-US-GuyNeural":     "en-US-Studio-Q",   # Male
+    "en-US-DavisNeural":   "en-US-Journey-D",  # Male
     "en-GB-SoniaNeural":   "en-GB-Neural2-A",
     "en-AU-NatashaNeural": "en-AU-Neural2-A",
 }
+
+# voice id -> {gender, edge fallback} from the single canonical catalog
+_VOICE_GENDER = {v["id"]: v["gender"] for v in config.VOICE_CATALOG}
+_VOICE_TO_EDGE = {v["id"]: v["edge"] for v in config.VOICE_CATALOG}
+_FEMALE_EDGE_FALLBACKS = ["en-US-AriaNeural", "en-US-JennyNeural"]
+_MALE_EDGE_FALLBACKS = ["en-US-GuyNeural", "en-US-DavisNeural"]
 
 # Max bytes per Google TTS request (API limit is 5000, use 4800 for safety)
 _GOOGLE_TTS_CHUNK_SIZE = 4800
@@ -335,8 +342,13 @@ def generate_audio(
             if output_path.exists() and output_path.stat().st_size > 1000:
                 return output_path
 
-    # 3. Try edge-tts (run in a fresh thread with its own event loop to avoid conflicts)
-    edge_voices = [voice, "en-US-AriaNeural", "en-US-GuyNeural", "en-US-JennyNeural"]
+    # 3. Try edge-tts (run in a fresh thread with its own event loop to avoid conflicts).
+    # Keep the fallback chain in the SAME gender as the requested voice — never
+    # silently swap a chosen male voice for a default female one, or vice versa.
+    primary_edge = _VOICE_TO_EDGE.get(voice, voice if "Neural" in voice else "en-US-AriaNeural")
+    gender = _VOICE_GENDER.get(voice, "Female")
+    same_gender_fallbacks = _FEMALE_EDGE_FALLBACKS if gender == "Female" else _MALE_EDGE_FALLBACKS
+    edge_voices = [primary_edge] + same_gender_fallbacks
     seen = set()
     edge_voices = [v for v in edge_voices if not (v in seen or seen.add(v))]
     edge_ok = False

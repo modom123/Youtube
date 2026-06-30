@@ -92,12 +92,9 @@
     <div class="form-group">
       <label>Default Voice</label>
       <select id="def-voice">
-        <option>en-US-AriaNeural</option>
-        <option>en-US-GuyNeural</option>
-        <option>en-US-JennyNeural</option>
-        <option>en-US-DavisNeural</option>
-        <option>en-GB-SoniaNeural</option>
-        <option>en-AU-NatashaNeural</option>
+        {% for v in voices %}
+        <option value="{{ v.id }}" {% if v.id == user.default_voice %}selected{% endif %}>{{ v.label }}</option>
+        {% endfor %}
       </select>
     </div>
     <div class="form-group">
@@ -312,7 +309,17 @@ async function loadApiStatus() {
 }
 
 async function saveDefaults() {
-  toast('success', 'Saved', 'Default settings updated.');
+  const voice = document.getElementById('def-voice').value;
+  const resp = await fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ default_voice: voice }),
+  });
+  if (resp.ok) {
+    toast('success', 'Saved', 'Default settings updated.');
+  } else {
+    toast('error', 'Error', 'Could not save default settings.');
+  }
 }
 
 async function saveAccount() {

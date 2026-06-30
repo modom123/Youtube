@@ -436,25 +436,14 @@
         </div>
       </div>
 
-      {% if google_api_key and google_tts_voices %}
-      <div class="hw-form-row">
-        <label>Voice — Neural2 HD</label>
-        <select id="hw-voice">
-          {% for v in google_tts_voices %}
-          <option value="{{ v.id }}" {% if v.id == config.GOOGLE_TTS_VOICE %}selected{% endif %}>{{ v.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      {% else %}
       <div class="hw-form-row">
         <label>Voice</label>
         <select id="hw-voice">
           {% for v in voices %}
-          <option value="{{ v }}">{{ v }}</option>
+          <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
           {% endfor %}
         </select>
       </div>
-      {% endif %}
 
       <div class="hw-form-row">
         <label>Privacy</label>
