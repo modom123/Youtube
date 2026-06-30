@@ -2479,6 +2479,25 @@ def api_update_settings():
     return jsonify({"status": "saved"})
 
 
+@app.route("/api/settings/change-password", methods=["POST"])
+@login_required
+def api_change_password():
+    from werkzeug.security import check_password_hash, generate_password_hash
+    data = request.json or {}
+    current_pw = data.get("current_password", "")
+    new_pw = data.get("new_password", "")
+    confirm_pw = data.get("confirm_password", "")
+    user = db.get_user_by_id(current_user.id)
+    if not check_password_hash(user["password_hash"], current_pw):
+        return jsonify({"error": "Current password is incorrect."}), 400
+    if len(new_pw) < 8:
+        return jsonify({"error": "New password must be at least 8 characters."}), 400
+    if new_pw != confirm_pw:
+        return jsonify({"error": "Passwords do not match."}), 400
+    db.update_user(current_user.id, password_hash=generate_password_hash(new_pw))
+    return jsonify({"status": "Password updated successfully."})
+
+
 @app.route("/api/research/preview", methods=["POST"])
 def api_research_preview():
     topic = (request.json or {}).get("topic", "").strip()

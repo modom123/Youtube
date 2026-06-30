@@ -130,6 +130,24 @@
     </div>
     <button class="btn btn-primary btn-block" onclick="saveAccount()">Save Account</button>
   </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="card-title mb-16"><span class="accent">🔒</span> Change Password</div>
+    <div class="form-group">
+      <label>Current Password</label>
+      <input type="password" id="pw-current" placeholder="Your current password" autocomplete="current-password">
+    </div>
+    <div class="form-group">
+      <label>New Password</label>
+      <input type="password" id="pw-new" placeholder="At least 8 characters" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+      <label>Confirm New Password</label>
+      <input type="password" id="pw-confirm" placeholder="Repeat new password" autocomplete="new-password">
+    </div>
+    <div id="pw-msg" class="text-sm mt-8" style="display:none;"></div>
+    <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="changePassword()">Update Password</button>
+  </div>
 </div>
 
 {% endblock %}
@@ -341,5 +359,36 @@ async function saveAccount() {
 }
 
 loadApiStatus();
+
+async function changePassword() {
+  const current = document.getElementById('pw-current').value;
+  const newPw   = document.getElementById('pw-new').value;
+  const confirm = document.getElementById('pw-confirm').value;
+  const msg     = document.getElementById('pw-msg');
+
+  msg.style.display = 'none';
+  if (!current || !newPw || !confirm) {
+    msg.textContent = 'Please fill in all password fields.';
+    msg.style.color = 'var(--red)'; msg.style.display = '';
+    return;
+  }
+
+  const resp = await fetch('/api/settings/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm }),
+  });
+  const data = await resp.json();
+  if (resp.ok) {
+    msg.textContent = '✓ ' + data.status;
+    msg.style.color = 'var(--green)'; msg.style.display = '';
+    document.getElementById('pw-current').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-confirm').value = '';
+  } else {
+    msg.textContent = data.error || 'Failed to update password.';
+    msg.style.color = 'var(--red)'; msg.style.display = '';
+  }
+}
 </script>
 {% endblock %}
