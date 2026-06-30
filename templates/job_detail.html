@@ -332,6 +332,21 @@
 
       <!-- Upload Audio tab -->
       <div id="edit-tab-audio" style="display:none;">
+        <div class="text-sm text-bold mb-8">🎤 Replace voice (no upload needed)</div>
+        <div class="text-xs text-dim mb-8">Pick a voice and we'll re-narrate this job's existing script with it.</div>
+        <div class="form-group">
+          <label>Voice</label>
+          <select id="edit-voice-select"><option value="">Loading voices…</option></select>
+        </div>
+        <button class="btn btn-primary btn-block" id="regen-voice-btn" onclick="regenerateJobAudio({{ job.id }})">Generate & Replace Audio</button>
+        <div id="regen-voice-result" style="display:none;margin-top:10px;"></div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin:20px 0;">
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+          <span class="text-xs text-dim">or upload your own</span>
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+        </div>
+
         <div style="border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;" onclick="document.getElementById('edit-audio-file').click()" id="edit-audio-drop">
           <div style="font-size:36px;margin-bottom:8px;">🎙</div>
           <div class="text-sm text-bold mb-4">Click to upload narration / audio</div>
@@ -679,6 +694,65 @@ function setEditTab(tab) {
       btn.style.color = t === tab ? '#000' : 'var(--muted)';
     }
   });
+  if (tab === 'audio') loadJobVoices();
+}
+
+let _jobVoicesLoaded = false;
+async function loadJobVoices(jobId) {
+  jobId = jobId || {{ job.id }};
+  if (_jobVoicesLoaded) return;
+  const sel = document.getElementById('edit-voice-select');
+  try {
+    const r = await fetch(`/api/jobs/${jobId}/voices`);
+    const d = await r.json();
+    let html = '';
+    if (d.elevenlabs && d.elevenlabs.length) {
+      html += '<optgroup label="ElevenLabs (premium)">';
+      html += d.elevenlabs.map(v => `<option value="el:${v.id}">${v.name}${v.category ? ' — ' + v.category : ''}</option>`).join('');
+      html += '</optgroup>';
+    }
+    html += '<optgroup label="Standard voices">';
+    html += (d.catalog || []).map(v => `<option value="cat:${v.id}">${v.label}</option>`).join('');
+    html += '</optgroup>';
+    sel.innerHTML = html || '<option value="">No voices available</option>';
+    _jobVoicesLoaded = true;
+  } catch (e) {
+    sel.innerHTML = '<option value="">Failed to load voices</option>';
+  }
+}
+
+async function regenerateJobAudio(jobId) {
+  const sel = document.getElementById('edit-voice-select');
+  const val = sel.value;
+  if (!val) { toast('error', 'Pick a voice', 'Choose a voice from the dropdown first.'); return; }
+  const [kind, id] = val.split(':');
+  const btn = document.getElementById('regen-voice-btn');
+  const res = document.getElementById('regen-voice-result');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  res.style.display = 'none';
+  try {
+    const body = kind === 'el' ? { elevenlabs_voice_id: id } : { voice: id };
+    const r = await fetch(`/api/jobs/${jobId}/regenerate-audio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('success', 'Voice replaced!', 'Reloading…');
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      res.style.display = 'block';
+      res.innerHTML = `<div class="pill pill-error">✗ ${d.error || 'Failed'}</div>`;
+      toast('error', 'Generation failed', d.error || 'Unknown error');
+    }
+  } catch (e) {
+    toast('error', 'Error', e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate & Replace Audio';
+  }
 }
 
 function previewEditUpload(input, type) {

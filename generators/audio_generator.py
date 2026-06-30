@@ -176,13 +176,13 @@ def _elevenlabs_tts_chunk(text: str, voice_id: str, api_key: str) -> bytes:
     return resp.content
 
 
-def _generate_elevenlabs_tts(text: str, output_path: Path) -> bool:
+def _generate_elevenlabs_tts(text: str, output_path: Path, voice_id: str = "") -> bool:
     """Generate TTS using ElevenLabs API. Returns True on success."""
     api_key = getattr(config, "ELEVENLABS_API_KEY", "")
     if not api_key:
         return False
 
-    voice_id = getattr(config, "ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")
+    voice_id = voice_id or getattr(config, "ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")
     try:
         chunks = _split_into_chunks(text, max_bytes=4000)
         mp3_chunks = []
@@ -247,6 +247,7 @@ def generate_audio(
     voice: Optional[str] = None,
     rate: str = "+0%",
     pitch: str = "+0Hz",
+    elevenlabs_voice_id: str = "",
 ) -> Path:
     """Convert text to speech and save as MP3.
 
@@ -264,7 +265,7 @@ def generate_audio(
 
     # 1. Try ElevenLabs (highest quality voices)
     if getattr(config, "ELEVENLABS_API_KEY", ""):
-        if _generate_elevenlabs_tts(clean_text, output_path):
+        if _generate_elevenlabs_tts(clean_text, output_path, voice_id=elevenlabs_voice_id):
             if output_path.exists() and output_path.stat().st_size > 1000:
                 return output_path
 
@@ -332,3 +333,25 @@ async def list_voices() -> list:
 
 def list_voices_sync() -> list:
     return asyncio.run(list_voices())
+
+
+def list_elevenlabs_voices() -> list:
+    """Fetch the user's available ElevenLabs voices. Returns [] if no key set or on error."""
+    api_key = getattr(config, "ELEVENLABS_API_KEY", "")
+    if not api_key:
+        return []
+    import requests as req
+    try:
+        resp = req.get(
+            "https://api.elevenlabs.io/v1/voices",
+            headers={"xi-api-key": api_key},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return [
+            {"id": v["voice_id"], "name": v["name"], "category": v.get("category", "")}
+            for v in resp.json().get("voices", [])
+        ]
+    except Exception as e:
+        print(f"[audio] ElevenLabs voice list failed: {e}")
+        return []

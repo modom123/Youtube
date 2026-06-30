@@ -991,6 +991,72 @@ def upload_job_video(job_id):
     return jsonify({"ok": True, "video_path": str(dest)})
 
 
+@app.route("/api/jobs/<int:job_id>/voices")
+@login_required
+def list_job_voices(job_id):
+    """List available voices for the AI voice-replace picker: catalog + ElevenLabs (if connected)."""
+    from generators import audio_generator
+    return jsonify({
+        "catalog": config.VOICE_CATALOG,
+        "elevenlabs": audio_generator.list_elevenlabs_voices(),
+    })
+
+
+@app.route("/api/jobs/<int:job_id>/regenerate-audio", methods=["POST"])
+@login_required
+def regenerate_job_audio(job_id):
+    """Re-run TTS on this job's existing narration with a different voice — no manual upload needed."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Not found"}), 404
+
+    data = request.json or {}
+    voice = (data.get("voice") or "").strip()
+    elevenlabs_voice_id = (data.get("elevenlabs_voice_id") or "").strip()
+    if not voice and not elevenlabs_voice_id:
+        return jsonify({"error": "Pick a voice first"}), 400
+
+    # Pull narration text the same way /api/jobs/<id>/script does.
+    spath = job.get("script_path")
+    if not spath and job.get("manifest_path"):
+        try:
+            with open(job["manifest_path"]) as f:
+                spath = json.load(f).get("files", {}).get("script")
+        except Exception:
+            pass
+    text = ""
+    if spath and Path(spath).exists():
+        try:
+            raw = Path(spath).read_text()
+            try:
+                parsed = json.loads(raw)
+                text = parsed.get("narration_full") or parsed.get("narration") or raw
+            except Exception:
+                text = raw
+        except Exception:
+            pass
+    if not text.strip():
+        return jsonify({"error": "No narration script found for this job to regenerate from"}), 400
+
+    from generators import audio_generator
+    from utils import file_manager
+    job_dir = Path(file_manager.job_dir(job.get("topic", "job"), "voice"))
+    job_dir.mkdir(parents=True, exist_ok=True)
+    dest = job_dir / f"audio_voice_{int(time.time())}.mp3"
+
+    try:
+        audio_generator.generate_audio(
+            text=text, output_path=dest,
+            voice=voice or None,
+            elevenlabs_voice_id=elevenlabs_voice_id,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    db.update_job(job_id, audio_path=str(dest))
+    return jsonify({"ok": True, "audio_path": str(dest)})
+
+
 @app.route("/api/jobs/<int:job_id>/upload-audio", methods=["POST"])
 @login_required
 def upload_job_audio(job_id):
