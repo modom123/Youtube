@@ -1,5 +1,6 @@
 """
-MusicEngine — AI song production via Suno → Replicate MusicGen → ElevenLabs cascade.
+MusicEngine — AI song production via Mureka → ElevenLabs Music → Suno →
+Replicate MusicGen → HuggingFace MusicGen → ElevenLabs Sound Generation cascade.
 """
 from __future__ import annotations
 
@@ -143,6 +144,107 @@ def _try_suno(
 
     except Exception as exc:
         log.warning("Suno failed: %s", exc)
+        return None
+
+
+def _try_mureka(
+    prompt: str,
+    lyrics: str,
+    vocal_style: str,
+    job_dir: Path,
+) -> Optional[str]:
+    """Generate via Mureka's official key-based API (real singing). Returns local file path or None."""
+    key = getattr(config, "MUREKA_API_KEY", "") or ""
+    if not key:
+        log.info("Mureka: MUREKA_API_KEY not set, skipping")
+        return None
+
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    body = {"model": "auto", "prompt": prompt[:500]}
+    if vocal_style == "instrumental":
+        body["lyrics"] = "[Instrumental]"
+    elif lyrics:
+        body["lyrics"] = lyrics[:3000]
+
+    try:
+        r = requests.post("https://api.mureka.ai/v1/song/generate", json=body, headers=headers, timeout=30)
+        r.raise_for_status()
+        task_id = r.json().get("id")
+        if not task_id:
+            log.warning("Mureka: no task id returned")
+            return None
+
+        log.info("Mureka: polling task %s", task_id)
+        for _ in range(90):  # up to ~7.5 minutes
+            time.sleep(5)
+            pr = requests.get(f"https://api.mureka.ai/v1/song/query/{task_id}", headers=headers, timeout=30)
+            pr.raise_for_status()
+            data = pr.json()
+            status = data.get("status")
+            if status in ("succeeded", "completed", "finished"):
+                choices = data.get("choices") or []
+                audio_url = (
+                    data.get("audio_url") or data.get("url")
+                    or (choices[0].get("url") if choices else None)
+                )
+                if audio_url:
+                    log.info("Mureka: downloading from %s", audio_url)
+                    dest = job_dir / "song_mureka.mp3"
+                    _download(audio_url, dest)
+                    return str(dest)
+                log.warning("Mureka: succeeded but no audio url in response")
+                return None
+            elif status in ("failed", "error", "cancelled"):
+                log.warning("Mureka: task %s", status)
+                return None
+
+        log.warning("Mureka: timed out waiting for song")
+        return None
+
+    except Exception as exc:
+        log.warning("Mureka failed: %s", exc)
+        return None
+
+
+def _try_elevenlabs_music(
+    prompt: str,
+    lyrics: str,
+    vocal_style: str,
+    duration_seconds: int,
+    job_dir: Path,
+) -> Optional[str]:
+    """Generate via ElevenLabs Music API (real singing). Returns local file path or None."""
+    key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
+    if not key:
+        log.info("ElevenLabs Music: ELEVENLABS_API_KEY not set, skipping")
+        return None
+
+    music_prompt = prompt[:1900]
+    if lyrics and vocal_style != "instrumental":
+        music_prompt += f"\nLyrics:\n{lyrics[:1500]}"
+
+    try:
+        r = requests.post(
+            "https://api.elevenlabs.io/v1/music",
+            headers={"xi-api-key": key, "Content-Type": "application/json"},
+            json={
+                "prompt": music_prompt,
+                "music_length_ms": max(3000, min(duration_seconds * 1000, 600_000)),
+                "model_id": "music_v2",
+                "instrumental": vocal_style == "instrumental",
+            },
+            timeout=180,
+        )
+        r.raise_for_status()
+        dest = job_dir / "song_elevenlabs_music.mp3"
+        dest.write_bytes(r.content)
+        if dest.stat().st_size > 10_000:
+            log.info("ElevenLabs Music: saved %d bytes → %s", dest.stat().st_size, dest)
+            return str(dest)
+        log.warning("ElevenLabs Music: response too small, likely an error body")
+        return None
+    except Exception as exc:
+        log.warning("ElevenLabs Music failed: %s", exc)
         return None
 
 
@@ -372,7 +474,7 @@ def _try_elevenlabs(
 # ── Main Engine ────────────────────────────────────────────────────────────────
 
 class MusicEngine:
-    """Cascade of AI music providers: Suno → Replicate → ElevenLabs."""
+    """Cascade of AI music providers: Mureka → ElevenLabs Music → Suno → Replicate → ElevenLabs."""
 
     def generate(
         self,
@@ -458,9 +560,19 @@ class MusicEngine:
         if lyrics:
             prompt += f" Lyrics:\n{lyrics}"
 
-        cb("Trying Suno AI...", 35)
-        audio_path = _try_suno(prompt, title, genre, duration_seconds, vocal_style, job_dir)
-        provider = "Suno AI"
+        cb("Trying Mureka...", 33)
+        audio_path = _try_mureka(prompt, lyrics, vocal_style, job_dir)
+        provider = "Mureka"
+
+        if not audio_path:
+            cb("Trying ElevenLabs Music...", 34)
+            audio_path = _try_elevenlabs_music(prompt, lyrics, vocal_style, duration_seconds, job_dir)
+            provider = "ElevenLabs Music"
+
+        if not audio_path:
+            cb("Trying Suno AI...", 35)
+            audio_path = _try_suno(prompt, title, genre, duration_seconds, vocal_style, job_dir)
+            provider = "Suno AI"
 
         if not audio_path:
             cb("Trying Replicate MusicGen...", 50)
@@ -485,15 +597,15 @@ class MusicEngine:
             provider = "none"
             log.warning("All music providers failed — no audio generated")
 
-        # Suno is the only provider above that actually sings the lyrics to a melody.
-        sung_by_suno = provider == "Suno AI" and vocal_style != "instrumental"
+        # Mureka, ElevenLabs Music, and Suno actually sing the lyrics to a melody.
+        sung_by_singing_provider = provider in ("Mureka", "ElevenLabs Music", "Suno AI") and vocal_style != "instrumental"
         warning = None
 
         # Add ElevenLabs TTS vocal layer and mix with instrumental.
         # Note: this is spoken text-to-speech laid over the instrumental, not real
         # singing — it's a fallback approximation when no singing-capable provider
-        # (Suno) was available, not a substitute for one.
-        if lyrics and vocal_style != "instrumental" and not sung_by_suno:
+        # (Mureka, ElevenLabs Music, Suno) was available, not a substitute for one.
+        if lyrics and vocal_style != "instrumental" and not sung_by_singing_provider:
             cb("Generating vocal layer...", 70)
             vocal_path = _try_elevenlabs_tts(lyrics, job_dir)
             if vocal_path:
@@ -505,18 +617,20 @@ class MusicEngine:
                     audio_path = vocal_path
                     provider = "ElevenLabs Vocals (spoken, not sung)"
 
-        has_vocals = sung_by_suno or (lyrics and vocal_style != "instrumental" and "ElevenLabs Vocals" in provider)
+        has_vocals = sung_by_singing_provider or (lyrics and vocal_style != "instrumental" and "ElevenLabs Vocals" in provider)
         if vocal_style != "instrumental" and not has_vocals:
             warning = (
-                "No vocals were added to this track. Real singing requires the Suno "
-                "provider (SUNO_COOKIE), which isn't configured, so this fell back to "
+                "No vocals were added to this track. Real singing requires Mureka "
+                "(MUREKA_API_KEY), ElevenLabs Music (ELEVENLABS_API_KEY), or Suno "
+                "(SUNO_COOKIE), none of which are configured, so this fell back to "
                 "an instrumental-only track."
             )
-        elif vocal_style != "instrumental" and not sung_by_suno:
+        elif vocal_style != "instrumental" and not sung_by_singing_provider:
             warning = (
                 "Vocals on this track are spoken text-to-speech laid over the instrumental, "
-                "not real singing — Suno (SUNO_COOKIE) isn't configured, which is the only "
-                "provider here that actually sings lyrics to a melody."
+                "not real singing — none of Mureka (MUREKA_API_KEY), ElevenLabs Music "
+                "(ELEVENLABS_API_KEY), or Suno (SUNO_COOKIE) are configured, and those are "
+                "the only providers here that actually sing lyrics to a melody."
             )
 
         cb("Finalizing track...", 85)

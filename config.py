@@ -260,6 +260,7 @@ SUNO_COOKIE = os.getenv("SUNO_COOKIE", "")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
 MUBERT_KEY = os.getenv("MUBERT_KEY", "")
 FREESOUND_API_KEY = os.getenv("FREESOUND_API_KEY", "")
+MUREKA_API_KEY = os.getenv("MUREKA_API_KEY", "")  # official key-based API — platform.mureka.ai
 
 # Higgsfield AI — bearer token for REST + MCP API calls
 HIGGSFIELD_MCP_TOKEN = (
