@@ -175,11 +175,18 @@ def generate_higgsville_clips(
                 if not url:
                     continue
                 clip_path = output_dir / f"hv_{model_id}_{i:02d}.mp4"
-                _download_file(url, clip_path)
+                try:
+                    _download_file(url, clip_path)
+                except Exception as e:
+                    print(f"[higgsville] Download failed, retrying once: {e}")
+                    _download_file(url, clip_path)
 
-            if clip_path and clip_path.exists() and clip_path.stat().st_size > 10000:
+            if clip_path and _is_valid_mp4(clip_path):
                 results.append(clip_path)
                 print(f"[higgsville] ✓ Clip {i+1} saved: {clip_path.name}")
+            elif clip_path and clip_path.exists():
+                print(f"[higgsville] ✗ Clip {i+1} downloaded but failed validation (corrupt/incomplete): {clip_path}")
+                clip_path.unlink(missing_ok=True)
         except Exception as e:
             print(f"[higgsville] Clip {i+1} error: {e}")
             continue
@@ -311,9 +318,31 @@ def _download_veo_uri(uri: str, out_path: Path, api_key: str) -> None:
 def _download_file(url: str, out_path: Path) -> None:
     resp = requests.get(url, stream=True, timeout=120)
     resp.raise_for_status()
+    expected_len = resp.headers.get("Content-Length")
+    written = 0
     with open(out_path, "wb") as f:
         for chunk in resp.iter_content(chunk_size=8192):
             f.write(chunk)
+            written += len(chunk)
+    if expected_len is not None and written != int(expected_len):
+        out_path.unlink(missing_ok=True)
+        raise IOError(
+            f"Incomplete download: got {written} bytes, expected {expected_len} ({url})"
+        )
+
+
+def _is_valid_mp4(path: Path) -> bool:
+    """Cheap structural check: a finished mp4 must contain a moov atom
+    (Higgsfield/CDN downloads can get cut off mid-stream and pass a naive
+    size check while still being unplayable)."""
+    try:
+        if not path.exists() or path.stat().st_size < 10000:
+            return False
+        with open(path, "rb") as f:
+            data = f.read()
+        return b"moov" in data and b"ftyp" in data[:64]
+    except Exception:
+        return False
 
 
 # ── Prompt Builder ──────────────────────────────────────────────────────────────────────────────────
