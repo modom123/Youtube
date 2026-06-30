@@ -15,7 +15,7 @@ import time
 import uuid
 import vobject
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for,
     send_file, Response, stream_with_context, session
@@ -1989,6 +1989,61 @@ def clear_contacts():
     platform = request.json.get("platform") if request.json else None
     db.delete_contacts(platform=platform, user_id=current_user.id)
     return jsonify({"status": "cleared"})
+
+
+# ── Sequences (auto email/SMS nurture when a new contact is captured) ────────
+
+DEFAULT_WELCOME_SEQUENCE_STEPS = [
+    {"delay_hours": 0, "channel": "email", "subject": "Welcome!",
+     "body": "Hey {{name}}, thanks for connecting — glad to have you here."},
+    {"delay_hours": 72, "channel": "email", "subject": "Quick check-in",
+     "body": "Hey {{name}}, just checking in — let us know if you have any questions."},
+    {"delay_hours": 168, "channel": "email", "subject": "Here's what's new",
+     "body": "Hey {{name}}, here's what we've been working on lately."},
+]
+
+
+@app.route("/api/sequences", methods=["GET"])
+@login_required
+def api_sequences_list():
+    return jsonify(db.get_sequences(current_user.id))
+
+
+@app.route("/api/sequences", methods=["POST"])
+@login_required
+def api_sequences_create():
+    data = request.json or {}
+    name = data.get("name") or "Welcome Sequence"
+    steps = data.get("steps") or DEFAULT_WELCOME_SEQUENCE_STEPS
+    seq_id = db.create_sequence(current_user.id, name, trigger=data.get("trigger", "new_contact"), steps=steps)
+    if data.get("active"):
+        db.set_sequence_active(seq_id, current_user.id, True)
+    return jsonify({"status": "created", "sequence_id": seq_id})
+
+
+@app.route("/api/sequences/<int:sid>", methods=["GET"])
+@login_required
+def api_sequences_get(sid):
+    seq = db.get_sequence(sid, current_user.id)
+    if not seq:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(seq)
+
+
+@app.route("/api/sequences/<int:sid>/activate", methods=["POST"])
+@login_required
+def api_sequences_activate(sid):
+    data = request.json or {}
+    active = bool(data.get("active", True))
+    db.set_sequence_active(sid, current_user.id, active)
+    return jsonify({"status": "active" if active else "paused"})
+
+
+@app.route("/api/sequences/<int:sid>", methods=["DELETE"])
+@login_required
+def api_sequences_delete(sid):
+    db.delete_sequence(sid, current_user.id)
+    return jsonify({"status": "deleted"})
 
 
 # ── Outreach / Campaigns ─────────────────────────────────────────────────────
@@ -5069,6 +5124,68 @@ def _execute_scheduled_post(post: dict):
     )
 
 
+def _send_sequence_step_email(to_email: str, subject: str, body: str) -> bool:
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    if not config.SMTP_HOST or not config.SMTP_USER:
+        return True  # dev mode — treat as sent
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = config.SMTP_FROM
+    msg["To"] = to_email
+    msg.attach(MIMEText(body, "plain"))
+    msg.attach(MIMEText(f"<p>{body}</p>", "html"))
+    with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT) as server:
+        server.starttls()
+        server.login(config.SMTP_USER, config.SMTP_PASS)
+        server.sendmail(config.SMTP_FROM, to_email, msg.as_string())
+    return True
+
+
+def _send_sequence_step_sms(to_phone: str, body: str) -> bool:
+    from utils.twilio_client import send_sms, _is_configured
+    if not _is_configured():
+        return True  # dev mode — treat as sent
+    send_sms(to_phone, body)
+    return True
+
+
+def _sequence_runner_thread():
+    """Send due steps for active contact sequences every 60 seconds."""
+    while True:
+        try:
+            due = db.get_due_sequence_enrollments(limit=50)
+            for enr in due:
+                try:
+                    step = db.get_sequence_step(enr["sequence_id"], enr["current_step"])
+                    if not step:
+                        db.advance_sequence_enrollment(enr["id"], enr["current_step"], None, status="completed")
+                        continue
+                    name = enr.get("contact_name") or ""
+                    body = (step["body"] or "").replace("{{name}}", name)
+                    if step["channel"] == "sms" and enr.get("contact_phone"):
+                        _send_sequence_step_sms(enr["contact_phone"], body)
+                    elif enr.get("contact_email"):
+                        _send_sequence_step_email(enr["contact_email"], step["subject"] or "", body)
+                    else:
+                        db.advance_sequence_enrollment(enr["id"], enr["current_step"], None, status="skipped")
+                        continue
+
+                    next_step = db.get_sequence_step(enr["sequence_id"], enr["current_step"] + 1)
+                    if next_step:
+                        next_send_at = datetime.utcnow() + timedelta(hours=next_step["delay_hours"] or 0)
+                        db.advance_sequence_enrollment(enr["id"], enr["current_step"] + 1, next_send_at, status="active")
+                    else:
+                        db.advance_sequence_enrollment(enr["id"], enr["current_step"], None, status="completed")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        time.sleep(60)
+
+
 def _competitor_refresh_thread():
     """Refresh competitor channel data every 6 hours."""
     while True:
@@ -5110,6 +5227,8 @@ def start_background_threads():
     t2.start()
     t3 = threading.Thread(target=_memory_eviction_thread, daemon=True, name="mem_evict")
     t3.start()
+    t4 = threading.Thread(target=_sequence_runner_thread, daemon=True, name="sequence_runner")
+    t4.start()
 
 
 # ── RSS Feeds ────────────────────────────────────────────────────────────────

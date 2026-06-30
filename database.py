@@ -217,6 +217,40 @@ def init_db():
         )
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS sequences (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name        TEXT NOT NULL,
+            trigger     TEXT NOT NULL DEFAULT 'new_contact',
+            active      BOOLEAN DEFAULT FALSE,
+            created_at  TIMESTAMP DEFAULT NOW()
+        )
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS sequence_steps (
+            id           SERIAL PRIMARY KEY,
+            sequence_id  INTEGER REFERENCES sequences(id) ON DELETE CASCADE,
+            step_order   INTEGER NOT NULL,
+            delay_hours  INTEGER NOT NULL DEFAULT 0,
+            channel      TEXT NOT NULL DEFAULT 'email',
+            subject      TEXT,
+            body         TEXT NOT NULL
+        )
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS sequence_enrollments (
+            id              SERIAL PRIMARY KEY,
+            sequence_id     INTEGER REFERENCES sequences(id) ON DELETE CASCADE,
+            contact_id      INTEGER REFERENCES contacts(id) ON DELETE CASCADE,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            current_step    INTEGER NOT NULL DEFAULT 0,
+            status          TEXT NOT NULL DEFAULT 'active',
+            next_send_at    TIMESTAMP DEFAULT NOW(),
+            enrolled_at     TIMESTAMP DEFAULT NOW(),
+            UNIQUE(sequence_id, contact_id)
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS inbound_sms (
             id              SERIAL PRIMARY KEY,
             message_sid     TEXT UNIQUE,
@@ -971,16 +1005,121 @@ def insert_contacts_bulk(contacts: list, user_id=None):
     if user_id:
         for c in contacts:
             c["user_id"] = user_id
+    new_ids = []
     with get_conn() as conn:
         for c in contacts:
-            conn.execute("""
+            cur = conn.execute("""
                 INSERT INTO contacts (name, handle, email, phone, platform, avatar_url, followers, tags, user_id)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT DO NOTHING
+                RETURNING id
             """, (c.get("name",""), c.get("handle",""), c.get("email",""), c.get("phone",""),
                   c.get("platform",""), c.get("avatar_url",""), c.get("followers",0),
                   c.get("tags","[]"), c.get("user_id")))
+            row = cur.fetchone()
+            if row:
+                new_ids.append(row["id"])
+    if user_id and new_ids:
+        enroll_contacts_in_active_sequences(user_id, new_ids)
     return len(contacts)
+
+
+# ── Sequences (auto-enroll a new contact into an email/SMS drip) ──────────────
+
+def create_sequence(user_id, name, trigger="new_contact", steps=None):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO sequences (user_id, name, trigger) VALUES (%s,%s,%s) RETURNING id",
+            (user_id, name, trigger))
+        seq_id = cur.fetchone()["id"]
+        for i, step in enumerate(steps or []):
+            conn.execute("""
+                INSERT INTO sequence_steps (sequence_id, step_order, delay_hours, channel, subject, body)
+                VALUES (%s,%s,%s,%s,%s,%s)
+            """, (seq_id, i, step.get("delay_hours", 0), step.get("channel", "email"),
+                  step.get("subject", ""), step.get("body", "")))
+        return seq_id
+
+
+def get_sequences(user_id):
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT * FROM sequences WHERE user_id=%s ORDER BY created_at DESC", (user_id,)
+        ).fetchall()
+
+
+def get_sequence(sequence_id, user_id):
+    with get_conn() as conn:
+        seq = conn.execute(
+            "SELECT * FROM sequences WHERE id=%s AND user_id=%s", (sequence_id, user_id)
+        ).fetchone()
+        if not seq:
+            return None
+        steps = conn.execute(
+            "SELECT * FROM sequence_steps WHERE sequence_id=%s ORDER BY step_order", (sequence_id,)
+        ).fetchall()
+        return {**seq, "steps": steps}
+
+
+def set_sequence_active(sequence_id, user_id, active: bool):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE sequences SET active=%s WHERE id=%s AND user_id=%s",
+            (active, sequence_id, user_id))
+
+
+def delete_sequence(sequence_id, user_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM sequences WHERE id=%s AND user_id=%s", (sequence_id, user_id))
+
+
+def enroll_contacts_in_active_sequences(user_id, contact_ids):
+    """Auto-enroll newly-captured contacts into every active new_contact sequence."""
+    if not contact_ids:
+        return
+    with get_conn() as conn:
+        seqs = conn.execute(
+            "SELECT id FROM sequences WHERE user_id=%s AND active=TRUE AND trigger='new_contact'",
+            (user_id,)
+        ).fetchall()
+        for seq in seqs:
+            for cid in contact_ids:
+                conn.execute("""
+                    INSERT INTO sequence_enrollments (sequence_id, contact_id, user_id, next_send_at)
+                    VALUES (%s, %s, %s, NOW())
+                    ON CONFLICT DO NOTHING
+                """, (seq["id"], cid, user_id))
+
+
+def get_due_sequence_enrollments(limit=50):
+    with get_conn() as conn:
+        return conn.execute("""
+            SELECT e.*, s.name AS sequence_name,
+                   c.name AS contact_name, c.email AS contact_email, c.phone AS contact_phone
+            FROM sequence_enrollments e
+            JOIN sequences s ON s.id = e.sequence_id
+            JOIN contacts c ON c.id = e.contact_id
+            WHERE e.status='active' AND e.next_send_at <= NOW() AND s.active=TRUE
+            ORDER BY e.next_send_at ASC
+            LIMIT %s
+        """, (limit,)).fetchall()
+
+
+def get_sequence_step(sequence_id, step_order):
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT * FROM sequence_steps WHERE sequence_id=%s AND step_order=%s",
+            (sequence_id, step_order)
+        ).fetchone()
+
+
+def advance_sequence_enrollment(enrollment_id, next_step, next_send_at=None, status="active"):
+    with get_conn() as conn:
+        conn.execute("""
+            UPDATE sequence_enrollments
+            SET current_step=%s, next_send_at=%s, status=%s
+            WHERE id=%s
+        """, (next_step, next_send_at, status, enrollment_id))
 
 
 def delete_contacts(platform=None, user_id=None):
