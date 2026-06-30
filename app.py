@@ -2587,7 +2587,8 @@ def api_settings_check():
     # Higgsfield is connected if: (a) env var token set, OR (b) user has OAuth'd via Accounts page
     global_tok = config.HIGGSFIELD_MCP_TOKEN or ""
     # Strip accidental URL entries (user pasted the MCP URL instead of a token)
-    if global_tok.startswith("http://") or global_tok.startswith("https://"):
+    higgsville_url_as_token = global_tok.startswith("http://") or global_tok.startswith("https://")
+    if higgsville_url_as_token:
         global_tok = ""
 
     user_hf_connected = False
@@ -2614,6 +2615,7 @@ def api_settings_check():
         "elevenlabs":       bool(getattr(config, "ELEVENLABS_API_KEY", "")),
         "google_flow":      bool(config.GOOGLE_API_KEY),
         "higgsville":       higgsville_ok,
+        "higgsville_url_as_token": higgsville_url_as_token,
         "youtube":          bool(config.YOUTUBE_CLIENT_ID) or "youtube" in user_platforms,
         "tiktok":           bool(config.TIKTOK_CLIENT_KEY) or "tiktok" in user_platforms,
         "instagram":        bool(config.INSTAGRAM_ACCESS_TOKEN) or "instagram" in user_platforms,
