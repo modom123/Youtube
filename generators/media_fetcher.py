@@ -259,7 +259,31 @@ def fetch_person_images(name: str, output_dir: Path, count: int = 4) -> list[Pat
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
+# Sports/slang acronyms and abbreviations that collide with literal English words
+# or are meaningless to a stock-footage search engine — these get matched literally
+# (e.g. "GOAT" → real farm goats) and have produced wrong/embarrassing footage.
+# This is a hard backstop independent of the LLM curator, since per-section script
+# text doesn't always restate a player's name (e.g. "Who is the GOAT of the NBA?",
+# "Who has the most Finals MVPs?") for the curator to extract.
+_AMBIGUOUS_TERMS = {
+    "goat", "goats", "mvp", "mvps", "ring", "rings", "champ", "champs",
+}
+
+
+def _sanitize_keywords(keywords: list[str]) -> list[str]:
+    """Strip ambiguous slang/acronym tokens from a keyword list before searching."""
+    cleaned = []
+    for kw in keywords:
+        words = [w for w in kw.split() if w.lower().strip(".,!?") not in _AMBIGUOUS_TERMS]
+        if words:
+            cleaned.append(" ".join(words))
+    return cleaned
+
+
 def _build_queries(keywords: list[str]) -> list[str]:
+    keywords = _sanitize_keywords(keywords)
+    if not keywords:
+        keywords = ["sports arena crowd"]
     queries = []
     if keywords:
         queries.append(" ".join(keywords[:3]))
