@@ -211,6 +211,8 @@ class _UserObj:
     def stripe_subscription_id(self): return self._d.get("stripe_subscription_id")
     @property
     def is_admin(self): return bool(self._d.get("is_admin"))
+    @property
+    def assistant_enabled(self): return self._d.get("assistant_enabled") != 0
 
     def refresh(self):
         self._d = db.get_user_by_id(self._d["id"])

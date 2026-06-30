@@ -1,7 +1,7 @@
 """
-Hermes — in-app onboarding assistant.
+My Assistant — in-app onboarding assistant.
 
-A chat widget available on every Command Center page. Hermes answers
+A chat widget available on every Command Center page. It answers
 account/setup questions and can take action directly via tool-calling
 against this app's own routes (connect a platform, check status, etc.)
 instead of trying to puppet third-party dashboards.
@@ -165,7 +165,7 @@ def _tool_request_external_fix(task: str) -> dict:
         "task": task,
         "instructions": (
             "This needs to happen on an external dashboard, so I can't do it "
-            "from inside Social Optimize. Run Hermes Companion on your own "
+            "from inside Social Optimize. Run My Assistant Companion on your own "
             "computer — it drives your own already-logged-in Chrome, never "
             "our servers. Steps:\n"
             "1. Close Chrome, then reopen it with remote debugging enabled "
@@ -203,7 +203,7 @@ _TOOL_IMPLS = {
 }
 
 
-_SYSTEM_PROMPT = """You are Hermes, the onboarding assistant inside Social Optimize (a social media \
+_SYSTEM_PROMPT = """You are My Assistant, the onboarding assistant inside Social Optimize (a social media \
 automation platform). You help users who are stuck during signup or setup — connecting \
 social accounts, understanding their plan, or diagnosing failed jobs.
 
@@ -277,10 +277,12 @@ def hermes_chat():
     user_message = (data.get("message") or "").strip()
     history = data.get("history") or []
 
+    if not getattr(current_user, "assistant_enabled", True):
+        return jsonify({"error": "My Assistant is turned off — enable it in Settings."}), 403
     if not user_message:
         return jsonify({"error": "message is required"}), 400
     if not config.ANTHROPIC_API_KEY:
-        return jsonify({"error": "Hermes is not configured yet — missing API key."}), 503
+        return jsonify({"error": "My Assistant is not configured yet — missing API key."}), 503
 
     messages = []
     for turn in history[-10:]:

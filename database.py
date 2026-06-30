@@ -127,9 +127,11 @@ def init_db():
             subscription_channel    TEXT DEFAULT 'stripe',
             subscription_external_id TEXT DEFAULT '',
             referred_by             TEXT DEFAULT '',
+            assistant_enabled       INTEGER DEFAULT 1,
             created_at              TIMESTAMP DEFAULT NOW()
         )
         """)
+        conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_enabled INTEGER DEFAULT 1")
         conn.execute("""
         CREATE TABLE IF NOT EXISTS social_accounts (
             id          SERIAL PRIMARY KEY,

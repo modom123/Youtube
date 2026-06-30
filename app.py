@@ -2335,6 +2335,8 @@ def api_update_settings():
         updates["notify_email"] = 1 if data["notify_email"] else 0
     if "webhook_url" in data:
         updates["webhook_url"] = (data["webhook_url"] or "").strip()
+    if "assistant_enabled" in data:
+        updates["assistant_enabled"] = 1 if data["assistant_enabled"] else 0
     if updates:
         db.update_user(current_user.id, **updates)
     return jsonify({"status": "saved"})

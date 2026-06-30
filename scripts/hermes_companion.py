@@ -1,11 +1,11 @@
 """
-Hermes Companion — local browser-automation runner for arbitrary tasks.
+My Assistant Companion — local browser-automation runner for arbitrary tasks.
 
 Runs on YOUR machine, drives YOUR already-logged-in Chrome via the Chrome
 DevTools Protocol. Nothing here ever sends your dashboard sessions or
 credentials to the Social Optimize server — the task instructions come
-from Hermes (in-app chat), but the browser, the login state, and the
-Anthropic API call all stay local.
+from My Assistant (in-app chat), but the browser, the login state, and
+the Anthropic API call all stay local.
 
 STEP 1 — Launch Chrome with remote debugging (close Chrome first):
 
@@ -79,7 +79,7 @@ async def run_task(task: str) -> str:
     browser = Browser(config=BrowserConfig(cdp_url=CDP_URL))
 
     print("=" * 60)
-    print("  HERMES COMPANION")
+    print("  MY ASSISTANT COMPANION")
     print(f"  Task: {task[:200]}{'...' if len(task) > 200 else ''}")
     print("=" * 60)
 
