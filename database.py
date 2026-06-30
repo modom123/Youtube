@@ -587,6 +587,21 @@ def init_db():
             created_at   TIMESTAMP DEFAULT NOW()
         )
         """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS automation_settings (
+            id                   SERIAL PRIMARY KEY,
+            platform             TEXT UNIQUE NOT NULL,
+            auto_reply_comments  INTEGER DEFAULT 0,
+            auto_reply_dms       INTEGER DEFAULT 0,
+            follow_back          INTEGER DEFAULT 0,
+            reply_template       TEXT DEFAULT 'Thanks for watching! 🙌',
+            known_follower_ids   TEXT DEFAULT '[]',
+            last_comment_check   TIMESTAMP,
+            last_dm_check        TIMESTAMP,
+            last_follower_check  TIMESTAMP,
+            updated_at           TIMESTAMP DEFAULT NOW()
+        )
+        """)
 
         # Agency / BizDev tables
         conn.execute("""
@@ -2156,6 +2171,37 @@ def get_engagement_targets(user_id, campaign_id, engaged=None, limit=None):
 def mark_target_engaged(target_id):
     with get_conn() as conn:
         conn.execute("UPDATE engagement_targets SET engaged=1, engaged_at=NOW() WHERE id=%s", (target_id,))
+
+
+# ── Automation Settings (official-API auto-reply / follow-back) ─────────────
+
+def get_automation_settings(platform):
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM automation_settings WHERE platform=%s", (platform,)).fetchone()
+    return dict(row) if row else None
+
+
+def get_all_automation_settings():
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM automation_settings ORDER BY platform").fetchall()
+    return [dict(r) for r in rows]
+
+
+def upsert_automation_settings(platform, **fields):
+    with get_conn() as conn:
+        existing = conn.execute("SELECT id FROM automation_settings WHERE platform=%s", (platform,)).fetchone()
+        if existing:
+            if fields:
+                sets = ", ".join(f"{k}=%s" for k in fields)
+                conn.execute(f"UPDATE automation_settings SET {sets}, updated_at=NOW() WHERE platform=%s",
+                             list(fields.values()) + [platform])
+            return existing["id"]
+        cols = ["platform"] + list(fields.keys())
+        placeholders = ", ".join(["%s"] * len(cols))
+        cur = conn.execute(
+            f"INSERT INTO automation_settings ({', '.join(cols)}) VALUES ({placeholders}) RETURNING id",
+            [platform] + list(fields.values()))
+        return cur.fetchone()["id"]
 
 
 # ── Engagement Stats ─────────────────────────────────────────────────────────

@@ -250,6 +250,20 @@
 </div>
 {% endif %}
 
+<!-- Engagement Automation -->
+<div class="section-header mb-16 mt-24">
+  <div class="section-title">Engagement <span class="accent">Automation</span></div>
+  <span class="text-dim text-sm">Acts only on your own connected accounts via official APIs</span>
+</div>
+<div class="card mb-24">
+  <div class="text-dim text-sm mb-16">
+    Auto-reply to comments on your own posts, auto-reply to inbound DMs, and follow back
+    new followers — all through each platform's official, already-authorized API. No
+    bot-driven engagement on other people's content, ever.
+  </div>
+  <div id="automationPlatforms" class="text-dim text-sm">Loading…</div>
+</div>
+
 {% if is_admin %}
 <!-- Setup Wizard Modal (admin only) -->
 <div class="modal-overlay" id="setupModal" style="display:none;" onclick="closeModalOutside(event,'setupModal')">
@@ -614,5 +628,75 @@ async function disconnectAccount(id) {
 const params = new URLSearchParams(location.search);
 if (params.get('connected')) showToast(params.get('connected') + ' connected!', 'success');
 if (params.get('error')) showToast('Connection failed: ' + params.get('error'), 'error');
+
+const CAP_LABELS = {
+  auto_reply_comments: '💬 Auto-reply to comments',
+  auto_reply_dms: '✉️ Auto-reply to DMs',
+  follow_back: '🤝 Follow back new followers',
+};
+
+async function loadAutomationPlatforms() {
+  const box = document.getElementById('automationPlatforms');
+  try {
+    const resp = await fetch('/api/automation/engagement');
+    const platforms = await resp.json();
+    if (!platforms.length) { box.innerHTML = 'No platforms available.'; return; }
+    box.innerHTML = platforms.map(p => {
+      const icon = {'youtube':'▶️','twitter':'𝕏','tiktok':'🎵','linkedin':'💼','threads':'🧵','instagram':'📸','facebook':'👍'}[p.platform] || '🔗';
+      if (!p.supported_capabilities.length) {
+        return `<div class="account-card" style="opacity:.6;">
+          <div class="account-name">${icon} ${p.platform}</div>
+          <div class="text-xs text-dim mt-4">Not supported: ${p.unsupported_reason || "platform API doesn't expose this"}</div>
+        </div>`;
+      }
+      if (!p.connected) {
+        return `<div class="account-card" style="opacity:.7;">
+          <div class="account-name">${icon} ${p.platform}</div>
+          <div class="text-xs text-dim mt-4">Connect this account above to enable automation.</div>
+        </div>`;
+      }
+      const toggles = p.supported_capabilities.map(cap => `
+        <div class="flex-between mt-8">
+          <span class="text-sm">${CAP_LABELS[cap] || cap}</span>
+          <button class="btn btn-sm ${p[cap] ? 'btn-primary' : 'btn-ghost'}"
+            onclick="toggleEngagementAutomation('${p.platform}','${cap}',${!p[cap]})">
+            ${p[cap] ? 'On' : 'Off'}
+          </button>
+        </div>`).join('');
+      return `<div class="account-card">
+        <div class="account-name">${icon} ${p.platform}</div>
+        ${toggles}
+        <button class="btn btn-ghost btn-sm mt-12" onclick="runEngagementAutomationNow('${p.platform}')">Run now</button>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    box.innerHTML = 'Failed to load automation settings.';
+  }
+}
+
+async function toggleEngagementAutomation(platform, cap, enabled) {
+  const resp = await fetch(`/api/automation/engagement/${platform}`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ [cap]: enabled }),
+  });
+  if (resp.ok) {
+    showToast(`${cap.replace(/_/g,' ')} ${enabled ? 'enabled' : 'disabled'} for ${platform}`, 'success');
+    loadAutomationPlatforms();
+  } else {
+    showToast('Failed to update automation', 'error');
+  }
+}
+
+async function runEngagementAutomationNow(platform) {
+  const resp = await fetch(`/api/automation/engagement/${platform}/run`, { method: 'POST' });
+  const data = await resp.json();
+  if (resp.ok) {
+    showToast(`Ran ${platform} automation: ${JSON.stringify(data.results)}`, 'success');
+  } else {
+    showToast(data.error || 'Run failed', 'error');
+  }
+}
+
+loadAutomationPlatforms();
 </script>
 {% endblock %}

@@ -1221,6 +1221,74 @@ def api_delete_account(acc_id):
     return jsonify({"status": "deleted"})
 
 
+@app.route("/api/automation/engagement", methods=["GET"])
+@login_required
+def api_automation_engagement_list():
+    from generators.engagement_automation import RUNNERS, UNSUPPORTED
+    settings_by_platform = {s["platform"]: s for s in db.get_all_automation_settings()}
+    connected = {a["platform"] for a in db.get_accounts(user_id=current_user.id) if a.get("access_token")}
+    out = []
+    for platform in sorted(set(RUNNERS) | set(UNSUPPORTED)):
+        s = settings_by_platform.get(platform, {})
+        out.append({
+            "platform": platform,
+            "connected": platform in connected,
+            "supported_capabilities": list(RUNNERS.get(platform, {}).keys()),
+            "unsupported_reason": UNSUPPORTED.get(platform),
+            "auto_reply_comments": bool(s.get("auto_reply_comments")),
+            "auto_reply_dms": bool(s.get("auto_reply_dms")),
+            "follow_back": bool(s.get("follow_back")),
+            "reply_template": s.get("reply_template") or "",
+        })
+    return jsonify(out)
+
+
+@app.route("/api/automation/engagement/<platform>", methods=["POST"])
+@login_required
+def api_automation_engagement_update(platform):
+    from generators.engagement_automation import RUNNERS
+    platform = platform.lower()
+    if platform not in RUNNERS:
+        return jsonify({"error": "platform not supported for automation"}), 400
+    data = request.json or {}
+    fields = {}
+    for key in ("auto_reply_comments", "auto_reply_dms", "follow_back"):
+        if key in data:
+            if key not in RUNNERS[platform]:
+                return jsonify({"error": f"{key} not supported on {platform}"}), 400
+            fields[key] = 1 if data[key] else 0
+    if "reply_template" in data:
+        fields["reply_template"] = (data["reply_template"] or "").strip()[:500]
+    if not fields:
+        return jsonify({"error": "no fields to update"}), 400
+    db.upsert_automation_settings(platform, **fields)
+    return jsonify({"status": "updated"})
+
+
+@app.route("/api/automation/engagement/<platform>/run", methods=["POST"])
+@login_required
+def api_automation_engagement_run(platform):
+    from generators import engagement_automation
+    platform = platform.lower()
+    runners = engagement_automation.RUNNERS.get(platform)
+    if not runners:
+        return jsonify({"error": "platform not supported for automation"}), 400
+    account = next((a for a in db.get_accounts(user_id=current_user.id)
+                     if a["platform"] == platform and a.get("access_token")), None)
+    if not account:
+        return jsonify({"error": "account not connected"}), 400
+    settings = db.get_automation_settings(platform) or {}
+    results = {}
+    for capability, runner in runners.items():
+        if not settings.get(capability):
+            continue
+        try:
+            results[capability] = runner(account, settings)
+        except Exception as e:
+            results[capability] = f"error: {e}"
+    return jsonify({"status": "ran", "results": results})
+
+
 @app.route("/oauth/youtube/start")
 def oauth_youtube_start():
     if not config.YOUTUBE_CLIENT_ID:
@@ -1492,7 +1560,7 @@ def oauth_twitter_start():
         "response_type": "code",
         "client_id": config.TWITTER_CLIENT_ID,
         "redirect_uri": config.TWITTER_REDIRECT_URI,
-        "scope": "tweet.read tweet.write users.read offline.access media.write",
+        "scope": "tweet.read tweet.write users.read follows.read follows.write dm.read dm.write offline.access media.write",
         "state": secrets.token_hex(16),
         "code_challenge": challenge,
         "code_challenge_method": "S256",
@@ -5215,6 +5283,18 @@ def _memory_eviction_thread():
             pass
 
 
+def _engagement_automation_thread():
+    """Run enabled own-account engagement automations (comment reply, DM reply,
+    follow-back) every 5 minutes via each platform's official API."""
+    while True:
+        time.sleep(300)
+        try:
+            from generators import engagement_automation
+            engagement_automation.run_all_active_automations()
+        except Exception:
+            pass
+
+
 def start_background_threads():
     global _bg_threads_started
     with _bg_threads_lock:
@@ -5229,6 +5309,8 @@ def start_background_threads():
     t3.start()
     t4 = threading.Thread(target=_sequence_runner_thread, daemon=True, name="sequence_runner")
     t4.start()
+    t5 = threading.Thread(target=_engagement_automation_thread, daemon=True, name="engagement_automation")
+    t5.start()
 
 
 # ── RSS Feeds ────────────────────────────────────────────────────────────────
