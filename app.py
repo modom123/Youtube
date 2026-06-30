@@ -4399,9 +4399,21 @@ def _run_commercial_thread(job_id: str, params: dict, user_id: int):
 
     def step(msg, pct):
         _push_commercial(job_id, {"status": "running", "step": msg, "progress": pct})
+        try:
+            db.update_job(db_job_id, status="running", progress=pct, current_step=msg)
+        except Exception:
+            pass
+
+    db_job_id = db.create_job(
+        topic=params.get("brand") or "Commercial", format="commercial",
+        platforms=params.get("platforms") or [], audience=params.get("audience") or "general consumers",
+        voice=params.get("voice"), style=params.get("style") or "energetic",
+        privacy="private", user_id=user_id,
+    )
 
     try:
         if not config.ANTHROPIC_API_KEY:
+            db.update_job(db_job_id, status="error", error_msg="Anthropic API key not configured.")
             _push_commercial(job_id, {"status": "error", "error": "Anthropic API key not configured. Set ANTHROPIC_API_KEY in Render environment variables.", "progress": 0})
             return
 
@@ -4534,7 +4546,11 @@ SCRIPT_SECTIONS:
         step("Adding voiceover...", 80)
 
         # ── Step 6: Generate voiceover ────────────────────────────────────────
-        final_video = str(clips[0]) if clips else None
+        if not clips:
+            raise RuntimeError(
+                "Video generation failed — the AI video provider didn't return a usable clip. Please try again."
+            )
+        final_video = str(clips[0])
         audio_path = None
 
         if voiceover_text:
@@ -4559,6 +4575,11 @@ SCRIPT_SECTIONS:
 
         db.increment_videos_used(user_id)
 
+        db.update_job(db_job_id, status="done", progress=100, current_step="Commercial ready!",
+                      title=brand, video_path=final_video, audio_path=audio_path,
+                      script_path=str(out_dir / "manifest.json"),
+                      completed_at=datetime.utcnow())
+
         # Extract hooks/CTAs from ad copy variants for display
         hooks = [v.headline for v in ad_copy.variants[:3]]
         ctas = [v.cta for v in ad_copy.variants[:3]]
@@ -4572,6 +4593,7 @@ SCRIPT_SECTIONS:
             "video_path": final_video,
             "audio_path": audio_path,
             "media_description": media_description,
+            "job_id": db_job_id,
             "strategy": {
                 "usp": ad_copy.variants[0].headline if ad_copy.variants else brand,
                 "target": audience,
@@ -4584,6 +4606,10 @@ SCRIPT_SECTIONS:
     except Exception as e:
         import traceback
         traceback.print_exc()
+        try:
+            db.update_job(db_job_id, status="error", error_msg=str(e))
+        except Exception:
+            pass
         _push_commercial(job_id, {"status": "error", "error": str(e), "progress": 0})
 
 
