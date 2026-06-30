@@ -378,6 +378,7 @@
           <div style="font-size:20px;font-weight:800;margin-bottom:8px;" id="r-title"></div>
           <div style="font-size:13px;color:var(--muted);margin-bottom:12px;" id="r-hook"></div>
           <div class="badge-row" id="r-badges"></div>
+          <a href="#" id="r-view-job" target="_blank" class="btn btn-ghost btn-sm" style="display:none;margin-top:12px;">View Job ↗</a>
         </div>
 
         <div class="metric-grid" style="margin-top:16px;" id="r-metrics"></div>
@@ -536,13 +537,23 @@ function addLog(msg, cls) {
   box.scrollTop = box.scrollHeight;
 }
 
-function renderResult(result) {
+function renderResult(result, dbJobId) {
   const bp = result.blueprint || {};
   const seo = result.seo || {};
   const ap = result.asset_plan || {};
 
   document.getElementById('r-title').textContent = bp.title || '—';
   document.getElementById('r-hook').textContent = bp.hook || '';
+
+  const viewLink = document.getElementById('r-view-job');
+  if (viewLink) {
+    if (dbJobId) {
+      viewLink.href = '/jobs/' + dbJobId;
+      viewLink.style.display = '';
+    } else {
+      viewLink.style.display = 'none';
+    }
+  }
 
   const badges = document.getElementById('r-badges');
   badges.innerHTML = '';
@@ -708,7 +719,7 @@ function listenStudio(jobId) {
       document.getElementById('studioRunBtn').disabled = false;
       document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
       addLog('✓ Pipeline complete!', 'success');
-      if (msg.result) renderResult(msg.result);
+      if (msg.result) renderResult(msg.result, msg.db_job_id);
     } else if (msg.status === 'error') {
       studioES.close();
       document.getElementById('studioRunBtn').disabled = false;
@@ -737,7 +748,7 @@ function pollStatus(jobId) {
       if (data.status === 'done') {
         document.getElementById('studioRunBtn').disabled = false;
         document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
-        if (data.result) renderResult(data.result);
+        if (data.result) renderResult(data.result, data.db_job_id);
       } else if (data.status === 'error') {
         document.getElementById('studioRunBtn').disabled = false;
         document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
