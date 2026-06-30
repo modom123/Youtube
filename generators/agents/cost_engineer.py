@@ -64,7 +64,7 @@ class CostEngineer(BaseAgent):
             complexity = self._classify_complexity(a)
             a.visual_complexity = complexity
 
-            if a.source == "free_pixabay_api" or a.source == "free_stock_internal":
+            if a.source == "free_pixabay_api" or a.source == "free_stock_internal" or a.source == "real_person_wikimedia":
                 a.credit_cost = 0
                 a.dollar_cost = 0.0
                 optimized.append(a)

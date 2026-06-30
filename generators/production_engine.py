@@ -282,6 +282,34 @@ class ProductionStudioEngine:
         # Group assets by source
         higgsfield_assets = [a for a in asset_plan.assets if a.source.startswith("higgsfield_")]
         pixabay_assets = [a for a in asset_plan.assets if a.source == "free_pixabay_api"]
+        person_assets = [a for a in asset_plan.assets if a.source == "real_person_wikimedia"]
+
+        # Real photos of named people via Wikimedia Commons (free, legally-clean)
+        person_image_clips: list[Path] = []
+        if person_assets:
+            self.cb(f"Asset Agent — sourcing real photos for {len(person_assets)} named people…", 67)
+            for pa in person_assets:
+                name = (pa.entity_name or "").strip()
+                if not name:
+                    continue
+                try:
+                    found = media_fetcher.fetch_person_images(name, output_dir=stock_dir, count=3)
+                    if found:
+                        person_image_clips.extend(found)
+                        continue
+                except Exception as e:
+                    errors.append(f"Wikimedia fetch failed for '{name}': {e}")
+                # No real photo found — fall back to the curator's generic query
+                try:
+                    fb_clips, fb_imgs = media_fetcher.fetch_media_for_topic(
+                        keywords=[pa.prompt.strip() or name],
+                        output_dir=stock_dir,
+                        video_count=1,
+                        is_portrait=is_portrait,
+                    )
+                    person_image_clips.extend(fb_imgs)
+                except Exception as e:
+                    errors.append(f"Stock fallback failed for '{name}': {e}")
 
         # Stock media from Pixabay
         pixabay_keywords = list({kw for a in pixabay_assets for kw in a.prompt.split()[:3]})
@@ -302,6 +330,8 @@ class ProductionStudioEngine:
             )
         except Exception as e:
             errors.append(f"Pixabay fetch failed: {e}")
+
+        image_clips = person_image_clips + image_clips
 
         # Higgsfield AI clips via MCP
         ai_clips: list[Path] = []

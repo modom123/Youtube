@@ -437,6 +437,35 @@ class HollywoodEngine:
 
         pixabay_assets = [a for a in asset_plan.assets if a.source == "free_pixabay_api"]
         higgsfield_assets = [a for a in asset_plan.assets if a.source.startswith("higgsfield_")]
+        person_assets = [a for a in asset_plan.assets if a.source == "real_person_wikimedia"]
+
+        # ── Step A0: Fetch real photos of named people via Wikimedia Commons ──
+        if person_assets:
+            self.cb(f"Asset Agent — sourcing real photos for {len(person_assets)} named people…", 58)
+            for pa in person_assets:
+                name = (pa.entity_name or "").strip()
+                if not name:
+                    continue
+                try:
+                    person_imgs = media_fetcher.fetch_person_images(name, output_dir=stock_dir, count=3)
+                    if person_imgs:
+                        all_image_clips.extend(person_imgs)
+                        continue
+                except Exception as e:
+                    errors.append(f"Wikimedia fetch failed for '{name}': {e}")
+                # No real photo found — fall back to the curator's generic query
+                query = pa.prompt.strip() or name
+                try:
+                    clips, imgs = media_fetcher.fetch_media_for_topic(
+                        keywords=[query],
+                        output_dir=stock_dir,
+                        video_count=1,
+                        is_portrait=is_portrait,
+                    )
+                    all_video_clips.extend(clips)
+                    all_image_clips.extend(imgs)
+                except Exception as e:
+                    errors.append(f"Stock fallback failed for '{name}': {e}")
 
         # ── Step A: Fetch Pixabay/Mixkit stock for real sports footage ────────
         if pixabay_assets:

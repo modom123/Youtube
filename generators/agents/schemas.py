@@ -48,13 +48,14 @@ class FullScript(BaseModel):
 
 # ── Agent 3: Asset Curator output ───────────────────────────────────────────
 
-AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pixabay_api", "free_stock_internal", "chinese_open_source_api"]
+AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pixabay_api", "free_stock_internal", "chinese_open_source_api", "real_person_wikimedia"]
 
 class AssetSpec(BaseModel):
     section_id: int
     asset_type: Literal["video_clip", "image", "animation"]
     source: AssetSource
-    prompt: str = Field(description="Generation prompt or Pexels search query")
+    prompt: str = Field(description="Generation prompt or Pexels search query (also used as fallback search if entity_name yields no real photo)")
+    entity_name: Optional[str] = Field(None, description="Full proper name of the real, named person this section is about (e.g. 'Patrick Ewing'), set ONLY when source=real_person_wikimedia. Never an acronym or slang term like 'GOAT' or 'MVP'.")
     model_key: Optional[str] = Field(None, description="Higgsfield model key if source=higgsfield_*")
     duration_seconds: Optional[int] = None
     aspect_ratio: Literal["16:9", "9:16", "1:1"] = "16:9"

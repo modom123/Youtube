@@ -169,6 +169,94 @@ def _mixkit_fetch_videos(keywords: list[str], count: int, output_dir: Path) -> l
     return paths
 
 
+# ── Wikimedia Commons (real, named people — free, no API key, no licensing risk) ──
+
+WIKIMEDIA_API_URL = "https://commons.wikimedia.org/w/api.php"
+
+
+def _wikimedia_search_person_images(name: str, count: int = 6) -> list[dict]:
+    """Search Wikimedia Commons for real photos of a named public figure.
+
+    Commons hosts only public-domain / CC-licensed media, so anything returned
+    here is legally safe to use — unlike pulling broadcast (ESPN/TNT/CBS) footage,
+    which is copyrighted and NOT available through this or any consumer API.
+    """
+    params = {
+        "action": "query",
+        "format": "json",
+        "generator": "search",
+        "gsrsearch": f'{name} filetype:bitmap',
+        "gsrnamespace": 6,  # File: namespace
+        "gsrlimit": count * 2,
+        "prop": "imageinfo",
+        "iiprop": "url|extmetadata|size",
+        "iiurlwidth": 1280,
+    }
+    resp = requests.get(WIKIMEDIA_API_URL, params=params, timeout=15,
+                         headers={"User-Agent": "SocialOptimizeBot/1.0 (video production asset search)"})
+    resp.raise_for_status()
+    pages = resp.json().get("query", {}).get("pages", {})
+    hits = []
+    for page in pages.values():
+        infos = page.get("imageinfo") or []
+        if not infos:
+            continue
+        info = infos[0]
+        url = info.get("thumburl") or info.get("url")
+        width = info.get("thumbwidth") or info.get("width") or 0
+        if not url or width < 400:
+            continue
+        hits.append({"title": page.get("title", ""), "url": url})
+    random.shuffle(hits)
+    return hits[:count]
+
+
+def _wikimedia_download_image(hit: dict, output_dir: Path) -> Optional[Path]:
+    url = hit.get("url")
+    if not url:
+        return None
+    output_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = "".join(c if c.isalnum() else "_" for c in hit.get("title", "wikimedia"))[:80]
+    filename = output_dir / f"wikimedia_{safe_name}.jpg"
+    if filename.exists():
+        return filename
+    resp = requests.get(url, stream=True, timeout=30,
+                         headers={"User-Agent": "SocialOptimizeBot/1.0"})
+    resp.raise_for_status()
+    with open(filename, "wb") as f:
+        for chunk in resp.iter_content(chunk_size=8192):
+            f.write(chunk)
+    if filename.stat().st_size < 1000:
+        filename.unlink(missing_ok=True)
+        return None
+    return filename
+
+
+def fetch_person_images(name: str, output_dir: Path, count: int = 4) -> list[Path]:
+    """Fetch real, legally-clean photos of a named real person from Wikimedia Commons.
+
+    Returns an empty list if no usable photos are found (caller should fall back
+    to generic stock — there is no API for licensed broadcast/ESPN/TNT/CBS footage).
+    """
+    name = (name or "").strip()
+    if not name:
+        return []
+    paths: list[Path] = []
+    try:
+        hits = _wikimedia_search_person_images(name, count=count)
+        print(f"[media] Wikimedia Commons for '{name}': {len(hits)} results")
+        for hit in hits:
+            try:
+                path = _wikimedia_download_image(hit, output_dir / "person_photos")
+                if path:
+                    paths.append(path)
+            except Exception as e:
+                print(f"[media] Wikimedia download failed for '{name}': {e}")
+    except Exception as e:
+        print(f"[media] Wikimedia search failed for '{name}': {e}")
+    return paths
+
+
 # ── Public API ───────────────────────────────────────────────────────────────
 
 def _build_queries(keywords: list[str]) -> list[str]:
