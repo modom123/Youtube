@@ -247,8 +247,8 @@ DEEPSEEK_API_KEY  = os.getenv("DEEPSEEK_API_KEY", "")
 QWEN_API_KEY      = os.getenv("QWEN_API_KEY", "")       # Alibaba DashScope
 GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")       # Groq (Llama 3.3 70B) — free tier
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "") # OpenRouter — free models available
-PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY", "")
-PEXELS_API_KEY = ""  # Removed — use Pixabay instead
+PIXABAY_API_KEY = ""  # Disabled — Pixabay's API terms prohibit automated/AI-pipeline use
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 
 # Google Flow / Veo 2
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")

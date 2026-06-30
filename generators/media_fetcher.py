@@ -1,4 +1,9 @@
-"""Fetch stock video clips and images — Pixabay primary, Mixkit fallback."""
+"""Fetch stock video clips and images — Pexels primary, Mixkit fallback.
+
+Note: Pixabay's API terms prohibit use in automated/AI content-generation
+pipelines (per their licensing team, 2026-06-29). Pexels' API terms permit
+this kind of automated, programmatic use, so it replaces Pixabay here.
+"""
 import random
 from pathlib import Path
 from typing import Optional
@@ -6,55 +11,57 @@ import requests
 import config
 
 
-# ── Pixabay ──────────────────────────────────────────────────────────────────
+# ── Pexels ───────────────────────────────────────────────────────────────────
 
-PIXABAY_VIDEOS_URL = "https://pixabay.com/api/videos/"
-PIXABAY_PHOTOS_URL = "https://pixabay.com/api/"
+PEXELS_VIDEOS_URL = "https://api.pexels.com/videos/search"
+PEXELS_PHOTOS_URL = "https://api.pexels.com/v1/search"
 
 
-def _pixabay_search_videos(query: str, count: int = 8, orientation: str = "horizontal") -> list[dict]:
+def _pexels_headers() -> dict:
+    return {"Authorization": config.PEXELS_API_KEY}
+
+
+def _pexels_search_videos(query: str, count: int = 8, orientation: str = "landscape") -> list[dict]:
     params = {
-        "key": config.PIXABAY_API_KEY,
-        "q": query,
+        "query": query,
         "per_page": min(count * 2, 20),
-        "video_type": "film",
-        "safesearch": "true",
-    }
-    resp = requests.get(PIXABAY_VIDEOS_URL, params=params, timeout=15)
-    resp.raise_for_status()
-    hits = resp.json().get("hits", [])
-    random.shuffle(hits)
-    return hits[:count]
-
-
-def _pixabay_search_images(query: str, count: int = 10, orientation: str = "horizontal") -> list[dict]:
-    params = {
-        "key": config.PIXABAY_API_KEY,
-        "q": query,
-        "per_page": min(count * 2, 30),
-        "image_type": "photo",
         "orientation": orientation,
-        "safesearch": "true",
     }
-    resp = requests.get(PIXABAY_PHOTOS_URL, params=params, timeout=15)
+    resp = requests.get(PEXELS_VIDEOS_URL, params=params, headers=_pexels_headers(), timeout=15)
     resp.raise_for_status()
-    hits = resp.json().get("hits", [])
+    hits = resp.json().get("videos", [])
     random.shuffle(hits)
     return hits[:count]
 
 
-def _pixabay_download_video(video: dict, output_dir: Path) -> Optional[Path]:
-    videos = video.get("videos", {})
-    for quality in ["medium", "small", "large"]:
-        v = videos.get(quality, {})
-        url = v.get("url")
-        if url:
+def _pexels_search_images(query: str, count: int = 10, orientation: str = "landscape") -> list[dict]:
+    params = {
+        "query": query,
+        "per_page": min(count * 2, 30),
+        "orientation": orientation,
+    }
+    resp = requests.get(PEXELS_PHOTOS_URL, params=params, headers=_pexels_headers(), timeout=15)
+    resp.raise_for_status()
+    hits = resp.json().get("photos", [])
+    random.shuffle(hits)
+    return hits[:count]
+
+
+def _pexels_download_video(video: dict, output_dir: Path) -> Optional[Path]:
+    files = sorted(video.get("video_files", []), key=lambda f: f.get("width") or 0)
+    url = None
+    for f in files:
+        w = f.get("width") or 0
+        if 480 <= w <= 1280:
+            url = f.get("link")
             break
-    else:
+    if not url and files:
+        url = files[0].get("link")
+    if not url:
         return None
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    filename = output_dir / f"pixabay_{video.get('id', 0)}.mp4"
+    filename = output_dir / f"pexels_{video.get('id', 0)}.mp4"
     if filename.exists():
         return filename
 
@@ -69,13 +76,14 @@ def _pixabay_download_video(video: dict, output_dir: Path) -> Optional[Path]:
     return filename
 
 
-def _pixabay_download_image(photo: dict, output_dir: Path) -> Optional[Path]:
-    url = photo.get("largeImageURL") or photo.get("webformatURL")
+def _pexels_download_image(photo: dict, output_dir: Path) -> Optional[Path]:
+    src = photo.get("src", {})
+    url = src.get("large") or src.get("medium") or src.get("original")
     if not url:
         return None
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    filename = output_dir / f"pixabay_{photo.get('id', 0)}.jpg"
+    filename = output_dir / f"pexels_{photo.get('id', 0)}.jpg"
     if filename.exists():
         return filename
 
@@ -179,48 +187,48 @@ def fetch_media_for_topic(
     video_count: int = 5,
     is_portrait: bool = False,
 ) -> tuple[list[Path], list[Path]]:
-    """Fetch a mix of videos and images. Pixabay primary, Mixkit fallback (no API key needed)."""
-    orientation = "vertical" if is_portrait else "horizontal"
+    """Fetch a mix of videos and images. Pexels primary, Mixkit fallback (no API key needed)."""
+    orientation = "portrait" if is_portrait else "landscape"
     queries = _build_queries(keywords)
 
     video_paths: list[Path] = []
     image_paths: list[Path] = []
 
-    # ── Pixabay (primary) ──
-    if config.PIXABAY_API_KEY:
-        print(f"[media] Trying Pixabay with queries: {queries}")
+    # ── Pexels (primary) ──
+    if config.PEXELS_API_KEY:
+        print(f"[media] Trying Pexels with queries: {queries}")
         for query in queries:
             if len(video_paths) >= video_count and len(image_paths) >= 6:
                 break
             try:
-                videos = _pixabay_search_videos(query, count=video_count, orientation=orientation)
-                print(f"[media] Pixabay videos for '{query}': {len(videos)} results")
+                videos = _pexels_search_videos(query, count=video_count, orientation=orientation)
+                print(f"[media] Pexels videos for '{query}': {len(videos)} results")
                 for v in videos:
                     if len(video_paths) >= video_count:
                         break
                     try:
-                        path = _pixabay_download_video(v, output_dir / "stock_videos")
+                        path = _pexels_download_video(v, output_dir / "stock_videos")
                         if path:
                             video_paths.append(path)
                     except Exception as e:
-                        print(f"[media] Pixabay video download failed: {e}")
+                        print(f"[media] Pexels video download failed: {e}")
             except Exception as e:
-                print(f"[media] Pixabay video search failed for '{query}': {e}")
+                print(f"[media] Pexels video search failed for '{query}': {e}")
 
             try:
-                photos = _pixabay_search_images(query, count=8, orientation=orientation)
-                print(f"[media] Pixabay images for '{query}': {len(photos)} results")
+                photos = _pexels_search_images(query, count=8, orientation=orientation)
+                print(f"[media] Pexels images for '{query}': {len(photos)} results")
                 for p in photos:
                     if len(image_paths) >= 10:
                         break
                     try:
-                        path = _pixabay_download_image(p, output_dir / "stock_images")
+                        path = _pexels_download_image(p, output_dir / "stock_images")
                         if path:
                             image_paths.append(path)
                     except Exception as e:
-                        print(f"[media] Pixabay image download failed: {e}")
+                        print(f"[media] Pexels image download failed: {e}")
             except Exception as e:
-                print(f"[media] Pixabay image search failed for '{query}': {e}")
+                print(f"[media] Pexels image search failed for '{query}': {e}")
 
     # ── Mixkit fallback (no API key required) ──
     if len(video_paths) < video_count:
@@ -232,15 +240,15 @@ def fetch_media_for_topic(
         except Exception as e:
             print(f"[media] Mixkit fallback failed: {e}")
 
-    if not config.PIXABAY_API_KEY:
-        print("[media] No PIXABAY_API_KEY set — using Mixkit fallback only")
+    if not config.PEXELS_API_KEY:
+        print("[media] No PEXELS_API_KEY set — using Mixkit fallback only")
 
     print(f"[media] Final: {len(video_paths)} videos, {len(image_paths)} images")
     return video_paths, image_paths
 
 
 # Aliases for any code that imports these directly
-search_videos = _pixabay_search_videos
-search_images = _pixabay_search_images
-download_video = _pixabay_download_video
-download_image = _pixabay_download_image
+search_videos = _pexels_search_videos
+search_images = _pexels_search_images
+download_video = _pexels_download_video
+download_image = _pexels_download_image
