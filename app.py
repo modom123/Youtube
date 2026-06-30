@@ -1862,6 +1862,14 @@ def _get_user_higgsfield_token(user_id: int) -> str:
     return config.HIGGSFIELD_MCP_TOKEN  # global fallback
 
 
+# ── Madison Avenue (unified CRM: Contacts + Inbox + Engagement + Outreach) ─────
+
+@app.route("/madison-avenue")
+@login_required
+def madison_avenue_page():
+    return render_template("madison_avenue.html", active_page="madison_avenue")
+
+
 # ── Contacts ─────────────────────────────────────────────────────────────────
 
 @app.route("/contacts")
