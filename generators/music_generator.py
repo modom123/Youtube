@@ -323,63 +323,6 @@ def _try_replicate(
         return None
 
 
-def _transcode_to_mp3(src: Path, dest: Path) -> Optional[Path]:
-    """Re-encode whatever container/codec src actually is into a real MP3 at dest.
-    Saving a provider's raw bytes under a .mp3 extension without doing this can leave
-    a WAV (or other) stream mislabeled as MP3 — players that trust the extension then
-    misdecode the header, which can sound sped-up/garbled, and strict MP3 validators
-    (e.g. when importing into another app) reject the file outright."""
-    import subprocess
-    try:
-        result = subprocess.run(
-            ["ffmpeg", "-y", "-i", str(src), "-c:a", "libmp3lame", "-q:a", "2", str(dest)],
-            capture_output=True, timeout=120,
-        )
-        if result.returncode == 0 and dest.exists() and dest.stat().st_size > 1000:
-            return dest
-        log.warning("ffmpeg transcode to mp3 failed: %s", result.stderr.decode()[:200])
-    except Exception as exc:
-        log.warning("ffmpeg transcode to mp3 failed: %s", exc)
-    return None
-
-
-def _try_huggingface_musicgen(prompt: str, duration_seconds: int, job_dir: Path) -> Optional[str]:
-    """Generate instrumental music via HuggingFace free inference (no key required)."""
-    # Cap at 30s — musicgen-small max is ~30s of audio
-    max_tokens = min(int(duration_seconds * 51.2), 1500)
-    try:
-        r = requests.post(
-            "https://api-inference.huggingface.co/models/facebook/musicgen-small",
-            headers={"Content-Type": "application/json"},
-            json={
-                "inputs": prompt[:500],
-                "parameters": {"max_new_tokens": max_tokens},
-            },
-            timeout=180,
-        )
-        content_type = r.headers.get("content-type", "")
-        if r.status_code == 200 and ("audio" in content_type or len(r.content) > 50_000):
-            # The HF inference endpoint actually returns WAV bytes — save under the real
-            # extension first, then transcode to a genuine MP3 rather than just relabeling.
-            raw = job_dir / "song_musicgen_raw.wav"
-            raw.write_bytes(r.content)
-            if raw.stat().st_size > 10_000:
-                dest = job_dir / "song_musicgen.mp3"
-                mp3 = _transcode_to_mp3(raw, dest)
-                if mp3:
-                    log.info("HuggingFace MusicGen: saved %d bytes → %s", mp3.stat().st_size, mp3)
-                    return str(mp3)
-                log.warning("HuggingFace MusicGen: transcode failed, falling back to raw WAV")
-                return str(raw)
-        elif r.status_code == 503:
-            log.info("HuggingFace MusicGen: model loading (503) — skipping")
-        else:
-            log.warning("HuggingFace MusicGen: status %d — %s", r.status_code, r.text[:200])
-    except Exception as exc:
-        log.warning("HuggingFace MusicGen failed: %s", exc)
-    return None
-
-
 def _try_elevenlabs_tts(lyrics: str, job_dir: Path) -> Optional[str]:
     """Generate a vocal track from lyrics using ElevenLabs TTS."""
     key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
@@ -438,43 +381,13 @@ def _mix_vocal_instrumental(instrumental: str, vocal: str, job_dir: Path) -> str
     return instrumental  # fall back to instrumental only
 
 
-def _try_elevenlabs(
-    description: str,
-    duration_seconds: int,
-    job_dir: Path,
-) -> Optional[str]:
-    """Generate via ElevenLabs Sound Generation. Returns local file path or None."""
-    key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
-    if not key:
-        log.info("ElevenLabs: ELEVENLABS_API_KEY not set, skipping")
-        return None
-
-    try:
-        r = requests.post(
-            "https://api.elevenlabs.io/v1/sound-generation",
-            headers={"xi-api-key": key, "Content-Type": "application/json"},
-            json={
-                "text": description[:500],
-                "duration_seconds": min(duration_seconds, 30),
-                "prompt_influence": 0.3,
-            },
-            timeout=60,
-        )
-        r.raise_for_status()
-        dest = job_dir / "song_elevenlabs.mp3"
-        dest.write_bytes(r.content)
-        log.info("ElevenLabs: saved to %s", dest)
-        return str(dest)
-
-    except Exception as exc:
-        log.warning("ElevenLabs failed: %s", exc)
-        return None
-
-
 # ── Main Engine ────────────────────────────────────────────────────────────────
 
 class MusicEngine:
-    """Cascade of AI music providers: Mureka → ElevenLabs Music → Suno → Replicate → ElevenLabs."""
+    """Cascade of AI music providers: Mureka → ElevenLabs Music → Suno → Replicate.
+    No low-quality free fallback (HuggingFace MusicGen, ElevenLabs Sound Generation)
+    is used — those produced unusable output, so if none of the real providers
+    are configured the job fails with a clear error instead of garbage audio."""
 
     def generate(
         self,
@@ -579,27 +492,21 @@ class MusicEngine:
             audio_path = _try_replicate(prompt, duration_seconds, job_dir)
             provider = "Replicate MusicGen"
 
-        if not audio_path:
-            cb("Trying HuggingFace MusicGen (free)...", 58)
-            audio_path = _try_huggingface_musicgen(prompt, duration_seconds, job_dir)
-            provider = "HuggingFace MusicGen"
-
-        if not audio_path:
-            cb("Trying ElevenLabs Sound Generation...", 65)
-            audio_path = _try_elevenlabs(
-                f"{genre} music, {mood}, {bpm} BPM, {vocal_style} vocals",
-                duration_seconds,
-                job_dir,
-            )
-            provider = "ElevenLabs"
-
+        no_audio_warning = None
         if not audio_path:
             provider = "none"
             log.warning("All music providers failed — no audio generated")
+            no_audio_warning = (
+                "No music could be generated. None of Mureka (MUREKA_API_KEY), "
+                "ElevenLabs Music (ELEVENLABS_API_KEY), Suno (SUNO_COOKIE), or "
+                "Replicate (REPLICATE_API_TOKEN) are configured. Connect one in "
+                "Settings to generate real songs — low-quality free fallbacks have "
+                "been removed rather than producing unusable audio."
+            )
 
         # Mureka, ElevenLabs Music, and Suno actually sing the lyrics to a melody.
         sung_by_singing_provider = provider in ("Mureka", "ElevenLabs Music", "Suno AI") and vocal_style != "instrumental"
-        warning = None
+        warning = no_audio_warning
 
         # Add ElevenLabs TTS vocal layer and mix with instrumental.
         # Note: this is spoken text-to-speech laid over the instrumental, not real
@@ -618,7 +525,9 @@ class MusicEngine:
                     provider = "ElevenLabs Vocals (spoken, not sung)"
 
         has_vocals = sung_by_singing_provider or (lyrics and vocal_style != "instrumental" and "ElevenLabs Vocals" in provider)
-        if vocal_style != "instrumental" and not has_vocals:
+        if no_audio_warning:
+            pass
+        elif vocal_style != "instrumental" and not has_vocals:
             warning = (
                 "No vocals were added to this track. Real singing requires Mureka "
                 "(MUREKA_API_KEY), ElevenLabs Music (ELEVENLABS_API_KEY), or Suno "

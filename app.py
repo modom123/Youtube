@@ -2542,8 +2542,8 @@ def api_save_api_key():
     key = (data.get("key") or "").strip()
 
     ALLOWED = {
-        "ANTHROPIC_API_KEY", "PIXABAY_API_KEY", "GOOGLE_API_KEY",
-        "HIGGSFIELD_MCP_TOKEN", "ELEVENLABS_API_KEY", "PIXABAY_API_KEY",
+        "ANTHROPIC_API_KEY", "PEXELS_API_KEY", "GOOGLE_API_KEY",
+        "HIGGSFIELD_MCP_TOKEN", "ELEVENLABS_API_KEY",
     }
     if service not in ALLOWED:
         return jsonify({"error": "Unknown service"}), 400
@@ -2573,8 +2573,8 @@ def _load_platform_creds_from_db():
             setattr(config, key, val)
 
     api_keys = [
-        "ANTHROPIC_API_KEY", "PIXABAY_API_KEY", "GOOGLE_API_KEY",
-        "HIGGSFIELD_MCP_TOKEN", "ELEVENLABS_API_KEY", "PIXABAY_API_KEY",
+        "ANTHROPIC_API_KEY", "PEXELS_API_KEY", "GOOGLE_API_KEY",
+        "HIGGSFIELD_MCP_TOKEN", "ELEVENLABS_API_KEY",
     ]
     for key in api_keys:
         val = db.get_setting(f"apikey_{key}")
@@ -2610,7 +2610,7 @@ def api_settings_check():
     _ai_available = _avm()
     return jsonify({
         "anthropic":        bool(config.ANTHROPIC_API_KEY),
-        "pixabay":          bool(config.PIXABAY_API_KEY),
+        "pexels":           bool(config.PEXELS_API_KEY),
         "elevenlabs":       bool(getattr(config, "ELEVENLABS_API_KEY", "")),
         "google_flow":      bool(config.GOOGLE_API_KEY),
         "higgsville":       higgsville_ok,
