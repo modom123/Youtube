@@ -36,15 +36,31 @@ def _get_pool():
     return _pool
 
 
+def _checkout_live_conn(pool):
+    """Get a connection from the pool, discarding any the pooler has
+    silently killed server-side (psycopg2's .closed flag only reflects
+    local close() calls, not a dropped remote socket — so a cheap ping
+    is the only reliable way to detect those)."""
+    for _ in range(3):
+        conn = pool.getconn()
+        if conn.closed:
+            pool.putconn(conn, close=True)
+            continue
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            conn.commit()
+            return conn
+        except Exception:
+            pool.putconn(conn, close=True)
+    # Last resort: let the caller hit the real error.
+    return pool.getconn()
+
+
 @contextmanager
 def get_conn():
     pool = _get_pool()
-    conn = pool.getconn()
-    if conn.closed:
-        # Pooler (Supabase Supavisor) killed this connection while idle —
-        # discard it and get a fresh one instead of failing on a dead handle.
-        pool.putconn(conn, close=True)
-        conn = pool.getconn()
+    conn = _checkout_live_conn(pool)
     try:
         conn.autocommit = False
         yield _PgConn(conn)
