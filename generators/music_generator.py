@@ -221,6 +221,26 @@ def _try_replicate(
         return None
 
 
+def _transcode_to_mp3(src: Path, dest: Path) -> Optional[Path]:
+    """Re-encode whatever container/codec src actually is into a real MP3 at dest.
+    Saving a provider's raw bytes under a .mp3 extension without doing this can leave
+    a WAV (or other) stream mislabeled as MP3 — players that trust the extension then
+    misdecode the header, which can sound sped-up/garbled, and strict MP3 validators
+    (e.g. when importing into another app) reject the file outright."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", str(src), "-c:a", "libmp3lame", "-q:a", "2", str(dest)],
+            capture_output=True, timeout=120,
+        )
+        if result.returncode == 0 and dest.exists() and dest.stat().st_size > 1000:
+            return dest
+        log.warning("ffmpeg transcode to mp3 failed: %s", result.stderr.decode()[:200])
+    except Exception as exc:
+        log.warning("ffmpeg transcode to mp3 failed: %s", exc)
+    return None
+
+
 def _try_huggingface_musicgen(prompt: str, duration_seconds: int, job_dir: Path) -> Optional[str]:
     """Generate instrumental music via HuggingFace free inference (no key required)."""
     # Cap at 30s — musicgen-small max is ~30s of audio
@@ -237,11 +257,18 @@ def _try_huggingface_musicgen(prompt: str, duration_seconds: int, job_dir: Path)
         )
         content_type = r.headers.get("content-type", "")
         if r.status_code == 200 and ("audio" in content_type or len(r.content) > 50_000):
-            dest = job_dir / "song_musicgen.mp3"
-            dest.write_bytes(r.content)
-            if dest.stat().st_size > 10_000:
-                log.info("HuggingFace MusicGen: saved %d bytes → %s", dest.stat().st_size, dest)
-                return str(dest)
+            # The HF inference endpoint actually returns WAV bytes — save under the real
+            # extension first, then transcode to a genuine MP3 rather than just relabeling.
+            raw = job_dir / "song_musicgen_raw.wav"
+            raw.write_bytes(r.content)
+            if raw.stat().st_size > 10_000:
+                dest = job_dir / "song_musicgen.mp3"
+                mp3 = _transcode_to_mp3(raw, dest)
+                if mp3:
+                    log.info("HuggingFace MusicGen: saved %d bytes → %s", mp3.stat().st_size, mp3)
+                    return str(mp3)
+                log.warning("HuggingFace MusicGen: transcode failed, falling back to raw WAV")
+                return str(raw)
         elif r.status_code == 503:
             log.info("HuggingFace MusicGen: model loading (503) — skipping")
         else:
@@ -289,7 +316,13 @@ def _mix_vocal_instrumental(instrumental: str, vocal: str, job_dir: Path) -> str
             "-i", instrumental,
             "-i", vocal,
             "-filter_complex",
-            "[0:a]volume=0.70[inst];[1:a]volume=0.95[vox];[inst][vox]amix=inputs=2:duration=longest:dropout_transition=3",
+            # Normalize both inputs to the same sample rate/channel layout before mixing —
+            # providers return different formats (e.g. 32kHz mono vs 44.1kHz stereo), and
+            # amix-ing mismatched streams without resampling first can produce sped-up/
+            # doubled-sounding audio.
+            "[0:a]aresample=44100,aformat=channel_layouts=stereo,volume=0.70[inst];"
+            "[1:a]aresample=44100,aformat=channel_layouts=stereo,volume=0.95[vox];"
+            "[inst][vox]amix=inputs=2:duration=longest:dropout_transition=3",
             "-c:a", "libmp3lame", "-q:a", "2",
             str(output),
         ]
@@ -452,18 +485,39 @@ class MusicEngine:
             provider = "none"
             log.warning("All music providers failed — no audio generated")
 
-        # Add ElevenLabs TTS vocal layer and mix with instrumental
-        if lyrics and vocal_style != "instrumental":
+        # Suno is the only provider above that actually sings the lyrics to a melody.
+        sung_by_suno = provider == "Suno AI" and vocal_style != "instrumental"
+        warning = None
+
+        # Add ElevenLabs TTS vocal layer and mix with instrumental.
+        # Note: this is spoken text-to-speech laid over the instrumental, not real
+        # singing — it's a fallback approximation when no singing-capable provider
+        # (Suno) was available, not a substitute for one.
+        if lyrics and vocal_style != "instrumental" and not sung_by_suno:
             cb("Generating vocal layer...", 70)
             vocal_path = _try_elevenlabs_tts(lyrics, job_dir)
             if vocal_path:
                 if audio_path:
                     cb("Mixing vocals with instrumental...", 80)
                     audio_path = _mix_vocal_instrumental(audio_path, vocal_path, job_dir)
-                    provider = provider + " + ElevenLabs Vocals"
+                    provider = provider + " + ElevenLabs Vocals (spoken, not sung)"
                 else:
                     audio_path = vocal_path
-                    provider = "ElevenLabs Vocals"
+                    provider = "ElevenLabs Vocals (spoken, not sung)"
+
+        has_vocals = sung_by_suno or (lyrics and vocal_style != "instrumental" and "ElevenLabs Vocals" in provider)
+        if vocal_style != "instrumental" and not has_vocals:
+            warning = (
+                "No vocals were added to this track. Real singing requires the Suno "
+                "provider (SUNO_COOKIE), which isn't configured, so this fell back to "
+                "an instrumental-only track."
+            )
+        elif vocal_style != "instrumental" and not sung_by_suno:
+            warning = (
+                "Vocals on this track are spoken text-to-speech laid over the instrumental, "
+                "not real singing — Suno (SUNO_COOKIE) isn't configured, which is the only "
+                "provider here that actually sings lyrics to a melody."
+            )
 
         cb("Finalizing track...", 85)
 
@@ -491,4 +545,6 @@ class MusicEngine:
             "duration_seconds": duration_seconds,
             "vocal_style": vocal_style,
             "provider": provider,
+            "has_vocals": bool(has_vocals),
+            "warning": warning,
         }

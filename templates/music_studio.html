@@ -3294,6 +3294,7 @@ function _streamJob(jobId, title, meta) {
         const metaStr = [meta.genre, meta.mood, meta.bpm + ' BPM', meta.key].filter(Boolean).join(' · ');
         loadTrack(d.audio_url, title, metaStr, d.lyrics, jobId);
         log('ok', 'Track ready: ' + (d.provider || 'AI'));
+        if (d.warning) log('warn', d.warning);
         _evtSource.close();
         _resetGenBtn();
         document.getElementById('progressArea').classList.remove('active');
@@ -3323,6 +3324,7 @@ function _streamJob(jobId, title, meta) {
             }
             loadTrack(audio_url, title, metaStr, result.lyrics || '', jobId);
             log('ok', 'Track ready: ' + (result.provider || 'AI'));
+            if (result.warning) log('warn', result.warning);
             document.getElementById('progressArea').classList.remove('active');
             _resetGenBtn();
           } else if (d.status === 'error') {

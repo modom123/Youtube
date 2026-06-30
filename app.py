@@ -3194,6 +3194,8 @@ def _run_music_thread(job_id: str, params: dict, user_id: int = None):
             "provider": result.get("provider", "AI"),
             "lyrics": result.get("lyrics", ""),
             "title": result.get("title", ""),
+            "has_vocals": result.get("has_vocals", False),
+            "warning": result.get("warning"),
         })
     except Exception as e:
         import traceback
@@ -3276,12 +3278,20 @@ def api_music_status(job_id):
 def api_music_download(job_id):
     with _music_lock:
         job = _music_jobs.get(job_id, {})
-    if not job or job.get("status") != "done":
-        return jsonify({"error": "Not ready"}), 404
     audio_path = (job.get("result") or {}).get("audio_path", "")
+    if not audio_path:
+        # In-memory job dict is lost on process restart — fall back to the
+        # persisted track record so previously-generated songs stay downloadable.
+        raw = db.get_setting(f"music_track:{job_id}")
+        if raw:
+            try:
+                audio_path = json.loads(raw).get("audio_path", "")
+            except (ValueError, TypeError):
+                audio_path = ""
     if not audio_path or not Path(audio_path).exists():
         return jsonify({"error": "File not found"}), 404
-    return send_file(audio_path, as_attachment=True, download_name="song.mp3")
+    ext = Path(audio_path).suffix or ".mp3"
+    return send_file(audio_path, as_attachment=True, download_name=f"song{ext}")
 
 
 @app.route("/api/music/loops")
