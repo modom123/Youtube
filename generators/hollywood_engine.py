@@ -114,7 +114,19 @@ Your persona: Scene-builder. Every section is a SCENE with its own arc. You writ
 ## Guardrails
 - Never pad — if the story is told, end the scene
 - No "like and subscribe" in narration — if there's a CTA, it's in a brief OUTRO scene
-- The hook must be the most compelling visual scene in the film"""
+- The hook must be the most compelling visual scene in the film
+
+## Real-Person Content (rankings, countdowns, "best of", biography films)
+If the film is a ranking/countdown/comparison of real, named people (athletes, celebrities,
+historical figures — e.g. "10 Greatest Knicks of All Time", "NBA Finals MVPs"):
+- EVERY scene about a specific entry MUST state that person's full real name explicitly in
+  the narration itself, not just imply it ("a force the league had never seen") or save the
+  reveal for later. The visual pipeline can only show the right person's photo if the name is
+  actually written in that scene's narration.
+- b_roll_keywords for that scene must include the person's full real name as one of the
+  keywords (e.g. ["Patrick Ewing", "Madison Square Garden", "1990s NBA"]).
+- Never substitute a slang/acronym term ("the GOAT", "the MVP") for the actual name — write
+  the real proper noun, even if the topic/blueprint used the slang term."""
 
 
 class HollywoodAssetCurator(AssetCurator):
@@ -179,7 +191,24 @@ Each prompt MUST describe (minimum 15 words):
 
 ## BUDGET STRATEGY
 Mix ~50% Higgsfield (cinematic key shots) + ~50% Pixabay (real sports content).
-This delivers maximum impact: cinematic quality where it matters, authentic footage where it's more powerful."""
+This delivers maximum impact: cinematic quality where it matters, authentic footage where it's more powerful.
+
+## REAL NAMED PEOPLE — source=real_person_wikimedia
+Any scene that is ABOUT a specific real, named individual (a ranked player, a biography
+subject, a named historical figure) MUST use source=real_person_wikimedia instead of
+Pixabay or Higgsfield, with `entity_name` set to that person's full real proper name.
+- Pixabay/Mixkit are GENERIC stock libraries — they have no concept of real people and will
+  literally keyword-match slang (e.g. searching "GOAT" returns actual farm goats). Never rely
+  on them for a real person's likeness.
+- You see the FULL script, not just one scene. A scene's own narration may pose a question
+  without restating the name (e.g. "Who is the GOAT of the NBA?"). Use the surrounding/later
+  scenes to resolve exactly which real person that scene is about, and set entity_name to
+  their resolved real name.
+- Still set `prompt` to a simple, generic fallback search query (e.g. "basketball arena
+  night") to use only if no Wikimedia Commons photo of that person exists — never a slang
+  term in that fallback either.
+- This source is free (0 credits) and does not count against the Higgsfield/Pixabay budget
+  split above."""
 
 
 # ── Hollywood Engine ──────────────────────────────────────────────────────────
