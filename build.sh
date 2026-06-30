@@ -9,4 +9,7 @@ echo "==> Installing Python dependencies"
 pip install --upgrade pip -q
 pip install -r requirements.txt -q
 
+echo "==> Installing Higgsfield CLI"
+curl -fsSL https://raw.githubusercontent.com/higgsfield-ai/cli/main/install.sh | sh
+
 echo "==> Build complete"
