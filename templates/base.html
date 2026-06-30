@@ -272,6 +272,83 @@ document.addEventListener('click', function(e) {
 loadNotifications();
 setInterval(loadNotifications, 30000);
 </script>
+
+<!-- ── Hermes onboarding assistant ─────────────────────────────────────── -->
+<div id="hermesBubble" onclick="toggleHermes()" style="position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#0a0a0a;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;box-shadow:var(--shadow);z-index:1000;">🪽</div>
+
+<div id="hermesPanel" style="display:none;position:fixed;bottom:92px;right:24px;width:360px;max-width:calc(100vw - 32px);height:480px;max-height:calc(100vh - 140px);background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);z-index:1000;flex-direction:column;overflow:hidden;">
+  <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+    <div style="font-weight:700;font-size:14px;color:var(--text);">🪽 Hermes — Setup Assistant</div>
+    <button onclick="toggleHermes()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;">✕</button>
+  </div>
+  <div id="hermesMessages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-size:13px;">
+    <div style="color:var(--muted);">Hi, I'm Hermes. Ask me anything about connecting your accounts, your plan, or why something failed — I can take action directly, not just explain.</div>
+  </div>
+  <div style="padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;">
+    <input id="hermesInput" type="text" placeholder="Ask Hermes…" onkeydown="if(event.key==='Enter')sendHermes()" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;">
+    <button onclick="sendHermes()" id="hermesSendBtn" class="btn btn-primary btn-sm">Send</button>
+  </div>
+</div>
+
+<script>
+var _hermesHistory = [];
+var _hermesOpen = false;
+
+function toggleHermes() {
+  _hermesOpen = !_hermesOpen;
+  var panel = document.getElementById('hermesPanel');
+  panel.style.display = _hermesOpen ? 'flex' : 'none';
+  if (_hermesOpen) document.getElementById('hermesInput').focus();
+}
+
+function _hermesEsc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _hermesAppend(role, text) {
+  var box = document.getElementById('hermesMessages');
+  var bubble = document.createElement('div');
+  bubble.style.cssText = role === 'user'
+    ? 'align-self:flex-end;background:var(--accent);color:#0a0a0a;padding:8px 12px;border-radius:10px;max-width:85%;white-space:pre-wrap;'
+    : 'align-self:flex-start;background:var(--bg);color:var(--text);padding:8px 12px;border-radius:10px;max-width:85%;white-space:pre-wrap;border:1px solid var(--border);';
+  bubble.innerHTML = _hermesEsc(text);
+  box.appendChild(bubble);
+  box.scrollTop = box.scrollHeight;
+  return bubble;
+}
+
+async function sendHermes() {
+  var input = document.getElementById('hermesInput');
+  var msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  document.getElementById('hermesSendBtn').disabled = true;
+
+  _hermesAppend('user', msg);
+  var thinking = _hermesAppend('assistant', 'Thinking…');
+
+  try {
+    var resp = await fetch('/api/hermes/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message: msg, history: _hermesHistory }),
+    });
+    var data = await resp.json();
+    if (!resp.ok || data.error) {
+      thinking.textContent = data.error || 'Something went wrong — please try again.';
+    } else {
+      thinking.innerHTML = _hermesEsc(data.reply);
+      _hermesHistory.push({ role: 'user', content: msg });
+      _hermesHistory.push({ role: 'assistant', content: data.reply });
+    }
+  } catch (e) {
+    thinking.textContent = 'Network error — please try again.';
+  } finally {
+    document.getElementById('hermesSendBtn').disabled = false;
+    document.getElementById('hermesMessages').scrollTop = document.getElementById('hermesMessages').scrollHeight;
+  }
+}
+</script>
 {% endif %}
 </body>
 </html>

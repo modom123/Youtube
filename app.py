@@ -30,6 +30,7 @@ from billing import billing_bp, check_usage_gate
 from admin import admin_bp
 from notifications import send_notification
 from monetizer import monetizer_bp, init_monetizer_tables
+from hermes_agent import hermes_bp
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
@@ -71,6 +72,7 @@ app.register_blueprint(billing_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(monetizer_bp)
 app.register_blueprint(sales_bp)
+app.register_blueprint(hermes_bp)
 
 from admin import load_env_from_db
 load_env_from_db()
