@@ -40,15 +40,21 @@ def _get_pool():
 def get_conn():
     pool = _get_pool()
     conn = pool.getconn()
+    if conn.closed:
+        # Pooler (Supabase Supavisor) killed this connection while idle —
+        # discard it and get a fresh one instead of failing on a dead handle.
+        pool.putconn(conn, close=True)
+        conn = pool.getconn()
     try:
         conn.autocommit = False
         yield _PgConn(conn)
         conn.commit()
     except Exception:
-        conn.rollback()
+        if not conn.closed:
+            conn.rollback()
         raise
     finally:
-        pool.putconn(conn)
+        pool.putconn(conn, close=conn.closed)
 
 
 class _PgConn:
