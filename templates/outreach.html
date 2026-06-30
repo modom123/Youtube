@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% set active_page = "outreach" %}
+
+{% block title %}Outreach — Social Optimize{% endblock %}
+{% block topbar_title %}Outreach{% endblock %}
+{% block topbar_sub %}Create and send email or SMS campaigns to your contacts{% endblock %}
+{% block topbar_actions %}
+<a href="/contacts" class="btn btn-secondary">👥 Contacts</a>
+<button class="btn btn-primary" onclick="openModal('newCampaignModal')">+ New Campaign</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- Summary strip -->
+<div class="grid-3 mb-24">
+  <div class="card">
+    <div class="text-dim text-xs mb-4">Total Campaigns</div>
+    <div style="font-size:28px;font-weight:800;color:var(--text);">{{ campaigns|length }}</div>
+  </div>
+  <div class="card">
+    <div class="text-dim text-xs mb-4">Total Sent</div>
+    <div style="font-size:28px;font-weight:800;color:var(--accent);">{{ campaigns|sum(attribute='sent_count') }}</div>
+  </div>
+  <div class="card">
+    <div class="text-dim text-xs mb-4">Campaigns Sent</div>
+    <div style="font-size:28px;font-weight:800;color:var(--gold);">{{ campaigns|selectattr('status','equalto','sent')|list|length }}</div>
+  </div>
+</div>
+
+<!-- Campaign list -->
+{% if campaigns %}
+<div class="section-title mb-16">Campaigns</div>
+<div style="display:flex;flex-direction:column;gap:12px;" id="campaignsList">
+  {% for c in campaigns %}
+  <div class="card" id="campaign-{{ c.id }}" style="padding:18px 20px;">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <!-- Icon + info -->
+      <div style="font-size:28px;line-height:1;">{{ '📧' if c.type == 'email' else '📱' }}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px;">{{ c.name }}</div>
+        <div style="font-size:12px;color:var(--muted);">
+          {{ c.type|upper }} &nbsp;·&nbsp;
+          Created {{ c.created_at | datefmt("%Y-%m-%d") if c.created_at else '—' }}
+          {% if c.sent_at %}&nbsp;·&nbsp; Sent {{ c.sent_at | datefmt("%Y-%m-%d") }}{% endif %}
+        </div>
+      </div>
+      <!-- Stats -->
+      <div style="display:flex;gap:16px;align-items:center;">
+        <div style="text-align:center;">
+          <div style="font-size:18px;font-weight:800;color:var(--accent);">{{ c.sent_count }}</div>
+          <div style="font-size:10px;color:var(--muted);">Sent</div>
+        </div>
+        <!-- Status badge -->
+        <span style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;
+          {% if c.status == 'sent' %}background:rgba(52,199,89,.15);color:#34c759;
+          {% elif c.status == 'draft' %}background:rgba(255,204,0,.12);color:var(--gold);
+          {% else %}background:rgba(90,200,250,.12);color:#5ac8fa;{% endif %}">
+          {{ c.status|upper }}
+        </span>
+      </div>
+      <!-- Actions -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="viewSends({{ c.id }})">📋 Sends</button>
+        <button class="btn btn-primary btn-sm" onclick="openSendModal({{ c.id }}, '{{ c.name|replace("'","\\'") }}', '{{ c.type }}')">🚀 Send</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCampaign({{ c.id }})">🗑</button>
+      </div>
+    </div>
+    <!-- Sends detail panel (hidden by default) -->
+    <div id="sends-panel-{{ c.id }}" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;">SEND LOG</div>
+      <div id="sends-table-{{ c.id }}" style="overflow-x:auto;">
+        <div style="color:var(--muted);font-size:13px;">Loading...</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<!-- Empty state -->
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">📣</div>
+    <div class="empty-title">No campaigns yet</div>
+    <div class="empty-sub">Create your first outreach campaign to email or SMS your contacts</div>
+    <button class="btn btn-primary" onclick="openModal('newCampaignModal')">+ New Campaign</button>
+  </div>
+</div>
+{% endif %}
+
+
+<!-- ── New Campaign Modal ─────────────────────────────────── -->
+<div class="modal-overlay" id="newCampaignModal" style="display:none;" onclick="closeModalOutside(event,'newCampaignModal')">
+  <div class="modal" style="max-width:560px;">
+    <button class="modal-close" onclick="closeModal('newCampaignModal')">✕</button>
+    <div class="modal-title">📣 New Campaign</div>
+
+    <div class="form-group">
+      <label>Campaign Name *</label>
+      <input type="text" id="nc-name" placeholder="e.g. Summer Newsletter">
+    </div>
+
+    <div class="form-group">
+      <label>Type</label>
+      <div style="display:flex;gap:8px;">
+        <button id="nc-type-email" class="btn btn-primary btn-sm" onclick="setType('email')" style="flex:1;">📧 Email</button>
+        <button id="nc-type-sms" class="btn btn-ghost btn-sm" onclick="setType('sms')" style="flex:1;">📱 SMS</button>
+      </div>
+      <input type="hidden" id="nc-type" value="email">
+    </div>
+
+    <div class="form-group" id="nc-subject-group">
+      <label>Subject Line</label>
+      <input type="text" id="nc-subject" placeholder="Your email subject line">
+    </div>
+
+    <div class="form-group">
+      <label>Message Body *</label>
+      <textarea id="nc-body" rows="6" placeholder="Write your message here. Use {{name}} to personalize."></textarea>
+      <div class="text-xs text-dim mt-4">Tip: Use <code style="background:var(--border);padding:1px 4px;border-radius:3px;">{{name}}</code> to insert each contact's name.</div>
+    </div>
+
+    <button class="btn btn-primary btn-block" onclick="createCampaign()">Create Campaign</button>
+  </div>
+</div>
+
+
+<!-- ── Send Campaign Modal ───────────────────────────────── -->
+<div class="modal-overlay" id="sendModal" style="display:none;" onclick="closeModalOutside(event,'sendModal')">
+  <div class="modal" style="max-width:480px;">
+    <button class="modal-close" onclick="closeModal('sendModal')">✕</button>
+    <div class="modal-title" id="send-modal-title">🚀 Send Campaign</div>
+    <input type="hidden" id="send-campaign-id" value="">
+
+    <div style="background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.2);border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:13px;color:var(--text);">
+      This will send the campaign to all contacts that have a valid
+      <span id="send-channel-label">email address</span>.
+    </div>
+
+    <div class="form-group">
+      <label>Filter by Platform <span style="color:var(--muted);font-weight:400;">(optional)</span></label>
+      <select id="send-platform-filter">
+        <option value="">All Platforms</option>
+        <option value="youtube">YouTube</option>
+        <option value="tiktok">TikTok</option>
+        <option value="instagram">Instagram</option>
+        <option value="phone">Phone</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:8px;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="closeModal('sendModal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="confirmSend()" id="confirm-send-btn">🚀 Confirm Send</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Type toggle ───────────────────────────────────────────────────────────────
+function setType(t) {
+  document.getElementById('nc-type').value = t;
+  document.getElementById('nc-type-email').className = t === 'email' ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  document.getElementById('nc-type-email').style.flex = '1';
+  document.getElementById('nc-type-sms').className  = t === 'sms'   ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm';
+  document.getElementById('nc-type-sms').style.flex  = '1';
+  document.getElementById('nc-subject-group').style.display = t === 'email' ? '' : 'none';
+}
+
+// ── Create campaign ───────────────────────────────────────────────────────────
+async function createCampaign() {
+  const name    = document.getElementById('nc-name').value.trim();
+  const type_   = document.getElementById('nc-type').value;
+  const subject = document.getElementById('nc-subject').value.trim();
+  const body    = document.getElementById('nc-body').value.trim();
+
+  if (!name) { toast('error', 'Name required'); return; }
+  if (!body) { toast('error', 'Body required'); return; }
+
+  const resp = await fetch('/api/outreach/campaigns', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ name, type: type_, subject, body }),
+  });
+  const data = await resp.json();
+  if (!resp.ok || data.error) {
+    toast('error', 'Error', data.error || 'Failed to create campaign');
+    return;
+  }
+  toast('success', 'Campaign Created', name);
+  closeModal('newCampaignModal');
+  setTimeout(() => location.reload(), 800);
+}
+
+// ── Delete campaign ───────────────────────────────────────────────────────────
+async function deleteCampaign(id) {
+  if (!confirm('Delete this campaign? This cannot be undone.')) return;
+  const resp = await fetch('/api/outreach/campaigns/' + id, { method: 'DELETE' });
+  if (resp.ok) {
+    toast('success', 'Campaign Deleted');
+    const el = document.getElementById('campaign-' + id);
+    if (el) el.remove();
+  } else {
+    toast('error', 'Delete failed');
+  }
+}
+
+// ── Open send modal ───────────────────────────────────────────────────────────
+function openSendModal(id, name, type) {
+  document.getElementById('send-campaign-id').value = id;
+  document.getElementById('send-modal-title').textContent = '🚀 Send: ' + name;
+  document.getElementById('send-channel-label').textContent = type === 'email' ? 'email address' : 'phone number';
+  document.getElementById('send-platform-filter').value = '';
+  openModal('sendModal');
+}
+
+// ── Confirm send ──────────────────────────────────────────────────────────────
+async function confirmSend() {
+  const id       = document.getElementById('send-campaign-id').value;
+  const platform = document.getElementById('send-platform-filter').value;
+  const btn      = document.getElementById('confirm-send-btn');
+
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  const payload = {};
+  if (platform) payload.platform = platform;
+
+  try {
+    const resp = await fetch('/api/outreach/campaigns/' + id + '/send', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    if (!resp.ok || data.error) {
+      toast('error', 'Send Failed', data.error || 'Unknown error');
+    } else {
+      toast('success', 'Campaign Sent!', `${data.sent} sent, ${data.failed} failed out of ${data.total} contacts`);
+      closeModal('sendModal');
+      setTimeout(() => location.reload(), 1200);
+    }
+  } catch (e) {
+    toast('error', 'Network Error', e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Confirm Send';
+  }
+}
+
+// ── View sends panel ──────────────────────────────────────────────────────────
+async function viewSends(id) {
+  const panel = document.getElementById('sends-panel-' + id);
+  const tableEl = document.getElementById('sends-table-' + id);
+
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = '';
+  tableEl.innerHTML = '<div style="color:var(--muted);font-size:13px;">Loading…</div>';
+
+  try {
+    const resp = await fetch('/api/outreach/campaigns/' + id + '/sends');
+    const sends = await resp.json();
+
+    if (!sends.length) {
+      tableEl.innerHTML = '<div style="color:var(--muted);font-size:13px;">No sends yet for this campaign.</div>';
+      return;
+    }
+
+    const statusColor = {sent:'#34c759', failed:'var(--accent)', pending:'var(--gold)', opened:'#5ac8fa'};
+
+    tableEl.innerHTML = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="color:var(--muted);text-align:left;">
+            <th style="padding:6px 10px;border-bottom:1px solid var(--border);">Contact</th>
+            <th style="padding:6px 10px;border-bottom:1px solid var(--border);">Email / Phone</th>
+            <th style="padding:6px 10px;border-bottom:1px solid var(--border);">Status</th>
+            <th style="padding:6px 10px;border-bottom:1px solid var(--border);">Sent At</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sends.map(s => `
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:7px 10px;color:var(--text);font-weight:600;">${escHtml(s.name || '—')}</td>
+              <td style="padding:7px 10px;color:var(--muted);">${escHtml(s.email || s.phone || '—')}</td>
+              <td style="padding:7px 10px;">
+                <span style="font-size:11px;font-weight:700;color:${statusColor[s.status] || 'var(--muted)'};">
+                  ${(s.status || 'pending').toUpperCase()}
+                </span>
+                ${s.error_msg ? `<div style="font-size:10px;color:var(--accent);margin-top:2px;">${escHtml(s.error_msg)}</div>` : ''}
+              </td>
+              <td style="padding:7px 10px;color:var(--muted);">${s.sent_at ? s.sent_at.replace('T',' ').slice(0,16) : '—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+  } catch (e) {
+    tableEl.innerHTML = `<div style="color:var(--accent);font-size:13px;">Error loading sends: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+{% endblock %}

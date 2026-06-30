@@ -3,267 +3,1397 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Social Optimize — AI Content Creation Studio</title>
+  <title>Social Optimize — AI Video Production Studio</title>
+  <meta name="description" content="Turn any idea into a published video in minutes. 6 AI agents, 17+ video models, 8 major platforms. The complete content creation pipeline.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; }
+    :root {
+      --bg: #050507;
+      --bg2: #0a0a0e;
+      --bg3: #111116;
+      --card: #131318;
+      --card-hover: #1a1a20;
+      --card-elevated: #18181e;
+      --border: #1e1e25;
+      --border-hover: #2a2a32;
+      --border-subtle: rgba(255,255,255,.04);
+      --text: #f0f0f2;
+      --text-secondary: #c8c8d0;
+      --muted: #a0a0aa;
+      --gold: #c9a227;
+      --gold-light: #ddb63e;
+      --gold-dim: rgba(201,162,39,.06);
+      --gold-glow: rgba(201,162,39,.15);
+      --green: #22c55e;
+      --blue: #3b82f6;
+      --red: #ef4444;
+      --purple: #a855f7;
+      --cyan: #06b6d4;
+      --yt-red: #ff0000;
+      --tt-cyan: #00f2ea;
+      --ig-pink: #e1306c;
+      --font: 'Inter', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); overflow-x: hidden; line-height: 1.6; }
+    img { max-width: 100%; display: block; }
 
-    /* ── Nav ── */
-    .nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 48px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 100; }
-    .nav-logo { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 800; text-decoration: none; color: var(--text); }
-    .nav-logo span { color: var(--accent); }
-    .nav-links { display: flex; align-items: center; gap: 24px; }
-    .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .text-gradient { background: linear-gradient(135deg, var(--text) 0%, var(--gold) 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .text-gold { color: var(--gold); }
+
+    /* ── Global Typography ── */
+    h1, h2, h3, h4 { letter-spacing: -.03em; line-height: 1.12; font-weight: 800; }
+    p { color: var(--muted); line-height: 1.65; }
+
+    /* ── Animations ── */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: .1s; }
+    .reveal-delay-2 { transition-delay: .2s; }
+    .reveal-delay-3 { transition-delay: .3s; }
+    .reveal-delay-4 { transition-delay: .4s; }
+    @keyframes pulse-ring { 0% { transform: scale(.8); opacity: 1; } 100% { transform: scale(2.4); opacity: 0; } }
+    @keyframes shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+    @keyframes typewriter-blink { 0%,100% { opacity: 1; } 50% { opacity: 0; } }
+    @keyframes agent-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(34,197,94,.4); } 50% { box-shadow: 0 0 0 6px rgba(34,197,94,0); } }
+    @keyframes float-subtle { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes gradient-shift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+    /* ── SVG Icon System ── */
+    .ico { width: 24px; height: 24px; flex-shrink: 0; }
+    .ico-lg { width: 32px; height: 32px; }
+    .ico-xl { width: 40px; height: 40px; }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 12px; font-family: var(--font); font-weight: 700; cursor: pointer; text-decoration: none; transition: all .25s cubic-bezier(.16,1,.3,1); letter-spacing: -.01em; }
+    .btn-primary { background: var(--gold); color: #000; }
+    .btn-primary:hover { background: var(--gold-light); transform: translateY(-2px); box-shadow: 0 8px 32px var(--gold-glow), 0 2px 8px rgba(201,162,39,.25); }
+    .btn-secondary { background: rgba(255,255,255,.05); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: rgba(255,255,255,.08); border-color: var(--border-hover); transform: translateY(-2px); }
+    .btn-ghost { background: transparent; color: var(--gold); }
+    .btn-ghost:hover { background: var(--gold-dim); }
+    .btn-xl { padding: 18px 40px; font-size: 16px; border-radius: 14px; }
+    .btn-lg { padding: 14px 28px; font-size: 15px; }
+    .btn-md { padding: 10px 20px; font-size: 14px; }
+
+    /* ══════════════════════════════════════════════════════════════
+       NAV
+       ══════════════════════════════════════════════════════════════ */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: 64px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 48px;
+      background: rgba(5,5,7,.6); backdrop-filter: blur(24px) saturate(1.8);
+      border-bottom: 1px solid transparent;
+      transition: all .35s;
+    }
+    .nav.scrolled { background: rgba(5,5,7,.92); border-bottom-color: var(--border); box-shadow: 0 1px 24px rgba(0,0,0,.5); }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-logo-mark {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--gold) 0%, #8b6914 100%);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-logo-mark svg { width: 16px; height: 16px; fill: #000; }
+    .nav-logo-text { font-size: 16px; font-weight: 800; color: var(--text); letter-spacing: -.03em; }
+    .nav-logo-text span { color: var(--gold); }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500; transition: color .2s; letter-spacing: -.01em; }
     .nav-links a:hover { color: var(--text); }
-    .nav-cta { display: flex; gap: 10px; }
+    .nav-cta { display: flex; gap: 10px; align-items: center; }
+    .nav-mobile { display: none; background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; padding: 8px; }
+    .mobile-menu {
+      display: none; position: fixed; top: 64px; left: 0; right: 0; background: rgba(5,5,7,.96);
+      backdrop-filter: blur(24px); border-bottom: 1px solid var(--border); padding: 20px 24px; z-index: 999;
+      flex-direction: column; gap: 4px;
+    }
+    .mobile-menu.open { display: flex; }
+    .mobile-menu a { color: var(--text-secondary); text-decoration: none; font-size: 15px; font-weight: 500; padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+    .mobile-menu a:last-child { border-bottom: none; }
 
-    /* ── Hero ── */
-    .hero { max-width: 900px; margin: 0 auto; padding: 80px 24px 60px; text-align: center; }
-    .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,59,48,.1); border: 1px solid rgba(255,59,48,.3); border-radius: 20px; padding: 5px 14px; font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 24px; text-transform: uppercase; letter-spacing: .08em; }
-    .hero h1 { font-size: clamp(36px, 6vw, 68px); font-weight: 900; line-height: 1.08; letter-spacing: -.03em; margin-bottom: 20px; }
-    .hero h1 .red { color: var(--accent); }
-    .hero h1 .dim { color: var(--muted); }
-    .hero-sub { font-size: 18px; color: var(--muted); max-width: 600px; margin: 0 auto 36px; line-height: 1.6; }
-    .hero-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-    .hero-ctas .btn { padding: 14px 28px; font-size: 16px; }
-    .hero-stats { display: flex; gap: 40px; justify-content: center; margin-top: 52px; flex-wrap: wrap; }
-    .hero-stat { text-align: center; }
-    .hero-stat .val { font-size: 32px; font-weight: 900; }
-    .hero-stat .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+    /* ══════════════════════════════════════════════════════════════
+       HERO
+       ══════════════════════════════════════════════════════════════ */
+    .hero {
+      position: relative; padding: 0 24px;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; overflow: hidden;
+    }
+    .hero > *:not(.hero-glow):not(.hero-grid-bg) { position: relative; z-index: 1; }
+    .hero-badge, .hero h1, .hero-sub, .hero-ctas, .hero-note, .hero-metrics {
+      animation: heroFadeUp .8s cubic-bezier(.16,1,.3,1) both;
+    }
+    .hero h1    { animation-delay: .1s; }
+    .hero-sub   { animation-delay: .2s; }
+    .hero-ctas  { animation-delay: .3s; }
+    .hero-note  { animation-delay: .35s; }
+    .hero-metrics { animation-delay: .45s; }
+    @keyframes heroFadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .hero-glow {
+      position: absolute; top: -300px; left: 50%; transform: translateX(-50%);
+      width: 900px; height: 900px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(201,162,39,.1) 0%, rgba(201,162,39,.03) 35%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero-grid-bg {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(30,30,37,.25) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30,30,37,.25) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: radial-gradient(ellipse 55% 45% at 50% 35%, #000 20%, transparent 100%);
+      -webkit-mask-image: radial-gradient(ellipse 55% 45% at 50% 35%, #000 20%, transparent 100%);
+    }
+    .hero-glow, .hero-grid-bg { pointer-events: none; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: rgba(201,162,39,.05); border: 1px solid rgba(201,162,39,.15);
+      border-radius: 100px; padding: 7px 18px 7px 12px;
+      font-size: 12px; font-weight: 600; color: var(--gold); letter-spacing: .03em; text-transform: uppercase;
+      margin-bottom: 36px;
+    }
+    .hero-badge-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); position: relative; flex-shrink: 0; }
+    .hero-badge-dot::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--gold); animation: pulse-ring 2s infinite; }
+    .hero h1 {
+      font-size: clamp(42px, 7.5vw, 76px); font-weight: 900; line-height: 1.02;
+      letter-spacing: -.05em; margin-bottom: 28px;
+      max-width: 880px; margin-left: auto; margin-right: auto;
+    }
+    .hero h1 .line2 { color: var(--gold); display: block; }
+    .hero h1 .line3 { color: var(--muted); font-weight: 700; display: block; font-size: .55em; margin-top: 8px; letter-spacing: -.02em; }
+    .hero-sub {
+      font-size: clamp(15px, 1.8vw, 18px); color: var(--muted); max-width: 600px;
+      margin: 0 auto 44px; line-height: 1.7; font-weight: 400;
+    }
+    .hero-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .hero-note { font-size: 12px; color: var(--muted); margin-top: 16px; letter-spacing: .01em; }
 
-    /* ── Feature section ── */
-    .section { max-width: 1100px; margin: 0 auto; padding: 72px 24px; }
-    .section-label { text-align: center; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); margin-bottom: 12px; }
-    .section-title { text-align: center; font-size: clamp(28px, 4vw, 42px); font-weight: 800; margin-bottom: 16px; letter-spacing: -.02em; }
-    .section-sub { text-align: center; font-size: 16px; color: var(--muted); max-width: 580px; margin: 0 auto 52px; line-height: 1.6; }
+    .hero-metrics {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+      background: var(--border); border-radius: 16px; overflow: hidden;
+      max-width: 640px; margin: 72px auto 0;
+    }
+    .hero-metric { padding: 28px 12px; text-align: center; background: var(--card); }
+    .hero-metric .val { font-size: 28px; font-weight: 900; letter-spacing: -.04em; }
+    .hero-metric .lbl { font-size: 10px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; }
 
-    .features-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-    .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; transition: border-color .2s; }
-    .feature-card:hover { border-color: var(--accent); }
-    .feature-icon { font-size: 28px; margin-bottom: 14px; }
-    .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    /* ══════════════════════════════════════════════════════════════
+       PLATFORMS — Asymmetric Layout (Fix #1)
+       ══════════════════════════════════════════════════════════════ */
+    .platforms-section { padding: 120px 24px; position: relative; }
+    .platforms-section::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 40%, var(--bg) 100%);
+    }
+    .platforms-section > * { position: relative; z-index: 1; }
+    .platforms-asymmetric {
+      display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px;
+      max-width: 1000px; margin: 0 auto;
+    }
+    .plat-hero-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 24px;
+      padding: 48px 36px; position: relative; overflow: hidden; grid-row: span 2;
+      transition: all .4s;
+    }
+    .plat-hero-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, transparent, var(--tt-cyan), transparent);
+      opacity: 0; transition: opacity .3s;
+    }
+    .plat-hero-card:hover::before { opacity: 1; }
+    .plat-hero-card:hover { border-color: rgba(0,242,234,.2); box-shadow: 0 12px 48px rgba(0,242,234,.06); transform: translateY(-4px); }
+    .plat-hero-card .plat-icon-wrap {
+      width: 64px; height: 64px; border-radius: 16px; background: rgba(0,242,234,.08);
+      display: flex; align-items: center; justify-content: center; margin-bottom: 24px;
+    }
+    .plat-hero-card .plat-icon-wrap svg { width: 28px; height: 28px; }
+    .plat-hero-card h3 { font-size: 28px; margin-bottom: 12px; }
+    .plat-hero-card > p { font-size: 15px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 28px; }
+    .plat-hero-card .plat-stat-row { display: flex; gap: 24px; margin-bottom: 28px; }
+    .plat-hero-card .plat-stat { }
+    .plat-hero-card .plat-stat .ps-val { font-size: 24px; font-weight: 900; color: var(--tt-cyan); letter-spacing: -.03em; }
+    .plat-hero-card .plat-stat .ps-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+    .plat-feature-list { list-style: none; }
+    .plat-feature-list li {
+      display: flex; align-items: center; gap: 12px; padding: 10px 0;
+      border-bottom: 1px solid var(--border-subtle); font-size: 14px; color: var(--text-secondary);
+    }
+    .plat-feature-list li:last-child { border-bottom: none; }
+    .plat-feature-list li .feat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .plat-feature-list.tiktok-list .feat-dot { background: var(--tt-cyan); }
+    .plat-feature-list.youtube-list .feat-dot { background: var(--yt-red); }
+    .plat-feature-list.instagram-list .feat-dot { background: var(--ig-pink); }
 
-    /* ── Agent pipeline ── */
-    .pipeline { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 32px 0; justify-content: center; flex-wrap: wrap; gap: 0; }
-    .pipe-node { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; text-align: center; min-width: 160px; }
-    .pipe-node .pn-icon { font-size: 28px; margin-bottom: 8px; }
-    .pipe-node .pn-name { font-size: 13px; font-weight: 700; }
-    .pipe-node .pn-desc { font-size: 11px; color: var(--muted); margin-top: 4px; }
-    .pipe-arrow { font-size: 20px; color: var(--muted); margin: 0 8px; flex-shrink: 0; }
+    .plat-stack { display: flex; flex-direction: column; gap: 20px; }
+    .plat-side-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 32px 28px; position: relative; overflow: hidden; flex: 1;
+      transition: all .3s;
+    }
+    .plat-side-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      opacity: 0; transition: opacity .3s;
+    }
+    .plat-side-card:hover::before { opacity: 1; }
+    .plat-side-card:hover { transform: translateY(-3px); border-color: var(--border-hover); }
+    .plat-side-card.youtube::before { background: linear-gradient(90deg, transparent, var(--yt-red), transparent); }
+    .plat-side-card.instagram::before { background: linear-gradient(90deg, transparent, var(--ig-pink), transparent); }
+    .plat-side-card:hover.youtube { box-shadow: 0 8px 32px rgba(255,0,0,.06); }
+    .plat-side-card:hover.instagram { box-shadow: 0 8px 32px rgba(225,48,108,.06); }
+    .plat-side-card .plat-icon-wrap {
+      width: 48px; height: 48px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+    }
+    .plat-side-card .plat-icon-wrap svg { width: 22px; height: 22px; }
+    .plat-side-card.youtube .plat-icon-wrap { background: rgba(255,0,0,.08); }
+    .plat-side-card.instagram .plat-icon-wrap { background: rgba(225,48,108,.08); }
+    .plat-side-card h3 { font-size: 20px; margin-bottom: 8px; }
+    .plat-side-card > p { font-size: 13px; margin-bottom: 16px; }
 
-    /* ── Pricing ── */
-    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
-    .pricing-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; position: relative; transition: border-color .2s; }
-    .pricing-card.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-    .pricing-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
-    .pricing-tier { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
-    .pricing-price { font-size: 42px; font-weight: 900; margin-bottom: 4px; }
-    .pricing-price span { font-size: 16px; font-weight: 500; color: var(--muted); }
-    .pricing-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
-    .pricing-features { list-style: none; margin-bottom: 24px; }
-    .pricing-features li { font-size: 13px; padding: 5px 0; display: flex; align-items: center; gap: 8px; }
-    .pricing-features li::before { content: "✓"; color: #30d158; font-weight: 700; flex-shrink: 0; }
-    .pricing-btn { width: 100%; padding: 12px; font-size: 14px; font-weight: 700; }
+    /* ══════════════════════════════════════════════════════════════
+       SECTION HEADERS
+       ══════════════════════════════════════════════════════════════ */
+    .section { padding: 120px 24px; }
+    .section-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .16em; color: var(--gold); margin-bottom: 16px;
+    }
+    .section-eyebrow::before { content: ''; width: 20px; height: 1.5px; background: var(--gold); border-radius: 1px; }
+    .section-title {
+      font-size: clamp(30px, 4.5vw, 48px); font-weight: 900;
+      letter-spacing: -.04em; margin-bottom: 16px; line-height: 1.08;
+    }
+    .section-sub { font-size: 16px; color: var(--muted); max-width: 520px; line-height: 1.7; }
+    .section-header { text-align: center; margin-bottom: 64px; }
+    .section-header .section-sub { margin: 0 auto; }
 
-    /* ── CTA band ── */
-    .cta-band { background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 64px 24px; text-align: center; }
-    .cta-band h2 { font-size: clamp(26px, 4vw, 40px); font-weight: 900; margin-bottom: 12px; }
-    .cta-band p { color: var(--muted); font-size: 16px; margin-bottom: 28px; }
+    /* ══════════════════════════════════════════════════════════════
+       FEATURES — Tabbed Categories (Fix #3)
+       ══════════════════════════════════════════════════════════════ */
+    .features-section { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .feature-tabs { display: flex; gap: 4px; justify-content: center; margin-bottom: 48px; flex-wrap: wrap; }
+    .feature-tab {
+      background: transparent; border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 24px; font-family: var(--font); font-size: 14px; font-weight: 600;
+      color: var(--muted); cursor: pointer; transition: all .25s; display: flex; align-items: center; gap: 10px;
+      letter-spacing: -.01em;
+    }
+    .feature-tab:hover { border-color: var(--border-hover); color: var(--text-secondary); }
+    .feature-tab.active { background: var(--gold-dim); border-color: rgba(201,162,39,.25); color: var(--gold); }
+    .feature-tab .tab-ico { display: flex; align-items: center; }
+    .feature-tab .tab-ico svg { width: 18px; height: 18px; }
 
-    /* ── Footer ── */
-    .footer { max-width: 1100px; margin: 0 auto; padding: 32px 24px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
-    .footer p { font-size: 12px; color: var(--muted); }
-    .footer-links { display: flex; gap: 20px; }
-    .footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; }
+    .feature-panel { display: none; }
+    .feature-panel.active { display: block; }
+
+    .feature-showcase {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    }
+    .feature-showcase .feat-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 18px;
+      padding: 32px; transition: all .3s; position: relative; overflow: hidden;
+    }
+    .feature-showcase .feat-card:hover { border-color: var(--border-hover); background: var(--card-hover); transform: translateY(-2px); }
+    .feature-showcase .feat-card.feat-hero { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; }
+    .feat-card .feat-icon-wrap {
+      width: 48px; height: 48px; border-radius: 12px; background: var(--gold-dim);
+      display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+    }
+    .feat-card .feat-icon-wrap svg { width: 22px; height: 22px; }
+    .feat-card h3 { font-size: 18px; margin-bottom: 8px; }
+    .feat-card p { font-size: 13px; line-height: 1.65; }
+    .feat-card .feat-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .08em; padding: 4px 10px; border-radius: 6px; margin-top: 16px;
+    }
+    .tag-ai { background: rgba(168,85,247,.08); color: var(--purple); }
+    .tag-growth { background: rgba(34,197,94,.08); color: var(--green); }
+    .tag-smart { background: rgba(59,130,246,.08); color: var(--blue); }
+    .tag-engage { background: rgba(201,162,39,.08); color: var(--gold); }
+    .tag-core { background: rgba(6,182,212,.08); color: var(--cyan); }
+
+    .feat-visual {
+      background: rgba(255,255,255,.02); border: 1px solid var(--border-subtle);
+      border-radius: 12px; padding: 20px; font-family: var(--mono);
+      font-size: 12px; color: var(--muted); line-height: 1.9;
+    }
+    .feat-visual .fv-label { color: var(--gold); font-weight: 600; }
+    .feat-visual .fv-val { color: var(--text-secondary); }
+
+    /* ══════════════════════════════════════════════════════════════
+       WHO IT'S FOR
+       ══════════════════════════════════════════════════════════════ */
+    .personas-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .persona-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 36px 24px; text-align: center; transition: all .35s; position: relative;
+    }
+    .persona-card:hover { border-color: rgba(201,162,39,.3); transform: translateY(-5px); box-shadow: 0 16px 48px rgba(0,0,0,.4); }
+    .persona-icon-wrap {
+      width: 72px; height: 72px; border-radius: 18px; margin: 0 auto 20px;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, var(--gold-dim), rgba(201,162,39,.03));
+      border: 1px solid rgba(201,162,39,.1);
+    }
+    .persona-icon-wrap svg { width: 32px; height: 32px; }
+    .persona-card h3 { font-size: 18px; margin-bottom: 6px; }
+    .persona-card .role { font-size: 12px; color: var(--gold); font-weight: 600; margin-bottom: 14px; letter-spacing: .02em; }
+    .persona-card > p { font-size: 13px; margin-bottom: 20px; }
+    .persona-list { list-style: none; text-align: left; }
+    .persona-list li {
+      font-size: 12px; color: var(--text-secondary); padding: 6px 0;
+      display: flex; gap: 10px; align-items: flex-start;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .persona-list li:last-child { border-bottom: none; }
+    .persona-list li::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); flex-shrink: 0; margin-top: 6px; }
+
+    /* ══════════════════════════════════════════════════════════════
+       PIPELINE
+       ══════════════════════════════════════════════════════════════ */
+    .pipeline-section { background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); overflow: hidden; }
+    .pipeline-track { display: flex; align-items: stretch; gap: 0; justify-content: center; flex-wrap: wrap; padding: 20px 0; }
+    .pipe-node {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 28px 18px; text-align: center; min-width: 148px; flex: 0 1 auto;
+      transition: all .3s; position: relative;
+    }
+    .pipe-node:hover { border-color: var(--gold); transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,.3); }
+    .pipe-num {
+      position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+      width: 22px; height: 22px; border-radius: 50%; background: var(--gold); color: #000;
+      font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+    }
+    .pipe-node .pn-icon { margin-bottom: 10px; margin-top: 4px; display: flex; justify-content: center; }
+    .pipe-node .pn-icon svg { width: 28px; height: 28px; }
+    .pipe-node .pn-name { font-size: 12px; font-weight: 800; letter-spacing: -.01em; }
+    .pipe-node .pn-desc { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+    .pipe-connector { display: flex; align-items: center; padding: 0 4px; }
+    .pipe-connector svg { width: 28px; height: 12px; }
+    .pipe-connector line { stroke: var(--gold); stroke-width: 1.5; stroke-dasharray: 3 3; }
+
+    /* ══════════════════════════════════════════════════════════════
+       HOLLYWOOD SPOTLIGHT — Living Terminal (Fix #5)
+       ══════════════════════════════════════════════════════════════ */
+    .spotlight { position: relative; padding: 120px 24px; overflow: hidden; }
+    .spotlight::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg2) 50%, var(--bg) 100%);
+    }
+    .spotlight > * { position: relative; z-index: 1; }
+    .spotlight-inner {
+      max-width: 1060px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1.1fr; gap: 56px; align-items: center;
+    }
+    .spotlight-text .section-eyebrow { text-align: left; }
+    .spotlight-text h2 { font-size: clamp(26px, 3.5vw, 42px); margin-bottom: 20px; line-height: 1.08; }
+    .spotlight-text > p { font-size: 15px; margin-bottom: 28px; }
+    .spotlight-feats { list-style: none; margin-bottom: 32px; }
+    .spotlight-feats li { font-size: 14px; padding: 10px 0; display: flex; gap: 14px; align-items: center; border-bottom: 1px solid var(--border-subtle); }
+    .spotlight-feats li:last-child { border-bottom: none; }
+    .spotlight-feats li .sf-ico { width: 36px; height: 36px; border-radius: 10px; background: var(--gold-dim); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .spotlight-feats li .sf-ico svg { width: 18px; height: 18px; }
+    .spotlight-feats li strong { color: var(--text); }
+    .spotlight-feats li span { color: var(--muted); font-size: 13px; }
+
+    .hw-terminal {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; overflow: hidden; position: relative;
+      box-shadow: 0 24px 64px rgba(0,0,0,.4), 0 0 0 1px rgba(201,162,39,.05);
+    }
+    .hw-terminal::before {
+      content: ''; position: absolute; inset: -1px; border-radius: 21px;
+      background: linear-gradient(135deg, rgba(201,162,39,.1), transparent 40%, transparent 60%, rgba(201,162,39,.05));
+      pointer-events: none; z-index: 0;
+    }
+    .hw-terminal > * { position: relative; z-index: 1; }
+    .hw-titlebar {
+      display: flex; align-items: center; gap: 8px; padding: 14px 20px;
+      background: rgba(255,255,255,.02); border-bottom: 1px solid var(--border);
+    }
+    .hw-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .hw-dot.r { background: #ff5f57; } .hw-dot.y { background: #febc2e; } .hw-dot.g { background: #28c840; }
+    .hw-titlebar-text { font-size: 11px; color: var(--muted); font-weight: 600; margin-left: auto; letter-spacing: .02em; }
+    .hw-chat { padding: 24px; }
+    .hw-msg { margin-bottom: 20px; display: flex; gap: 12px; align-items: flex-start; }
+    .hw-msg:last-child { margin-bottom: 0; }
+    .hw-avatar {
+      width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800;
+    }
+    .hw-avatar.user { background: rgba(255,255,255,.06); color: var(--muted); }
+    .hw-avatar.agent { background: linear-gradient(135deg, var(--gold), #8b6914); color: #000; }
+    .hw-bubble { flex: 1; }
+    .hw-bubble .hw-sender { font-size: 11px; font-weight: 700; margin-bottom: 6px; letter-spacing: .02em; }
+    .hw-bubble .hw-sender.user-name { color: var(--muted); }
+    .hw-bubble .hw-sender.agent-name { color: var(--gold); }
+    .hw-bubble .hw-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+    .hw-agent-steps { margin-top: 12px; }
+    .hw-step {
+      display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+      border-radius: 10px; margin-bottom: 4px; font-size: 12px; font-family: var(--mono);
+      background: rgba(255,255,255,.02); border: 1px solid var(--border-subtle);
+      transition: all .3s;
+    }
+    .hw-step .step-status { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .hw-step .step-status.done { background: var(--green); animation: agent-pulse 2s infinite; }
+    .hw-step .step-status.active { background: var(--gold); animation: agent-pulse 1.5s infinite; }
+    .hw-step .step-name { color: var(--text-secondary); font-weight: 500; }
+    .hw-step .step-detail { color: var(--muted); margin-left: auto; font-size: 11px; }
+    .hw-cursor { display: inline-block; width: 7px; height: 14px; background: var(--gold); animation: typewriter-blink 1s infinite; vertical-align: middle; margin-left: 2px; border-radius: 1px; }
+
+    /* ══════════════════════════════════════════════════════════════
+       PRICING
+       ══════════════════════════════════════════════════════════════ */
+    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .pricing-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 36px; position: relative; transition: all .3s;
+    }
+    .pricing-card:hover { transform: translateY(-3px); }
+    .pricing-card.featured { border-color: rgba(201,162,39,.3); }
+    .pricing-card.featured:hover { box-shadow: 0 16px 48px var(--gold-dim); }
+    .pricing-popular {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--gold), #8b6914); color: #000;
+      font-size: 10px; font-weight: 800; padding: 4px 16px; border-radius: 100px;
+      text-transform: uppercase; letter-spacing: .1em; white-space: nowrap;
+    }
+    .pricing-tier { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin-bottom: 12px; }
+    .pricing-price { font-size: 48px; font-weight: 900; margin-bottom: 4px; letter-spacing: -.05em; }
+    .pricing-price span { font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+    .pricing-desc { font-size: 13px; margin-bottom: 28px; line-height: 1.5; }
+    .pricing-features { list-style: none; margin-bottom: 32px; }
+    .pricing-features li {
+      font-size: 13px; padding: 8px 0; display: flex; align-items: center; gap: 10px;
+      color: var(--text-secondary); border-bottom: 1px solid var(--border-subtle);
+    }
+    .pricing-features li:last-child { border-bottom: none; }
+    .pricing-features li .pf-check { width: 16px; height: 16px; border-radius: 50%; background: rgba(34,197,94,.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .pricing-features li .pf-check svg { width: 10px; height: 10px; }
+    .pricing-btn { width: 100%; }
+
+    /* ══════════════════════════════════════════════════════════════
+       FAQ
+       ══════════════════════════════════════════════════════════════ */
+    .faq-section { background: var(--bg2); border-top: 1px solid var(--border); }
+    .faq-list { max-width: 680px; margin: 0 auto; }
+    .faq-item { border-bottom: 1px solid var(--border); }
+    .faq-q {
+      width: 100%; background: none; border: none; color: var(--text); font-family: var(--font);
+      font-size: 15px; font-weight: 600; text-align: left; padding: 24px 0; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      letter-spacing: -.01em; transition: color .2s;
+    }
+    .faq-q:hover { color: var(--gold); }
+    .faq-q .faq-toggle { width: 24px; height: 24px; border-radius: 6px; background: rgba(255,255,255,.04); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .3s; }
+    .faq-q .faq-toggle svg { width: 12px; height: 12px; transition: transform .3s; }
+    .faq-q.open .faq-toggle { background: var(--gold-dim); }
+    .faq-q.open .faq-toggle svg { transform: rotate(45deg); }
+    .faq-a { max-height: 0; overflow: hidden; transition: max-height .4s cubic-bezier(.16,1,.3,1), padding .3s; }
+    .faq-a.open { max-height: 300px; padding-bottom: 24px; }
+    .faq-a p { font-size: 14px; line-height: 1.7; }
+
+    /* ══════════════════════════════════════════════════════════════
+       CTA
+       ══════════════════════════════════════════════════════════════ */
+    .final-cta { position: relative; padding: 120px 24px; text-align: center; overflow: hidden; }
+    .final-cta::before {
+      content: ''; position: absolute; bottom: -150px; left: 50%; transform: translateX(-50%);
+      width: 700px; height: 700px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(201,162,39,.08) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    .final-cta > * { position: relative; z-index: 1; }
+    .final-cta h2 { font-size: clamp(28px, 4.5vw, 44px); margin-bottom: 16px; }
+    .final-cta > p { font-size: 17px; margin-bottom: 36px; max-width: 480px; margin-left: auto; margin-right: auto; }
+
+    /* ══════════════════════════════════════════════════════════════
+       FOOTER
+       ══════════════════════════════════════════════════════════════ */
+    .footer {
+      max-width: 1200px; margin: 0 auto; padding: 40px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-top: 1px solid var(--border); flex-wrap: wrap; gap: 20px;
+    }
+    .footer-brand { display: flex; align-items: center; gap: 8px; }
+    .footer-brand span { font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: -.01em; }
+    .footer-brand .dot { color: var(--gold); }
+    .footer p { font-size: 11px; color: var(--muted); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; transition: color .2s; }
     .footer-links a:hover { color: var(--text); }
 
-    @media (max-width: 600px) {
-      .nav { padding: 14px 20px; }
+    /* ══════════════════════════════════════════════════════════════
+       RESPONSIVE
+       ══════════════════════════════════════════════════════════════ */
+    @media (max-width: 1024px) {
+      .platforms-asymmetric { grid-template-columns: 1fr; }
+      .plat-hero-card { grid-row: span 1; }
+      .plat-stack { flex-direction: row; }
+      .feature-showcase .feat-card.feat-hero { grid-column: span 2; }
+      .spotlight-inner { grid-template-columns: 1fr; gap: 40px; }
+      .personas-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .nav { padding: 0 20px; height: 60px; }
       .nav-links { display: none; }
-      .hero { padding: 48px 20px 40px; }
+      .nav-mobile { display: block; }
+      .hero { padding: 130px 20px 80px; }
+      .hero-metrics { grid-template-columns: repeat(2, 1fr); }
+      .section { padding: 80px 20px; }
+      .plat-stack { flex-direction: column; }
+      .feature-tabs { gap: 6px; }
+      .feature-tab { padding: 10px 16px; font-size: 13px; }
+      .feature-showcase { grid-template-columns: 1fr; }
+      .feature-showcase .feat-card.feat-hero { grid-column: span 1; grid-template-columns: 1fr; }
+      .personas-grid { grid-template-columns: 1fr; max-width: 380px; margin: 0 auto; }
+      .pricing-grid { grid-template-columns: 1fr; max-width: 380px; margin: 0 auto; }
+      .pipe-connector { display: none; }
+      .pipeline-track { flex-direction: column; align-items: center; gap: 12px; }
+      .pipe-node { width: 80%; max-width: 260px; }
+      .spotlight-inner { gap: 32px; }
+      .hw-terminal { display: block; }
+      .footer { flex-direction: column; text-align: center; }
+      .footer-links { flex-wrap: wrap; justify-content: center; }
+    }
+    @media (max-width: 480px) {
+      .hero h1 { font-size: 34px; }
+      .hero-ctas { flex-direction: column; align-items: center; }
+      .hero-ctas .btn { width: 100%; max-width: 320px; }
+      .nav-cta .btn-secondary { display: none; }
+      .feature-tabs { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; -webkit-overflow-scrolling: touch; }
+      .feature-tab { white-space: nowrap; flex-shrink: 0; }
     }
   </style>
 </head>
 <body>
 
-<!-- Nav -->
-<nav class="nav">
-  <a class="nav-logo" href="/">🎬 <span>Social</span> Optimize</a>
+<!-- ════════════════ NAV ════════════════ -->
+<nav class="nav" id="mainNav">
+  <a class="nav-logo" href="/">
+    <div class="nav-logo-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#000"/></svg>
+    </div>
+    <div class="nav-logo-text"><span>Social</span> Optimize</div>
+  </a>
   <div class="nav-links">
+    <a href="#platforms">Platforms</a>
     <a href="#features">Features</a>
-    <a href="#agents">Pipeline</a>
-    <a href="#pricing">Pricing</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/docs">Docs</a>
+    <a href="/blog">Blog</a>
+    <a href="/about">About</a>
   </div>
   <div class="nav-cta">
-    <a href="{{ url_for('auth.login') }}" class="btn btn-secondary">Sign In</a>
-    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free</a>
+    <a href="{{ url_for('auth.login') }}" class="btn btn-secondary btn-md">Sign In</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-md">Start Free</a>
   </div>
+  <button class="nav-mobile" onclick="toggleMobileMenu()" aria-label="Menu">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
 </nav>
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#platforms" onclick="closeMobileMenu()">Platforms</a>
+  <a href="#features" onclick="closeMobileMenu()">Features</a>
+  <a href="/pricing" onclick="closeMobileMenu()">Pricing</a>
+  <a href="/docs" onclick="closeMobileMenu()">Docs</a>
+  <a href="/blog" onclick="closeMobileMenu()">Blog</a>
+  <a href="/about" onclick="closeMobileMenu()">About</a>
+  <a href="/contact" onclick="closeMobileMenu()">Contact</a>
+  <a href="{{ url_for('auth.login') }}">Sign In</a>
+  <a href="{{ url_for('auth.register') }}">Start Free</a>
+</div>
 
-<!-- Hero -->
+<!-- ════════════════ HERO ════════════════ -->
 <section class="hero">
-  <div class="hero-badge">🚀 5-Agent AI Pipeline</div>
-  <h1>Turn any idea into a<br><span class="red">published video</span><br><span class="dim">in minutes.</span></h1>
-  <p class="hero-sub">AI researches your topic, writes the script, generates visuals, assembles the video, and publishes to YouTube, TikTok, and Instagram — automatically.</p>
+  <div class="hero-glow"></div>
+  <div class="hero-grid-bg"></div>
+  <div class="hero-badge">
+    <span class="hero-badge-dot"></span>
+    AI-Powered Content Studio
+  </div>
+  <h1>
+    Build Your Brand With
+    <span class="line2" id="typewriter">AI Video</span>
+    <span class="line3">Podcasts, ads, shorts, reels — all platforms, all formats, zero effort.</span>
+  </h1>
+  <p class="hero-sub">Small businesses need content fast. We create it faster. 6 AI agents research, script, voice, edit, and publish your content across YouTube, TikTok, Instagram, Facebook, X, Twitch, Pinterest & Threads — all automatically.</p>
   <div class="hero-ctas">
-    <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start for Free — 2 Videos</a>
-    <a href="#pricing" class="btn btn-secondary">See Pricing</a>
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-xl">Start Creating Free →</a>
+    <a href="#pipeline" class="btn btn-secondary btn-xl">▶ See How It Works</a>
   </div>
-  <div class="hero-stats">
-    <div class="hero-stat"><div class="val">5</div><div class="lbl">AI Agents</div></div>
-    <div class="hero-stat"><div class="val">17+</div><div class="lbl">Video Models</div></div>
-    <div class="hero-stat"><div class="val">3</div><div class="lbl">Platforms</div></div>
-    <div class="hero-stat"><div class="val">~5 min</div><div class="lbl">Avg. Production</div></div>
-  </div>
-</section>
-
-<!-- Features -->
-<section class="section" id="features">
-  <div class="section-label">Everything included</div>
-  <h2 class="section-title">One pipeline, full production</h2>
-  <p class="section-sub">No juggling 5 tools. Research, scripting, voice, video, SEO, and publishing all happen in one automated run.</p>
-  <div class="features-grid">
-    <div class="feature-card">
-      <div class="feature-icon">🔍</div>
-      <h3>AI Research</h3>
-      <p>Pulls real facts, statistics, and sources from Wikipedia and the web before writing a single word.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">✍️</div>
-      <h3>Retention-Engineered Scripts</h3>
-      <p>Hooks, open loops, emotional beats — scripts written to keep viewers watching, not just informed.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🎙</div>
-      <h3>AI Voiceover</h3>
-      <p>6 neural voices with natural cadence. Your script read aloud in seconds, not hours.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🎬</div>
-      <h3>AI Video Generation</h3>
-      <p>17+ Higgsfield models — Kling 3.0, Veo 3.1, Cinema Studio 3.0. Cinematic B-roll generated from your script prompts.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📈</div>
-      <h3>SEO Optimisation</h3>
-      <p>Growth Engineer agent writes your title, description, tags, thumbnail text, and A/B variants.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">💰</div>
-      <h3>Budget-Smart Credits</h3>
-      <p>Cost Engineer routes assets between AI generation and free stock to stretch your credits further.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🚀</div>
-      <h3>One-Click Publishing</h3>
-      <p>Upload directly to YouTube, TikTok, and Instagram from the same dashboard.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🎙</div>
-      <h3>Podcast Mode</h3>
-      <p>Animated waveform, chapter cards, and progress bar — turn any topic into a full podcast episode.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">📊</div>
-      <h3>Content Analytics</h3>
-      <p>Track every job, review scripts, download videos, and monitor publishing results in one place.</p>
-    </div>
+  <div class="hero-note">No credit card required &middot; 3 free videos included &middot; Cancel anytime</div>
+  <div class="hero-metrics">
+    <div class="hero-metric"><div class="val text-gradient">6</div><div class="lbl">AI Agents</div></div>
+    <div class="hero-metric"><div class="val text-gradient">8</div><div class="lbl">Platforms</div></div>
+    <div class="hero-metric"><div class="val text-gradient">5min</div><div class="lbl">Per Video</div></div>
+    <div class="hero-metric"><div class="val text-gradient">$0</div><div class="lbl">To Start</div></div>
   </div>
 </section>
 
-<!-- Agent pipeline -->
-<div style="background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
-  <section class="section" id="agents" style="padding-top:56px;padding-bottom:56px;">
-    <div class="section-label">How it works</div>
-    <h2 class="section-title">5 specialized agents, 1 seamless pipeline</h2>
-    <div class="pipeline">
-      <div class="pipe-node">
-        <div class="pn-icon">🔍</div>
-        <div class="pn-name">Trend Architect</div>
-        <div class="pn-desc">Niche analysis<br>Winning angle</div>
+<!-- ════════════════ PLATFORMS — Asymmetric (Fix #1) ════════════════ -->
+<section class="platforms-section" id="platforms">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">Platforms</div>
+      <h2 class="section-title">Publish everywhere.<br>Manage from one place.</h2>
+      <p class="section-sub">Create once, publish to every major video platform. Each output is format-optimized for its destination.</p>
+    </div>
+    <div class="platforms-asymmetric">
+      <!-- TikTok Hero — 60% width -->
+      <div class="plat-hero-card reveal">
+        <div class="plat-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" stroke="var(--tt-cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h3>TikTok &amp; Shorts</h3>
+        <p>Vertical-first content engineered for the For You Page. The fastest-growing format in social — our pipeline is built around it.</p>
+        <div class="plat-stat-row">
+          <div class="plat-stat"><div class="ps-val">9:16</div><div class="ps-lbl">Vertical Native</div></div>
+          <div class="plat-stat"><div class="ps-val">~55s</div><div class="ps-lbl">Optimal Length</div></div>
+          <div class="plat-stat"><div class="ps-val">3x</div><div class="ps-lbl">Higher Reach</div></div>
+        </div>
+        <ul class="plat-feature-list tiktok-list">
+          <li><span class="feat-dot"></span> Hook-first script structure for maximum retention</li>
+          <li><span class="feat-dot"></span> Trending hashtag and sound research</li>
+          <li><span class="feat-dot"></span> Auto-publish via TikTok API</li>
+          <li><span class="feat-dot"></span> Engagement automation with warmup profiles</li>
+          <li><span class="feat-dot"></span> Caption sync and text overlay generation</li>
+          <li><span class="feat-dot"></span> Cross-post to YouTube Shorts and Instagram Reels</li>
+        </ul>
       </div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-node">
-        <div class="pn-icon">✍️</div>
-        <div class="pn-name">Narrative Designer</div>
-        <div class="pn-desc">Full script<br>Emotional beats</div>
+      <!-- YouTube + Instagram — stacked 40% -->
+      <div class="plat-stack">
+        <div class="plat-side-card youtube reveal reveal-delay-1">
+          <div class="plat-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58 2.78 2.78 0 0 0 1.94 2C5.12 20 12 20 12 20s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z" fill="var(--yt-red)"/><polygon points="9.75,15.02 15.5,12 9.75,8.98" fill="#fff"/></svg>
+          </div>
+          <h3>YouTube</h3>
+          <p>Long-form, Shorts, and podcast episodes with full SEO optimization.</p>
+          <ul class="plat-feature-list youtube-list">
+            <li><span class="feat-dot"></span> Auto-upload via YouTube Data API</li>
+            <li><span class="feat-dot"></span> SEO titles, descriptions, tags</li>
+            <li><span class="feat-dot"></span> Thumbnail generation</li>
+            <li><span class="feat-dot"></span> Shorts + long-form support</li>
+          </ul>
+        </div>
+        <div class="plat-side-card instagram reveal reveal-delay-2">
+          <div class="plat-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="2" width="20" height="20" rx="5" stroke="var(--ig-pink)" stroke-width="2"/><circle cx="12" cy="12" r="5" stroke="var(--ig-pink)" stroke-width="2"/><circle cx="17.5" cy="6.5" r="1.5" fill="var(--ig-pink)"/></svg>
+          </div>
+          <h3>Instagram</h3>
+          <p>Reels and Stories crafted for maximum reach, saves, and shares.</p>
+          <ul class="plat-feature-list instagram-list">
+            <li><span class="feat-dot"></span> Reels + Stories formats</li>
+            <li><span class="feat-dot"></span> Hashtag strategy engine</li>
+            <li><span class="feat-dot"></span> Community engagement tools</li>
+            <li><span class="feat-dot"></span> Cross-post from TikTok</li>
+          </ul>
+        </div>
       </div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-node">
-        <div class="pn-icon">🎨</div>
-        <div class="pn-name">Asset Curator</div>
-        <div class="pn-desc">Visual plan<br>Source routing</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ CONTENT FORMATS ════════════════ -->
+<section class="section" style="background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%); padding: 100px 24px;">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">Content Formats</div>
+      <h2 class="section-title">One Topic.<br>Every Format.</h2>
+      <p class="section-sub">From podcasts to product ads — generate any content type, optimized for any platform.</p>
+    </div>
+
+    <div class="format-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 48px;">
+      <!-- Podcasts -->
+      <div class="format-card reveal" style="background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 36px 28px; text-align: center; transition: all .3s;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🎙</div>
+        <h3 style="font-size: 18px; margin-bottom: 12px; color: var(--text);">Podcast Episodes</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">Full episodes, clips, and show notes. Choose 15, 30, 60, or 90-minute formats. Auto-distribute to Spotify, Apple, YouTube.</p>
+        <div style="font-size: 12px; color: var(--gold); font-weight: 600;">✓ Music licensing &nbsp; ✓ Intro/outro &nbsp; ✓ Chapters</div>
       </div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-node">
-        <div class="pn-icon">💰</div>
-        <div class="pn-name">Cost Engineer</div>
-        <div class="pn-desc">Budget optimise<br>Credit swaps</div>
+
+      <!-- Product Ads -->
+      <div class="format-card reveal reveal-delay-1" style="background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 36px 28px; text-align: center; transition: all .3s;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🛍</div>
+        <h3 style="font-size: 18px; margin-bottom: 12px; color: var(--text);">Product Ads</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">Professional commercials: 6s bumpers, 15s pre-rolls, 30s standards, 60s brand stories. Sell products on TikTok Shop, Instagram, Pinterest.</p>
+        <div style="font-size: 12px; color: var(--gold); font-weight: 600;">✓ Ecommerce optimized &nbsp; ✓ CTA automation &nbsp; ✓ A/B variants</div>
       </div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-node">
-        <div class="pn-icon">📈</div>
-        <div class="pn-name">Growth Engineer</div>
-        <div class="pn-desc">SEO package<br>A/B titles</div>
+
+      <!-- YouTube -->
+      <div class="format-card reveal reveal-delay-2" style="background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 36px 28px; text-align: center; transition: all .3s;">
+        <div style="font-size: 48px; margin-bottom: 16px;">📺</div>
+        <h3 style="font-size: 18px; margin-bottom: 12px; color: var(--text);">Long & Short Form</h3>
+        <p style="color: var(--muted); font-size: 14px; margin-bottom: 20px;">YouTube videos (long-form, Shorts), TikTok, Instagram Reels, Facebook Reels. All optimized for each platform's algorithm.</p>
+        <div style="font-size: 12px; color: var(--gold); font-weight: 600;">✓ Hook optimization &nbsp; ✓ SEO titles &nbsp; ✓ Thumbnails</div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 56px;">
+      <p style="color: var(--muted); margin-bottom: 28px; font-size: 16px; font-weight: 600;">Publish to all platforms simultaneously:</p>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; align-items: center;">
+        <span style="background: #ff0000; padding: 12px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">📺 YouTube</span>
+        <span style="background: #00f2ea; padding: 12px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; color: #000; display: flex; align-items: center; gap: 8px;">🎵 TikTok</span>
+        <span style="background: #e1306c; padding: 12px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">📷 Instagram</span>
+        <span style="background: #1877f2; padding: 12px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">👍 Facebook</span>
+        <span style="background: #000; padding: 12px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">𝕏 X</span>
+        <span style="background: #0077b5; padding: 12px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">💼 LinkedIn</span>
+        <span style="background: #e60023; padding: 12px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">📌 Pinterest</span>
+        <span style="background: #000; padding: 12px 20px; border-radius: 10px; border: none; font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">💬 Threads</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ FEATURES — Tabbed (Fix #3) ════════════════ -->
+<section class="section features-section" id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">Full Production Suite</div>
+      <h2 class="section-title">Everything you need.<br>Nothing you don't.</h2>
+      <p class="section-sub">40+ tools organized into three intelligence layers.</p>
+    </div>
+    <div class="feature-tabs reveal">
+      <button class="feature-tab active" onclick="switchTab('brain')">
+        <span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="22" x2="15" y2="22"/></svg></span>
+        The Brain
+      </button>
+      <button class="feature-tab" onclick="switchTab('studio')">
+        <span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
+        The Studio
+      </button>
+      <button class="feature-tab" onclick="switchTab('machine')">
+        <span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        The Machine
+      </button>
+      <button class="feature-tab" onclick="switchTab('growth')">
+        <span class="tab-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg></span>
+        Growth &amp; Engage
+      </button>
+    </div>
+
+    <!-- BRAIN panel -->
+    <div class="feature-panel active" id="panel-brain">
+      <div class="feature-showcase">
+        <div class="feat-card feat-hero reveal">
+          <div>
+            <div class="feat-icon-wrap" style="background:rgba(168,85,247,.08);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            <h3>AI Trend Research</h3>
+            <p>Real-time Google Trends data, competitor analysis, and winning angles — before a single word is written. Finds what's trending in your niche right now.</p>
+            <span class="feat-tag tag-ai">AI Powered</span>
+          </div>
+          <div class="feat-visual">
+            <span class="fv-label">Trend Analysis</span><br>
+            <span class="fv-val">Topic: "AI productivity tools"</span><br>
+            <span class="fv-val">Volume: </span><span style="color:var(--green)">+340% (7d)</span><br>
+            <span class="fv-val">Competition: </span><span style="color:var(--gold)">Medium</span><br>
+            <span class="fv-val">Best angle: "5 tools replacing..."</span><br>
+            <span class="fv-val">Peak window: </span><span style="color:var(--cyan)">Tue/Thu 2-5pm</span>
+          </div>
+        </div>
+        <div class="feat-card reveal reveal-delay-1">
+          <div class="feat-icon-wrap" style="background:rgba(59,130,246,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+          </div>
+          <h3>RSS Trend Monitor</h3>
+          <p>Watch competitor feeds and news sources. Detect trending topics before they peak and generate content while the topic is still rising.</p>
+          <span class="feat-tag tag-smart">Smart</span>
+        </div>
+        <div class="feat-card reveal reveal-delay-2">
+          <div class="feat-icon-wrap" style="background:rgba(34,197,94,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+          </div>
+          <h3>Hashtag Research</h3>
+          <p>Platform-specific discovery with volume scoring, competition analysis, and trending detection. Finds the tags that actually drive reach.</p>
+          <span class="feat-tag tag-growth">Growth</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STUDIO panel -->
+    <div class="feature-panel" id="panel-studio">
+      <div class="feature-showcase">
+        <div class="feat-card feat-hero reveal">
+          <div>
+            <div class="feat-icon-wrap" style="background:rgba(6,182,212,.08);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><polygon points="23,7 16,12 23,17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            </div>
+            <h3>AI Video Generation</h3>
+            <p>17+ models including Kling 3.0, Veo 3.1, and Cinema Studio 3.0. Cinematic B-roll generated from your script — no stock footage needed.</p>
+            <span class="feat-tag tag-ai">AI Powered</span>
+          </div>
+          <div class="feat-visual">
+            <span class="fv-label">Available Models</span><br>
+            <span class="fv-val">Kling 3.0 &middot; Veo 3.1 &middot; Cinema Studio 3.0</span><br>
+            <span class="fv-val">Wan2.1 &middot; CogVideo &middot; HunyuanVideo</span><br>
+            <span class="fv-val">+ 11 more models</span><br><br>
+            <span class="fv-label">Routing</span><br>
+            <span style="color:var(--green)">FREE</span> <span class="fv-val">&rarr; Pexels stock</span><br>
+            <span style="color:var(--gold)">CHEAP</span> <span class="fv-val">&rarr; Open-source AI</span><br>
+            <span style="color:var(--purple)">PREMIUM</span> <span class="fv-val">&rarr; Kling / Veo / HF</span>
+          </div>
+        </div>
+        <div class="feat-card reveal reveal-delay-1">
+          <div class="feat-icon-wrap" style="background:rgba(168,85,247,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <h3>Retention Scripts</h3>
+          <p>Hooks, open loops, emotional beats — scripts engineered with proven structures that keep viewers watching past the 3-second mark.</p>
+          <span class="feat-tag tag-ai">AI Powered</span>
+        </div>
+        <div class="feat-card reveal reveal-delay-2">
+          <div class="feat-icon-wrap" style="background:rgba(239,68,68,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </div>
+          <h3>Neural Voiceover</h3>
+          <p>6 ultra-realistic AI voices with natural cadence and emotional range. Script to studio-quality audio in seconds.</p>
+          <span class="feat-tag tag-ai">AI Powered</span>
+        </div>
+        <div class="feat-card reveal reveal-delay-3">
+          <div class="feat-icon-wrap" style="background:rgba(6,182,212,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          </div>
+          <h3>Podcast Mode</h3>
+          <p>Waveform animations, chapter cards, progress bars — produce full podcast episodes with visual elements from any topic.</p>
+          <span class="feat-tag tag-ai">AI Powered</span>
+        </div>
+        <div class="feat-card reveal reveal-delay-1">
+          <div class="feat-icon-wrap" style="background:rgba(6,182,212,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          </div>
+          <h3>Documentary Studio</h3>
+          <p>National Geographic, ESPN 30 for 30, HBO, True Crime, and History Channel styles. Cinematic narration with dramatic pacing up to 60 minutes.</p>
+          <span class="feat-tag tag-ai">AI Powered</span>
+        </div>
+        <div class="feat-card reveal reveal-delay-2">
+          <div class="feat-icon-wrap" style="background:rgba(232,121,249,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#e879f9" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+          </div>
+          <h3>Animation Studio</h3>
+          <p>LEGO, Claymation, Anime, Comic Book, Pixel Art, and Watercolor styles. Every frame AI-generated in your chosen art style.</p>
+          <span class="feat-tag tag-ai">AI Powered</span>
+        </div>
+        <div class="feat-card reveal reveal-delay-3">
+          <div class="feat-icon-wrap" style="background:rgba(239,68,68,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><circle cx="6" cy="6" r="3"/><path d="M6 21V9"/><circle cx="18" cy="18" r="3"/><path d="M18 9v6"/><path d="M6 9a9 9 0 0 0 12 0"/></svg>
+          </div>
+          <h3>The Scalpel</h3>
+          <p>Turn any long video into viral shorts. Import from YouTube or clip your own content — AI finds hooks, emotional peaks, and quotable moments automatically.</p>
+          <span class="feat-tag tag-smart">Smart</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MACHINE panel -->
+    <div class="feature-panel" id="panel-machine">
+      <div class="feature-showcase">
+        <div class="feat-card feat-hero reveal">
+          <div>
+            <div class="feat-icon-wrap" style="background:rgba(34,197,94,.08);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <h3>3-Tier Cost Routing</h3>
+            <p>Smart engine automatically routes between free stock footage, open-source AI models, and premium generators. Stretches your budget without sacrificing quality.</p>
+            <span class="feat-tag tag-smart">Budget Smart</span>
+          </div>
+          <div class="feat-visual">
+            <span class="fv-label">Cost Breakdown</span><br>
+            <span style="color:var(--green)">FREE</span> <span class="fv-val">&middot; Pexels stock &middot; $0.00</span><br>
+            <span style="color:var(--gold)">ULTRA-CHEAP</span> <span class="fv-val">&middot; Wan2.1/CogVideo &middot; $0.02</span><br>
+            <span style="color:var(--purple)">PREMIUM</span> <span class="fv-val">&middot; Kling/Veo &middot; $0.35</span><br><br>
+            <span class="fv-label">Avg. video cost:</span> <span style="color:var(--green)">$0.42</span>
+          </div>
+        </div>
+        <div class="feat-card reveal reveal-delay-1">
+          <div class="feat-icon-wrap" style="background:rgba(59,130,246,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>Spintax &amp; Anti-Detect</h3>
+          <p>Content variation, proxy rotation, browser fingerprinting, and account warmup. Enterprise-grade infrastructure for scaling safely.</p>
+          <span class="feat-tag tag-smart">Smart</span>
+        </div>
+        <div class="feat-card reveal reveal-delay-2">
+          <div class="feat-icon-wrap" style="background:rgba(6,182,212,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><polyline points="22,2 15,22 11,13 2,9"/></svg>
+          </div>
+          <h3>One-Click Publish</h3>
+          <p>Publish to YouTube, TikTok, Instagram, Facebook, X, Twitch, Threads, and Snapchat simultaneously. Schedule posts or go live instantly — one click, all 8 platforms.</p>
+          <span class="feat-tag tag-core">Core</span>
+        </div>
+        <div class="feat-card reveal reveal-delay-3">
+          <div class="feat-icon-wrap" style="background:rgba(201,162,39,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <h3>Content Calendar</h3>
+          <p>Visual scheduling, batch creation, and pipeline management. Never miss a posting window across any platform.</p>
+          <span class="feat-tag tag-core">Core</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- GROWTH panel -->
+    <div class="feature-panel" id="panel-growth">
+      <div class="feature-showcase">
+        <div class="feat-card feat-hero reveal">
+          <div>
+            <div class="feat-icon-wrap" style="background:rgba(201,162,39,.08);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <h3>Engagement Center</h3>
+            <p>Cross-platform follows, likes, comments, DMs, and auto-replies. Community Engineer agent grows your audience on autopilot with warmup profiles.</p>
+            <span class="feat-tag tag-engage">Engagement</span>
+          </div>
+          <div class="feat-visual">
+            <span class="fv-label">Engagement Actions</span><br>
+            <span class="fv-val">Follow &middot; Like &middot; Comment &middot; DM</span><br>
+            <span class="fv-val">Auto-reply &middot; Story views &middot; Saves</span><br><br>
+            <span class="fv-label">Safety</span><br>
+            <span class="fv-val">Warmup profiles &middot; Rate limiting</span><br>
+            <span class="fv-val">Fingerprint rotation &middot; Proxy support</span>
+          </div>
+        </div>
+        <div class="feat-card reveal reveal-delay-1">
+          <div class="feat-icon-wrap" style="background:rgba(34,197,94,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><polyline points="23,6 13.5,15.5 8.5,10.5 1,18"/><polyline points="17,6 23,6 23,12"/></svg>
+          </div>
+          <h3>SEO + Growth Engine</h3>
+          <p>AI-optimized titles, descriptions, tags, and thumbnails. A/B test variants across platforms to find what converts.</p>
+          <span class="feat-tag tag-growth">Growth</span>
+        </div>
+        <div class="feat-card reveal reveal-delay-2">
+          <div class="feat-icon-wrap" style="background:rgba(59,130,246,.08);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </div>
+          <h3>Growth Analytics</h3>
+          <p>Track followers, engagement rates, posting performance, and content ROI across all platforms in a single dashboard.</p>
+          <span class="feat-tag tag-growth">Growth</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ WHO IT'S FOR ════════════════ -->
+<section class="section" id="who">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">Built For You</div>
+      <h2 class="section-title">Whether you're solo or scaling,<br>we've got you covered</h2>
+      <p class="section-sub">From first-time creators to full agencies — Social Optimize adapts to how you work.</p>
+    </div>
+    <div class="personas-grid">
+      <div class="persona-card reveal">
+        <div class="persona-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5"><polygon points="23,7 16,12 23,17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </div>
+        <h3>Content Creators</h3>
+        <div class="role">YouTubers &middot; TikTokers &middot; Podcasters</div>
+        <p>Publish more without burning out. Idea to published video in 5 minutes.</p>
+        <ul class="persona-list">
+          <li>Auto-generate 5+ videos per week</li>
+          <li>AI scripts + voiceover in minutes</li>
+          <li>Batch mode for content stockpiling</li>
+          <li>Multi-platform publish in one click</li>
+        </ul>
+      </div>
+      <div class="persona-card reveal reveal-delay-1">
+        <div class="persona-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+        </div>
+        <h3>Influencers</h3>
+        <div class="role">Personal Brands &middot; Thought Leaders</div>
+        <p>Scale across platforms without sacrificing quality or authenticity.</p>
+        <ul class="persona-list">
+          <li>Engagement Center grows followers</li>
+          <li>Community Engineer handles DMs</li>
+          <li>Trend research finds viral angles</li>
+          <li>Cross-platform analytics dashboard</li>
+        </ul>
+      </div>
+      <div class="persona-card reveal reveal-delay-2">
+        <div class="persona-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <h3>Advertisers</h3>
+        <div class="role">Brands &middot; Agencies &middot; Marketers</div>
+        <p>Produce video ads at scale with data-driven creative and A/B testing.</p>
+        <ul class="persona-list">
+          <li>A/B test titles and thumbnails</li>
+          <li>Competitor analysis and scraping</li>
+          <li>SEO-optimized for every platform</li>
+          <li>Cost-efficient production pipeline</li>
+        </ul>
+      </div>
+      <div class="persona-card reveal reveal-delay-3">
+        <div class="persona-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+        </div>
+        <h3>Small Business</h3>
+        <div class="role">Startups &middot; Local Shops &middot; E-commerce</div>
+        <p>Professional marketing videos without a production team or video skills.</p>
+        <ul class="persona-list">
+          <li>Zero editing skills required</li>
+          <li>Professional quality on a budget</li>
+          <li>3-tier cost routing saves money</li>
+          <li>Hollywood AI manages everything</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ PIPELINE ════════════════ -->
+<div class="pipeline-section" id="pipeline">
+  <section class="section" style="padding-top:80px;padding-bottom:80px;">
+    <div class="container">
+      <div class="section-header reveal">
+        <div class="section-eyebrow">How It Works</div>
+        <h2 class="section-title">6 agents. 1 pipeline.<br>Zero manual steps.</h2>
+        <p class="section-sub">Each agent is a specialist. Together they produce broadcast-quality content from a single topic.</p>
+      </div>
+      <div class="pipeline-track reveal">
+        <div class="pipe-node">
+          <div class="pipe-num">1</div>
+          <div class="pn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+          <div class="pn-name">Trend Architect</div>
+          <div class="pn-desc">Niche analysis<br>Winning angles</div>
+        </div>
+        <div class="pipe-connector"><svg viewBox="0 0 28 12"><line x1="0" y1="6" x2="28" y2="6"/></svg></div>
+        <div class="pipe-node">
+          <div class="pipe-num">2</div>
+          <div class="pn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+          <div class="pn-name">Narrative Designer</div>
+          <div class="pn-desc">Retention scripts<br>Emotional beats</div>
+        </div>
+        <div class="pipe-connector"><svg viewBox="0 0 28 12"><line x1="0" y1="6" x2="28" y2="6"/></svg></div>
+        <div class="pipe-node">
+          <div class="pipe-num">3</div>
+          <div class="pn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg></div>
+          <div class="pn-name">Asset Curator</div>
+          <div class="pn-desc">Visual planning<br>Source routing</div>
+        </div>
+        <div class="pipe-connector"><svg viewBox="0 0 28 12"><line x1="0" y1="6" x2="28" y2="6"/></svg></div>
+        <div class="pipe-node">
+          <div class="pipe-num">4</div>
+          <div class="pn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+          <div class="pn-name">Cost Engineer</div>
+          <div class="pn-desc">Budget optimize<br>3-tier routing</div>
+        </div>
+        <div class="pipe-connector"><svg viewBox="0 0 28 12"><line x1="0" y1="6" x2="28" y2="6"/></svg></div>
+        <div class="pipe-node">
+          <div class="pipe-num">5</div>
+          <div class="pn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><polyline points="23,6 13.5,15.5 8.5,10.5 1,18"/><polyline points="17,6 23,6 23,12"/></svg></div>
+          <div class="pn-name">Growth Engineer</div>
+          <div class="pn-desc">SEO package<br>A/B testing</div>
+        </div>
+        <div class="pipe-connector"><svg viewBox="0 0 28 12"><line x1="0" y1="6" x2="28" y2="6"/></svg></div>
+        <div class="pipe-node">
+          <div class="pipe-num">6</div>
+          <div class="pn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <div class="pn-name">Community Eng.</div>
+          <div class="pn-desc">Engagement<br>Audience growth</div>
+        </div>
       </div>
     </div>
   </section>
 </div>
 
-<!-- Pricing -->
-<section class="section" id="pricing">
-  <div class="section-label">Simple pricing</div>
-  <h2 class="section-title">Pick your plan</h2>
-  <p class="section-sub">All plans include the full 5-agent pipeline, AI voiceover, and multi-platform publishing. Credits cover AI video generation.</p>
-  <div class="pricing-grid">
-    {% for tier_key, tier in tiers.items() %}
-    <div class="pricing-card {% if tier_key == 'creator' %}featured{% endif %}">
-      {% if tier_key == 'creator' %}<div class="pricing-popular">Most Popular</div>{% endif %}
-      <div class="pricing-tier">{{ tier.label }}</div>
-      <div class="pricing-price">
-        {% if tier.price_monthly == 0 %}Free{% else %}${{ tier.price_monthly }}{% endif %}
-        {% if tier.price_monthly > 0 %}<span>/mo</span>{% endif %}
-      </div>
-      <div class="pricing-desc">
-        {% if tier_key == 'free' %}Try before you buy
-        {% elif tier_key == 'starter' %}Solo creators getting started
-        {% elif tier_key == 'creator' %}Full-time content creators
-        {% else %}Agencies &amp; power users{% endif %}
-      </div>
-      <ul class="pricing-features">
-        {% for f in tier.features %}
-        <li>{{ f }}</li>
-        {% endfor %}
+<!-- ════════════════ HOLLYWOOD SPOTLIGHT — Living Terminal (Fix #5) ════════════════ -->
+<section class="spotlight">
+  <div class="spotlight-inner">
+    <div class="spotlight-text reveal">
+      <div class="section-eyebrow">Meet Hollywood</div>
+      <h2>Your AI producer<br>that <span class="text-gold">runs the show</span></h2>
+      <p>Hollywood is your personal AI agent that orchestrates the entire pipeline. Chat naturally — it manages blueprints, deploys infrastructure, researches trends, and handles everything so you don't have to.</p>
+      <ul class="spotlight-feats">
+        <li>
+          <span class="sf-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></span>
+          <span><strong>Blueprint Management</strong> — create, clone, analyze, compare strategies</span>
+        </li>
+        <li>
+          <span class="sf-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><polyline points="22,2 15,22 11,13 2,9"/></svg></span>
+          <span><strong>One-Click Deploy</strong> — manages your entire infrastructure via API</span>
+        </li>
+        <li>
+          <span class="sf-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+          <span><strong>Web Research</strong> — competitors, API keys, market analysis</span>
+        </li>
+        <li>
+          <span class="sf-ico"><svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
+          <span><strong>40+ Tools</strong> — scheduling, health checks, analytics, everything</span>
+        </li>
       </ul>
-      {% if tier_key == 'free' %}
-        <a href="{{ url_for('auth.register') }}" class="btn btn-secondary pricing-btn">Start Free</a>
-      {% else %}
-        <a href="{{ url_for('auth.register') }}" class="btn {% if tier_key == 'creator' %}btn-primary{% else %}btn-secondary{% endif %} pricing-btn">Get Started</a>
-      {% endif %}
+      <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg">Try Hollywood Free</a>
     </div>
-    {% endfor %}
+    <div class="hw-terminal reveal reveal-delay-2">
+      <div class="hw-titlebar">
+        <div class="hw-dot r"></div>
+        <div class="hw-dot y"></div>
+        <div class="hw-dot g"></div>
+        <div class="hw-titlebar-text">Hollywood &middot; Live Session</div>
+      </div>
+      <div class="hw-chat" id="hwChat">
+        <div class="hw-msg">
+          <div class="hw-avatar user">Y</div>
+          <div class="hw-bubble">
+            <div class="hw-sender user-name">You</div>
+            <div class="hw-text">Create a video about AI trends for 2025</div>
+          </div>
+        </div>
+        <div class="hw-msg">
+          <div class="hw-avatar agent">H</div>
+          <div class="hw-bubble">
+            <div class="hw-sender agent-name">Hollywood</div>
+            <div class="hw-text">On it. Spinning up the pipeline now.</div>
+            <div class="hw-agent-steps">
+              <div class="hw-step"><span class="step-status done"></span><span class="step-name">Trend Architect</span><span class="step-detail">3 viral angles found</span></div>
+              <div class="hw-step"><span class="step-status done"></span><span class="step-name">Narrative Designer</span><span class="step-detail">8-min script ready</span></div>
+              <div class="hw-step"><span class="step-status done"></span><span class="step-name">Asset Curator</span><span class="step-detail">12 scenes planned</span></div>
+              <div class="hw-step"><span class="step-status done"></span><span class="step-name">Cost Engineer</span><span class="step-detail">$0.42 total</span></div>
+              <div class="hw-step"><span class="step-status done"></span><span class="step-name">Growth Engineer</span><span class="step-detail">SEO optimized</span></div>
+              <div class="hw-step"><span class="step-status active"></span><span class="step-name">Community Eng.</span><span class="step-detail">queuing...</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="hw-msg">
+          <div class="hw-avatar agent">H</div>
+          <div class="hw-bubble">
+            <div class="hw-sender agent-name">Hollywood</div>
+            <div class="hw-text">Video ready. Published to YouTube, TikTok, Instagram, Facebook, X & Twitch. Total time: 4m 23s.<span class="hw-cursor"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- CTA Band -->
-<div class="cta-band">
-  <h2>Ready to automate your channel?</h2>
-  <p>Join creators using Social Optimize to publish faster and smarter.</p>
-  <a href="{{ url_for('auth.register') }}" class="btn btn-primary" style="padding:14px 32px;font-size:16px;">Create Free Account</a>
-</div>
+<!-- ════════════════ PRICING ════════════════ -->
+<section class="section" id="pricing">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">Pricing</div>
+      <h2 class="section-title">Simple, transparent pricing</h2>
+      <p class="section-sub">Every plan includes the full 6-agent pipeline, AI voiceover, and multi-platform publishing.</p>
+    </div>
+    <div class="pricing-grid reveal">
+      {% for tier_key, tier in tiers.items() %}
+      <div class="pricing-card {% if tier_key == 'creator' %}featured{% endif %}">
+        {% if tier_key == 'creator' %}<div class="pricing-popular">Most Popular</div>
+        {% elif tier_key == 'starter' %}<div class="pricing-popular" style="background:#30d158;">14-Day Free Trial</div>
+        {% endif %}
+        <div class="pricing-tier">{{ tier.label }}</div>
+        <div class="pricing-price">
+          {% if tier.price_monthly == 0 %}Free{% else %}${{ tier.price_monthly }}{% endif %}
+          {% if tier.price_monthly > 0 %}<span>/mo</span>{% endif %}
+        </div>
+        <div class="pricing-desc">{{ tier.description }}</div>
+        <ul class="pricing-features">
+          {% for f in tier.features %}
+          <li>
+            <span class="pf-check"><svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="3"><polyline points="20,6 9,17 4,12"/></svg></span>
+            {{ f }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% if tier_key == 'free' %}
+          <a href="{{ url_for('auth.register') }}" class="btn btn-secondary btn-lg pricing-btn">Start Free</a>
+        {% elif tier_key == 'starter' %}
+          <a href="{{ url_for('auth.register') }}" class="btn btn-secondary btn-lg pricing-btn">Start Free Trial</a>
+        {% else %}
+          <a href="{{ url_for('auth.register') }}" class="btn {% if tier_key == 'creator' %}btn-primary{% else %}btn-secondary{% endif %} btn-lg pricing-btn">Get Started</a>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
 
-<!-- Footer -->
+<!-- ════════════════ FAQ ════════════════ -->
+<section class="section faq-section" id="faq">
+  <div class="container">
+    <div class="section-header reveal">
+      <div class="section-eyebrow">FAQ</div>
+      <h2 class="section-title">Questions? Answers.</h2>
+    </div>
+    <div class="faq-list reveal">
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">Do I need video editing skills?<span class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+        <div class="faq-a"><p>No. Social Optimize handles everything from script to published video. You type a topic, the 6-agent pipeline does the rest. Zero editing, zero technical skills required.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">What platforms can I publish to?<span class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+        <div class="faq-a"><p>All 8 platforms: YouTube (long-form + Shorts), TikTok, Instagram (Reels + Stories), Facebook, X (Twitter), Twitch (live + VOD), Threads, and Snapchat. Each video is automatically formatted and optimized for its destination platform.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">How does the 3-tier cost routing work?<span class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+        <div class="faq-a"><p>The Cost Engineer automatically routes assets between three tiers: FREE (Pexels stock), ULTRA-CHEAP (open-source AI models), and PREMIUM (Social Optimize AI — Kling, Veo, Cinema Studio + more). It stretches your credits without sacrificing quality.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">What is Hollywood?<span class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+        <div class="faq-a"><p>Hollywood is your personal AI producer — a chat-based agent with 40+ tools. It manages blueprints, deploys your infrastructure, researches trends, handles engagement, and orchestrates the entire pipeline through natural conversation.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">Can I use it for my business?<span class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+        <div class="faq-a"><p>Absolutely. Small businesses, agencies, advertisers, and e-commerce brands all use Social Optimize. The Agency plan supports team members and unlimited video production.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q" onclick="toggleFaq(this)">How long does it take to make a video?<span class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
+        <div class="faq-a"><p>Average production time is ~5 minutes from topic to published video. Shorts take even less. The pipeline runs fully in parallel for maximum speed.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ FINAL CTA ════════════════ -->
+<section class="final-cta">
+  <div class="reveal">
+    <h2>Ready to automate<br>your content?</h2>
+    <p>Join creators, influencers, and businesses producing better content in less time.</p>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+      <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-xl">Create Free Account</a>
+      <a href="#features" class="btn btn-secondary btn-xl">Explore Features</a>
+    </div>
+    <div class="hero-note" style="margin-top:16px;">No credit card required &middot; Cancel anytime</div>
+  </div>
+</section>
+
+<!-- ════════════════ FOOTER ════════════════ -->
 <footer class="footer">
-  <p>© 2025 Social Optimize Machine. All rights reserved.</p>
+  <div>
+    <div class="footer-brand">
+      <span><span class="dot">&#9679;</span> Social Optimize</span>
+    </div>
+    <p style="margin-top:6px;">&copy; 2025 Social Optimize. All rights reserved.</p>
+  </div>
   <div class="footer-links">
+    <a href="#features">Features</a>
+    <a href="#platforms">Platforms</a>
+    <a href="#who">Who It's For</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
     <a href="{{ url_for('auth.login') }}">Sign In</a>
-    <a href="{{ url_for('auth.register') }}">Register</a>
+    <a href="/privacy">Privacy Policy</a>
   </div>
 </footer>
 
+<!-- ════════════════ SCRIPTS ════════════════ -->
+<script>
+// Scroll reveal — trigger immediately for anything already in viewport
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); }
+  });
+}, { threshold: 0.05, rootMargin: '0px 0px 0px 0px' });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Typewriter
+(function() {
+  const words = ['AI Video', 'Podcast Episodes', 'Product Ads', 'YouTube Videos', 'Social Reels', 'Commercials', 'Documentaries', 'Animations', 'Viral Clips'];
+  let i = 0;
+  const el = document.getElementById('typewriter');
+  if (!el) return;
+  function swap() {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(8px)';
+    setTimeout(() => {
+      i = (i + 1) % words.length;
+      el.textContent = words[i];
+      el.style.opacity = '1';
+      el.style.transform = 'translateY(0)';
+    }, 300);
+  }
+  el.style.transition = 'opacity .3s ease, transform .3s ease';
+  setInterval(swap, 2500);
+})();
+
+// Nav scroll
+window.addEventListener('scroll', () => {
+  document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 30);
+});
+
+// Mobile menu
+function toggleMobileMenu() {
+  document.getElementById('mobileMenu').classList.toggle('open');
+}
+function closeMobileMenu() {
+  document.getElementById('mobileMenu').classList.remove('open');
+}
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('mobileMenu');
+  const btn = document.querySelector('.nav-mobile');
+  if (menu && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.classList.remove('open');
+  }
+});
+
+// Feature tabs
+function switchTab(name) {
+  document.querySelectorAll('.feature-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.feature-panel').forEach(p => p.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const panel = document.getElementById('panel-' + name);
+  if (panel) {
+    panel.classList.add('active');
+    panel.querySelectorAll('.reveal').forEach(el => {
+      el.classList.remove('visible');
+      void el.offsetWidth;
+      observer.observe(el);
+    });
+  }
+}
+
+// FAQ toggle
+function toggleFaq(btn) {
+  const answer = btn.nextElementSibling;
+  const isOpen = answer.classList.contains('open');
+  document.querySelectorAll('.faq-a.open').forEach(a => { a.classList.remove('open'); a.previousElementSibling.classList.remove('open'); });
+  if (!isOpen) { answer.classList.add('open'); btn.classList.add('open'); }
+}
+
+// Hollywood terminal animation — step reveal
+(function() {
+  const steps = document.querySelectorAll('.hw-step');
+  const lastMsg = document.querySelectorAll('.hw-msg');
+  if (steps.length === 0) return;
+  steps.forEach(s => s.style.opacity = '0');
+  if (lastMsg.length > 2) lastMsg[2].style.opacity = '0';
+  const terminalObs = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      terminalObs.unobserve(entry.target);
+      steps.forEach((s, i) => {
+        setTimeout(() => {
+          s.style.transition = 'opacity .4s, transform .4s';
+          s.style.opacity = '1';
+          s.style.transform = 'translateX(0)';
+        }, 400 + i * 350);
+        s.style.transform = 'translateX(-8px)';
+      });
+      if (lastMsg.length > 2) {
+        setTimeout(() => {
+          lastMsg[2].style.transition = 'opacity .5s';
+          lastMsg[2].style.opacity = '1';
+        }, 400 + steps.length * 350 + 300);
+      }
+    });
+  }, { threshold: 0.3 });
+  const terminal = document.querySelector('.hw-terminal');
+  if (terminal) terminalObs.observe(terminal);
+})();
+</script>
 </body>
 </html>

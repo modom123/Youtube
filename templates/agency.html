@@ -1,0 +1,769 @@
+{% extends "base.html" %}
+{% set active_page = "agency" %}
+
+{% block title %}Agency Command Center — Social Optimize{% endblock %}
+{% block topbar_title %}🏢 Agency Command Center{% endblock %}
+{% block topbar_sub %}Clients · Deals · Projects · Revenue{% endblock %}
+
+{% block topbar_actions %}
+<button onclick="openModal('client')" class="btn btn-primary" style="font-size:12px;">+ New Client</button>
+<button onclick="openModal('deal')" class="btn btn-secondary" style="font-size:12px;">+ New Deal</button>
+{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --ag-bg: #f0f4fa;
+  --ag-panel: #ffffff;
+  --ag-border: rgba(0,0,0,.08);
+  --ag-text: #1e293b;
+  --ag-muted: #64748b;
+  --ag-purple: #7c3aed;
+  --ag-green: #059669;
+  --ag-blue: #2563eb;
+  --ag-orange: #d97706;
+  --ag-red: #dc2626;
+}
+.ag-wrap { padding: 16px; max-width: 1400px; margin: 0 auto; }
+
+/* KPI Cards */
+.ag-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.ag-kpi { background: var(--ag-panel); border: 1px solid var(--ag-border); border-radius: 12px; padding: 16px; }
+.ag-kpi-label { font-size: 11px; color: var(--ag-muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.ag-kpi-value { font-size: 28px; font-weight: 800; color: var(--ag-text); }
+.ag-kpi-sub { font-size: 11px; color: var(--ag-muted); margin-top: 2px; }
+
+/* Tabs */
+.ag-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid var(--ag-border); padding-bottom: 0; }
+.ag-tab { padding: 10px 20px; border: none; background: none; color: var(--ag-muted); font-weight: 600; font-size: 13px;
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .2s; }
+.ag-tab:hover { color: var(--ag-text); }
+.ag-tab.active { color: var(--ag-purple); border-bottom-color: var(--ag-purple); }
+.ag-tab-content { display: none; }
+.ag-tab-content.active { display: block; }
+
+/* Pipeline */
+.ag-pipeline { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+.ag-stage { flex: 1; min-width: 220px; background: var(--ag-panel); border: 1px solid var(--ag-border); border-radius: 12px; }
+.ag-stage-header { padding: 12px 14px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
+  border-bottom: 1px solid var(--ag-border); display: flex; justify-content: space-between; align-items: center; }
+.ag-stage-cards { padding: 8px; min-height: 100px; }
+.ag-deal-card { background: var(--ag-bg); border: 1px solid var(--ag-border); border-radius: 8px; padding: 10px 12px;
+  margin-bottom: 8px; cursor: pointer; transition: box-shadow .2s; }
+.ag-deal-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.ag-deal-title { font-weight: 600; font-size: 13px; color: var(--ag-text); }
+.ag-deal-client { font-size: 11px; color: var(--ag-muted); margin-top: 2px; }
+.ag-deal-value { font-size: 14px; font-weight: 700; color: var(--ag-green); margin-top: 4px; }
+
+/* Table */
+.ag-table { width: 100%; border-collapse: collapse; background: var(--ag-panel); border-radius: 12px; overflow: hidden; border: 1px solid var(--ag-border); }
+.ag-table th { text-align: left; padding: 10px 14px; font-size: 11px; color: var(--ag-muted); text-transform: uppercase;
+  letter-spacing: .5px; border-bottom: 1px solid var(--ag-border); background: #f8fafc; }
+.ag-table td { padding: 10px 14px; font-size: 13px; color: var(--ag-text); border-bottom: 1px solid var(--ag-border); }
+.ag-table tr:hover td { background: #f8fafc; }
+
+/* Status badges */
+.ag-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+.ag-badge-lead { background: rgba(37,99,235,.1); color: var(--ag-blue); }
+.ag-badge-active { background: rgba(5,150,105,.1); color: var(--ag-green); }
+.ag-badge-churned { background: rgba(220,38,38,.1); color: var(--ag-red); }
+.ag-badge-prospect { background: rgba(217,119,6,.1); color: var(--ag-orange); }
+.ag-badge-won { background: rgba(5,150,105,.1); color: var(--ag-green); }
+.ag-badge-lost { background: rgba(220,38,38,.1); color: var(--ag-red); }
+
+/* Modal */
+.ag-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 9000; align-items: center; justify-content: center; }
+.ag-modal-overlay.open { display: flex; }
+.ag-modal { background: var(--ag-panel); border-radius: 16px; padding: 24px; width: 90%; max-width: 560px; max-height: 85vh; overflow-y: auto; box-shadow: 0 16px 48px rgba(0,0,0,.2); }
+.ag-modal h3 { margin: 0 0 16px; font-size: 18px; color: var(--ag-text); }
+.ag-field { margin-bottom: 12px; }
+.ag-field label { display: block; font-size: 11px; font-weight: 600; color: var(--ag-muted); text-transform: uppercase; margin-bottom: 4px; }
+.ag-field input, .ag-field select, .ag-field textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--ag-border); border-radius: 8px;
+  font-size: 13px; color: var(--ag-text); background: var(--ag-bg); box-sizing: border-box; }
+.ag-field textarea { min-height: 60px; resize: vertical; }
+.ag-btn { padding: 8px 20px; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: opacity .2s; }
+.ag-btn:hover { opacity: .85; }
+.ag-btn-primary { background: var(--ag-purple); color: #fff; }
+.ag-btn-danger { background: var(--ag-red); color: #fff; }
+.ag-btn-ghost { background: none; color: var(--ag-muted); }
+
+/* Revenue chart */
+.ag-chart-bar { height: 20px; border-radius: 4px; background: var(--ag-purple); margin-bottom: 4px; transition: width .3s; }
+</style>
+
+<div class="ag-wrap">
+
+  <!-- KPI Cards -->
+  <div class="ag-kpis" id="kpiCards">
+    <div class="ag-kpi">
+      <div class="ag-kpi-label">Total Clients</div>
+      <div class="ag-kpi-value" id="kpiClients">{{ stats.clients_total }}</div>
+      <div class="ag-kpi-sub"><span style="color:var(--ag-green);">{{ stats.clients_active }} active</span> · {{ stats.leads }} leads</div>
+    </div>
+    <div class="ag-kpi">
+      <div class="ag-kpi-label">Pipeline Value</div>
+      <div class="ag-kpi-value" id="kpiPipeline">${{ "{:,.0f}".format(stats.pipeline_value) }}</div>
+      <div class="ag-kpi-sub">{{ stats.deals_open }} open deals</div>
+    </div>
+    <div class="ag-kpi">
+      <div class="ag-kpi-label">Deals Won</div>
+      <div class="ag-kpi-value" id="kpiWon" style="color:var(--ag-green);">${{ "{:,.0f}".format(stats.deals_won) }}</div>
+      <div class="ag-kpi-sub">Closed revenue</div>
+    </div>
+    <div class="ag-kpi">
+      <div class="ag-kpi-label">Monthly Recurring</div>
+      <div class="ag-kpi-value" id="kpiMRR" style="color:var(--ag-blue);">${{ "{:,.0f}".format(stats.mrr) }}</div>
+      <div class="ag-kpi-sub">{{ stats.projects_active }} active projects</div>
+    </div>
+    <div class="ag-kpi">
+      <div class="ag-kpi-label">Total Revenue</div>
+      <div class="ag-kpi-value" id="kpiRevenue">${{ "{:,.0f}".format(stats.total_revenue) }}</div>
+      <div class="ag-kpi-sub">All time</div>
+    </div>
+    <div class="ag-kpi">
+      <div class="ag-kpi-label">Assets Created</div>
+      <div class="ag-kpi-value" id="kpiAssets">{{ stats.assets_total }}</div>
+      <div class="ag-kpi-sub">Tracked deliverables</div>
+    </div>
+    <div class="ag-kpi">
+      <div class="ag-kpi-label">Follow-ups</div>
+      <div class="ag-kpi-value" id="kpiFollowups" style="color:var(--ag-orange);">{{ stats.followups_pending }}</div>
+      <div class="ag-kpi-sub">Pending outreach</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="ag-tabs">
+    <button class="ag-tab active" onclick="switchTab('pipeline')">Pipeline</button>
+    <button class="ag-tab" onclick="switchTab('clients')">Clients</button>
+    <button class="ag-tab" onclick="switchTab('projects')">Projects</button>
+    <button class="ag-tab" onclick="switchTab('assets')">Assets</button>
+    <button class="ag-tab" onclick="switchTab('followups')">Follow-ups</button>
+    <button class="ag-tab" onclick="switchTab('revenue')">Revenue</button>
+  </div>
+
+  <!-- Pipeline Tab -->
+  <div class="ag-tab-content active" id="tab-pipeline">
+    <div class="ag-pipeline" id="pipelineBoard">
+      {% set stages = [('discovery','Discovery','var(--ag-blue)'), ('proposal','Proposal','var(--ag-orange)'), ('negotiation','Negotiation','var(--ag-purple)'), ('won','Won','var(--ag-green)'), ('lost','Lost','var(--ag-red)')] %}
+      {% for stage_id, stage_name, stage_color in stages %}
+      <div class="ag-stage">
+        <div class="ag-stage-header">
+          <span style="color:{{ stage_color }};">{{ stage_name }}</span>
+          <span style="font-size:10px;color:var(--ag-muted);" id="stage-count-{{ stage_id }}">
+            {{ deals|selectattr('stage','equalto',stage_id)|list|length }}
+          </span>
+        </div>
+        <div class="ag-stage-cards" id="stage-{{ stage_id }}">
+          {% for d in deals if d.stage == stage_id %}
+          <div class="ag-deal-card" onclick="editDeal({{ d.id }})">
+            <div class="ag-deal-title">{{ d.title }}</div>
+            <div class="ag-deal-client">{{ d.client_name or 'No client' }} · {{ d.service_type }}</div>
+            <div class="ag-deal-value">${{ "{:,.0f}".format(d.value) }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Clients Tab -->
+  <div class="ag-tab-content" id="tab-clients">
+    <table class="ag-table">
+      <thead>
+        <tr><th>Client #</th><th>Name</th><th>Company</th><th>Industry</th><th>Status</th><th>Monthly Value</th><th>Next Follow-up</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="clientsTable">
+        {% for c in clients %}
+        <tr>
+          <td style="font-family:monospace;font-size:11px;color:var(--ag-purple);">{{ c.client_number or '—' }}</td>
+          <td style="font-weight:600;">{{ c.name }}<br><span style="font-size:10px;color:var(--ag-muted);">{{ c.email }}</span></td>
+          <td>{{ c.company }}</td>
+          <td>{{ c.industry }}</td>
+          <td><span class="ag-badge ag-badge-{{ c.status }}">{{ c.status }}</span></td>
+          <td style="font-weight:600;color:var(--ag-green);">${{ "{:,.0f}".format(c.monthly_value) }}</td>
+          <td style="font-size:11px;color:var(--ag-muted);">{{ c.next_followup[:10] if c.next_followup else '—' }}</td>
+          <td>
+            <button onclick="editClient({{ c.id }})" style="border:none;background:none;cursor:pointer;color:var(--ag-blue);font-size:12px;">Edit</button>
+            <button onclick="scheduleFollowup({{ c.id }},'{{ c.name }}')" style="border:none;background:none;cursor:pointer;color:var(--ag-orange);font-size:12px;">Follow-up</button>
+            <button onclick="deleteClient({{ c.id }})" style="border:none;background:none;cursor:pointer;color:var(--ag-red);font-size:12px;">Del</button>
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not clients %}
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--ag-muted);">No clients yet. Click "+ New Client" to start building your agency.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Projects Tab -->
+  <div class="ag-tab-content" id="tab-projects">
+    <div style="margin-bottom:12px;">
+      <button onclick="openModal('project')" class="ag-btn ag-btn-primary" style="font-size:12px;">+ New Project</button>
+    </div>
+    <table class="ag-table">
+      <thead>
+        <tr><th>Project</th><th>Client</th><th>Service</th><th>Status</th><th>Monthly Fee</th><th>Videos</th><th>Dates</th></tr>
+      </thead>
+      <tbody id="projectsTable">
+        {% for p in projects %}
+        <tr>
+          <td style="font-weight:600;">{{ p.name }}</td>
+          <td>{{ p.client_name or '—' }}</td>
+          <td>{{ p.service_type }}</td>
+          <td><span class="ag-badge ag-badge-{{ p.status }}">{{ p.status }}</span></td>
+          <td style="font-weight:600;color:var(--ag-green);">${{ "{:,.0f}".format(p.monthly_fee) }}/mo</td>
+          <td>{{ p.videos_used }}/{{ p.videos_quota }}</td>
+          <td style="font-size:11px;color:var(--ag-muted);">{{ p.start_date[:10] if p.start_date else '—' }}</td>
+        </tr>
+        {% endfor %}
+        {% if not projects %}
+        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--ag-muted);">No active projects. Win a deal to start a project.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Revenue Tab -->
+  <div class="ag-tab-content" id="tab-revenue">
+    <div style="display:flex;gap:12px;margin-bottom:16px;">
+      <button onclick="openModal('revenue')" class="ag-btn ag-btn-primary" style="font-size:12px;">+ Log Revenue</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="background:var(--ag-panel);border:1px solid var(--ag-border);border-radius:12px;padding:16px;">
+        <h4 style="margin:0 0 12px;font-size:14px;color:var(--ag-text);">Revenue by Client</h4>
+        <div id="revenueByClient" style="font-size:13px;color:var(--ag-muted);">Loading...</div>
+      </div>
+      <div style="background:var(--ag-panel);border:1px solid var(--ag-border);border-radius:12px;padding:16px;">
+        <h4 style="margin:0 0 12px;font-size:14px;color:var(--ag-text);">Recent Transactions</h4>
+        <div id="revenueRecent" style="font-size:13px;color:var(--ag-muted);">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assets Tab -->
+  <div class="ag-tab-content" id="tab-assets">
+    <table class="ag-table">
+      <thead>
+        <tr><th>Asset #</th><th>Title</th><th>Client</th><th>Project</th><th>Type</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="assetsTable">
+        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--ag-muted);">Loading assets...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Follow-ups Tab -->
+  <div class="ag-tab-content" id="tab-followups">
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="openModal('followup')" class="ag-btn ag-btn-primary" style="font-size:12px;">+ Schedule Follow-up</button>
+      <button onclick="aiGenerateFollowup()" class="ag-btn" style="font-size:12px;background:var(--ag-blue);color:#fff;">AI Write Email</button>
+    </div>
+    <table class="ag-table">
+      <thead>
+        <tr><th>Client</th><th>Type</th><th>Subject</th><th>Status</th><th>Scheduled</th><th>Sent</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="followupsTable">
+        <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--ag-muted);">Loading follow-ups...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Client Modal -->
+<div class="ag-modal-overlay" id="modal-client" onclick="if(event.target===this)closeModal('client')">
+  <div class="ag-modal">
+    <h3 id="clientModalTitle">New Client</h3>
+    <input type="hidden" id="clientEditId" value="">
+    <div class="ag-field"><label>Name *</label><input id="clientName" placeholder="John Smith"></div>
+    <div class="ag-field"><label>Company</label><input id="clientCompany" placeholder="Acme Corp"></div>
+    <div class="ag-field"><label>Email</label><input id="clientEmail" type="email" placeholder="john@acme.com"></div>
+    <div class="ag-field"><label>Phone</label><input id="clientPhone" placeholder="+1 555-0123"></div>
+    <div class="ag-field"><label>Industry</label>
+      <select id="clientIndustry">
+        <option value="">Select...</option>
+        <option>Real Estate</option><option>E-commerce</option><option>SaaS</option><option>Restaurant</option>
+        <option>Fitness</option><option>Healthcare</option><option>Education</option><option>Finance</option>
+        <option>Entertainment</option><option>Retail</option><option>Agency</option><option>Other</option>
+      </select>
+    </div>
+    <div class="ag-field"><label>Website</label><input id="clientWebsite" placeholder="https://"></div>
+    <div class="ag-field"><label>Status</label>
+      <select id="clientStatus">
+        <option value="lead">Lead</option><option value="prospect">Prospect</option>
+        <option value="active">Active</option><option value="churned">Churned</option>
+      </select>
+    </div>
+    <div class="ag-field"><label>Monthly Value ($)</label><input id="clientValue" type="number" placeholder="0"></div>
+    <div class="ag-field"><label>Notes</label><textarea id="clientNotes" placeholder="Additional notes..."></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="ag-btn ag-btn-ghost" onclick="closeModal('client')">Cancel</button>
+      <button class="ag-btn ag-btn-primary" onclick="saveClient()">Save Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- Deal Modal -->
+<div class="ag-modal-overlay" id="modal-deal" onclick="if(event.target===this)closeModal('deal')">
+  <div class="ag-modal">
+    <h3 id="dealModalTitle">New Deal</h3>
+    <input type="hidden" id="dealEditId" value="">
+    <div class="ag-field"><label>Title *</label><input id="dealTitle" placeholder="Content package for Q3"></div>
+    <div class="ag-field"><label>Client</label>
+      <select id="dealClient"><option value="">Select client...</option></select>
+    </div>
+    <div class="ag-field"><label>Value ($)</label><input id="dealValue" type="number" placeholder="5000"></div>
+    <div class="ag-field"><label>Stage</label>
+      <select id="dealStage">
+        <option value="discovery">Discovery</option><option value="proposal">Proposal</option>
+        <option value="negotiation">Negotiation</option><option value="won">Won</option><option value="lost">Lost</option>
+      </select>
+    </div>
+    <div class="ag-field"><label>Service Type</label>
+      <select id="dealService">
+        <option value="content">Content Creation</option><option value="social">Social Media Management</option>
+        <option value="video">Video Production</option><option value="ads">Ad Campaigns</option>
+        <option value="consulting">Consulting</option><option value="full_service">Full Service</option>
+      </select>
+    </div>
+    <div class="ag-field"><label>Description</label><textarea id="dealDesc" placeholder="What the client needs..."></textarea></div>
+    <div class="ag-field"><label>Target Close Date</label><input id="dealClose" type="date"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="ag-btn ag-btn-ghost" onclick="closeModal('deal')">Cancel</button>
+      <button class="ag-btn ag-btn-primary" id="dealGenProposal" onclick="generateProposal()" style="background:var(--ag-blue);display:none;">Generate Proposal</button>
+      <button class="ag-btn ag-btn-primary" onclick="saveDeal()">Save Deal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Project Modal -->
+<div class="ag-modal-overlay" id="modal-project" onclick="if(event.target===this)closeModal('project')">
+  <div class="ag-modal">
+    <h3>New Project</h3>
+    <div class="ag-field"><label>Project Name *</label><input id="projName" placeholder="Monthly content package"></div>
+    <div class="ag-field"><label>Client</label>
+      <select id="projClient"><option value="">Select client...</option></select>
+    </div>
+    <div class="ag-field"><label>Service Type</label>
+      <select id="projService">
+        <option value="content">Content Creation</option><option value="social">Social Media Management</option>
+        <option value="video">Video Production</option><option value="ads">Ad Campaigns</option>
+        <option value="full_service">Full Service</option>
+      </select>
+    </div>
+    <div class="ag-field"><label>Monthly Fee ($)</label><input id="projFee" type="number" placeholder="2000"></div>
+    <div class="ag-field"><label>Videos/Month Quota</label><input id="projQuota" type="number" value="10"></div>
+    <div class="ag-field"><label>Start Date</label><input id="projStart" type="date"></div>
+    <div class="ag-field"><label>End Date</label><input id="projEnd" type="date"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="ag-btn ag-btn-ghost" onclick="closeModal('project')">Cancel</button>
+      <button class="ag-btn ag-btn-primary" onclick="saveProject()">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- Revenue Modal -->
+<div class="ag-modal-overlay" id="modal-revenue" onclick="if(event.target===this)closeModal('revenue')">
+  <div class="ag-modal">
+    <h3>Log Revenue</h3>
+    <div class="ag-field"><label>Client</label>
+      <select id="revClient"><option value="">Select client...</option></select>
+    </div>
+    <div class="ag-field"><label>Amount ($) *</label><input id="revAmount" type="number" placeholder="5000"></div>
+    <div class="ag-field"><label>Type</label>
+      <select id="revType">
+        <option value="recurring">Recurring</option><option value="one-time">One-time</option>
+        <option value="upsell">Upsell</option><option value="referral">Referral</option>
+      </select>
+    </div>
+    <div class="ag-field"><label>Description</label><input id="revDesc" placeholder="Monthly retainer - July 2026"></div>
+    <div class="ag-field"><label>Period</label><input id="revPeriod" type="month"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="ag-btn ag-btn-ghost" onclick="closeModal('revenue')">Cancel</button>
+      <button class="ag-btn ag-btn-primary" onclick="saveRevenue()">Log Revenue</button>
+    </div>
+  </div>
+</div>
+
+<!-- Follow-up Modal -->
+<div class="ag-modal-overlay" id="modal-followup" onclick="if(event.target===this)closeModal('followup')">
+  <div class="ag-modal">
+    <h3 id="followupModalTitle">Schedule Follow-up</h3>
+    <div class="ag-field"><label>Client *</label>
+      <select id="fuClient"><option value="">Select client...</option></select>
+    </div>
+    <div class="ag-field"><label>Type</label>
+      <select id="fuType">
+        <option value="email">Email</option><option value="call">Call</option>
+        <option value="meeting">Meeting</option><option value="sms">SMS</option>
+      </select>
+    </div>
+    <div class="ag-field"><label>Subject</label><input id="fuSubject" placeholder="Follow-up about content package"></div>
+    <div class="ag-field"><label>Message Body</label><textarea id="fuBody" rows="5" placeholder="Write your follow-up message..."></textarea></div>
+    <div class="ag-field"><label>Scheduled Date/Time</label><input id="fuScheduled" type="datetime-local"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="ag-btn ag-btn-ghost" onclick="closeModal('followup')">Cancel</button>
+      <button class="ag-btn" style="background:var(--ag-blue);color:#fff;" onclick="aiWriteFollowup()">AI Write</button>
+      <button class="ag-btn ag-btn-primary" onclick="saveFollowup()">Schedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- Proposal Modal -->
+<div class="ag-modal-overlay" id="modal-proposal" onclick="if(event.target===this)closeModal('proposal')">
+  <div class="ag-modal" style="max-width:700px;">
+    <h3>AI-Generated Proposal</h3>
+    <div id="proposalContent" style="line-height:1.6;font-size:13px;">Generating...</div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="ag-btn ag-btn-ghost" onclick="closeModal('proposal')">Close</button>
+      <button class="ag-btn ag-btn-primary" onclick="copyProposal()">Copy HTML</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const _clients = {{ clients|tojson }};
+const _deals = {{ deals|tojson }};
+const _projects = {{ projects|tojson }};
+
+function switchTab(name) {
+  document.querySelectorAll('.ag-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.ag-tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'revenue') loadRevenue();
+  if (name === 'assets') loadAssets();
+  if (name === 'followups') loadFollowups();
+}
+
+function openModal(type) {
+  document.getElementById('modal-' + type).classList.add('open');
+  if (type === 'deal' || type === 'project' || type === 'revenue') populateClientDropdowns();
+  if (type === 'client') {
+    document.getElementById('clientEditId').value = '';
+    document.getElementById('clientModalTitle').textContent = 'New Client';
+    ['clientName','clientCompany','clientEmail','clientPhone','clientWebsite','clientNotes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('clientValue').value = '';
+    document.getElementById('clientStatus').value = 'lead';
+    document.getElementById('clientIndustry').value = '';
+  }
+  if (type === 'deal') {
+    document.getElementById('dealEditId').value = '';
+    document.getElementById('dealModalTitle').textContent = 'New Deal';
+    document.getElementById('dealGenProposal').style.display = 'none';
+    ['dealTitle','dealDesc'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('dealValue').value = '';
+    document.getElementById('dealStage').value = 'discovery';
+  }
+}
+
+function closeModal(type) { document.getElementById('modal-' + type).classList.remove('open'); }
+
+function populateClientDropdowns() {
+  const opts = '<option value="">Select client...</option>' + _clients.map(c =>
+    `<option value="${c.id}">${c.name}${c.company ? ' — '+c.company : ''}</option>`).join('');
+  ['dealClient','projClient','revClient','fuClient'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+}
+
+async function saveClient() {
+  const editId = document.getElementById('clientEditId').value;
+  const data = {
+    name: document.getElementById('clientName').value,
+    company: document.getElementById('clientCompany').value,
+    email: document.getElementById('clientEmail').value,
+    phone: document.getElementById('clientPhone').value,
+    industry: document.getElementById('clientIndustry').value,
+    website: document.getElementById('clientWebsite').value,
+    status: document.getElementById('clientStatus').value,
+    monthly_value: parseFloat(document.getElementById('clientValue').value) || 0,
+    notes: document.getElementById('clientNotes').value,
+  };
+  if (!data.name) return alert('Name is required');
+  const url = editId ? `/api/agency/clients/${editId}` : '/api/agency/clients';
+  const method = editId ? 'PUT' : 'POST';
+  await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  location.reload();
+}
+
+function editClient(id) {
+  const c = _clients.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('clientEditId').value = id;
+  document.getElementById('clientModalTitle').textContent = 'Edit Client';
+  document.getElementById('clientName').value = c.name || '';
+  document.getElementById('clientCompany').value = c.company || '';
+  document.getElementById('clientEmail').value = c.email || '';
+  document.getElementById('clientPhone').value = c.phone || '';
+  document.getElementById('clientIndustry').value = c.industry || '';
+  document.getElementById('clientWebsite').value = c.website || '';
+  document.getElementById('clientStatus').value = c.status || 'lead';
+  document.getElementById('clientValue').value = c.monthly_value || '';
+  document.getElementById('clientNotes').value = c.notes || '';
+  openModal('client');
+}
+
+async function deleteClient(id) {
+  if (!confirm('Delete this client and all associated data?')) return;
+  await fetch(`/api/agency/clients/${id}`, { method: 'DELETE' });
+  location.reload();
+}
+
+async function saveDeal() {
+  const editId = document.getElementById('dealEditId').value;
+  const data = {
+    title: document.getElementById('dealTitle').value,
+    client_id: parseInt(document.getElementById('dealClient').value) || null,
+    value: parseFloat(document.getElementById('dealValue').value) || 0,
+    stage: document.getElementById('dealStage').value,
+    service_type: document.getElementById('dealService').value,
+    description: document.getElementById('dealDesc').value,
+    close_date: document.getElementById('dealClose').value,
+  };
+  if (!data.title) return alert('Title is required');
+  const url = editId ? `/api/agency/deals/${editId}` : '/api/agency/deals';
+  const method = editId ? 'PUT' : 'POST';
+  await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  location.reload();
+}
+
+function editDeal(id) {
+  const d = _deals.find(x => x.id === id);
+  if (!d) return;
+  populateClientDropdowns();
+  document.getElementById('dealEditId').value = id;
+  document.getElementById('dealModalTitle').textContent = 'Edit Deal';
+  document.getElementById('dealTitle').value = d.title || '';
+  document.getElementById('dealValue').value = d.value || '';
+  document.getElementById('dealStage').value = d.stage || 'discovery';
+  document.getElementById('dealService').value = d.service_type || 'content';
+  document.getElementById('dealDesc').value = d.description || '';
+  document.getElementById('dealClose').value = d.close_date || '';
+  document.getElementById('dealGenProposal').style.display = 'inline-block';
+  setTimeout(() => { document.getElementById('dealClient').value = d.client_id || ''; }, 50);
+  document.getElementById('modal-deal').classList.add('open');
+}
+
+async function generateProposal() {
+  const dealId = document.getElementById('dealEditId').value;
+  if (!dealId) return;
+  openModal('proposal');
+  document.getElementById('proposalContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--ag-muted);">Generating proposal with AI...</div>';
+  try {
+    const r = await fetch('/api/agency/proposals', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ deal_id: parseInt(dealId) })
+    });
+    const data = await r.json();
+    if (data.proposal_html) {
+      document.getElementById('proposalContent').innerHTML = data.proposal_html;
+    } else {
+      document.getElementById('proposalContent').innerHTML = '<div style="color:var(--ag-red);">Error: ' + (data.error||'Unknown') + '</div>';
+    }
+  } catch(e) {
+    document.getElementById('proposalContent').innerHTML = '<div style="color:var(--ag-red);">Failed to generate proposal.</div>';
+  }
+}
+
+function copyProposal() {
+  const html = document.getElementById('proposalContent').innerHTML;
+  navigator.clipboard.writeText(html).then(() => alert('Proposal HTML copied!'));
+}
+
+async function saveProject() {
+  const data = {
+    name: document.getElementById('projName').value,
+    client_id: parseInt(document.getElementById('projClient').value) || null,
+    service_type: document.getElementById('projService').value,
+    monthly_fee: parseFloat(document.getElementById('projFee').value) || 0,
+    videos_quota: parseInt(document.getElementById('projQuota').value) || 10,
+    start_date: document.getElementById('projStart').value,
+    end_date: document.getElementById('projEnd').value,
+  };
+  if (!data.name) return alert('Name is required');
+  await fetch('/api/agency/projects', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  location.reload();
+}
+
+async function saveRevenue() {
+  const data = {
+    client_id: parseInt(document.getElementById('revClient').value) || null,
+    amount: parseFloat(document.getElementById('revAmount').value) || 0,
+    type: document.getElementById('revType').value,
+    description: document.getElementById('revDesc').value,
+    period: document.getElementById('revPeriod').value,
+  };
+  if (!data.amount) return alert('Amount is required');
+  await fetch('/api/agency/revenue', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  location.reload();
+}
+
+async function loadRevenue() {
+  try {
+    const r = await fetch('/api/agency/revenue');
+    const items = await r.json();
+    const byClient = {};
+    items.forEach(i => {
+      const name = i.client_name || 'Unassigned';
+      byClient[name] = (byClient[name] || 0) + i.amount;
+    });
+    const maxVal = Math.max(...Object.values(byClient), 1);
+    const chartDiv = document.getElementById('revenueByClient');
+    if (!Object.keys(byClient).length) {
+      chartDiv.innerHTML = 'No revenue logged yet.';
+    } else {
+      chartDiv.innerHTML = Object.entries(byClient).sort((a,b) => b[1]-a[1]).map(([name, amt]) =>
+        `<div style="margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;">
+            <span style="color:var(--ag-text);font-weight:600;">${name}</span>
+            <span style="color:var(--ag-green);font-weight:700;">$${amt.toLocaleString()}</span>
+          </div>
+          <div class="ag-chart-bar" style="width:${(amt/maxVal*100).toFixed(0)}%;"></div>
+        </div>`).join('');
+    }
+
+    const recentDiv = document.getElementById('revenueRecent');
+    if (!items.length) {
+      recentDiv.innerHTML = 'No transactions yet.';
+    } else {
+      recentDiv.innerHTML = items.slice(0, 15).map(i =>
+        `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--ag-border);font-size:12px;">
+          <div><span style="font-weight:600;color:var(--ag-text);">$${i.amount.toLocaleString()}</span>
+          <span style="color:var(--ag-muted);margin-left:8px;">${i.description || i.type}</span></div>
+          <span style="color:var(--ag-muted);">${i.client_name || '—'}</span>
+        </div>`).join('');
+    }
+  } catch(e) {}
+}
+
+// ── Assets ──────────────────────────────────────────────────────────────────
+
+async function loadAssets() {
+  try {
+    const r = await fetch('/api/agency/assets');
+    const items = await r.json();
+    const tbody = document.getElementById('assetsTable');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--ag-muted);">No assets yet. Create content for a client and it will appear here with a tracking number.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(a => {
+      const statusColors = {draft:'var(--ag-muted)',ready:'var(--ag-blue)',delivered:'var(--ag-green)',revision:'var(--ag-orange)'};
+      return `<tr>
+        <td style="font-family:monospace;font-size:11px;color:var(--ag-purple);font-weight:600;">${a.asset_number}</td>
+        <td style="font-weight:600;">${a.title || '—'}</td>
+        <td>${a.client_name || '—'}<br><span style="font-size:10px;color:var(--ag-muted);">${a.client_number || ''}</span></td>
+        <td>${a.project_name || '—'}</td>
+        <td><span class="ag-badge" style="background:rgba(124,58,237,.1);color:var(--ag-purple);">${a.asset_type}</span></td>
+        <td><span class="ag-badge" style="color:${statusColors[a.status]||'var(--ag-muted)'}">${a.status}</span></td>
+        <td style="font-size:11px;color:var(--ag-muted);">${(a.created_at||'').slice(0,10)}</td>
+        <td>
+          ${a.file_path ? `<a href="${a.file_path}" target="_blank" style="font-size:11px;color:var(--ag-blue);">View</a>` : ''}
+          <button onclick="markDelivered(${a.id})" style="border:none;background:none;cursor:pointer;color:var(--ag-green);font-size:11px;">Deliver</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function markDelivered(assetId) {
+  await fetch(`/api/agency/assets/${assetId}`, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({status:'delivered', delivered_at: new Date().toISOString()})
+  });
+  loadAssets();
+}
+
+// ── Follow-ups ──────────────────────────────────────────────────────────────
+
+async function loadFollowups() {
+  try {
+    const r = await fetch('/api/agency/followups');
+    const items = await r.json();
+    const tbody = document.getElementById('followupsTable');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--ag-muted);">No follow-ups scheduled. Add a lead and the system will auto-create a 3-email sequence.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(f => {
+      const stColors = {scheduled:'var(--ag-orange)',sent:'var(--ag-green)',failed:'var(--ag-red)',cancelled:'var(--ag-muted)'};
+      return `<tr>
+        <td style="font-weight:600;">${f.client_name || '—'}<br><span style="font-size:10px;color:var(--ag-muted);">${f.client_email || ''}</span></td>
+        <td>${f.type}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.subject || '—'}</td>
+        <td><span class="ag-badge" style="color:${stColors[f.status]||'var(--ag-muted)'}">${f.status}</span></td>
+        <td style="font-size:11px;">${(f.scheduled_at||'').replace('T',' ').slice(0,16)}</td>
+        <td style="font-size:11px;color:var(--ag-green);">${f.sent_at ? f.sent_at.replace('T',' ').slice(0,16) : '—'}</td>
+        <td>
+          ${f.status==='scheduled' ? `<button onclick="cancelFollowup(${f.id})" style="border:none;background:none;cursor:pointer;color:var(--ag-red);font-size:11px;">Cancel</button>` : ''}
+          ${f.status==='scheduled' ? `<button onclick="sendNow(${f.id})" style="border:none;background:none;cursor:pointer;color:var(--ag-green);font-size:11px;">Send Now</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+function scheduleFollowup(clientId, clientName) {
+  populateClientDropdowns();
+  openModal('followup');
+  document.getElementById('followupModalTitle').textContent = `Follow-up: ${clientName}`;
+  setTimeout(() => { document.getElementById('fuClient').value = clientId; }, 50);
+  const tomorrow = new Date(Date.now() + 86400000);
+  document.getElementById('fuScheduled').value = tomorrow.toISOString().slice(0,16);
+}
+
+async function saveFollowup() {
+  const data = {
+    client_id: parseInt(document.getElementById('fuClient').value) || null,
+    type: document.getElementById('fuType').value,
+    subject: document.getElementById('fuSubject').value,
+    body: document.getElementById('fuBody').value,
+    scheduled_at: new Date(document.getElementById('fuScheduled').value).toISOString(),
+  };
+  if (!data.client_id) return alert('Select a client');
+  await fetch('/api/agency/followups', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data) });
+  closeModal('followup');
+  loadFollowups();
+}
+
+async function cancelFollowup(id) {
+  await fetch(`/api/agency/followups/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'cancelled'}) });
+  loadFollowups();
+}
+
+async function sendNow(id) {
+  await fetch(`/api/agency/followups/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({scheduled_at: new Date().toISOString()}) });
+  loadFollowups();
+  alert('Follow-up queued for immediate send. The agent will process it within 5 minutes.');
+}
+
+async function aiWriteFollowup() {
+  const clientId = document.getElementById('fuClient').value;
+  if (!clientId) return alert('Select a client first');
+  document.getElementById('fuBody').value = 'Writing with AI...';
+  try {
+    const r = await fetch('/api/agency/followups/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({client_id: parseInt(clientId), context: 'follow-up outreach'})
+    });
+    const data = await r.json();
+    if (data.subject) document.getElementById('fuSubject').value = data.subject;
+    if (data.body) document.getElementById('fuBody').value = data.body;
+  } catch(e) {
+    document.getElementById('fuBody').value = '';
+    alert('Failed to generate email');
+  }
+}
+
+function aiGenerateFollowup() {
+  populateClientDropdowns();
+  openModal('followup');
+  document.getElementById('followupModalTitle').textContent = 'AI-Generated Follow-up';
+}
+</script>
+{% endblock %}

@@ -1,22 +1,21 @@
 """
-Social Optimize Machine - Core Orchestrator
+Social Optimize - Core Orchestrator
 Turns any topic into a complete multi-platform content package.
 """
 import json
+import concurrent.futures
 from datetime import datetime
-from pathlib import Path
-from typing import Optional
 import config
 from generators import script_generator, audio_generator, video_generator, media_fetcher, thumbnail_generator
 from generators.researcher import research_topic, brief_to_context
 from generators import graphics_generator
 from generators import ai_video_generator
 from publishers import (
-    youtube_publisher, tiktok_publisher, instagram_publisher,
-    facebook_publisher, twitter_publisher, linkedin_publisher,
+    youtube_publisher, tiktok_publisher, facebook_publisher, twitter_publisher, linkedin_publisher,
     pinterest_publisher, threads_publisher,
 )
 from utils import file_manager, logger
+from utils.build_log import BuildLog
 
 
 CONTENT_PROFILES = {
@@ -66,6 +65,33 @@ CONTENT_PROFILES = {
         "is_short": False,
         "content_type": "commercial_30",  # overridden at runtime
     },
+    "countdown": {
+        "label": "Countdown / Top N Ranked List",
+        "duration": 720,
+        "width": config.VIDEO_WIDTH,
+        "height": config.VIDEO_HEIGHT,
+        "is_portrait": False,
+        "is_short": False,
+        "content_type": "countdown",
+    },
+    "animation": {
+        "label": "Animation",
+        "duration": 120,
+        "width": config.VIDEO_WIDTH,
+        "height": config.VIDEO_HEIGHT,
+        "is_portrait": False,
+        "is_short": False,
+        "content_type": "animation",
+    },
+    "documentary": {
+        "label": "Documentary",
+        "duration": 900,
+        "width": config.VIDEO_WIDTH,
+        "height": config.VIDEO_HEIGHT,
+        "is_portrait": False,
+        "is_short": False,
+        "content_type": "documentary",
+    },
 }
 
 
@@ -86,6 +112,10 @@ def run(
     podcast_name: str = "",
     episode_number: int = 1,
     guest_name: str = "",
+    # Animation-specific params
+    animation_style: str = "lego",
+    # Documentary-specific params
+    doc_style: str = "natgeo",
     # Commercial-specific params
     ad_format: str = "",
     ad_brand: str = "",
@@ -96,13 +126,18 @@ def run(
     ad_platforms: list = None,
     target_duration: int = None,
     ai_model: str = "claude",
+    subscription_tier: str = "starter",
+    tone: str = "",
+    keywords: list = None,
+    progress_cb=None,
+    build_log: BuildLog = None,
 ) -> dict:
     """
     Full pipeline: topic → research → script → audio → video → publish.
 
     Args:
         topic:               What the content is about (can be anything — it will be researched)
-        format:              Content format: short | long | podcast | reel
+        format:              Content format: short | long | podcast | reel | commercial | documentary | animation
         platforms:           List of platforms: youtube, tiktok, instagram
         audience:            Target audience description
         voice:               edge-tts voice name
@@ -120,6 +155,32 @@ def run(
     ad_platforms = ad_platforms or []
     profile = CONTENT_PROFILES.get(format, CONTENT_PROFILES["short"]).copy()
     voice = voice or config.DEFAULT_VOICE
+
+    def _push_progress(pct: int, msg: str):
+        if progress_cb:
+            try:
+                progress_cb(pct, msg)
+            except Exception:
+                pass
+
+    def _blog(level: str, msg: str, **kw):
+        if build_log:
+            getattr(build_log, level, build_log.info)(msg, **kw)
+
+    if build_log:
+        build_log.config(
+            topic=topic, format=format, platforms=platforms or [],
+            audience=audience, voice=voice, ai_model=ai_model,
+            ai_video_provider=ai_video_provider, higgsfield_model=higgsfield_model,
+            subscription_tier=subscription_tier, skip_research=skip_research,
+            is_portrait=profile.get("is_portrait", False),
+            target_duration=profile.get("duration"),
+            pixabay_key_set=bool(config.PIXABAY_API_KEY),
+            higgsfield_token_set=bool(config.HIGGSFIELD_MCP_TOKEN),
+            anthropic_key_set=bool(getattr(config, "ANTHROPIC_API_KEY", "")),
+            google_key_set=bool(getattr(config, "GOOGLE_API_KEY", "")),
+            elevenlabs_key_set=bool(getattr(config, "ELEVENLABS_API_KEY", "")),
+        )
 
     # Commercial: set content_type and duration from ad_format
     if format == "commercial":
@@ -139,10 +200,36 @@ def run(
         # Use marketing_studio model for Higgsfield
         if ai_video_provider != "none":
             higgsfield_model = "marketing_studio_video"
+    elif format == "documentary":
+        doc_styles = {
+            "natgeo": "National Geographic nature/science documentary",
+            "espn30for30": "ESPN 30 for 30 sports documentary",
+            "vice": "VICE investigative documentary",
+            "hbo": "HBO premium cinematic documentary",
+            "true_crime": "True crime / mystery documentary",
+            "history": "History Channel historical documentary",
+        }
+        doc_label = doc_styles.get(doc_style, doc_style)
+        topic = f"[DOCUMENTARY STYLE: {doc_label}] {topic}"
+        if target_duration:
+            profile["duration"] = target_duration
+    elif format == "animation":
+        style_labels = {
+            "lego": "LEGO brick stop-motion",
+            "clay": "Claymation / stop-motion clay",
+            "anime": "Japanese anime",
+            "comic": "Comic book / graphic novel",
+            "pixel": "Pixel art / retro game",
+            "watercolor": "Watercolor painting",
+        }
+        style_label = style_labels.get(animation_style, animation_style)
+        topic = f"[ANIMATION STYLE: {style_label}] {topic}"
+        if target_duration:
+            profile["duration"] = target_duration
     elif target_duration and format == "podcast":
         profile["duration"] = target_duration
 
-    logger.header("Social Optimize Machine")
+    logger.header("Social Optimize")
     logger.info(f"Topic: [bold]{topic}[/bold]")
     logger.info(f"Format: {profile['label']}")
     logger.info(f"Platforms: {', '.join(platforms) if platforms else 'generate only (dry run)'}")
@@ -170,6 +257,9 @@ def run(
     # ── 2. Research the topic ────────────────────────────────────────────────
     research_context = ""
     brief = None
+    _push_progress(8, "Researching topic from Wikipedia & web...")
+    if build_log:
+        build_log.stage_start("Research", skip_research=skip_research)
     if not skip_research:
         with logger.spinner(f"Researching '{topic}' from Wikipedia & web..."):
             try:
@@ -198,21 +288,94 @@ def run(
                     f"Research complete — {len(brief.key_facts)} facts, "
                     f"{len(brief.data_points)} data points from {len(brief.sources)} sources"
                 )
+                _blog("success", f"Research: {len(brief.key_facts)} facts, {len(brief.data_points)} data points, {len(brief.sources)} sources")
             except Exception as e:
                 logger.warn(f"Research failed ({e}) — continuing without it")
+                _blog("error", f"Research failed: {e}", exc=e)
 
     # ── 3. Generate script ───────────────────────────────────────────────────
-    model_label = "Gemini Flash" if ai_model == "gemini" else "Claude AI"
+    _MODEL_LABELS = {
+        "claude": "Claude AI", "deepseek": "DeepSeek-V3",
+        "qwen": "Qwen (Alibaba)", "groq": "Groq/Llama",
+        "openrouter": "OpenRouter/Llama", "gemini": "Gemini Flash",
+        "parallel": "Parallel Race", "auto": "AI",
+    }
+    model_label = _MODEL_LABELS.get(ai_model, "AI")
+    _push_progress(18, f"Generating script with {model_label}...")
+    SCRIPT_TIMEOUT = 90  # seconds — generous for long countdown scripts
+    _script_kwargs = dict(
+        topic=topic,
+        content_type=profile["content_type"],
+        target_duration=profile["duration"],
+        audience=audience,
+        custom_instructions=custom_instructions,
+        research_context=research_context,
+        subscription_tier=subscription_tier,
+        tone=tone or "",
+        keywords=keywords or [],
+    )
+
+    def _run_script_with_timeout(model: str):
+        # NOTE: Do NOT use ThreadPoolExecutor as a context manager here —
+        # its __exit__ calls shutdown(wait=True) which blocks even after TimeoutError.
+        # Instead: submit, get with timeout, then shutdown(wait=False) to release.
+        _executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        _fut = _executor.submit(script_generator.generate_script, ai_model=model, **_script_kwargs)
+        try:
+            return _fut.result(timeout=SCRIPT_TIMEOUT)
+        except concurrent.futures.TimeoutError:
+            raise RuntimeError(
+                f"Script engine '{model}' did not respond in {SCRIPT_TIMEOUT}s"
+            )
+        finally:
+            # shutdown(wait=False) lets the orphaned thread die on its own;
+            # the main thread moves on immediately.
+            _executor.shutdown(wait=False)
+
+    if build_log:
+        build_log.stage_start("Script Generation", model=ai_model, label=model_label, timeout=SCRIPT_TIMEOUT)
+    print(f"[pipeline] Starting script generation stage with {model_label}...")
     with logger.spinner(f"Generating script with {model_label}..."):
-        script = script_generator.generate_script(
-            topic=topic,
-            content_type=profile["content_type"],
-            target_duration=profile["duration"],
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-            ai_model=ai_model,
-        )
+        script = None
+        all_errors: list[str] = []
+        try:
+            script = _run_script_with_timeout(ai_model)
+            logger.success(f"Script generated via {model_label}")
+            _blog("success", f"Script generated via {model_label}")
+        except Exception as e:
+            all_errors.append(f"{model_label}: {e}")
+            logger.warn(f"Script engine '{ai_model}' failed: {e}")
+            _blog("warn", f"Script engine '{ai_model}' failed: {e}")
+
+        # Fallback chain: try every other available model
+        if script is None:
+            from generators.ai_router import _available_models
+            _fallback_order = ["openrouter", "groq", "claude", "gemini", "deepseek", "qwen"]
+            available = _available_models()
+            print(f"[pipeline] Available models for fallback: {available}")
+            for fb_model in _fallback_order:
+                if fb_model == ai_model or fb_model not in available:
+                    print(f"[pipeline] Skipping {fb_model}: {'is primary' if fb_model == ai_model else 'key not set'}")
+                    continue
+                fb_label = _MODEL_LABELS.get(fb_model, fb_model)
+                print(f"[pipeline] Trying fallback script engine: {fb_label}")
+                _push_progress(18, f"Retrying script with {fb_label}...")
+                try:
+                    script = _run_script_with_timeout(fb_model)
+                    logger.success(f"Script generated via {fb_label} (fallback)")
+                    _blog("success", f"Script generated via {fb_label} (fallback)")
+                    break
+                except Exception as e:
+                    all_errors.append(f"{fb_label}: {e}")
+                    logger.warn(f"{fb_label} fallback also failed: {e}")
+                    _blog("warn", f"Fallback {fb_label} failed: {e}")
+
+        if script is None:
+            err_summary = " | ".join(all_errors)
+            _blog("error", f"ALL script engines failed: {err_summary}", last_error=err_summary)
+            raise RuntimeError(
+                f"All script engines failed. Details: {err_summary}"
+            )
 
     script_path = job / "script.json"
     with open(script_path, "w") as f:
@@ -236,9 +399,17 @@ def run(
     manifest["files"]["script"] = str(script_path)
 
     logger.success(f"Script: {script.title[:60]}")
+    if build_log:
+        build_log.stage_end("Script Generation", title=script.title[:80],
+                            sections=len(script.sections), keywords=script.keywords[:5],
+                            narration_len=len(script.narration))
 
     # ── 4. Generate audio voiceover ──────────────────────────────────────────
+    _push_progress(35, f"Creating voiceover audio ({voice})...")
+    if build_log:
+        build_log.stage_start("Audio Generation", voice=voice)
     audio_path = job / "voiceover.mp3"
+    print("[pipeline] Starting audio generation stage...")
     with logger.spinner(f"Generating voiceover ({voice})..."):
         audio_generator.generate_audio(
             text=script.narration,
@@ -246,13 +417,21 @@ def run(
             voice=voice,
         )
         duration = audio_generator.get_audio_duration(audio_path)
+    print(f"[pipeline] Audio stage complete: {duration:.1f}s")
 
     manifest["duration"] = duration
     manifest["files"]["audio"] = str(audio_path)
     logger.success(f"Voiceover: {duration:.1f}s ({file_manager.get_file_size_mb(audio_path):.1f} MB)")
+    if build_log:
+        build_log.stage_end("Audio Generation", duration_audio=f"{duration:.1f}s",
+                            size_mb=f"{file_manager.get_file_size_mb(audio_path):.1f}")
 
     # ── 5. Fetch stock media ─────────────────────────────────────────────────
-    with logger.spinner("Fetching stock media from Pexels..."):
+    _push_progress(50, "Fetching stock media...")
+    if build_log:
+        build_log.stage_start("Stock Media Fetch", keywords=script.keywords[:5])
+    print("[pipeline] Starting media fetch stage...")
+    with logger.spinner("Fetching stock media..."):
         stock_dir = job / "stock"
         video_clips, image_clips = media_fetcher.fetch_media_for_topic(
             keywords=script.keywords[:5],
@@ -263,12 +442,26 @@ def run(
 
     if video_clips or image_clips:
         logger.success(f"Stock media: {len(video_clips)} videos, {len(image_clips)} images")
+        _blog("success", f"Stock media: {len(video_clips)} videos, {len(image_clips)} images")
     else:
-        logger.warn("No stock media fetched (check PEXELS_API_KEY). Using gradient background.")
+        logger.warn("No stock media fetched — will use AI-generated visuals")
+        _blog("warn", "No stock media fetched — zero results from Pixabay/Pexels")
+    if build_log:
+        build_log.stage_end("Stock Media Fetch", videos=len(video_clips), images=len(image_clips))
 
     # ── 5b. Generate AI video clips (Google Flow / Higgsfield) ───────────────
     ai_clips = []
-    if ai_video_provider and ai_video_provider != "none":
+    _use_ai_video = ai_video_provider and ai_video_provider != "none"
+    # Auto-enable Higgsfield when no stock media and token is available
+    if not _use_ai_video and not video_clips and not image_clips and config.HIGGSFIELD_MCP_TOKEN:
+        _use_ai_video = True
+        ai_video_provider = "higgsville"
+        print("[pipeline] No stock media — auto-enabling Higgsfield AI visuals")
+
+    if _use_ai_video:
+        _push_progress(55, f"Generating AI visuals via {ai_video_provider}...")
+        if build_log:
+            build_log.stage_start("AI Video Generation", provider=ai_video_provider, model=higgsfield_model)
         with logger.spinner(f"Generating AI video clips via {ai_video_provider}..."):
             try:
                 ai_clips = ai_video_generator.generate_ai_clips(
@@ -287,13 +480,44 @@ def run(
                     "model": higgsfield_model if ai_video_provider in ("higgsville", "both") else "veo3",
                 }
                 logger.success(f"AI video: {len(ai_clips)} clips generated via {ai_video_provider}")
+                _blog("success", f"AI video: {len(ai_clips)} clips via {ai_video_provider}")
             except Exception as e:
-                logger.warn(f"AI video generation failed ({e}) — using stock media only")
+                logger.warn(f"AI video generation failed ({e}) — using fallback visuals")
+                _blog("error", f"AI video generation failed: {e}", exc=e)
+
+        # If AI video clips failed, try generating AI images as backgrounds
+        if not ai_clips and config.HIGGSFIELD_MCP_TOKEN:
+            _push_progress(58, "Generating AI background images...")
+            with logger.spinner("Generating AI background images via Higgsfield..."):
+                try:
+                    from generators.higgsfield_mcp import generate_image_via_mcp
+                    ai_images_dir = job / "ai_images"
+                    ai_images_dir.mkdir(parents=True, exist_ok=True)
+                    ar = "9:16" if profile["is_portrait"] else "16:9"
+                    img_prompts = ai_video_generator.build_video_prompts(
+                        topic=topic, keywords=script.keywords[:4],
+                        sections=script.sections, is_portrait=profile["is_portrait"],
+                    )[:6]
+                    for i, prompt in enumerate(img_prompts):
+                        out = ai_images_dir / f"ai_bg_{i:02d}.jpg"
+                        result = generate_image_via_mcp(prompt, out, aspect_ratio=ar)
+                        if result:
+                            image_clips.append(result)
+                            print(f"[pipeline] AI image {i+1}: {result.name}")
+                    if image_clips:
+                        logger.success(f"Generated {len(image_clips)} AI background images")
+                        _blog("success", f"AI background images: {len(image_clips)}")
+                except Exception as e:
+                    logger.warn(f"AI image generation failed ({e})")
+                    _blog("error", f"AI image generation failed: {e}", exc=e)
+        if build_log:
+            build_log.stage_end("AI Video Generation", ai_clips=len(ai_clips))
 
     # AI clips go first for maximum visual impact, then stock videos
     all_video_clips = ai_clips + list(video_clips)
 
     # ── 6. Generate thumbnail ────────────────────────────────────────────────
+    _push_progress(62, "Generating thumbnail...")
     thumbnail_path = job / "thumbnail.jpg"
     bg_image = image_clips[0] if image_clips else None
     with logger.spinner("Generating thumbnail..."):
@@ -313,6 +537,7 @@ def run(
     content_graphics = []
     content_images_dir = job / "graphics"
     if not skip_research and brief:
+        _push_progress(68, "Creating ranked cards and infographics...")
         with logger.spinner("Generating ranked cards, charts, and infographics..."):
             try:
                 gfx = graphics_generator.generate_content_graphics(
@@ -322,6 +547,9 @@ def run(
                     width=profile["width"],
                     height=profile["height"],
                     bg_images=image_clips[:8],
+                    format=format,
+                    script_sections=script.sections,
+                    script_narration=script.narration,
                 )
                 # Collect all graphic paths: title card first, then rank cards, then chart
                 if gfx.get("title_card"):
@@ -347,6 +575,12 @@ def run(
     all_image_sources = content_graphics + list(image_clips)
 
     # ── 7. Assemble video ────────────────────────────────────────────────────
+    _push_progress(78, "Assembling final video...")
+    if build_log:
+        build_log.stage_start("Video Assembly", total_video_clips=len(all_video_clips),
+                              total_image_sources=len(all_image_sources),
+                              content_graphics=len(content_graphics))
+    print("[pipeline] Starting video assembly stage...")
     video_path = job / "video.mp4"
     with logger.spinner("Assembling video..."):
         if format == "podcast":
@@ -377,8 +611,11 @@ def run(
     manifest["files"]["video"] = str(video_path)
     video_mb = file_manager.get_file_size_mb(video_path)
     logger.success(f"Video assembled: {video_mb:.1f} MB")
+    if build_log:
+        build_log.stage_end("Video Assembly", size_mb=f"{video_mb:.1f}")
 
     # ── 8. Publish ───────────────────────────────────────────────────────────
+    _push_progress(93, "Publishing to platforms...")
     if dry_run:
         logger.warn("Dry run — skipping upload to platforms")
     else:
@@ -513,4 +750,83 @@ def run(
     logger.header("Done!")
     logger.print_job_summary(manifest)
 
+    if build_log:
+        build_log.success("Pipeline completed successfully", title=manifest.get("title", ""),
+                          video_mb=f"{video_mb:.1f}", duration=f"{duration:.1f}s")
+        manifest["build_log"] = build_log.to_text()
+
     return manifest
+
+
+def publish_to_platforms(
+    video_path: str,
+    title: str,
+    description: str,
+    hashtags: list,
+    keywords: list,
+    platforms: list,
+    privacy: str = "private",
+    is_short: bool = False,
+    cdn_url: str = "",
+) -> dict:
+    """Publish an already-generated video to the requested platforms. Returns per-platform results."""
+    results = {}
+    for platform in platforms:
+        try:
+            if platform == "youtube":
+                result = youtube_publisher.upload_video(
+                    video_path=video_path, title=title, description=description,
+                    tags=hashtags + keywords, privacy=privacy, is_short=is_short,
+                )
+                results["youtube"] = result
+            elif platform == "tiktok":
+                result = tiktok_publisher.upload_video(
+                    video_path=video_path, title=title, description=description,
+                    tags=hashtags,
+                    privacy="SELF_ONLY" if privacy == "private" else "PUBLIC_TO_EVERYONE",
+                )
+                results["tiktok"] = result
+            elif platform == "instagram":
+                results["instagram"] = {
+                    "status": "skipped",
+                    "reason": "Instagram requires a public CDN URL. Host the video first.",
+                    "video_path": str(video_path),
+                }
+            elif platform == "facebook":
+                result = facebook_publisher.upload_video(
+                    video_path=video_path, title=title, description=description,
+                    tags=hashtags + keywords,
+                )
+                results["facebook"] = result
+            elif platform == "twitter":
+                result = twitter_publisher.upload_video(
+                    video_path=video_path, title=title, description=description, tags=hashtags,
+                )
+                results["twitter"] = result
+            elif platform == "linkedin":
+                result = linkedin_publisher.upload_video(
+                    video_path=video_path, title=title, description=description,
+                    tags=hashtags + keywords,
+                )
+                results["linkedin"] = result
+            elif platform == "pinterest":
+                result = pinterest_publisher.upload_video(
+                    video_path=video_path, title=title, description=description,
+                    tags=hashtags + keywords,
+                )
+                results["pinterest"] = result
+            elif platform == "threads":
+                if not cdn_url:
+                    results["threads"] = {
+                        "status": "skipped",
+                        "reason": "Threads requires a public CDN URL. No cdn_url found.",
+                        "video_path": str(video_path),
+                    }
+                else:
+                    result = threads_publisher.upload_video(
+                        video_url=cdn_url, title=title, description=description, tags=hashtags,
+                    )
+                    results["threads"] = result
+        except Exception as e:
+            results[platform] = {"error": str(e)}
+    return results

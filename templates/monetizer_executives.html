@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% set active_page = "monetizer" %}
+
+{% block title %}IEBC C-Suite — Social Optimize{% endblock %}
+{% block topbar_title %}🏛 IEBC Executive Consultants{% endblock %}
+{% block topbar_sub %}AI C-Suite running Social Optimize 24/7{% endblock %}
+
+{% block topbar_actions %}
+<a href="/monetizer" class="btn btn-secondary" style="font-size:12px;">📊 Monetizer</a>
+<button onclick="refreshAll()" class="btn btn-primary" style="font-size:12px;">🔄 Refresh</button>
+{% endblock %}
+
+{% block content %}
+<style>
+.ex-wrap { padding: 16px; max-width: 1400px; margin: 0 auto; }
+.ex-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.ex-card { background: #fff; border: 1px solid rgba(0,0,0,.08); border-radius: 14px; padding: 20px; position: relative; overflow: hidden; }
+.ex-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.ex-avatar { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 12px; }
+.ex-name { font-size: 16px; font-weight: 700; color: #1e293b; }
+.ex-title { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+.ex-role { font-size: 11px; color: #94a3b8; margin-bottom: 12px; }
+.ex-stats { display: flex; gap: 16px; margin-bottom: 12px; }
+.ex-stat { text-align: center; }
+.ex-stat-val { font-size: 20px; font-weight: 800; color: #1e293b; }
+.ex-stat-label { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; }
+.ex-pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; margin-right: 6px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+.ex-trigger { padding: 6px 14px; border: 1px solid rgba(0,0,0,.1); border-radius: 8px; background: #f8fafc; color: #1e293b;
+  font-size: 11px; font-weight: 600; cursor: pointer; transition: all .2s; }
+.ex-trigger:hover { background: #e2e8f0; }
+.ex-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 2px solid rgba(0,0,0,.06); }
+.ex-tab { padding: 10px 20px; border: none; background: none; color: #64748b; font-weight: 600; font-size: 13px;
+  cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.ex-tab.active { color: #7c3aed; border-bottom-color: #7c3aed; }
+.ex-panel { display: none; }
+.ex-panel.active { display: block; }
+.ex-log { background: #0f172a; border-radius: 12px; padding: 16px; max-height: 500px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+.ex-log-entry { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.05); color: #94a3b8; }
+.ex-log-entry .time { color: #475569; margin-right: 8px; }
+.ex-log-entry .agent { font-weight: 700; margin-right: 8px; }
+.ex-log-entry .msg { color: #e2e8f0; }
+.ex-log-entry.warning .msg { color: #fbbf24; }
+.ex-log-entry.error .msg { color: #ef4444; }
+.ex-action-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,.08); }
+.ex-action-table th { text-align: left; padding: 10px 14px; font-size: 11px; color: #64748b; text-transform: uppercase; background: #f8fafc; border-bottom: 1px solid rgba(0,0,0,.06); }
+.ex-action-table td { padding: 8px 14px; font-size: 12px; color: #1e293b; border-bottom: 1px solid rgba(0,0,0,.04); }
+.ex-event-flow { display: flex; align-items: center; gap: 8px; padding: 12px; background: #f8fafc; border-radius: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.ex-flow-node { padding: 8px 16px; border-radius: 8px; font-size: 11px; font-weight: 700; color: #fff; }
+.ex-flow-arrow { color: #94a3b8; font-size: 18px; }
+</style>
+
+<div class="ex-wrap">
+
+  <!-- Inter-Agent Communication Flow -->
+  <div class="ex-event-flow">
+    <span style="font-size:11px;color:#64748b;font-weight:600;margin-right:8px;">AGENT BUS:</span>
+    <div class="ex-flow-node" style="background:#2563eb;">Elena → Enterprise</div>
+    <span class="ex-flow-arrow">→</span>
+    <div class="ex-flow-node" style="background:#7c3aed;">Marcus → Growth</div>
+    <span class="ex-flow-arrow">→</span>
+    <div class="ex-flow-node" style="background:#059669;">Julian → Retention</div>
+    <span class="ex-flow-arrow">→</span>
+    <div class="ex-flow-node" style="background:#d97706;">Sterling → Margins</div>
+  </div>
+
+  <!-- Agent Cards -->
+  <div class="ex-grid" id="agentCards">
+    <div style="text-align:center;padding:40px;color:#94a3b8;">Loading executive agents...</div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="ex-tabs">
+    <button class="ex-tab active" onclick="switchTab('log')">Live Log</button>
+    <button class="ex-tab" onclick="switchTab('actions')">Actions</button>
+    <button class="ex-tab" onclick="switchTab('events')">Events</button>
+  </div>
+
+  <!-- Log Panel -->
+  <div class="ex-panel active" id="panel-log">
+    <div class="ex-log" id="agentLog">
+      <div class="ex-log-entry"><span class="msg">Loading agent log...</span></div>
+    </div>
+  </div>
+
+  <!-- Actions Panel -->
+  <div class="ex-panel" id="panel-actions">
+    <table class="ex-action-table">
+      <thead><tr><th>Agent</th><th>Action</th><th>User</th><th>Result</th><th>Time</th></tr></thead>
+      <tbody id="actionsTable"><tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8;">Loading...</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Events Panel -->
+  <div class="ex-panel" id="panel-events">
+    <table class="ex-action-table">
+      <thead><tr><th>Agent</th><th>Event</th><th>Payload</th><th>Time</th></tr></thead>
+      <tbody id="eventsTable"><tr><td colspan="4" style="text-align:center;padding:20px;color:#94a3b8;">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const agentColors = {marcus_vance:'#7c3aed', elena_rostova:'#2563eb', julian_vance:'#059669', sterling_croft:'#d97706'};
+const agentNames = {marcus_vance:'Marcus', elena_rostova:'Elena', julian_vance:'Julian', sterling_croft:'Sterling'};
+
+function switchTab(name) {
+  document.querySelectorAll('.ex-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.ex-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'actions') loadActions();
+  if (name === 'events') loadEvents();
+}
+
+async function loadAgents() {
+  try {
+    const r = await fetch('/monetizer/api/executives/overview');
+    const data = await r.json();
+    const agents = data.agents || {};
+    const grid = document.getElementById('agentCards');
+    grid.innerHTML = Object.entries(agents).map(([key, a]) => `
+      <div class="ex-card" style="border-top:3px solid ${a.color}">
+        <div class="ex-avatar" style="background:${a.color}">${a.avatar}</div>
+        <div class="ex-name"><span class="ex-pulse"></span>${a.name}</div>
+        <div class="ex-title">${a.title}</div>
+        <div class="ex-role">${a.role}</div>
+        <div class="ex-stats">
+          <div class="ex-stat"><div class="ex-stat-val">${a.actions_total||0}</div><div class="ex-stat-label">Actions</div></div>
+          <div class="ex-stat"><div class="ex-stat-val">${a.actions_today||0}</div><div class="ex-stat-label">Today</div></div>
+          <div class="ex-stat"><div class="ex-stat-val">${a.events||0}</div><div class="ex-stat-label">Events</div></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="ex-trigger" onclick="triggerAgent('${key}')">▶ Run Now</button>
+          <span style="font-size:10px;color:#94a3b8;">Every ${a.interval}</span>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {}
+}
+
+async function loadLog() {
+  try {
+    const r = await fetch('/monetizer/api/executives/log?limit=100');
+    const items = await r.json();
+    const div = document.getElementById('agentLog');
+    if (!items.length) { div.innerHTML = '<div class="ex-log-entry"><span class="msg">No log entries yet. Agents will start reporting within minutes.</span></div>'; return; }
+    div.innerHTML = items.map(l => {
+      const color = agentColors[l.agent_name] || '#94a3b8';
+      const sev = l.severity || 'info';
+      return `<div class="ex-log-entry ${sev}">
+        <span class="time">${(l.created_at||'').slice(11,19)}</span>
+        <span class="agent" style="color:${color}">[${agentNames[l.agent_name]||l.agent_name}]</span>
+        <span class="msg">${l.message}</span>
+      </div>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function loadActions() {
+  try {
+    const r = await fetch('/monetizer/api/executives/actions?limit=50');
+    const items = await r.json();
+    const tbody = document.getElementById('actionsTable');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#94a3b8;">No actions yet.</td></tr>'; return; }
+    tbody.innerHTML = items.map(a => {
+      const color = agentColors[a.agent_name] || '#94a3b8';
+      return `<tr>
+        <td style="font-weight:700;color:${color}">${agentNames[a.agent_name]||a.agent_name}</td>
+        <td>${a.action_type}</td>
+        <td>${a.target_user || '—'}</td>
+        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.result||'—'}</td>
+        <td style="font-size:11px;color:#94a3b8;">${(a.created_at||'').slice(0,16).replace('T',' ')}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function loadEvents() {
+  try {
+    const r = await fetch('/monetizer/api/executives/events?limit=50');
+    const items = await r.json();
+    const tbody = document.getElementById('eventsTable');
+    if (!items.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:#94a3b8;">No events yet.</td></tr>'; return; }
+    tbody.innerHTML = items.map(e => {
+      const color = agentColors[e.agent_name] || '#94a3b8';
+      let payload = e.payload;
+      if (typeof payload === 'object') payload = JSON.stringify(payload).slice(0,100);
+      return `<tr>
+        <td style="font-weight:700;color:${color}">${agentNames[e.agent_name]||e.agent_name}</td>
+        <td style="font-weight:600;">${e.event_type}</td>
+        <td style="font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b;">${payload}</td>
+        <td style="font-size:11px;color:#94a3b8;">${(e.created_at||'').slice(0,16).replace('T',' ')}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {}
+}
+
+async function triggerAgent(name) {
+  const btn = event.target;
+  btn.textContent = '⏳...';
+  btn.disabled = true;
+  try {
+    await fetch('/monetizer/api/executives/trigger', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({agent: name})
+    });
+    btn.textContent = '✓ Done';
+    setTimeout(() => { btn.textContent = '▶ Run Now'; btn.disabled = false; }, 2000);
+    loadLog();
+    loadAgents();
+  } catch(e) {
+    btn.textContent = '✗ Error';
+    btn.disabled = false;
+  }
+}
+
+function refreshAll() {
+  loadAgents();
+  loadLog();
+}
+
+loadAgents();
+loadLog();
+setInterval(refreshAll, 30000);
+</script>
+{% endblock %}

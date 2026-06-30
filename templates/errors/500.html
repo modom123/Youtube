@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}500 - Server Error{% endblock %}
+
+{% block topbar_title %}500{% endblock %}
+{% block topbar_sub %}Internal Server Error{% endblock %}
+
+{% block topbar_actions %}{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:center;min-height:60vh;text-align:center;">
+  <div>
+    <div style="font-size:72px;font-weight:900;color:var(--accent);line-height:1;margin-bottom:12px;">500</div>
+    <div style="font-size:20px;font-weight:600;color:var(--text);margin-bottom:8px;">Something Went Wrong</div>
+    <div style="font-size:14px;color:var(--muted);margin-bottom:24px;">An unexpected error occurred. Please try again later.</div>
+    <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+  </div>
+</div>
+{% endblock %}

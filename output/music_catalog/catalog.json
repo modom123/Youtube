@@ -1,0 +1,137 @@
+[
+  {
+    "id": "catalog_001",
+    "name": "Dark Trap Banger",
+    "style": "trap",
+    "bpm": 130,
+    "duration": 30,
+    "file": "output/music_catalog/catalog_001.mp3",
+    "size_kb": 704.7
+  },
+  {
+    "id": "catalog_002",
+    "name": "Fast Trap Heat",
+    "style": "trap",
+    "bpm": 140,
+    "duration": 25,
+    "file": "output/music_catalog/catalog_002.mp3",
+    "size_kb": 587.8
+  },
+  {
+    "id": "catalog_003",
+    "name": "Slow Trap Vibes",
+    "style": "trap",
+    "bpm": 90,
+    "duration": 35,
+    "file": "output/music_catalog/catalog_003.mp3",
+    "size_kb": 821.7
+  },
+  {
+    "id": "catalog_004",
+    "name": "Rainy Day Lofi",
+    "style": "lofi",
+    "bpm": 85,
+    "duration": 30,
+    "file": "output/music_catalog/catalog_004.mp3",
+    "size_kb": 704.7
+  },
+  {
+    "id": "catalog_005",
+    "name": "Chill Study Beats",
+    "style": "lofi",
+    "bpm": 75,
+    "duration": 35,
+    "file": "output/music_catalog/catalog_005.mp3",
+    "size_kb": 821.7
+  },
+  {
+    "id": "catalog_006",
+    "name": "Late Night Lofi",
+    "style": "lofi",
+    "bpm": 90,
+    "duration": 30,
+    "file": "output/music_catalog/catalog_006.mp3",
+    "size_kb": 704.7
+  },
+  {
+    "id": "catalog_007",
+    "name": "Summer Pop",
+    "style": "pop",
+    "bpm": 120,
+    "duration": 30,
+    "file": "output/music_catalog/catalog_007.mp3",
+    "size_kb": 704.7
+  },
+  {
+    "id": "catalog_008",
+    "name": "Dance Pop Energy",
+    "style": "pop",
+    "bpm": 128,
+    "duration": 25,
+    "file": "output/music_catalog/catalog_008.mp3",
+    "size_kb": 587.8
+  },
+  {
+    "id": "catalog_009",
+    "name": "Indie Pop Feel",
+    "style": "pop",
+    "bpm": 110,
+    "duration": 30,
+    "file": "output/music_catalog/catalog_009.mp3",
+    "size_kb": 704.7
+  },
+  {
+    "id": "catalog_010",
+    "name": "UK Drill Dark",
+    "style": "drill",
+    "bpm": 140,
+    "duration": 25,
+    "file": "output/music_catalog/catalog_010.mp3",
+    "size_kb": 587.8
+  },
+  {
+    "id": "catalog_011",
+    "name": "Brooklyn Drill",
+    "style": "drill",
+    "bpm": 145,
+    "duration": 30,
+    "file": "output/music_catalog/catalog_011.mp3",
+    "size_kb": 704.7
+  },
+  {
+    "id": "catalog_012",
+    "name": "Drill Slide",
+    "style": "drill",
+    "bpm": 135,
+    "duration": 25,
+    "file": "output/music_catalog/catalog_012.mp3",
+    "size_kb": 587.8
+  },
+  {
+    "id": "catalog_013",
+    "name": "Smooth R&B Groove",
+    "style": "rnb",
+    "bpm": 90,
+    "duration": 30,
+    "file": "output/music_catalog/catalog_013.mp3",
+    "size_kb": 704.7
+  },
+  {
+    "id": "catalog_014",
+    "name": "Slow Jam",
+    "style": "rnb",
+    "bpm": 80,
+    "duration": 35,
+    "file": "output/music_catalog/catalog_014.mp3",
+    "size_kb": 821.7
+  },
+  {
+    "id": "catalog_015",
+    "name": "Modern R&B",
+    "style": "rnb",
+    "bpm": 100,
+    "duration": 30,
+    "file": "output/music_catalog/catalog_015.mp3",
+    "size_kb": 704.7
+  }
+]

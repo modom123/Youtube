@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Inbox — Social Optimize{% endblock %}
+
+{% block topbar_title %}Inbox{% endblock %}
+{% block topbar_sub %}Inbound SMS &amp; Calls from your Twilio number{% endblock %}
+
+{% block topbar_actions %}
+<button onclick="refreshInbox()" class="btn btn-secondary" style="display:flex;align-items:center;gap:6px;">
+  <span>🔄</span> Refresh
+</button>
+{% endblock %}
+
+{% block content %}
+<style>
+  .inbox-tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:24px; }
+  .inbox-tab { padding:10px 20px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; background:none; border-top:none; border-left:none; border-right:none; }
+  .inbox-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .inbox-tab:hover:not(.active) { color:var(--text); }
+
+  .inbox-panel { display:none; }
+  .inbox-panel.active { display:block; }
+
+  .msg-card {
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px 20px;
+    margin-bottom:12px;
+    display:flex;
+    gap:16px;
+    align-items:flex-start;
+  }
+  .msg-card:hover { border-color:var(--accent); }
+  .msg-avatar {
+    width:40px; height:40px; border-radius:50%;
+    background:var(--accent); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; flex-shrink:0;
+  }
+  .msg-body { flex:1; min-width:0; }
+  .msg-from { font-size:14px; font-weight:700; color:var(--text); margin-bottom:2px; }
+  .msg-text { font-size:13px; color:var(--muted); margin-bottom:6px; line-height:1.5; word-break:break-word; }
+  .msg-time { font-size:11px; color:var(--muted); }
+  .msg-actions { display:flex; gap:8px; margin-top:10px; }
+
+  .call-card {
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px 20px;
+    margin-bottom:12px;
+    display:flex;
+    gap:16px;
+    align-items:flex-start;
+  }
+  .call-card:hover { border-color:var(--accent); }
+  .call-avatar {
+    width:40px; height:40px; border-radius:50%;
+    background:#2563eb; color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; flex-shrink:0;
+  }
+  .call-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .call-badge {
+    font-size:11px; font-weight:600; padding:2px 8px;
+    border-radius:6px; background:var(--bg); border:1px solid var(--border);
+    color:var(--muted);
+  }
+  .call-badge.completed { background:rgba(34,197,94,.1); color:#22c55e; border-color:rgba(34,197,94,.3); }
+  .call-badge.failed { background:rgba(239,68,68,.1); color:#ef4444; border-color:rgba(239,68,68,.3); }
+  .call-badge.in-progress { background:rgba(245,158,11,.1); color:#f59e0b; border-color:rgba(245,158,11,.3); }
+
+  .transcription-box {
+    background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; margin-top:10px; font-size:12px; color:var(--muted);
+    line-height:1.6; font-style:italic;
+  }
+
+  .empty-state {
+    text-align:center; padding:60px 20px; color:var(--muted);
+  }
+  .empty-icon { font-size:48px; margin-bottom:12px; }
+  .empty-title { font-size:16px; font-weight:600; color:var(--text); margin-bottom:6px; }
+  .empty-desc { font-size:13px; }
+
+  /* Reply modal */
+  .modal-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.6); z-index:1000;
+    align-items:center; justify-content:center;
+  }
+  .modal-overlay.open { display:flex; }
+  .modal-box {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:16px; padding:28px; width:100%; max-width:480px;
+    box-shadow:0 16px 48px rgba(0,0,0,.5);
+  }
+  .modal-title { font-size:16px; font-weight:700; margin-bottom:4px; }
+  .modal-sub { font-size:12px; color:var(--muted); margin-bottom:20px; }
+  .modal-textarea {
+    width:100%; background:var(--bg); border:1px solid var(--border);
+    border-radius:8px; padding:12px; color:var(--text); font-size:13px;
+    resize:vertical; min-height:100px; font-family:inherit; box-sizing:border-box;
+  }
+  .modal-textarea:focus { outline:none; border-color:var(--accent); }
+  .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+</style>
+
+<!-- Tab bar -->
+<div class="inbox-tabs">
+  <button class="inbox-tab active" onclick="switchTab('sms',this)">
+    💬 SMS
+    <span id="sms-count-badge" style="margin-left:6px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;">{{ sms|length }}</span>
+  </button>
+  <button class="inbox-tab" onclick="switchTab('calls',this)">
+    📞 Calls
+    <span id="calls-count-badge" style="margin-left:6px;background:var(--muted);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;">{{ calls|length }}</span>
+  </button>
+</div>
+
+<!-- SMS Panel -->
+<div class="inbox-panel active" id="panel-sms">
+  {% if sms %}
+    {% for m in sms %}
+    <div class="msg-card" id="sms-{{ loop.index }}">
+      <div class="msg-avatar">💬</div>
+      <div class="msg-body">
+        <div class="msg-from">{{ m.from_number }}</div>
+        <div class="msg-text">{{ m.body }}</div>
+        <div class="msg-time">{{ m.received_at | datefmt if m.received_at else '' }}{% if m.to_number %} · To: {{ m.to_number }}{% endif %}</div>
+        <div class="msg-actions">
+          <button class="btn btn-primary" style="font-size:12px;padding:5px 14px;" onclick="openReply('{{ m.from_number|e }}')">↩ Reply</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">💬</div>
+      <div class="empty-title">No messages yet</div>
+      <div class="empty-desc">Inbound SMS to your Twilio number will appear here.</div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Calls Panel -->
+<div class="inbox-panel" id="panel-calls">
+  {% if calls %}
+    {% for c in calls %}
+    <div class="call-card">
+      <div class="call-avatar">📞</div>
+      <div class="msg-body">
+        <div class="msg-from">{{ c.from_number }}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">
+          {% if c.caller_city %}{{ c.caller_city }}{% if c.caller_state %}, {{ c.caller_state }}{% endif %} · {% endif %}
+          {{ c.received_at | datefmt if c.received_at else '' }}
+        </div>
+        <div class="call-meta">
+          <span class="call-badge {% if c.call_status == 'completed' %}completed{% elif c.call_status in ('failed','busy','no-answer') %}failed{% elif c.call_status == 'in-progress' %}in-progress{% endif %}">
+            {{ c.call_status or 'unknown' }}
+          </span>
+          {% if c.duration %}
+          <span class="call-badge">⏱ {{ c.duration }}s</span>
+          {% endif %}
+          {% if c.recording_duration %}
+          <span class="call-badge">🎙 {{ c.recording_duration }}s recording</span>
+          {% endif %}
+        </div>
+        {% if c.recording_url %}
+        <div style="margin-top:10px;">
+          <audio controls style="width:100%;height:32px;" src="{{ c.recording_url }}"></audio>
+        </div>
+        {% endif %}
+        {% if c.transcription %}
+        <div class="transcription-box">
+          <strong style="font-style:normal;font-size:11px;color:var(--text);">Transcription:</strong><br>
+          {{ c.transcription }}
+        </div>
+        {% endif %}
+        <div class="msg-actions">
+          <button class="btn btn-primary" style="font-size:12px;padding:5px 14px;" onclick="openReply('{{ c.from_number|e }}')">📱 SMS Back</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">📞</div>
+      <div class="empty-title">No calls yet</div>
+      <div class="empty-desc">Inbound calls to your Twilio number will appear here with recordings and transcriptions.</div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Reply Modal -->
+<div class="modal-overlay" id="replyModal">
+  <div class="modal-box">
+    <div class="modal-title">Send SMS Reply</div>
+    <div class="modal-sub" id="reply-to-label">To: </div>
+    <textarea class="modal-textarea" id="reply-body" placeholder="Type your reply…"></textarea>
+    <div id="reply-error" style="font-size:12px;color:#ef4444;margin-top:8px;display:none;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeReply()">Cancel</button>
+      <button class="btn btn-primary" id="reply-send-btn" onclick="sendReply()">Send Message</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var _replyTo = '';
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.inbox-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.inbox-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+function openReply(to) {
+  _replyTo = to;
+  document.getElementById('reply-to-label').textContent = 'To: ' + to;
+  document.getElementById('reply-body').value = '';
+  document.getElementById('reply-error').style.display = 'none';
+  document.getElementById('replyModal').classList.add('open');
+  setTimeout(() => document.getElementById('reply-body').focus(), 100);
+}
+
+function closeReply() {
+  document.getElementById('replyModal').classList.remove('open');
+  _replyTo = '';
+}
+
+async function sendReply() {
+  var body = document.getElementById('reply-body').value.trim();
+  var errEl = document.getElementById('reply-error');
+  var btn = document.getElementById('reply-send-btn');
+  errEl.style.display = 'none';
+  if (!body) { errEl.textContent = 'Message cannot be empty.'; errEl.style.display = 'block'; return; }
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    var resp = await fetch('/api/messages/reply', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({to: _replyTo, body: body})
+    });
+    var data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Failed to send');
+    closeReply();
+    if (window.showToast) showToast('Message sent to ' + _replyTo, 'success');
+    else alert('Message sent!');
+  } catch(e) {
+    errEl.textContent = e.message || 'Failed to send message.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Message';
+  }
+}
+
+async function refreshInbox() {
+  window.location.reload();
+}
+
+// Close modal on overlay click
+document.getElementById('replyModal').addEventListener('click', function(e) {
+  if (e.target === this) closeReply();
+});
+
+// Update sidebar inbox badge
+(async function() {
+  try {
+    var r = await fetch('/api/messages');
+    var d = await r.json();
+    var badge = document.getElementById('inbox-badge');
+    var count = (d.sms || []).length;
+    if (badge && count > 0) {
+      badge.style.display = 'inline-block';
+      badge.textContent = count > 9 ? '9+' : count;
+    }
+  } catch(e) {}
+})();
+</script>
+{% endblock %}

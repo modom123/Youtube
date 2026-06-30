@@ -1,0 +1,1123 @@
+{% extends "base.html" %}
+{% set active_page = "hollywood" %}
+
+{% block title %}Cinema House — Social Optimize{% endblock %}
+
+{% block topbar_title %}🎬 Cinema House{% endblock %}
+{% block topbar_sub %}Documentary-grade storytelling · Cinematic AI production{% endblock %}
+
+{% block topbar_actions %}
+<a href="/studio" class="btn btn-secondary" style="font-size:12px;">🔥 The Forge</a>
+<a href="/create" class="btn btn-secondary" style="font-size:12px;">Create Content</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  /* ── Cinema House — dark cinema premium theme ── */
+  :root {
+    --gold: #d4a017;
+    --gold-dim: #a07a10;
+    --gold-glow: rgba(212,160,23,.15);
+    --gold-border: rgba(212,160,23,.25);
+    --cinema-dark: #0a0a0c;
+    --cinema-card: #111116;
+    --cinema-elevated: #18181f;
+    --cinema-border: rgba(255,255,255,.07);
+  }
+
+  .hw-grid {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 960px) { .hw-grid { grid-template-columns: 1fr; } }
+
+  /* Cards */
+  .hw-card {
+    background: var(--cinema-card);
+    border: 1px solid var(--cinema-border);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .hw-card-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--gold);
+    margin: 0 0 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hw-card-title::before {
+    content: "";
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: var(--gold);
+    border-radius: 2px;
+  }
+
+  /* Premium badge */
+  .hw-premium-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--gold-glow);
+    border: 1px solid var(--gold-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+
+  /* Form elements */
+  .hw-form-row { margin-bottom: 18px; }
+  .hw-form-row label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    margin-bottom: 7px;
+  }
+  .hw-form-row input,
+  .hw-form-row select,
+  .hw-form-row textarea {
+    width: 100%;
+    background: var(--cinema-elevated);
+    border: 1px solid var(--cinema-border);
+    border-radius: 9px;
+    color: var(--text);
+    padding: 11px 13px;
+    font-size: 14px;
+    font-family: inherit;
+    box-sizing: border-box;
+    transition: border-color .2s;
+  }
+  .hw-form-row input:focus,
+  .hw-form-row select:focus,
+  .hw-form-row textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-glow);
+  }
+  .hw-form-row textarea { resize: vertical; min-height: 80px; }
+
+  /* Toggle pill row */
+  .hw-toggle-row {
+    display: flex;
+    background: var(--cinema-elevated);
+    border: 1px solid var(--cinema-border);
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .hw-toggle-row label {
+    flex: 1;
+    text-align: center;
+    padding: 10px 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #999;
+    transition: all .2s;
+    margin: 0;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .hw-toggle-row input[type=radio] { display: none; }
+  .hw-toggle-row input[type=radio]:checked + label {
+    background: var(--gold);
+    color: #000;
+    border-radius: 7px;
+  }
+
+  /* Duration options */
+  .hw-duration-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .hw-dur-opt { position: relative; }
+  .hw-dur-opt input[type=radio] { display: none; }
+  .hw-dur-opt label {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    background: var(--cinema-elevated);
+    border: 1px solid var(--cinema-border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: #aaa;
+    transition: all .2s;
+    margin: 0;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .hw-dur-opt input[type=radio]:checked + label {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: var(--gold-glow);
+  }
+
+  /* CTA button */
+  .hw-run-btn {
+    width: 100%;
+    padding: 15px;
+    font-size: 15px;
+    font-weight: 800;
+    background: var(--gold);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    letter-spacing: .03em;
+    transition: opacity .2s, transform .1s;
+    margin-top: 4px;
+  }
+  .hw-run-btn:hover { opacity: .9; transform: translateY(-1px); }
+  .hw-run-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+  /* Idle explain card */
+  .hw-idle-card {
+    background: var(--cinema-card);
+    border: 1px solid var(--cinema-border);
+    border-radius: 14px;
+    padding: 32px;
+    text-align: center;
+  }
+  .hw-idle-icon { font-size: 56px; margin-bottom: 16px; }
+  .hw-idle-title { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+  .hw-idle-desc { font-size: 14px; color: #999; line-height: 1.7; margin-bottom: 24px; }
+  .hw-idle-features { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; }
+  .hw-idle-feature {
+    background: var(--cinema-elevated);
+    border: 1px solid var(--cinema-border);
+    border-radius: 9px;
+    padding: 14px;
+    font-size: 13px;
+  }
+  .hw-idle-feature-icon { font-size: 20px; margin-bottom: 6px; }
+  .hw-idle-feature-name { font-weight: 700; color: var(--gold); margin-bottom: 4px; }
+  .hw-idle-feature-desc { color: #999; font-size: 12px; line-height: 1.5; }
+
+  /* Running state */
+  .hw-running-layout { display: none; }
+  .hw-running-layout.visible { display: block; }
+
+  /* Overall progress bar */
+  .hw-progress-wrap { margin-bottom: 20px; }
+  .hw-progress-track { height: 6px; background: var(--cinema-border); border-radius: 3px; overflow: hidden; }
+  .hw-progress-fill  { height: 100%; background: var(--gold); border-radius: 3px; transition: width .5s ease; width: 0%; }
+  .hw-progress-meta  { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .hw-progress-label { font-size: 12px; color: #aaa; }
+  .hw-progress-pct   { font-size: 13px; font-weight: 700; color: var(--gold); letter-spacing: 1.5px; font-family: 'Courier New', monospace; white-space: nowrap; }
+  .hw-progress-pct .hw-brand-letter { color: #3a3a3a; transition: color .25s ease; }
+  .hw-progress-pct .hw-brand-letter.revealed { color: var(--gold); text-shadow: 0 0 6px rgba(212,160,23,.4); }
+  .hw-progress-pct .hw-brand-pct { color: #777; font-weight: 600; margin-left: 8px; letter-spacing: 0; }
+
+  /* Two-column running layout */
+  .hw-live-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 1100px) { .hw-live-cols { grid-template-columns: 1fr; } }
+
+  /* Step tracker */
+  .hw-steps { display: flex; flex-direction: column; gap: 8px; }
+  .hw-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--cinema-elevated);
+    border: 1px solid var(--cinema-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    transition: border-color .25s, background .25s;
+  }
+  .hw-step.active  { border-color: var(--gold); background: var(--gold-glow); }
+  .hw-step.done    { border-color: #30d158; background: rgba(48,209,88,.07); }
+  .hw-step.failed  { border-color: #ff453a; background: rgba(255,69,58,.07); }
+
+  .hw-step-icon {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: var(--cinema-border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .hw-step.active .hw-step-icon { background: var(--gold); }
+  .hw-step.done   .hw-step-icon { background: #30d158; }
+  .hw-step.failed .hw-step-icon { background: #ff453a; }
+
+  .hw-step-info { flex: 1; min-width: 0; }
+  .hw-step-name { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hw-step-elapsed { font-size: 10px; color: #888; margin-top: 2px; }
+
+  .hw-step-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: var(--cinema-border);
+    color: #888;
+    flex-shrink: 0;
+  }
+  .hw-step.active .hw-step-badge { background: var(--gold); color: #000; }
+  .hw-step.done   .hw-step-badge { background: #30d158; color: #000; }
+  .hw-step.failed .hw-step-badge { background: #ff453a; color: #fff; }
+
+  /* Live terminal log */
+  .hw-terminal {
+    background: #0a0a0c;
+    border: 1px solid #222;
+    border-radius: 10px;
+    padding: 14px;
+    height: 320px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', 'Menlo', 'Courier New', monospace;
+    font-size: 12px;
+  }
+  .hw-terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .hw-terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .hw-terminal-title { font-size: 11px; color: #888; margin-left: 4px; }
+  .hw-log-line { margin: 2px 0; color: #30d158; }
+  .hw-log-line.error { color: #ff453a; }
+  .hw-log-line.warn  { color: #ffd60a; }
+  .hw-log-time { color: #888; margin-right: 6px; }
+
+  /* Error banner */
+  .hw-error-banner {
+    display: none;
+    background: rgba(255,69,58,.12);
+    border: 1px solid rgba(255,69,58,.3);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: #ff453a;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  .hw-error-banner.visible { display: flex; align-items: center; gap: 10px; }
+
+  /* Result panel */
+  .hw-result-wrap { display: none; margin-top: 20px; }
+  .hw-result-wrap.visible { display: block; }
+  .hw-result-section { margin-bottom: 20px; }
+  .hw-result-section h3 {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #999; margin: 0 0 10px;
+  }
+
+  /* Script scenes */
+  .hw-scene-list { list-style: none; padding: 0; margin: 0; }
+  .hw-scene {
+    background: var(--cinema-elevated);
+    border: 1px solid var(--cinema-border);
+    border-radius: 9px;
+    padding: 13px 16px;
+    margin-bottom: 10px;
+  }
+  .hw-scene:last-child { margin-bottom: 0; }
+  .hw-scene-label { font-size: 11px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 6px; }
+  .hw-scene-narration { font-size: 13px; line-height: 1.6; color: #ccc; margin-bottom: 8px; }
+  .hw-scene-visual { font-size: 11px; color: #999; font-style: italic; }
+
+  /* Script editor */
+  .hw-script-editor { margin-top: 20px; display: none; }
+  .hw-script-editor.visible { display: block; }
+  .hw-scene-edit {
+    background: var(--cinema-elevated);
+    border: 1px solid var(--cinema-border);
+    border-radius: 9px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .hw-scene-edit-label { font-size: 11px; font-weight: 700; color: var(--gold); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+  .hw-scene-edit textarea {
+    width: 100%;
+    background: var(--cinema-dark);
+    border: 1px solid var(--cinema-border);
+    border-radius: 7px;
+    color: #ccc;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 80px;
+    box-sizing: border-box;
+  }
+  .hw-scene-edit textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px var(--gold-glow);
+  }
+
+  /* Badges */
+  .hw-badge-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .hw-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .hw-badge-gold   { background: var(--gold-glow); color: var(--gold); border: 1px solid var(--gold-border); }
+  .hw-badge-green  { background: rgba(48,209,88,.12); color: #30d158; }
+  .hw-badge-blue   { background: rgba(10,132,255,.12); color: #0a84ff; }
+
+  /* Metrics */
+  .hw-metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .hw-metric {
+    background: var(--cinema-elevated);
+    border: 1px solid var(--cinema-border);
+    border-radius: 9px;
+    padding: 14px;
+    text-align: center;
+  }
+  .hw-metric-val { font-size: 22px; font-weight: 800; color: var(--gold); }
+  .hw-metric-lbl { font-size: 11px; color: #999; margin-top: 3px; }
+
+  /* Separator */
+  .hw-sep { border: none; border-top: 1px solid var(--cinema-border); margin: 20px 0; }
+</style>
+
+<div class="hw-grid">
+
+  <!-- ── LEFT: Input form (fixed 400px) ───────────────────────────────────── -->
+  <div>
+    <div class="hw-premium-note">
+      <span style="font-size:18px;">🎬</span>
+      Mixed AI + real sports footage — cinematic quality at scale
+    </div>
+
+    <div class="hw-card">
+      <div class="hw-card-title">Film Concept</div>
+
+      <div class="hw-form-row">
+        <label>Your Film Concept</label>
+        <textarea id="hw-topic" placeholder="e.g. The untold story of how billionaires really build their empires…" rows="3"></textarea>
+      </div>
+
+      <div class="hw-form-row">
+        <label>Target Audience</label>
+        <input type="text" id="hw-audience" placeholder="e.g. ambitious entrepreneurs, 25-45">
+      </div>
+
+      <div class="hw-form-row">
+        <label>Format</label>
+        <div class="hw-toggle-row">
+          <input type="radio" name="hw-format" id="hw-fmt-landscape" value="landscape" checked>
+          <label for="hw-fmt-landscape">16:9 Landscape</label>
+          <input type="radio" name="hw-format" id="hw-fmt-portrait" value="portrait">
+          <label for="hw-fmt-portrait">9:16 Portrait</label>
+        </div>
+      </div>
+
+      <div class="hw-form-row">
+        <label>Film Duration</label>
+        <div class="hw-duration-row">
+          <div class="hw-dur-opt">
+            <input type="radio" name="hw-duration" id="hw-dur-5" value="300">
+            <label for="hw-dur-5">5 min</label>
+          </div>
+          <div class="hw-dur-opt">
+            <input type="radio" name="hw-duration" id="hw-dur-8" value="480" checked>
+            <label for="hw-dur-8">8 min</label>
+          </div>
+          <div class="hw-dur-opt">
+            <input type="radio" name="hw-duration" id="hw-dur-12" value="720">
+            <label for="hw-dur-12">12 min</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="hw-form-row">
+        <label>Voice</label>
+        <select id="hw-voice">
+          {% for v in voices %}
+          <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="hw-form-row">
+        <label>Privacy</label>
+        <select id="hw-privacy">
+          <option value="private" selected>Private</option>
+          <option value="unlisted">Unlisted</option>
+          <option value="public">Public</option>
+        </select>
+      </div>
+
+      {% if not higgsfield_token %}
+      <div style="background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.25);border-radius:8px;padding:10px 14px;font-size:12px;color:#ff6b6b;margin-bottom:16px;">
+        <strong>Warning:</strong> HIGGSFIELD_MCP_TOKEN not configured — AI clip generation disabled. Stock footage will be used instead.
+      </div>
+      {% endif %}
+
+      <button class="hw-run-btn" id="hw-run-btn" onclick="hwStart()">
+        🎬 Start Production
+      </button>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: Idle / Running / Done states ───────────────────────────────── -->
+  <div id="hw-right">
+
+    <!-- IDLE STATE: explain what Hollywood can do -->
+    <div id="hw-idle-panel">
+      <div class="hw-idle-card">
+        <div class="hw-idle-icon">🎬</div>
+        <div class="hw-idle-title">Cinema House — Cinematic Production</div>
+        <div class="hw-idle-desc">
+          Enter your film concept and the AI pipeline will write a full cinematic screenplay,
+          plan the shot list, source real sports footage + AI-generated clips,
+          record a Neural2 voiceover, and assemble the final video — all automatically.
+        </div>
+        <div class="hw-idle-features">
+          <div class="hw-idle-feature">
+            <div class="hw-idle-feature-icon">🔍</div>
+            <div class="hw-idle-feature-name">Topic Research</div>
+            <div class="hw-idle-feature-desc">Deep research to add cinematic depth and factual accuracy</div>
+          </div>
+          <div class="hw-idle-feature">
+            <div class="hw-idle-feature-icon">🎭</div>
+            <div class="hw-idle-feature-name">CinematicDirector</div>
+            <div class="hw-idle-feature-desc">3-act structure with emotional visual language and hooks</div>
+          </div>
+          <div class="hw-idle-feature">
+            <div class="hw-idle-feature-icon">📜</div>
+            <div class="hw-idle-feature-name">ScreenwriterAgent</div>
+            <div class="hw-idle-feature-desc">Full screenplay with shot descriptions and scene arcs</div>
+          </div>
+          <div class="hw-idle-feature">
+            <div class="hw-idle-feature-icon">🎥</div>
+            <div class="hw-idle-feature-name">Mixed Media</div>
+            <div class="hw-idle-feature-desc">AI cinematics + real sports footage for maximum impact</div>
+          </div>
+          <div class="hw-idle-feature">
+            <div class="hw-idle-feature-icon">🎙</div>
+            <div class="hw-idle-feature-name">Neural2 Voiceover</div>
+            <div class="hw-idle-feature-desc">HD Google Neural2 documentary-style narration</div>
+          </div>
+          <div class="hw-idle-feature">
+            <div class="hw-idle-feature-icon">✂️</div>
+            <div class="hw-idle-feature-name">Auto Assembly</div>
+            <div class="hw-idle-feature-desc">Final cut with AI thumbnail, SEO package included</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RUNNING STATE: progress + step tracker + live log -->
+    <div id="hw-running-panel" class="hw-running-layout">
+
+      <!-- Error banner (shown on error) -->
+      <div class="hw-error-banner" id="hw-error-banner">
+        <span style="font-size:20px;">⚠️</span>
+        <span id="hw-error-text">Pipeline error</span>
+      </div>
+
+      <div class="hw-card">
+        <div class="hw-card-title">Production in Progress</div>
+
+        <!-- Overall progress bar -->
+        <div class="hw-progress-wrap">
+          <div class="hw-progress-track">
+            <div class="hw-progress-fill" id="hw-progress-fill"></div>
+          </div>
+          <div class="hw-progress-meta">
+            <div class="hw-progress-label" id="hw-progress-label">Initialising…</div>
+            <div class="hw-progress-pct" id="hw-progress-pct"><span class="hw-brand-letter">S</span><span class="hw-brand-letter">O</span><span class="hw-brand-letter">C</span><span class="hw-brand-letter">I</span><span class="hw-brand-letter">A</span><span class="hw-brand-letter">L</span><span class="hw-brand-space">&nbsp;</span><span class="hw-brand-letter">O</span><span class="hw-brand-letter">P</span><span class="hw-brand-letter">T</span><span class="hw-brand-letter">I</span><span class="hw-brand-letter">M</span><span class="hw-brand-letter">I</span><span class="hw-brand-letter">Z</span><span class="hw-brand-letter">E</span><span class="hw-brand-pct">0%</span></div>
+          </div>
+        </div>
+
+        <!-- Two-column: steps left, terminal right -->
+        <div class="hw-live-cols">
+
+          <!-- Step tracker -->
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:10px;">Pipeline Steps</div>
+            <div class="hw-steps" id="hw-steps">
+
+              <div class="hw-step" data-keywords="research,researching">
+                <div class="hw-step-icon">🔍</div>
+                <div class="hw-step-info">
+                  <div class="hw-step-name">Research</div>
+                  <div class="hw-step-elapsed" id="hw-step-0-elapsed"></div>
+                </div>
+                <span class="hw-step-badge" id="hw-step-0-badge">waiting</span>
+              </div>
+
+              <div class="hw-step" data-keywords="story,director,cinematic">
+                <div class="hw-step-icon">🎭</div>
+                <div class="hw-step-info">
+                  <div class="hw-step-name">Story Concept</div>
+                  <div class="hw-step-elapsed" id="hw-step-1-elapsed"></div>
+                </div>
+                <span class="hw-step-badge" id="hw-step-1-badge">waiting</span>
+              </div>
+
+              <div class="hw-step" data-keywords="screenplay,script,writer">
+                <div class="hw-step-icon">📜</div>
+                <div class="hw-step-info">
+                  <div class="hw-step-name">Screenplay</div>
+                  <div class="hw-step-elapsed" id="hw-step-2-elapsed"></div>
+                </div>
+                <span class="hw-step-badge" id="hw-step-2-badge">waiting</span>
+              </div>
+
+              <div class="hw-step" data-keywords="visual,planning,asset,curator">
+                <div class="hw-step-icon">🎥</div>
+                <div class="hw-step-info">
+                  <div class="hw-step-name">Shot Planning</div>
+                  <div class="hw-step-elapsed" id="hw-step-3-elapsed"></div>
+                </div>
+                <span class="hw-step-badge" id="hw-step-3-badge">waiting</span>
+              </div>
+
+              <div class="hw-step" data-keywords="seo,growth">
+                <div class="hw-step-icon">📊</div>
+                <div class="hw-step-info">
+                  <div class="hw-step-name">SEO Package</div>
+                  <div class="hw-step-elapsed" id="hw-step-4-elapsed"></div>
+                </div>
+                <span class="hw-step-badge" id="hw-step-4-badge">waiting</span>
+              </div>
+
+              <div class="hw-step" data-keywords="voice,audio,voiceover">
+                <div class="hw-step-icon">🎙</div>
+                <div class="hw-step-info">
+                  <div class="hw-step-name">Voice Recording</div>
+                  <div class="hw-step-elapsed" id="hw-step-5-elapsed"></div>
+                </div>
+                <span class="hw-step-badge" id="hw-step-5-badge">waiting</span>
+              </div>
+
+              <div class="hw-step" data-keywords="sourcing,sports footage,footage,stock,mixkit,higgsfield,cinematography,ai">
+                <div class="hw-step-icon">🎬</div>
+                <div class="hw-step-info">
+                  <div class="hw-step-name">Sourcing Footage</div>
+                  <div class="hw-step-elapsed" id="hw-step-6-elapsed"></div>
+                </div>
+                <span class="hw-step-badge" id="hw-step-6-badge">waiting</span>
+              </div>
+
+              <div class="hw-step" data-keywords="final,assembl,manifest,thumbnail,complete">
+                <div class="hw-step-icon">✂️</div>
+                <div class="hw-step-info">
+                  <div class="hw-step-name">Final Assembly</div>
+                  <div class="hw-step-elapsed" id="hw-step-7-elapsed"></div>
+                </div>
+                <span class="hw-step-badge" id="hw-step-7-badge">waiting</span>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Live terminal log -->
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888;margin-bottom:10px;">Live Log</div>
+            <div class="hw-terminal" id="hw-live-log">
+              <div class="hw-terminal-header">
+                <div class="hw-terminal-dot" style="background:#ff5f57;"></div>
+                <div class="hw-terminal-dot" style="background:#febc2e;"></div>
+                <div class="hw-terminal-dot" style="background:#28c840;"></div>
+                <span class="hw-terminal-title">hollywood-pipeline</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- DONE STATE: results + script editor -->
+    <div id="hw-result-wrap" class="hw-result-wrap">
+      <div class="hw-card">
+        <div class="hw-card-title">Production Complete</div>
+
+        <!-- Title + hook -->
+        <div class="hw-result-section">
+          <h3>Film Title</h3>
+          <div style="font-size:18px;font-weight:800;color:var(--gold);margin-bottom:8px;" id="hw-res-title"></div>
+          <div style="font-size:13px;color:#ccc;font-style:italic;" id="hw-res-hook"></div>
+        </div>
+
+        <hr class="hw-sep">
+
+        <!-- Metrics -->
+        <div class="hw-result-section">
+          <h3>Production Stats</h3>
+          <div class="hw-metrics">
+            <div class="hw-metric">
+              <div class="hw-metric-val" id="hw-res-clips">—</div>
+              <div class="hw-metric-lbl">AI Clips</div>
+            </div>
+            <div class="hw-metric">
+              <div class="hw-metric-val" id="hw-res-scenes">—</div>
+              <div class="hw-metric-lbl">Scenes</div>
+            </div>
+            <div class="hw-metric">
+              <div class="hw-metric-val" id="hw-res-credits">—</div>
+              <div class="hw-metric-lbl">Credits Used</div>
+            </div>
+            <div class="hw-metric">
+              <div class="hw-metric-val" id="hw-res-views">—</div>
+              <div class="hw-metric-lbl">Est. Views/30d</div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="hw-sep">
+
+        <!-- Script scenes (read-only view) -->
+        <div class="hw-result-section">
+          <h3>Scenes</h3>
+          <ul class="hw-scene-list" id="hw-res-scenes-list"></ul>
+        </div>
+
+        <hr class="hw-sep">
+
+        <!-- SEO / Tags -->
+        <div class="hw-result-section">
+          <h3>Tags</h3>
+          <div class="hw-badge-row" id="hw-res-tags"></div>
+        </div>
+
+        <hr class="hw-sep">
+
+        <!-- Actions -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <a href="/jobs" class="btn btn-secondary">View in Jobs</a>
+          <div id="hw-res-download-wrap"></div>
+          <button class="btn btn-secondary" onclick="hwToggleEditor()">📜 Edit Script</button>
+        </div>
+      </div>
+
+      <!-- Script Editor -->
+      <div id="hw-script-editor" class="hw-script-editor">
+        <div class="hw-card" style="margin-top:16px;">
+          <div class="hw-card-title">Edit Script</div>
+          <div style="font-size:13px;color:#999;margin-bottom:16px;">
+            Edit each scene's narration below, then click Re-assemble to rebuild the video with your changes.
+          </div>
+          <div id="hw-scene-editors"></div>
+          <div style="margin-top:16px;display:flex;gap:10px;">
+            <button class="hw-run-btn" style="max-width:280px;" onclick="hwReassemble()">
+              🎬 Re-assemble Video with Edits
+            </button>
+            <button class="btn btn-secondary" onclick="hwToggleEditor()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /#hw-right -->
+</div><!-- /.hw-grid -->
+
+<script>
+let _hwJobId = null;
+let _hwEs = null;
+let _hwPollTimer = null;
+let _hwPollIdx = 0;
+let _hwCurrentResult = null;
+let _hwDbJobId = null;
+let _hwStepStartTimes = {};
+let _hwActiveStepIdx = -1;
+
+/* ── Helpers ────────────────────────────────────────────────────────────── */
+
+function _hwNow() {
+  const d = new Date();
+  return d.toTimeString().substring(0, 8);
+}
+
+function hwAddLog(msg, type) {
+  const log = document.getElementById('hw-live-log');
+  const line = document.createElement('div');
+  line.className = 'hw-log-line' + (type ? ' ' + type : '');
+  line.innerHTML = '<span class="hw-log-time">[' + _hwNow() + ']</span>' + _escHtml(msg);
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
+function _escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── State transitions ──────────────────────────────────────────────────── */
+
+function hwShowRunning() {
+  document.getElementById('hw-idle-panel').style.display = 'none';
+  document.getElementById('hw-running-panel').classList.add('visible');
+  document.getElementById('hw-result-wrap').classList.remove('visible');
+  document.getElementById('hw-error-banner').classList.remove('visible');
+}
+
+function hwShowIdle() {
+  document.getElementById('hw-idle-panel').style.display = 'block';
+  document.getElementById('hw-running-panel').classList.remove('visible');
+  document.getElementById('hw-result-wrap').classList.remove('visible');
+}
+
+/* ── Step tracker ───────────────────────────────────────────────────────── */
+
+const _HW_STEPS = document.querySelectorAll('.hw-step');
+
+function hwMatchStep(msg) {
+  const lower = msg.toLowerCase();
+  let matched = -1;
+  _HW_STEPS.forEach(function(el, idx) {
+    const kws = (el.dataset.keywords || '').split(',').map(function(k) { return k.trim(); });
+    if (kws.some(function(k) { return k && lower.includes(k); })) {
+      matched = idx;
+    }
+  });
+  return matched;
+}
+
+function hwUpdateSteps(msg, status) {
+  const idx = hwMatchStep(msg);
+  if (idx < 0 || status === 'done' || status === 'error') return;
+
+  if (idx !== _hwActiveStepIdx) {
+    // Mark previous active step done
+    if (_hwActiveStepIdx >= 0) {
+      const prev = _HW_STEPS[_hwActiveStepIdx];
+      prev.classList.remove('active');
+      prev.classList.add('done');
+      const prevBadge = document.getElementById('hw-step-' + _hwActiveStepIdx + '-badge');
+      if (prevBadge) prevBadge.textContent = 'done';
+    }
+    // Mark all steps before idx as done
+    for (let i = 0; i < idx; i++) {
+      _HW_STEPS[i].classList.remove('active');
+      _HW_STEPS[i].classList.add('done');
+      const b = document.getElementById('hw-step-' + i + '-badge');
+      if (b && b.textContent === 'waiting') b.textContent = 'done';
+    }
+    _hwActiveStepIdx = idx;
+    _hwStepStartTimes[idx] = Date.now();
+  }
+
+  const el = _HW_STEPS[idx];
+  el.classList.add('active');
+  el.classList.remove('done', 'failed');
+  const badge = document.getElementById('hw-step-' + idx + '-badge');
+  if (badge) badge.textContent = 'running';
+
+  // Show elapsed time hint from msg if present e.g. "(15s)"
+  const elapsed = document.getElementById('hw-step-' + idx + '-elapsed');
+  if (elapsed) {
+    const m = msg.match(/\((\d+)s\)/);
+    elapsed.textContent = m ? m[1] + 's elapsed' : '';
+  }
+}
+
+function hwMarkAllDone() {
+  _HW_STEPS.forEach(function(el, idx) {
+    el.classList.add('done');
+    el.classList.remove('active', 'failed');
+    const b = document.getElementById('hw-step-' + idx + '-badge');
+    if (b) b.textContent = 'done';
+  });
+}
+
+function hwMarkActiveFailed() {
+  _HW_STEPS.forEach(function(el, idx) {
+    if (el.classList.contains('active')) {
+      el.classList.add('failed');
+      el.classList.remove('active');
+      const b = document.getElementById('hw-step-' + idx + '-badge');
+      if (b) b.textContent = 'failed';
+    }
+  });
+}
+
+/* ── Main event handler ─────────────────────────────────────────────────── */
+
+const HW_BRAND = 'SOCIAL OPTIMIZE';
+
+function hwBrandCounterHtml(pct) {
+  const total = HW_BRAND.length;
+  const revealed = Math.min(total, Math.round((pct / 100) * total));
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    const ch = HW_BRAND[i];
+    if (ch === ' ') { html += '<span class="hw-brand-space">&nbsp;</span>'; continue; }
+    html += '<span class="hw-brand-letter' + (i < revealed ? ' revealed' : '') + '">' + ch + '</span>';
+  }
+  html += '<span class="hw-brand-pct">' + pct + '%</span>';
+  return html;
+}
+
+function hwHandleEvent(d) {
+  const pct = d.progress || 0;
+  const step = d.step || d.log || '';
+
+  // Always log to terminal
+  if (step) {
+    const isErr = d.status === 'error' || step.toLowerCase().includes('fail') || step.toLowerCase().includes('error');
+    hwAddLog(step, isErr ? 'error' : '');
+  }
+
+  // Progress bar — counter spells out "SOCIAL OPTIMIZE" as it fills
+  if (pct > 0) {
+    document.getElementById('hw-progress-fill').style.width = pct + '%';
+    document.getElementById('hw-progress-pct').innerHTML = hwBrandCounterHtml(pct);
+  }
+  if (step) document.getElementById('hw-progress-label').textContent = step;
+
+  // Update step tracker
+  if (step) hwUpdateSteps(step, d.status);
+
+  if (d.status === 'done') {
+    hwMarkAllDone();
+    if (_hwEs) { _hwEs.close(); _hwEs = null; }
+    hwStopPoll();
+    hwAddLog('Production complete!', '');
+    document.getElementById('hw-progress-fill').style.width = '100%';
+    document.getElementById('hw-progress-pct').innerHTML = hwBrandCounterHtml(100);
+    document.getElementById('hw-run-btn').disabled = false;
+    document.getElementById('hw-run-btn').textContent = '🎬 Start Production';
+    if (d.result) {
+      _hwCurrentResult = d.result;
+      _hwDbJobId = d.db_job_id || null;
+      hwShowResult(d.result);
+    }
+    return;
+  }
+
+  if (d.status === 'error') {
+    hwMarkActiveFailed();
+    if (_hwEs) { _hwEs.close(); _hwEs = null; }
+    hwStopPoll();
+    const errMsg = step || 'Unknown pipeline error';
+    document.getElementById('hw-error-banner').classList.add('visible');
+    document.getElementById('hw-error-text').textContent = errMsg;
+    hwAddLog('ERROR: ' + errMsg, 'error');
+    document.getElementById('hw-run-btn').disabled = false;
+    document.getElementById('hw-run-btn').textContent = '🎬 Retry Production';
+    return;
+  }
+}
+
+/* ── SSE streaming ──────────────────────────────────────────────────────── */
+
+function hwStream(jobId) {
+  if (_hwEs) _hwEs.close();
+  _hwEs = new EventSource('/api/hollywood/stream/' + jobId);
+  _hwEs.onmessage = function(e) {
+    try {
+      const d = JSON.parse(e.data);
+      hwHandleEvent(d);
+    } catch(ex) {}
+  };
+  _hwEs.onerror = function() {
+    _hwEs.close();
+    _hwEs = null;
+    hwAddLog('SSE connection lost — switching to poll mode', 'warn');
+    hwPollFallback(jobId);
+  };
+}
+
+/* ── Poll fallback ──────────────────────────────────────────────────────── */
+
+function hwPollFallback(jobId) {
+  hwStopPoll();
+  _hwPollIdx = 0;
+  function doPoll() {
+    fetch('/api/hollywood/log/' + jobId)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        const log = data.log || [];
+        for (let i = _hwPollIdx; i < log.length; i++) {
+          hwHandleEvent(log[i]);
+        }
+        _hwPollIdx = log.length;
+        const job = data.job || {};
+        if (job.status === 'done' || job.status === 'error') return;
+        _hwPollTimer = setTimeout(doPoll, 3000);
+      })
+      .catch(function() {
+        _hwPollTimer = setTimeout(doPoll, 5000);
+      });
+  }
+  doPoll();
+}
+
+function hwStopPoll() {
+  if (_hwPollTimer) { clearTimeout(_hwPollTimer); _hwPollTimer = null; }
+}
+
+/* ── Start production ───────────────────────────────────────────────────── */
+
+function hwStart() {
+  const topic = document.getElementById('hw-topic').value.trim();
+  if (!topic) { alert('Please enter a film concept.'); return; }
+
+  const isPortrait = document.querySelector('input[name="hw-format"]:checked').value === 'portrait';
+  const dur = parseInt(document.querySelector('input[name="hw-duration"]:checked').value);
+  const voice = document.getElementById('hw-voice').value;
+  const privacy = document.getElementById('hw-privacy').value;
+  const audience = document.getElementById('hw-audience').value.trim();
+
+  // Reset UI
+  document.getElementById('hw-run-btn').disabled = true;
+  document.getElementById('hw-run-btn').textContent = 'Production in Progress…';
+  document.getElementById('hw-progress-fill').style.width = '0%';
+  document.getElementById('hw-progress-pct').innerHTML = hwBrandCounterHtml(0);
+  document.getElementById('hw-progress-label').textContent = 'Initialising…';
+  document.getElementById('hw-error-banner').classList.remove('visible');
+  document.getElementById('hw-result-wrap').classList.remove('visible');
+  document.getElementById('hw-script-editor').classList.remove('visible');
+  _hwActiveStepIdx = -1;
+  _hwStepStartTimes = {};
+
+  // Clear terminal log (keep header row)
+  const terminal = document.getElementById('hw-live-log');
+  while (terminal.children.length > 1) terminal.removeChild(terminal.lastChild);
+
+  // Reset steps
+  _HW_STEPS.forEach(function(el, idx) {
+    el.classList.remove('active', 'done', 'failed');
+    const b = document.getElementById('hw-step-' + idx + '-badge');
+    if (b) b.textContent = 'waiting';
+    const elapsed = document.getElementById('hw-step-' + idx + '-elapsed');
+    if (elapsed) elapsed.textContent = '';
+  });
+
+  hwShowRunning();
+  hwAddLog('Starting Hollywood production for: ' + topic);
+
+  fetch('/api/hollywood/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ topic: topic, target_duration: dur, audience: audience, is_portrait: isPortrait, voice: voice, privacy: privacy })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.error) {
+      hwHandleEvent({ status: 'error', step: data.error });
+      return;
+    }
+    _hwJobId = data.hw_job_id;
+    hwAddLog('Job started: ' + _hwJobId);
+    hwStream(_hwJobId);
+  })
+  .catch(function(e) { hwHandleEvent({ status: 'error', step: 'Network error: ' + e.message }); });
+}
+
+/* ── Show results ───────────────────────────────────────────────────────── */
+
+function hwShowResult(r) {
+  if (!r) return;
+  const bp = r.blueprint || {};
+  const sc = r.script || {};
+  const seo = r.seo || {};
+  const ap = r.asset_plan || {};
+
+  document.getElementById('hw-res-title').textContent = seo.title_final || sc.title || '';
+  document.getElementById('hw-res-hook').textContent = bp.hook || '';
+
+  document.getElementById('hw-res-clips').textContent = (ap.assets || []).filter(function(a) { return a.source && a.source.startsWith('higgsfield'); }).length;
+  document.getElementById('hw-res-scenes').textContent = (sc.sections || []).length;
+  document.getElementById('hw-res-credits').textContent = ap.total_credit_cost || 0;
+  document.getElementById('hw-res-views').textContent = seo.predicted_views_30d ? seo.predicted_views_30d.toLocaleString() : '—';
+
+  // Scene list (read-only)
+  const sceneList = document.getElementById('hw-res-scenes-list');
+  sceneList.innerHTML = '';
+  (sc.sections || []).forEach(function(s) {
+    const li = document.createElement('li');
+    li.className = 'hw-scene';
+    li.innerHTML =
+      '<div class="hw-scene-label">' + _escHtml(s.label || 'Scene ' + s.section_id) + '</div>' +
+      '<div class="hw-scene-narration">' + _escHtml((s.narration || '').substring(0, 200)) + ((s.narration || '').length > 200 ? '…' : '') + '</div>' +
+      (s.visual_direction ? '<div class="hw-scene-visual">' + _escHtml(s.visual_direction.substring(0, 120)) + (s.visual_direction.length > 120 ? '…' : '') + '</div>' : '');
+    sceneList.appendChild(li);
+  });
+
+  // Tags
+  const tagsEl = document.getElementById('hw-res-tags');
+  tagsEl.innerHTML = '';
+  (seo.tags || []).slice(0, 15).forEach(function(tag) {
+    const b = document.createElement('span');
+    b.className = 'hw-badge hw-badge-gold';
+    b.textContent = '#' + tag.replace(/^#/, '');
+    tagsEl.appendChild(b);
+  });
+
+  // Download
+  const dlWrap = document.getElementById('hw-res-download-wrap');
+  dlWrap.innerHTML = '';
+  if (r.video_path) {
+    const a = document.createElement('a');
+    a.href = '/api/jobs/download?path=' + encodeURIComponent(r.video_path);
+    a.className = 'btn btn-primary';
+    a.textContent = 'Download Film';
+    dlWrap.appendChild(a);
+  }
+
+  // Build script editor textareas
+  const editorContainer = document.getElementById('hw-scene-editors');
+  editorContainer.innerHTML = '';
+  (sc.sections || []).forEach(function(s, idx) {
+    const wrap = document.createElement('div');
+    wrap.className = 'hw-scene-edit';
+    const label = document.createElement('div');
+    label.className = 'hw-scene-edit-label';
+    label.textContent = 'Scene ' + (idx + 1) + ': ' + (s.label || '');
+    const ta = document.createElement('textarea');
+    ta.id = 'hw-edit-' + idx;
+    ta.dataset.sectionId = s.section_id || '';
+    ta.value = s.narration || '';
+    wrap.appendChild(label);
+    wrap.appendChild(ta);
+    editorContainer.appendChild(wrap);
+  });
+
+  document.getElementById('hw-result-wrap').classList.add('visible');
+}
+
+/* ── Script editor ──────────────────────────────────────────────────────── */
+
+function hwToggleEditor() {
+  const editor = document.getElementById('hw-script-editor');
+  editor.classList.toggle('visible');
+}
+
+function hwReassemble() {
+  const scenes = [];
+  document.querySelectorAll('#hw-scene-editors textarea').forEach(function(ta) {
+    scenes.push({ section_id: ta.dataset.sectionId, narration: ta.value });
+  });
+  fetch('/api/hollywood/reassemble', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ db_job_id: _hwDbJobId, scenes: scenes })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.ok) {
+      alert('Re-assembly queued! Check the Jobs page for progress.');
+    } else {
+      alert('Error: ' + (data.error || 'Unknown error'));
+    }
+  })
+  .catch(function(e) { alert('Network error: ' + e.message); });
+}
+</script>
+{% endblock %}

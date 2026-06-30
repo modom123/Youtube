@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Social Optimize Machine - CLI
+Social Optimize - CLI
 Usage: python main.py create "your topic here" [options]
 """
 import sys
@@ -14,7 +14,7 @@ console = Console()
 
 @click.group()
 def cli():
-    """Social Optimize Machine - Turn any topic into viral content."""
+    """Social Optimize - Turn any topic into viral content."""
     pass
 
 
@@ -74,7 +74,7 @@ def create(topic, format, platforms, audience, voice, style, privacy, instructio
     import social_optimize
 
     console.print(Panel(
-        f"[bold cyan]Social Optimize Machine[/bold cyan]\n"
+        f"[bold cyan]Social Optimize[/bold cyan]\n"
         f"[dim]Creating [bold]{format}[/bold] content about: [bold yellow]{topic}[/bold yellow][/dim]",
         expand=False,
     ))
@@ -219,7 +219,7 @@ def setup():
 
     checks = [
         ("ANTHROPIC_API_KEY", bool(config.ANTHROPIC_API_KEY), "Required for script generation"),
-        ("PEXELS_API_KEY", bool(config.PEXELS_API_KEY), "Required for stock media (optional)"),
+        ("PIXABAY_API_KEY", bool(config.PIXABAY_API_KEY), "Required for stock media (optional)"),
         ("YOUTUBE_CLIENT_ID", bool(config.YOUTUBE_CLIENT_ID), "Required for YouTube uploads"),
         ("TIKTOK_ACCESS_TOKEN", bool(config.TIKTOK_ACCESS_TOKEN), "Required for TikTok uploads"),
         ("INSTAGRAM_ACCESS_TOKEN", bool(config.INSTAGRAM_ACCESS_TOKEN), "Required for Instagram uploads"),

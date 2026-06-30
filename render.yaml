@@ -1,38 +1,43 @@
 services:
   - type: web
     name: social-optimize
-    runtime: python
-    plan: starter          # $7/mo — needed for persistent disk support
-    region: oregon         # or frankfurt / singapore
-    branch: main           # change to your production branch
-
-    buildCommand: "bash build.sh"
-    startCommand: "gunicorn app:app -c gunicorn.conf.py"
+    runtime: docker
+    plan: standard         # $25/mo — 2GB RAM needed for video generation workloads
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile
 
     healthCheckPath: /health
 
     envVars:
-      # ── Auto-generated (Render fills these in) ──────────────
+      # ── Auto-generated ──────────────────────────────────────
       - key: SECRET_KEY
         generateValue: true
 
-      # ── Set these in the Render dashboard ──────────────────
+      # ── Database (Supabase pooler — IPv4, works on Render Oregon) ──
+      - key: DATABASE_URL
+        value: postgresql://postgres.ktojldpofqxmjipoibbu:%24Itspossible56%24@aws-1-us-east-1.pooler.supabase.com:6543/postgres?sslmode=require
+
+      # ── App ─────────────────────────────────────────────────
       - key: APP_BASE_URL
         value: https://socialoptimize.online
 
-      # Anthropic
+      - key: DATA_DIR
+        value: /data
+
+      # ── Anthropic ────────────────────────────────────────────
       - key: ANTHROPIC_API_KEY
         sync: false
 
-      # Pexels
+      # ── Pexels ───────────────────────────────────────────────
       - key: PEXELS_API_KEY
         sync: false
 
-      # Higgsfield (single MCP token — authenticates CLI + MCP HTTP client)
+      # ── Higgsfield ───────────────────────────────────────────
       - key: HIGGSFIELD_MCP_TOKEN
         sync: false
 
-      # Stripe
+      # ── Stripe ───────────────────────────────────────────────
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_PUBLISHABLE_KEY
@@ -46,31 +51,77 @@ services:
       - key: STRIPE_PRICE_AGENCY
         sync: false
 
-      # YouTube OAuth
+      # ── YouTube OAuth ─────────────────────────────────────────
       - key: YOUTUBE_CLIENT_ID
         sync: false
       - key: YOUTUBE_CLIENT_SECRET
         sync: false
       - key: YOUTUBE_REDIRECT_URI
-        sync: false
+        value: https://socialoptimize.online/oauth/youtube/callback
 
-      # TikTok
+      # ── TikTok ───────────────────────────────────────────────
       - key: TIKTOK_CLIENT_KEY
         sync: false
       - key: TIKTOK_CLIENT_SECRET
         sync: false
 
-      # Instagram
-      - key: INSTAGRAM_ACCESS_TOKEN
+      # ── Facebook / Instagram (Meta) ───────────────────────────
+      - key: FACEBOOK_APP_ID
         sync: false
-      - key: INSTAGRAM_ACCOUNT_ID
+      - key: FACEBOOK_APP_SECRET
         sync: false
 
-      # Google Veo
+      # ── LinkedIn ─────────────────────────────────────────────
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+
+      # ── X (Twitter) OAuth 2.0 ────────────────────────────────
+      - key: TWITTER_CLIENT_ID
+        sync: false
+      - key: TWITTER_CLIENT_SECRET
+        sync: false
+      - key: TWITTER_REDIRECT_URI
+        value: https://socialoptimize.online/oauth/twitter/callback
+
+      # ── Threads ───────────────────────────────────────────────
+      - key: THREADS_APP_ID
+        sync: false
+      - key: THREADS_APP_SECRET
+        sync: false
+      - key: THREADS_REDIRECT_URI
+        value: https://socialoptimize.online/oauth/threads/callback
+
+      # ── Twitch ────────────────────────────────────────────────
+      - key: TWITCH_CLIENT_ID
+        sync: false
+      - key: TWITCH_CLIENT_SECRET
+        sync: false
+      - key: TWITCH_REDIRECT_URI
+        value: https://socialoptimize.online/oauth/twitch/callback
+
+      # ── Snapchat ──────────────────────────────────────────────
+      - key: SNAP_CLIENT_ID
+        sync: false
+      - key: SNAP_CLIENT_SECRET
+        sync: false
+      - key: SNAP_REDIRECT_URI
+        value: https://socialoptimize.online/oauth/snapchat/callback
+
+      # ── Google (Veo / TTS / Translate) ───────────────────────
       - key: GOOGLE_API_KEY
         sync: false
 
-      # Email notifications (optional — leave blank to disable)
+      # ── Twilio (SMS / WhatsApp) ───────────────────────────────
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+
+      # ── SMTP email ───────────────────────────────────────────
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
@@ -80,11 +131,7 @@ services:
       - key: SMTP_PASS
         sync: false
 
-      # Persistent data directory — must match disk mountPath below
-      - key: DATA_DIR
-        value: /data
-
     disk:
       name: social-optimize-data
       mountPath: /data
-      sizeGB: 20             # 20 GB covers ~200 generated videos; increase as needed
+      sizeGB: 20

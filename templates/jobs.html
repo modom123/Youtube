@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% set active_page = "jobs" %}
 
-{% block title %}Jobs — Social Optimize Machine{% endblock %}
+{% block title %}Jobs — Social Optimize{% endblock %}
 {% block topbar_title %}Content Jobs{% endblock %}
 {% block topbar_sub %}All generated content{% endblock %}
 {% block topbar_actions %}
@@ -44,13 +44,16 @@
             <div class="text-xs text-dim">{{ job.topic[:35] if job.title else '' }}</div>
           </td>
           <td>
-            <span class="pill
-              {% if job.format == 'short' %}pill-running
-              {% elif job.format == 'long' %}pill-done
-              {% elif job.format == 'podcast' %}pill-pending
-              {% else %}pill-running{% endif %}">
-              {{ job.format }}
-            </span>
+            <div style="display:flex;align-items:center;gap:4px;">
+              <span class="pill
+                {% if job.format == 'short' %}pill-running
+                {% elif job.format == 'long' %}pill-done
+                {% elif job.format == 'podcast' %}pill-pending
+                {% else %}pill-running{% endif %}" id="fmt-pill-{{ job.id }}">
+                {{ job.format }}
+              </span>
+              <button class="btn btn-ghost btn-sm" onclick="editFormat({{ job.id }}, '{{ job.format }}', this)" style="font-size:10px;padding:1px 5px;opacity:.5;" title="Change format">✏</button>
+            </div>
           </td>
           <td class="text-sm text-dim">
             {% if job.duration %}{{ "%.0f"|format(job.duration) }}s{% else %}—{% endif %}
@@ -80,12 +83,26 @@
               <span class="text-dim">—</span>
             {% endif %}
           </td>
-          <td class="text-xs text-dim">{{ job.created_at[:16].replace('T',' ') }}</td>
+          <td class="text-xs text-dim">{{ job.created_at | datefmt }}</td>
           <td>
-            <div class="flex gap-8">
+            <div class="flex gap-8" style="flex-wrap:wrap;">
               <a href="/jobs/{{ job.id }}" class="btn btn-ghost btn-sm">View</a>
-              {% if job.status == 'done' and job.video_path %}
-              <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-sm">⬇</a>
+              {% if job.status == 'done' %}
+                {% if job.video_path %}
+                <button onclick="previewMedia({{ job.id }}, {{ (job.title or job.topic) | tojson }}, 'video')" class="btn btn-ghost btn-sm" title="Preview video">▶ Video</button>
+                <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-sm">⬇</a>
+                {% elif job.audio_path %}
+                <button onclick="previewMedia({{ job.id }}, {{ (job.title or job.topic) | tojson }}, 'audio')" class="btn btn-ghost btn-sm" title="Preview audio">▶ Audio</button>
+                {% endif %}
+              {% endif %}
+              {% if job.status == 'error' %}
+              <button onclick="retryJob({{ job.id }}, this)" class="btn btn-primary btn-sm">↺ Retry</button>
+              {% endif %}
+              {% if job.status == 'running' %}
+              <button onclick="cancelJob({{ job.id }}, this)" class="btn btn-ghost btn-sm" style="color:var(--yellow);">⏹ Cancel</button>
+              {% endif %}
+              {% if job.status in ('error', 'done') %}
+              <button onclick="deleteJob({{ job.id }}, this)" class="btn btn-ghost btn-sm" style="color:var(--red);">🗑</button>
               {% endif %}
             </div>
           </td>
@@ -106,4 +123,157 @@
 </div>
 {% endif %}
 
+<!-- Media preview lightbox -->
+<div id="videoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px;" onclick="closePreview(event)">
+  <div style="position:relative;width:min(90vw,900px);" onclick="event.stopPropagation()">
+    <button onclick="closePreview()" style="position:absolute;top:-44px;right:0;background:none;border:none;color:#fff;font-size:26px;cursor:pointer;line-height:1;padding:8px;">✕</button>
+    <div id="previewTitle" style="font-size:14px;font-weight:600;color:#ccc;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;"></div>
+    <div id="previewError" style="display:none;background:rgba(255,80,80,.15);border:1px solid rgba(255,80,80,.4);border-radius:10px;padding:20px;color:#ff6b6b;text-align:center;font-size:14px;"></div>
+    <video id="previewPlayer" controls style="width:100%;border-radius:12px;max-height:70vh;background:#000;display:none;"></video>
+    <div id="audioWrap" style="display:none;background:var(--bg-card,#1a1a1a);border-radius:12px;padding:28px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:16px;">🎵</div>
+      <audio id="previewAudio" controls style="width:100%;"></audio>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function previewMedia(id, title, type) {
+  const modal   = document.getElementById('videoModal');
+  const player  = document.getElementById('previewPlayer');
+  const audio   = document.getElementById('previewAudio');
+  const err     = document.getElementById('previewError');
+  const audioWr = document.getElementById('audioWrap');
+  document.getElementById('previewTitle').textContent = title;
+
+  // Reset
+  player.style.display = 'none';  audioWr.style.display = 'none';
+  err.style.display = 'none';
+  player.pause(); player.src = '';
+  audio.pause();  audio.src  = '';
+
+  modal.style.display = 'flex';
+
+  // Verify files exist first
+  try {
+    const chk = await fetch(`/api/jobs/${id}/check-files`).then(r => r.json());
+    if (type === 'video' && !chk.has_video) {
+      err.style.display = 'block';
+      err.textContent = 'Video file is no longer on disk (the server was restarted or storage was cleared). Download is unavailable.';
+      return;
+    }
+    if (type === 'audio' && !chk.has_audio) {
+      err.style.display = 'block';
+      err.textContent = 'Audio file is no longer on disk. Download is unavailable.';
+      return;
+    }
+  } catch(e) { /* proceed anyway */ }
+
+  if (type === 'video') {
+    player.style.display = 'block';
+    player.src = `/api/jobs/${id}/video`;
+    player.onerror = () => {
+      player.style.display = 'none';
+      err.style.display = 'block';
+      err.textContent = 'Could not load video — the file may be missing or in an unsupported format.';
+    };
+    player.play().catch(() => {});
+  } else {
+    audioWr.style.display = 'block';
+    audio.src = `/api/jobs/${id}/audio`;
+    audio.onerror = () => {
+      audioWr.style.display = 'none';
+      err.style.display = 'block';
+      err.textContent = 'Could not load audio — the file may be missing.';
+    };
+    audio.play().catch(() => {});
+  }
+}
+
+function closePreview(e) {
+  if (e && e.target !== document.getElementById('videoModal')) return;
+  document.getElementById('previewPlayer').pause();
+  document.getElementById('previewPlayer').src = '';
+  document.getElementById('previewAudio').pause();
+  document.getElementById('previewAudio').src  = '';
+  document.getElementById('videoModal').style.display = 'none';
+}
+
+async function editFormat(jobId, current, btn) {
+  const formats = ['short','long','podcast','reel','studio','commercial','hollywood'];
+  const select = document.createElement('select');
+  select.style.cssText = 'font-size:11px;padding:2px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text);';
+  formats.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f; opt.textContent = f;
+    if (f === current) opt.selected = true;
+    select.appendChild(opt);
+  });
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn btn-primary btn-sm';
+  saveBtn.style.cssText = 'font-size:10px;padding:1px 8px;margin-left:4px;';
+  saveBtn.textContent = '✓';
+
+  const parent = btn.parentElement;
+  const pill = parent.querySelector('.pill');
+  pill.style.display = 'none';
+  btn.style.display = 'none';
+  parent.appendChild(select);
+  parent.appendChild(saveBtn);
+
+  saveBtn.onclick = async () => {
+    const fmt = select.value;
+    try {
+      const r = await fetch(`/api/jobs/${jobId}/update`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ format: fmt }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        pill.textContent = fmt;
+        pill.style.display = '';
+        btn.style.display = '';
+        select.remove();
+        saveBtn.remove();
+        toast('success', 'Format updated', `Job #${jobId} → ${fmt}`);
+      } else {
+        toast('error', 'Failed', d.error);
+      }
+    } catch(e) { toast('error', 'Error', e.message); }
+  };
+  select.focus();
+}
+
+async function retryJob(id, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    const r = await fetch(`/api/jobs/${id}/retry`, {method:'POST'});
+    if (r.status === 401) { alert('Session expired — please sign in again.'); window.location.href = '/login'; return; }
+    const d = await r.json();
+    if (d.error) { alert(d.error); btn.disabled = false; btn.textContent = '↺ Retry'; return; }
+    window.location.href = `/jobs/${id}`;
+  } catch (e) {
+    alert('Retry failed: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = '↺ Retry';
+  }
+}
+async function cancelJob(id, btn) {
+  if (!confirm('Cancel this job?')) return;
+  btn.disabled = true;
+  await fetch(`/api/jobs/${id}/cancel`, {method:'POST'});
+  location.reload();
+}
+async function deleteJob(id, btn) {
+  if (!confirm('Delete this job? This cannot be undone.')) return;
+  btn.disabled = true;
+  await fetch(`/api/jobs/${id}/delete`, {method:'POST'});
+  btn.closest('tr').remove();
+}
+</script>
 {% endblock %}

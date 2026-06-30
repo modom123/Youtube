@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% set active_page = "admin" %}
+
+{% block title %}Credit Manager — Admin{% endblock %}
+{% block topbar_title %}Credit Manager{% endblock %}
+{% block topbar_sub %}Higgsfield Credit Usage & Cost Tracking{% endblock %}
+
+{% block topbar_actions %}
+<a href="/admin" class="btn btn-ghost" style="font-size:12px;">Back to Admin</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .cm-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; margin-bottom:24px; }
+  .cm-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px; text-align:center; }
+  .cm-card .val { font-size:32px; font-weight:700; line-height:1.2; }
+  .cm-card .lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:6px; }
+  .cm-warn { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); border-radius:10px; padding:14px 18px; margin-bottom:20px; display:none; }
+  .cm-warn.show { display:flex; align-items:center; gap:10px; }
+  .cm-warn .icon { font-size:22px; }
+  .cm-warn .msg { font-size:13px; color:#f87171; }
+  .cm-section { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:20px; }
+  .cm-section h3 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 14px; }
+  .cm-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .cm-table th { text-align:left; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:6px 8px; border-bottom:1px solid var(--border); }
+  .cm-table td { padding:8px; border-bottom:1px solid rgba(255,255,255,.04); }
+  .cm-table .amt { font-family:monospace; font-weight:600; }
+  .cm-table .spend { color:#ef4444; }
+  .cm-table .refund { color:#22c55e; }
+  .cm-table .grant { color:#3b82f6; }
+  .cm-bar { height:8px; background:var(--bg); border-radius:4px; overflow:hidden; margin-top:4px; }
+  .cm-bar-fill { height:100%; border-radius:4px; }
+  .cm-topup-btn { display:inline-block; margin-top:12px; padding:10px 22px; background:#d4a017; color:#000; font-weight:700; font-size:13px; border:none; border-radius:8px; cursor:pointer; text-decoration:none; }
+  .cm-topup-btn:hover { background:#eab308; }
+  .cm-loading { text-align:center; color:var(--muted); padding:40px; font-size:13px; }
+</style>
+
+<div id="creditContent">
+  <div class="cm-loading">Loading credit data...</div>
+</div>
+
+<script>
+async function loadCredits() {
+  const wrap = document.getElementById('creditContent');
+  try {
+    const r = await fetch('/api/admin/credits');
+    const d = await r.json();
+    if (d.error) { wrap.innerHTML = '<div class="cm-loading">Error: ' + d.error + '</div>'; return; }
+    render(d);
+  } catch(e) {
+    wrap.innerHTML = '<div class="cm-loading">Failed to load credit data</div>';
+  }
+}
+
+function render(d) {
+  const wrap = document.getElementById('creditContent');
+  const warn = d.critical_warning ? 'CRITICAL: Credits extremely low! Top up immediately to avoid service interruption.'
+    : d.low_credit_warning ? 'Credits running low. Consider topping up soon to keep generating.'
+    : '';
+  const warnClass = d.critical_warning ? 'show' : d.low_credit_warning ? 'show' : '';
+  const warnColor = d.critical_warning ? '#ef4444' : '#eab308';
+
+  const models = Object.entries(d.model_costs || {}).sort((a,b) => b[1].total - a[1].total);
+  const maxCost = models.length ? models[0][1].total : 1;
+
+  let modelRows = '';
+  models.forEach(([name, info]) => {
+    const avg = (info.total / info.count).toFixed(1);
+    const pct = ((info.total / maxCost) * 100).toFixed(0);
+    modelRows += '<tr><td>' + esc(name) + '</td><td class="amt">' + info.count + '</td><td class="amt">' + info.total.toFixed(1) + '</td><td class="amt">' + avg + '</td><td style="width:120px"><div class="cm-bar"><div class="cm-bar-fill" style="width:' + pct + '%;background:#d4a017"></div></div></td></tr>';
+  });
+
+  let txnRows = '';
+  (d.transactions || []).forEach(t => {
+    const cls = t.action === 'spend' ? 'spend' : t.action === 'refund' ? 'refund' : 'grant';
+    const sign = t.action === 'spend' ? '' : '+';
+    const date = new Date(t.created_at).toLocaleString();
+    txnRows += '<tr><td>' + date + '</td><td>' + esc(t.display_name) + '</td><td class="amt ' + cls + '">' + sign + t.credits.toFixed(1) + '</td><td>' + t.action + '</td></tr>';
+  });
+
+  const estPerVideo = d.net_used > 0 && d.model_costs ? (d.net_used / Object.values(d.model_costs).reduce((s,v)=>s+v.count,0)).toFixed(1) : '—';
+  const videosLeft = d.credits > 0 && estPerVideo !== '—' ? Math.floor(d.credits / parseFloat(estPerVideo)) : '—';
+
+  wrap.innerHTML = `
+    <div class="cm-warn ${warnClass}" style="border-color:${warnColor}">
+      <div class="icon">${d.critical_warning ? '🚨' : '⚠️'}</div>
+      <div class="msg" style="color:${warnColor}">${warn}</div>
+    </div>
+
+    <div class="cm-grid">
+      <div class="cm-card">
+        <div class="val" style="color:${d.critical_warning ? '#ef4444' : d.low_credit_warning ? '#eab308' : '#22c55e'}">${d.credits.toFixed(1)}</div>
+        <div class="lbl">Credits Remaining</div>
+      </div>
+      <div class="cm-card">
+        <div class="val" style="color:#ef4444">${d.net_used.toFixed(1)}</div>
+        <div class="lbl">Net Used</div>
+      </div>
+      <div class="cm-card">
+        <div class="val" style="color:#3b82f6">${d.total_grant.toFixed(1)}</div>
+        <div class="lbl">Total Granted</div>
+      </div>
+      <div class="cm-card">
+        <div class="val">${d.plan}</div>
+        <div class="lbl">HF Plan</div>
+      </div>
+      <div class="cm-card">
+        <div class="val">${estPerVideo}</div>
+        <div class="lbl">Avg Cost / Video</div>
+      </div>
+      <div class="cm-card">
+        <div class="val" style="color:${videosLeft !== '—' && videosLeft < 5 ? '#ef4444' : '#22c55e'}">${videosLeft}</div>
+        <div class="lbl">Est. Videos Left</div>
+      </div>
+    </div>
+
+    <div class="cm-section">
+      <h3>Cost by Model</h3>
+      ${models.length ? '<table class="cm-table"><thead><tr><th>Model</th><th>Uses</th><th>Total Credits</th><th>Avg/Use</th><th>Share</th></tr></thead><tbody>' + modelRows + '</tbody></table>' : '<div style="color:var(--muted);font-size:12px;">No usage data yet</div>'}
+    </div>
+
+    <div class="cm-section">
+      <h3>Recent Transactions</h3>
+      ${txnRows ? '<table class="cm-table"><thead><tr><th>Date</th><th>Model</th><th>Credits</th><th>Type</th></tr></thead><tbody>' + txnRows + '</tbody></table>' : '<div style="color:var(--muted);font-size:12px;">No transactions yet</div>'}
+    </div>
+
+    <div style="text-align:center; margin-top:10px;">
+      <a href="https://app.higgsfield.ai/" target="_blank" class="cm-topup-btn">Top Up Credits on Higgsfield</a>
+      <button onclick="loadCredits()" class="cm-topup-btn" style="background:var(--card);color:var(--text);border:1px solid var(--border);margin-left:8px;">Refresh</button>
+    </div>
+  `;
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+loadCredits();
+</script>
+{% endblock %}
