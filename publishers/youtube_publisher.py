@@ -1,6 +1,5 @@
 """Upload videos to YouTube using the YouTube Data API v3."""
 import json
-import os
 from pathlib import Path
 from typing import Optional
 import google.oauth2.credentials

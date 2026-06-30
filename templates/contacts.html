@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% set active_page = "contacts" %}
 
-{% block title %}Contacts — Social Optimize Machine{% endblock %}
+{% block title %}Contacts — Social Optimize{% endblock %}
 {% block topbar_title %}Contacts{% endblock %}
 {% block topbar_sub %}Import and manage your audience contacts{% endblock %}
 {% block topbar_actions %}
+<a href="/outreach" class="btn btn-secondary">📣 Outreach</a>
 <button class="btn btn-secondary" onclick="openModal('importModal')">📥 Import Contacts</button>
 <button class="btn btn-primary" onclick="openModal('addModal')">+ Add Contact</button>
 {% endblock %}
@@ -36,6 +37,19 @@
       <div class="text-dim text-sm mt-4">Paste handles from<br>TikTok, YouTube, Instagram</div>
       <div class="btn btn-yellow btn-sm mt-12">Import Social</div>
     </div>
+  </div>
+</div>
+
+<!-- Automation: auto-enroll new contacts in a welcome sequence -->
+<div class="card mb-24" id="automationCard">
+  <div class="flex-between">
+    <div>
+      <div class="text-bold">⚡ Auto-Engage New Contacts</div>
+      <div class="text-dim text-sm mt-4">Every new contact you capture (import, signup, form) gets
+        automatically enrolled in a 3-step welcome email sequence — no manual sending.</div>
+      <div class="text-dim text-sm mt-4" id="automationStatusLine">Checking status…</div>
+    </div>
+    <button class="btn btn-primary" id="automationToggleBtn" onclick="toggleAutomation()">…</button>
   </div>
 </div>
 
@@ -234,6 +248,65 @@
 
 {% block scripts %}
 <script>
+let _welcomeSequenceId = null;
+let _welcomeSequenceActive = false;
+
+async function refreshAutomationStatus() {
+  const btn = document.getElementById('automationToggleBtn');
+  const line = document.getElementById('automationStatusLine');
+  try {
+    const resp = await fetch('/api/sequences');
+    const seqs = await resp.json();
+    const welcome = seqs.find(s => s.trigger === 'new_contact');
+    if (welcome) {
+      _welcomeSequenceId = welcome.id;
+      _welcomeSequenceActive = welcome.active;
+      line.textContent = welcome.active
+        ? '✅ Active — new contacts are being auto-enrolled.'
+        : '⏸ Paused — turn it on to start auto-enrolling new contacts.';
+      btn.textContent = welcome.active ? '⏸ Pause Automation' : '▶ Activate';
+    } else {
+      _welcomeSequenceId = null;
+      line.textContent = 'Not set up yet.';
+      btn.textContent = '▶ Activate';
+    }
+  } catch (e) {
+    line.textContent = 'Could not load automation status.';
+  }
+}
+
+async function toggleAutomation() {
+  const btn = document.getElementById('automationToggleBtn');
+  btn.disabled = true;
+  try {
+    if (!_welcomeSequenceId) {
+      const resp = await fetch('/api/sequences', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name: 'Welcome Sequence', trigger: 'new_contact', active: true}),
+      });
+      const data = await resp.json();
+      _welcomeSequenceId = data.sequence_id;
+      toast('success', 'Automation activated', 'New contacts will now get an automatic welcome sequence.');
+    } else {
+      const newActive = !_welcomeSequenceActive;
+      await fetch(`/api/sequences/${_welcomeSequenceId}/activate`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({active: newActive}),
+      });
+      toast('success', newActive ? 'Automation resumed' : 'Automation paused');
+    }
+  } catch (e) {
+    toast('error', 'Could not update automation', e.message || '');
+  } finally {
+    btn.disabled = false;
+    refreshAutomationStatus();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', refreshAutomationStatus);
+
 function doSearch() {
   const q = document.getElementById('search-input').value.trim();
   const platform = '{{ active_platform or "" }}';

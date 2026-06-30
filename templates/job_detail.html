@@ -7,6 +7,7 @@
 {% block topbar_actions %}
 <a href="/jobs" class="btn btn-ghost">← Back to Jobs</a>
 {% if job.status == 'done' and job.video_path %}
+<a href="/clipper?job={{ job.id }}" class="btn btn-secondary">✂️ Clip into Shorts</a>
 <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green">⬇ Download MP4</a>
 {% endif %}
 {% endblock %}
@@ -42,7 +43,18 @@
         </div>
         <div>
           <div class="text-xs text-dim mb-4">Format</div>
-          <span class="pill pill-running">{{ job.format }}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="pill pill-running" id="format-display">{{ job.format }}</span>
+            <button class="btn btn-ghost btn-sm" onclick="toggleFormatEdit()" style="font-size:11px;padding:2px 8px;">✏</button>
+          </div>
+          <div id="format-edit" style="display:none;margin-top:6px;">
+            <select id="format-select" style="font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text);">
+              {% for val, label in [('short','Short'),('long','Long Form'),('podcast','Podcast'),('reel','Reel'),('studio','Studio'),('commercial','Commercial'),('hollywood','Hollywood')] %}
+              <option value="{{ val }}" {% if job.format == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="saveFormat()" style="font-size:11px;padding:2px 10px;margin-left:4px;">Save</button>
+          </div>
         </div>
         <div>
           <div class="text-xs text-dim mb-4">Duration</div>
@@ -54,12 +66,12 @@
         </div>
         <div>
           <div class="text-xs text-dim mb-4">Created</div>
-          <div class="text-sm">{{ job.created_at[:16].replace('T',' ') }}</div>
+          <div class="text-sm">{{ job.created_at | datefmt }}</div>
         </div>
         {% if job.completed_at %}
         <div>
           <div class="text-xs text-dim mb-4">Completed</div>
-          <div class="text-sm">{{ job.completed_at[:16].replace('T',' ') }}</div>
+          <div class="text-sm">{{ job.completed_at | datefmt }}</div>
         </div>
         {% endif %}
       </div>
@@ -170,35 +182,341 @@
 
     <!-- Thumbnail -->
     {% if job.status == 'done' and job.thumbnail_path %}
-    <div class="card" style="padding:16px;">
-      <div class="card-title mb-12"><span class="accent">🖼</span> Thumbnail</div>
-      <img src="/api/jobs/{{ job.id }}/thumbnail" alt="Thumbnail"
-           style="width:100%;border-radius:8px;border:1px solid var(--border);">
+    <div class="card" style="padding:16px;" id="thumbCard">
+      <div class="flex-between mb-12">
+        <div class="card-title"><span class="accent">🖼</span> Thumbnail</div>
+        <div style="display:flex;gap:8px;">
+          <a href="/api/jobs/{{ job.id }}/thumbnail/download" class="btn btn-ghost btn-sm">⬇ Download</a>
+          <button class="btn btn-ghost btn-sm" onclick="toggleThumbEdit()">✏ Edit</button>
+        </div>
+      </div>
+
+      <img src="/api/jobs/{{ job.id }}/thumbnail" alt="Thumbnail" id="thumb-img"
+           style="width:100%;border-radius:8px;border:1px solid var(--border);display:block;">
+
+      <!-- Edit panel (hidden by default) -->
+      <div id="thumb-edit" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:16px;">
+
+        <!-- Tab switcher -->
+        <div style="display:flex;gap:0;margin-bottom:16px;background:var(--bg-elevated);border-radius:8px;padding:3px;">
+          <button class="btn btn-sm" id="tab-regen" onclick="setThumbTab('regen')"
+                  style="flex:1;border-radius:6px;background:var(--accent);color:#000;">Regenerate</button>
+          <button class="btn btn-sm" id="tab-upload" onclick="setThumbTab('upload')"
+                  style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Upload Custom</button>
+        </div>
+
+        <!-- Regenerate tab -->
+        <div id="thumb-tab-regen">
+          <div class="form-group">
+            <label>Thumbnail Text</label>
+            <input type="text" id="thumb-title" value="{{ (job.title or job.topic or '')[:60] }}"
+                   placeholder="Text shown on thumbnail" maxlength="60">
+          </div>
+          <div class="form-group">
+            <label>Subtitle <span class="text-dim text-xs">(optional)</span></label>
+            <input type="text" id="thumb-subtitle" placeholder="e.g. Top 10 • 2024" maxlength="40">
+          </div>
+          <div class="form-group">
+            <label>Style</label>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+              {% for s, label in [('fire','🔥 Fire'),('ocean','🌊 Ocean'),('purple','💜 Purple'),('dark','⬛ Dark'),('green','💚 Green'),('sunset','🌅 Sunset')] %}
+              <label style="display:flex;align-items:center;gap:6px;padding:8px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px;"
+                     onclick="selectStyle('{{ s }}',this)">
+                <input type="radio" name="thumb-style" value="{{ s }}" {% if s == 'fire' %}checked{% endif %}
+                       style="display:none;">
+                {{ label }}
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" id="regen-btn" onclick="regenThumbnail()">
+            Regenerate Thumbnail
+          </button>
+        </div>
+
+        <!-- Upload tab -->
+        <div id="thumb-tab-upload" style="display:none;">
+          <div style="border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;"
+               onclick="document.getElementById('thumb-file').click()" id="drop-zone">
+            <div style="font-size:32px;margin-bottom:8px;">📁</div>
+            <div class="text-sm text-bold mb-4">Click to choose an image</div>
+            <div class="text-xs text-dim">JPG, PNG or WebP — will be resized to 1280×720</div>
+          </div>
+          <input type="file" id="thumb-file" accept="image/jpeg,image/png,image/webp"
+                 style="display:none;" onchange="previewUpload(this)">
+          <div id="upload-preview" style="display:none;margin-top:12px;">
+            <img id="upload-preview-img" style="width:100%;border-radius:8px;border:1px solid var(--border);">
+            <button class="btn btn-primary btn-block mt-12" onclick="uploadThumbnail()">
+              Use This Image
+            </button>
+          </div>
+        </div>
+
+      </div>
     </div>
     {% endif %}
 
-    <!-- Video Info -->
-    {% if job.status == 'done' and job.video_path %}
-    <div class="card">
-      <div class="card-title mb-16"><span class="accent">🎬</span> Video File</div>
-      <div class="text-dim text-sm mb-12">{{ job.video_path|replace('/home/user/Youtube/','') }}</div>
-      <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-block">
-        ⬇ Download MP4
-      </a>
-    </div>
-    {% endif %}
-
-    <!-- Platforms -->
-    <div class="card">
-      <div class="card-title mb-12"><span class="accent">📡</span> Target Platforms</div>
-      {% if job.platforms %}
-        {% for p in job.platforms %}
-        <span class="platform-tag {{ p }}" style="margin:4px;">{{ p }}</span>
-        {% endfor %}
+    <!-- Video / Audio Player -->
+    {% if job.status == 'done' %}
+    <div class="card" id="mediaCard">
+      <div class="flex-between mb-12">
+        <div class="card-title"><span class="accent">🎬</span> Preview</div>
+        <div style="display:flex;gap:8px;">
+          {% if job.video_path %}
+          <a href="/api/jobs/{{ job.id }}/download" class="btn btn-green btn-sm">⬇ Download</a>
+          {% elif job.audio_path %}
+          <a href="/api/jobs/{{ job.id }}/audio" class="btn btn-green btn-sm" download>⬇ Audio</a>
+          {% endif %}
+          <button class="btn btn-ghost btn-sm" onclick="toggleEditPanel()">✏ Edit</button>
+        </div>
+      </div>
+      <div id="mediaErr" style="display:none;background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.3);border-radius:8px;padding:14px;color:#ff6b6b;font-size:13px;margin-bottom:12px;"></div>
+      {% if job.video_path %}
+      <video id="detailPlayer" controls style="width:100%;border-radius:8px;background:#000;max-height:480px;">
+        <source src="/api/jobs/{{ job.id }}/video" type="video/mp4">
+      </video>
+      <script>
+      document.getElementById('detailPlayer').addEventListener('error', function() {
+        this.style.display = 'none';
+        const e = document.getElementById('mediaErr');
+        e.style.display = 'block';
+        e.textContent = 'Video file is not available — it may have been cleared from disk. You can upload a replacement below.';
+        document.getElementById('editPanel').style.display = 'block';
+      });
+      </script>
+      {% elif job.audio_path %}
+      <div style="text-align:center;padding:24px 0;">
+        <div style="font-size:52px;margin-bottom:16px;">🎵</div>
+        <audio id="detailAudio" controls style="width:100%;">
+          <source src="/api/jobs/{{ job.id }}/audio" type="audio/mpeg">
+        </audio>
+        <div class="text-xs text-dim mt-8">Audio narration — upload video footage below to combine</div>
+      </div>
       {% else %}
-        <span class="text-dim text-sm">None (dry run)</span>
+      <div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">
+        No media file. Upload a video or audio file below.
+      </div>
       {% endif %}
     </div>
+
+    <!-- Edit / Replace Panel -->
+    <div class="card" id="editPanel" style="{{ 'display:block' if not job.video_path and not job.audio_path else 'display:none' }};">
+      <div class="card-title mb-4"><span class="accent">✏</span> Edit Job Media</div>
+      <div class="text-xs text-dim mb-16">Upload your own video or audio to attach to this job. If you have narration audio but no video, upload both and mix them together.</div>
+
+      <!-- Tab switcher -->
+      <div style="display:flex;gap:0;margin-bottom:16px;background:var(--bg-elevated);border-radius:8px;padding:3px;" id="editTabs">
+        <button class="btn btn-sm edit-tab active-tab" data-tab="video" onclick="setEditTab('video')" style="flex:1;border-radius:6px;background:var(--accent);color:#000;">Replace Video</button>
+        <button class="btn btn-sm edit-tab" data-tab="audio" onclick="setEditTab('audio')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Replace Audio</button>
+        <button class="btn btn-sm edit-tab" data-tab="mix" onclick="setEditTab('mix')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Mix A+V</button>
+        <button class="btn btn-sm edit-tab" data-tab="convert" onclick="setEditTab('convert')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Convert</button>
+      </div>
+
+      <!-- Upload Video tab -->
+      <div id="edit-tab-video">
+        <div style="border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;" onclick="document.getElementById('edit-video-file').click()" id="edit-video-drop">
+          <div style="font-size:36px;margin-bottom:8px;">🎬</div>
+          <div class="text-sm text-bold mb-4">Click to upload video footage</div>
+          <div class="text-xs text-dim">MP4, MOV, WebM — will replace existing video for this job</div>
+        </div>
+        <input type="file" id="edit-video-file" accept="video/mp4,video/quicktime,video/webm,video/*" style="display:none;" onchange="previewEditUpload(this,'video')">
+        <div id="edit-video-preview" style="display:none;margin-top:12px;">
+          <video id="edit-video-preview-player" controls style="width:100%;border-radius:8px;background:#000;max-height:300px;"></video>
+          <button class="btn btn-primary btn-block mt-12" onclick="uploadJobVideo({{ job.id }})">Upload & Set as Job Video</button>
+        </div>
+        <div id="edit-video-progress" style="display:none;margin-top:12px;">
+          <div class="progress-track"><div class="progress-bar" id="vid-prog-bar" style="width:0%"></div></div>
+          <div class="text-xs text-dim mt-4" id="vid-prog-txt">Uploading…</div>
+        </div>
+      </div>
+
+      <!-- Upload Audio tab -->
+      <div id="edit-tab-audio" style="display:none;">
+        <div class="text-sm text-bold mb-8">🎤 Replace voice (no upload needed)</div>
+        <div class="text-xs text-dim mb-8">Pick a voice and we'll re-narrate this job's existing script with it.</div>
+        <div class="form-group">
+          <label>Voice</label>
+          <select id="edit-voice-select"><option value="">Loading voices…</option></select>
+        </div>
+        <button class="btn btn-primary btn-block" id="regen-voice-btn" onclick="regenerateJobAudio({{ job.id }})">Generate & Replace Audio</button>
+        <div id="regen-voice-result" style="display:none;margin-top:10px;"></div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin:20px 0;">
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+          <span class="text-xs text-dim">or upload your own</span>
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+        </div>
+
+        <div style="border:2px dashed var(--border);border-radius:10px;padding:28px;text-align:center;cursor:pointer;" onclick="document.getElementById('edit-audio-file').click()" id="edit-audio-drop">
+          <div style="font-size:36px;margin-bottom:8px;">🎙</div>
+          <div class="text-sm text-bold mb-4">Click to upload narration / audio</div>
+          <div class="text-xs text-dim">MP3, WAV, M4A — will replace existing audio for this job</div>
+        </div>
+        <input type="file" id="edit-audio-file" accept="audio/mpeg,audio/wav,audio/mp4,audio/x-m4a,audio/*" style="display:none;" onchange="previewEditUpload(this,'audio')">
+        <div id="edit-audio-preview" style="display:none;margin-top:12px;">
+          <audio id="edit-audio-preview-player" controls style="width:100%;"></audio>
+          <button class="btn btn-primary btn-block mt-12" onclick="uploadJobAudio({{ job.id }})">Upload & Set as Job Audio</button>
+        </div>
+      </div>
+
+      <!-- Mix tab -->
+      <div id="edit-tab-mix" style="display:none;">
+        <div style="background:var(--bg-elevated);border-radius:10px;padding:20px;margin-bottom:16px;">
+          <div class="text-sm text-bold mb-8">How this works:</div>
+          <div class="text-xs text-dim" style="line-height:1.6;">
+            This tool takes the <strong>audio track</strong> (narration) stored for this job and combines it with the <strong>video footage</strong> stored for this job using ffmpeg.
+            The result is saved as the new final video.<br><br>
+            Make sure you've uploaded both video and audio files above first.
+          </div>
+        </div>
+        {% if job.audio_path %}
+        <div class="flex gap-8 mb-8" style="align-items:center;">
+          <span class="pill pill-done" style="flex-shrink:0;">✓ Audio</span>
+          <span class="text-xs text-dim">{{ job.audio_path|replace('/home/user/Youtube/','') }}</span>
+        </div>
+        {% else %}
+        <div class="flex gap-8 mb-8" style="align-items:center;">
+          <span class="pill pill-error" style="flex-shrink:0;">✗ No Audio</span>
+          <span class="text-xs text-dim">Upload narration audio first</span>
+        </div>
+        {% endif %}
+        {% if job.video_path %}
+        <div class="flex gap-8 mb-16" style="align-items:center;">
+          <span class="pill pill-done" style="flex-shrink:0;">✓ Video</span>
+          <span class="text-xs text-dim">{{ job.video_path|replace('/home/user/Youtube/','') }}</span>
+        </div>
+        {% else %}
+        <div class="flex gap-8 mb-16" style="align-items:center;">
+          <span class="pill pill-error" style="flex-shrink:0;">✗ No Video</span>
+          <span class="text-xs text-dim">Upload video footage first</span>
+        </div>
+        {% endif %}
+        <button class="btn btn-primary btn-block" id="mix-btn" onclick="mixAudioVideo({{ job.id }})">
+          Mix Audio + Video → Final MP4
+        </button>
+        <div id="mix-result" style="display:none;margin-top:12px;"></div>
+      </div>
+
+      <!-- Convert Format tab -->
+      <div id="edit-tab-convert" style="display:none;">
+        <div style="background:var(--bg-elevated);border-radius:10px;padding:20px;margin-bottom:16px;">
+          <div class="text-sm text-bold mb-8">Convert Video Format</div>
+          <div class="text-xs text-dim" style="line-height:1.6;">
+            Some platforms require specific formats. Convert your video to MP4, MOV, WebM, or other formats for compatibility.
+          </div>
+        </div>
+        {% if job.video_path %}
+        <div class="flex gap-8 mb-16" style="align-items:center;">
+          <span class="pill pill-done" style="flex-shrink:0;">✓ Current</span>
+          <span class="text-xs text-dim">{{ job.video_path.split('.')[-1]|upper }} format</span>
+        </div>
+        <div class="form-group">
+          <label>Convert to:</label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="convert-fmt-grid">
+            {% for fmt, label, desc in [('mp4','MP4','Best compatibility'),('mov','MOV','Apple / Final Cut'),('webm','WebM','Web optimized'),('avi','AVI','Legacy format'),('mkv','MKV','High quality'),('gif','GIF','Animated image')] %}
+            <div class="platform-card" data-fmt="{{ fmt }}" onclick="selectConvertFmt(this)"
+                 style="padding:10px;text-align:center;height:auto;cursor:pointer;">
+              <div class="text-sm text-bold">{{ label }}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:2px;">{{ desc }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block mt-8" id="convert-btn" onclick="convertVideo({{ job.id }})">
+          Convert Video
+        </button>
+        <div id="convert-result" style="display:none;margin-top:12px;"></div>
+        {% else %}
+        <div class="text-dim text-xs" style="padding:20px;text-align:center;">No video file to convert. Upload one first.</div>
+        {% endif %}
+      </div>
+
+    </div>
+    {% endif %}
+
+    <!-- Publish to Platforms -->
+    {% if job.status == 'done' %}
+    <div class="card" id="publishPanel">
+      <div class="card-title mb-4"><span class="accent">📡</span> Publish to Platforms</div>
+      {% if not job.video_path %}
+      <div style="background:var(--bg-elevated);border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div class="text-yellow text-sm mb-4">⚠ No video file found for this job.</div>
+        <div class="text-xs text-dim">The video may have failed to assemble. Use "Create in Different Format" below to regenerate this content.</div>
+      </div>
+      {% else %}
+      <div class="text-dim text-xs mb-16">Review your video above, then select where to publish.</div>
+      {% endif %}
+
+      {% if job.video_path %}
+      <div class="platform-grid" id="pub-platform-grid">
+        {% set platform_list = [
+          ('youtube','▶️','YouTube'),
+          ('tiktok','🎵','TikTok'),
+          ('instagram','📸','Instagram'),
+          ('facebook','📘','Facebook'),
+          ('twitter','🐦','Twitter / X'),
+          ('linkedin','💼','LinkedIn'),
+          ('pinterest','📌','Pinterest'),
+          ('threads','🧵','Threads'),
+        ] %}
+        {% for p, icon, label in platform_list %}
+        <div class="platform-card {{ p }} {% if p in connected_platforms %}pub-connected{% endif %}"
+             data-platform="{{ p }}" onclick="togglePubPlatform(this)"
+             title="{% if p not in connected_platforms %}Not connected — connect in Accounts{% endif %}">
+          <div class="platform-icon">{{ icon }}</div>
+          <div class="platform-name">{{ label }}</div>
+          {% if p not in connected_platforms %}
+          <div style="font-size:9px;color:var(--muted);margin-top:2px;">not connected</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="form-group mt-16">
+        <label>Privacy / Visibility</label>
+        <select id="pub-privacy">
+          <option value="public">🌍 Public</option>
+          <option value="unlisted">🔗 Unlisted</option>
+          <option value="private" selected>🔒 Private</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary btn-block mt-16" onclick="publishNow()" id="pub-btn">
+        Publish Now
+      </button>
+
+      <div id="pub-results" style="display:none;margin-top:16px;"></div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Create in Different Format -->
+    {% if job.status == 'done' %}
+    <div class="card" id="reformatPanel">
+      <div class="card-title mb-4"><span class="accent">🔄</span> Create in Different Format</div>
+      <div class="text-dim text-xs mb-16">Use this topic to generate a new video in a different format or style.</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;" id="reformat-grid">
+        {% for fmt, icon, label, desc in [
+          ('short','📱','YouTube Short','60s vertical clip'),
+          ('long','📺','Long Form','Standard landscape video'),
+          ('reel','🎬','Instagram Reel','60s vertical reel'),
+          ('studio','🔥','The Forge','AI-enhanced quality'),
+        ] %}
+        <div class="platform-card" data-fmt="{{ fmt }}" onclick="toggleFmt(this)"
+             style="padding:12px;text-align:left;height:auto;">
+          <div style="font-size:18px;margin-bottom:4px;">{{ icon }}</div>
+          <div class="text-sm text-bold">{{ label }}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">{{ desc }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <button class="btn btn-ghost btn-block" onclick="createReformat()" id="reformat-btn">
+        Generate New Version
+      </button>
+    </div>
+    {% endif %}
 
   </div>
 </div>
@@ -206,6 +524,31 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+function toggleFormatEdit() {
+  const el = document.getElementById('format-edit');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveFormat() {
+  const fmt = document.getElementById('format-select').value;
+  try {
+    const r = await fetch('/api/jobs/{{ job.id }}/update', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ format: fmt }),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      document.getElementById('format-display').textContent = fmt;
+      document.getElementById('format-edit').style.display = 'none';
+      toast('success', 'Format updated', 'Changed to ' + fmt);
+    } else {
+      toast('error', 'Failed', d.error || 'Unknown error');
+    }
+  } catch(e) { toast('error', 'Error', e.message); }
+}
+</script>
 {% if job.status == 'running' %}
 <script>
 (function poll() {
@@ -219,6 +562,419 @@
     }
   });
 })();
+</script>
+{% endif %}
+
+{% if job.status == 'done' %}
+<script>
+const _pubPlatforms = new Set();
+
+function togglePubPlatform(el) {
+  const p = el.dataset.platform;
+  if (_pubPlatforms.has(p)) {
+    _pubPlatforms.delete(p);
+    el.classList.remove('selected');
+  } else {
+    _pubPlatforms.add(p);
+    el.classList.add('selected');
+  }
+}
+
+async function publishNow() {
+  if (_pubPlatforms.size === 0) {
+    toast('error', 'No platforms selected', 'Select at least one platform to publish to.');
+    return;
+  }
+  const btn = document.getElementById('pub-btn');
+  btn.disabled = true;
+  btn.textContent = 'Publishing...';
+
+  const privacy = document.getElementById('pub-privacy').value;
+  try {
+    const resp = await fetch('/api/jobs/{{ job.id }}/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platforms: Array.from(_pubPlatforms), privacy }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      toast('error', 'Publish failed', data.error || 'Unknown error');
+      btn.disabled = false;
+      btn.textContent = 'Publish Now';
+      return;
+    }
+    renderPubResults(data.publish_results || {});
+    btn.textContent = 'Published!';
+    toast('success', 'Published!', `Sent to ${_pubPlatforms.size} platform(s).`);
+  } catch (e) {
+    toast('error', 'Network error', e.message);
+    btn.disabled = false;
+    btn.textContent = 'Publish Now';
+  }
+}
+
+function renderPubResults(results) {
+  const el = document.getElementById('pub-results');
+  el.style.display = 'block';
+  el.innerHTML = '';
+  for (const [platform, result] of Object.entries(results)) {
+    const isSkipped = result.status === 'skipped';
+    const isError = result.error;
+    const statusColor = isError ? 'var(--red)' : isSkipped ? 'var(--yellow)' : 'var(--green)';
+    const statusText = isError ? ('Error: ' + result.error) : isSkipped ? result.reason : ('Published → ' + (result.url || 'done'));
+    el.innerHTML += `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span class="platform-tag ${platform}">${platform}</span>
+        <span style="font-size:12px;color:${statusColor};text-align:right;max-width:65%;">${statusText}</span>
+      </div>`;
+  }
+}
+
+// Reformat / create in different format
+let _selectedFmt = null;
+
+function toggleFmt(el) {
+  document.querySelectorAll('#reformat-grid .platform-card').forEach(c => c.classList.remove('selected'));
+  _selectedFmt = el.dataset.fmt;
+  el.classList.add('selected');
+}
+
+async function createReformat() {
+  if (!_selectedFmt) {
+    toast('error', 'No format selected', 'Click a format card first.');
+    return;
+  }
+  const btn = document.getElementById('reformat-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creating new job...';
+
+  const isShort = _selectedFmt === 'short' || _selectedFmt === 'reel';
+  const useStudio = _selectedFmt === 'studio';
+
+  try {
+    const endpoint = useStudio ? '/api/studio/run' : '/api/create';
+    const body = useStudio
+      ? { niche: {{ job.topic|tojson }}, voice: {{ (job.voice or '')|tojson }}, is_portrait: false, dry_run: false }
+      : { topic: {{ job.topic|tojson }}, format: _selectedFmt, voice: {{ (job.voice or '')|tojson }}, platforms: [], privacy: 'private' };
+
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      toast('error', 'Failed', data.error || 'Could not start job');
+      btn.disabled = false;
+      btn.textContent = 'Generate New Version';
+      return;
+    }
+    const jobId = data.job_id;
+    toast('success', 'Job created!', jobId ? 'Redirecting to new job...' : 'Check Jobs for progress.');
+    setTimeout(() => { window.location.href = jobId ? '/jobs/' + jobId : '/jobs'; }, 1500);
+  } catch (e) {
+    toast('error', 'Network error', e.message);
+    btn.disabled = false;
+    btn.textContent = 'Generate New Version';
+  }
+}
+
+// ── Edit panel ───────────────────────────────────────────────────────────────
+function toggleEditPanel() {
+  const p = document.getElementById('editPanel');
+  if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function setEditTab(tab) {
+  ['video','audio','mix','convert'].forEach(t => {
+    document.getElementById('edit-tab-' + t).style.display = t === tab ? 'block' : 'none';
+    const btn = document.querySelector(`.edit-tab[data-tab="${t}"]`);
+    if (btn) {
+      btn.style.background = t === tab ? 'var(--accent)' : 'transparent';
+      btn.style.color = t === tab ? '#000' : 'var(--muted)';
+    }
+  });
+  if (tab === 'audio') loadJobVoices();
+}
+
+let _jobVoicesLoaded = false;
+async function loadJobVoices(jobId) {
+  jobId = jobId || {{ job.id }};
+  if (_jobVoicesLoaded) return;
+  const sel = document.getElementById('edit-voice-select');
+  try {
+    const r = await fetch(`/api/jobs/${jobId}/voices`);
+    const d = await r.json();
+    let html = '';
+    if (d.elevenlabs && d.elevenlabs.length) {
+      html += '<optgroup label="ElevenLabs (premium)">';
+      html += d.elevenlabs.map(v => `<option value="el:${v.id}">${v.name}${v.category ? ' — ' + v.category : ''}</option>`).join('');
+      html += '</optgroup>';
+    }
+    html += '<optgroup label="Standard voices">';
+    html += (d.catalog || []).map(v => `<option value="cat:${v.id}">${v.label}</option>`).join('');
+    html += '</optgroup>';
+    sel.innerHTML = html || '<option value="">No voices available</option>';
+    _jobVoicesLoaded = true;
+  } catch (e) {
+    sel.innerHTML = '<option value="">Failed to load voices</option>';
+  }
+}
+
+async function regenerateJobAudio(jobId) {
+  const sel = document.getElementById('edit-voice-select');
+  const val = sel.value;
+  if (!val) { toast('error', 'Pick a voice', 'Choose a voice from the dropdown first.'); return; }
+  const [kind, id] = val.split(':');
+  const btn = document.getElementById('regen-voice-btn');
+  const res = document.getElementById('regen-voice-result');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  res.style.display = 'none';
+  try {
+    const body = kind === 'el' ? { elevenlabs_voice_id: id } : { voice: id };
+    const r = await fetch(`/api/jobs/${jobId}/regenerate-audio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      toast('success', 'Voice replaced!', 'Reloading…');
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      res.style.display = 'block';
+      res.innerHTML = `<div class="pill pill-error">✗ ${d.error || 'Failed'}</div>`;
+      toast('error', 'Generation failed', d.error || 'Unknown error');
+    }
+  } catch (e) {
+    toast('error', 'Error', e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate & Replace Audio';
+  }
+}
+
+function previewEditUpload(input, type) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  if (type === 'video') {
+    const player = document.getElementById('edit-video-preview-player');
+    player.src = url;
+    document.getElementById('edit-video-preview').style.display = 'block';
+    document.getElementById('edit-video-drop').style.display = 'none';
+  } else {
+    const player = document.getElementById('edit-audio-preview-player');
+    player.src = url;
+    document.getElementById('edit-audio-preview').style.display = 'block';
+    document.getElementById('edit-audio-drop').style.display = 'none';
+  }
+}
+
+async function uploadJobVideo(jobId) {
+  const file = document.getElementById('edit-video-file').files[0];
+  if (!file) return;
+  const prog = document.getElementById('edit-video-progress');
+  const bar  = document.getElementById('vid-prog-bar');
+  const txt  = document.getElementById('vid-prog-txt');
+  document.getElementById('edit-video-preview').style.display = 'none';
+  prog.style.display = 'block';
+  txt.textContent = 'Uploading… (large files may take a minute)';
+
+  const form = new FormData();
+  form.append('file', file);
+
+  const xhr = new XMLHttpRequest();
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable) {
+      const pct = Math.round(e.loaded / e.total * 100);
+      bar.style.width = pct + '%';
+      txt.textContent = `Uploading… ${pct}%`;
+    }
+  };
+  xhr.onload = () => {
+    const data = JSON.parse(xhr.responseText);
+    if (data.ok) {
+      txt.textContent = 'Upload complete! Reloading…';
+      bar.style.width = '100%';
+      setTimeout(() => location.reload(), 1000);
+    } else {
+      txt.textContent = 'Upload failed: ' + (data.error || 'Unknown error');
+    }
+  };
+  xhr.onerror = () => { txt.textContent = 'Upload failed — network error.'; };
+  xhr.open('POST', `/api/jobs/${jobId}/upload-video`);
+  xhr.send(form);
+}
+
+async function uploadJobAudio(jobId) {
+  const file = document.getElementById('edit-audio-file').files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const r = await fetch(`/api/jobs/${jobId}/upload-audio`, { method:'POST', body: form });
+    const d = await r.json();
+    if (d.ok) { toast('success', 'Audio uploaded!', 'Reloading…'); setTimeout(() => location.reload(), 1200); }
+    else toast('error', 'Upload failed', d.error || 'Unknown error');
+  } catch(e) { toast('error', 'Error', e.message); }
+}
+
+let _convertFmt = null;
+function selectConvertFmt(el) {
+  document.querySelectorAll('#convert-fmt-grid .platform-card').forEach(c => c.classList.remove('selected'));
+  _convertFmt = el.dataset.fmt;
+  el.classList.add('selected');
+}
+
+async function convertVideo(jobId) {
+  if (!_convertFmt) {
+    toast('error', 'No format selected', 'Pick a target format first.');
+    return;
+  }
+  const btn = document.getElementById('convert-btn');
+  const res = document.getElementById('convert-result');
+  btn.disabled = true;
+  btn.textContent = 'Converting… (this may take a minute)';
+  res.style.display = 'none';
+  try {
+    const r = await fetch(`/api/jobs/${jobId}/convert`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({format: _convertFmt}),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      res.style.display = 'block';
+      res.innerHTML = `<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:12px;color:#22c55e;font-size:13px;">
+        ✓ Converted to ${_convertFmt.toUpperCase()} — reloading…</div>`;
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      res.style.display = 'block';
+      res.innerHTML = `<div style="background:rgba(255,80,80,.1);border:1px solid rgba(255,80,80,.3);border-radius:8px;padding:12px;color:#ff6b6b;font-size:13px;">
+        ✗ ${d.error || 'Conversion failed'}</div>`;
+      btn.disabled = false;
+      btn.textContent = 'Convert Video';
+    }
+  } catch(e) {
+    toast('error', 'Error', e.message);
+    btn.disabled = false;
+    btn.textContent = 'Convert Video';
+  }
+}
+
+async function mixAudioVideo(jobId) {
+  const btn = document.getElementById('mix-btn');
+  const res = document.getElementById('mix-result');
+  btn.disabled = true;
+  btn.textContent = 'Mixing… (this may take a minute)';
+  res.style.display = 'none';
+  try {
+    const r = await fetch(`/api/jobs/${jobId}/mix`, { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      res.style.display = 'block';
+      res.innerHTML = '<div class="pill pill-done" style="display:inline-block;">✓ Mix complete!</div><div class="text-xs text-dim mt-8">Reloading to show final video…</div>';
+      setTimeout(() => location.reload(), 1500);
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Mix Audio + Video → Final MP4';
+      res.style.display = 'block';
+      res.innerHTML = `<div class="text-red text-sm">Mix failed: ${d.error || 'Unknown error'}</div>`;
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = 'Mix Audio + Video → Final MP4';
+    res.style.display = 'block';
+    res.innerHTML = `<div class="text-red text-sm">Network error: ${e.message}</div>`;
+  }
+}
+
+// ── Thumbnail editing ────────────────────────────────────────────────────────
+function toggleThumbEdit() {
+  const panel = document.getElementById('thumb-edit');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+function setThumbTab(tab) {
+  document.getElementById('thumb-tab-regen').style.display = tab === 'regen' ? 'block' : 'none';
+  document.getElementById('thumb-tab-upload').style.display = tab === 'upload' ? 'block' : 'none';
+  document.getElementById('tab-regen').style.background = tab === 'regen' ? 'var(--accent)' : 'transparent';
+  document.getElementById('tab-regen').style.color = tab === 'regen' ? '#000' : 'var(--muted)';
+  document.getElementById('tab-upload').style.background = tab === 'upload' ? 'var(--accent)' : 'transparent';
+  document.getElementById('tab-upload').style.color = tab === 'upload' ? '#000' : 'var(--muted)';
+}
+
+function selectStyle(style, labelEl) {
+  document.querySelectorAll('[name="thumb-style"]').forEach(r => {
+    r.closest('label').style.borderColor = 'var(--border)';
+    r.closest('label').style.background = 'transparent';
+  });
+  labelEl.style.borderColor = 'var(--accent)';
+  labelEl.style.background = 'rgba(212,160,23,.1)';
+  labelEl.querySelector('input').checked = true;
+}
+
+async function regenThumbnail() {
+  const btn = document.getElementById('regen-btn');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  const style = document.querySelector('[name="thumb-style"]:checked')?.value || 'fire';
+  try {
+    const resp = await fetch('/api/jobs/{{ job.id }}/thumbnail/regenerate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: document.getElementById('thumb-title').value,
+        subtitle: document.getElementById('thumb-subtitle').value || null,
+        style,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { toast('error', 'Failed', data.error); btn.disabled = false; btn.textContent = 'Regenerate Thumbnail'; return; }
+    document.getElementById('thumb-img').src = `/api/jobs/{{ job.id }}/thumbnail?v=${data.bust}`;
+    toast('success', 'Done!', 'Thumbnail updated.');
+    btn.disabled = false;
+    btn.textContent = 'Regenerate Thumbnail';
+  } catch (e) {
+    toast('error', 'Error', e.message);
+    btn.disabled = false;
+    btn.textContent = 'Regenerate Thumbnail';
+  }
+}
+
+function previewUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('upload-preview-img').src = e.target.result;
+    document.getElementById('upload-preview').style.display = 'block';
+    document.getElementById('drop-zone').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadThumbnail() {
+  const file = document.getElementById('thumb-file').files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const resp = await fetch('/api/jobs/{{ job.id }}/thumbnail/upload', { method: 'POST', body: form });
+    const data = await resp.json();
+    if (!resp.ok) { toast('error', 'Upload failed', data.error); return; }
+    document.getElementById('thumb-img').src = `/api/jobs/{{ job.id }}/thumbnail?v=${Date.now()}`;
+    document.getElementById('thumb-edit').style.display = 'none';
+    document.getElementById('drop-zone').style.display = 'block';
+    document.getElementById('upload-preview').style.display = 'none';
+    document.getElementById('thumb-file').value = '';
+    toast('success', 'Thumbnail updated!', 'Your custom image is now set.');
+  } catch (e) {
+    toast('error', 'Error', e.message);
+  }
+}
 </script>
 {% endif %}
 {% endblock %}

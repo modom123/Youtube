@@ -18,6 +18,7 @@
   .badge-free { background: rgba(150,150,150,.15); color: var(--muted); }
   .badge-starter { background: rgba(10,132,255,.15); color: #0a84ff; }
   .badge-creator { background: rgba(255,159,10,.15); color: #ff9f0a; }
+  .badge-pro { background: rgba(168,85,247,.15); color: #a855f7; }
   .badge-agency { background: rgba(48,209,88,.15); color: #30d158; }
 
   .plan-name { font-size: 28px; font-weight: 900; margin: 12px 0 4px; }
@@ -60,9 +61,10 @@
       {% endif %}
 
       <div class="current-plan-badge badge-{{ current_tier }}">
-        {% if current_tier == 'free' %}Free Trial
+        {% if current_tier == 'free' %}Free
         {% elif current_tier == 'starter' %}⚡ Starter
         {% elif current_tier == 'creator' %}🚀 Creator
+        {% elif current_tier == 'pro' %}💎 Pro
         {% else %}🏢 Agency{% endif %}
       </div>
       <div class="plan-name">{{ tier_data.label }}</div>
@@ -91,7 +93,7 @@
       {% if credits_limit > 0 %}
       <div class="usage-row">
         <div class="usage-label">
-          <span class="lbl">Higgsfield credits</span>
+          <span class="lbl">Social Optimize Credits</span>
           <span class="val">{{ credits_used }} / {{ credits_limit }}</span>
         </div>
         {% set cpct = [(credits_used / credits_limit * 100)|round|int, 100]|min %}
@@ -119,8 +121,9 @@
           <div class="plan-row-info">
             <div class="plan-row-name">{{ tier.label }}</div>
             <div class="plan-row-desc">
-              {% if tier.videos_per_month == -1 %}Unlimited videos{% else %}{{ tier.videos_per_month }} videos{% endif %}
-              · {{ tier.higgsfield_credits }} AI credits/mo
+              {{ tier.videos_per_month }} videos
+              · {{ tier.higgsfield_credits }} Credits/mo
+              {% if 'The Scalpel' in (tier.features | join(' ')) %} · The Scalpel{% endif %}
             </div>
           </div>
           <div class="plan-row-price">${{ tier.price_monthly }}<span style="font-size:12px;font-weight:500;color:var(--muted)">/mo</span></div>
@@ -162,11 +165,20 @@
     <div class="bcard">
       <h2>Need More?</h2>
       <p style="font-size:13px;color:var(--muted);line-height:1.6;">
-        If you're running a content agency or producing at scale, the Agency plan gives you unlimited videos and 2,000 Higgsfield AI credits per month.
+        {% if current_tier == 'free' %}
+          Upgrade to Starter for just $9.99/mo — 10 videos, scheduling, 8 platforms, and no watermark.
+        {% elif current_tier == 'starter' %}
+          Unlock The Scalpel, batch creation, and The Forge with Creator at $29/mo — 3x the videos.
+        {% elif current_tier == 'creator' %}
+          Go Pro for $79/mo — 100 videos, unlimited clips, Cinema House, multi-language, and team seats.
+        {% else %}
+          Scale your agency with 200 videos, 10 seats, white-label, API, and a dedicated account manager.
+        {% endif %}
       </p>
       {% if current_tier != 'agency' and stripe_pub %}
-      <a href="{{ url_for('billing.checkout', tier_name='agency') }}" class="btn btn-secondary" style="width:100%;margin-top:14px;text-align:center;">
-        Upgrade to Agency
+      {% set next_tier = 'starter' if current_tier == 'free' else ('creator' if current_tier == 'starter' else ('pro' if current_tier == 'creator' else 'agency')) %}
+      <a href="{{ url_for('billing.checkout', tier_name=next_tier) }}" class="btn btn-secondary" style="width:100%;margin-top:14px;text-align:center;">
+        Upgrade to {{ tiers[next_tier].label }}
       </a>
       {% endif %}
     </div>

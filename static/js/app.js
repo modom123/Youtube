@@ -1,4 +1,27 @@
-/* Social Optimize Machine — Global JS */
+/* Social Money — Global JS */
+
+// ── Brand Progress Counter (spells "SOCIAL OPTIMIZE" as a job progresses) ─────
+const SO_BRAND = 'SOCIAL OPTIMIZE';
+
+function soBrandCounterHtml(pct) {
+  pct = Math.max(0, Math.min(100, Math.round(pct || 0)));
+  const total = SO_BRAND.length;
+  const revealed = Math.min(total, Math.round((pct / 100) * total));
+  let html = '';
+  for (let i = 0; i < total; i++) {
+    const ch = SO_BRAND[i];
+    if (ch === ' ') { html += '<span class="so-brand-space">&nbsp;</span>'; continue; }
+    html += '<span class="so-brand-letter' + (i < revealed ? ' revealed' : '') + '">' + ch + '</span>';
+  }
+  html += '<span class="so-brand-pct">' + pct + '%</span>';
+  return html;
+}
+
+// Renders the brand counter into el (a DOM element or element id).
+function soBrandCounterRender(el, pct) {
+  const node = typeof el === 'string' ? document.getElementById(el) : el;
+  if (node) node.innerHTML = soBrandCounterHtml(pct);
+}
 
 // ── Toast Notifications ───────────────────────────────────────────────────────
 function toast(type, title, msg = '') {

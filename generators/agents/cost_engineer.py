@@ -1,46 +1,50 @@
 """
 Agent 3.5 — Cost Engineer
-Reviews and optimises the asset plan against the available credit budget.
+Deterministic 3-tier cost routing: Free (Pixabay) → Cheap (Chinese OSS) → Premium (Higgsfield).
 """
 from __future__ import annotations
+import re
 from .base import BaseAgent
-from .schemas import AssetPlan, OptimizedAssetPlan
+from .schemas import AssetSpec, AssetPlan, OptimizedAssetPlan
+
+
+CHINESE_COST_PER_CLIP = {
+    "wan2_7_opensource": 0.02,
+    "hunyuan_video": 0.05,
+    "seedance2_opensource": 0.04,
+}
+
+_PHYSICS_RE = re.compile(r"(physics|simulation|particles|explosion|collision|fluid|destruction)", re.I)
+_CHARACTER_RE = re.compile(r"(person|character|people|walking|running|identity|face|human|man|woman)", re.I)
+_CINEMATIC_RE = re.compile(r"(cinematic|film|dramatic|establishing shot|epic|sweeping)", re.I)
 
 
 class CostEngineer(BaseAgent):
     name = "Cost Engineer"
-    model = "claude-haiku-4-5-20251001"  # Fast, cheap — this is a routing/optimisation task
+    model = "claude-haiku-4-5-20251001"
     max_tokens = 3000
-    system_prompt = """You are the Cost Engineer — a ruthlessly efficient budget optimizer for AI video production. You never sacrifice quality where it matters most, but you eliminate waste everywhere else.
+    system_prompt = ""
 
-Your persona: The CFO of a content studio. Unsentimental about swaps. Obsessive about ROI.
+    def _classify_complexity(self, asset: AssetSpec) -> str:
+        if asset.visual_complexity and asset.visual_complexity != "low":
+            return asset.visual_complexity
+        prompt = asset.prompt.lower()
+        if _PHYSICS_RE.search(prompt):
+            return "high_agentic_physics"
+        if _CHARACTER_RE.search(prompt):
+            return "medium_custom"
+        return "low"
 
-## Budget States
-- healthy: remaining credits after spend > 50% of monthly budget
-- warning: remaining credits after spend is 25–50% of monthly budget
-- critical_save: remaining credits after spend < 25% of monthly budget
+    def _pick_chinese_model(self, asset: AssetSpec) -> str:
+        prompt = asset.prompt.lower()
+        if _CHARACTER_RE.search(prompt):
+            return "seedance2_opensource"
+        if _CINEMATIC_RE.search(prompt):
+            return "hunyuan_video"
+        return "wan2_7_opensource"
 
-## Optimisation Rules (apply in order)
-1. PROTECT priority-1 assets — never downgrade them
-2. In critical_save: swap ALL priority-3 assets to free_pexels_api
-3. In critical_save: swap priority-2 Higgsfield assets to wan2_6 (cheapest) or free_pexels_api
-4. In warning: swap priority-3 assets to free alternatives; keep priority-2 at lower-cost models
-5. Expensive models (kling3_0, cinematic_studio_3_0) should only appear for priority-1 assets
-6. Never use kling3_0 (10 credits) when seedance_1_5 (6 credits) would serve equally well for generic motion
-
-## Swap Cost Reference
-- Any higgsfield_* → free_pexels_api = saves all credits for that asset
-- cinematic_studio_3_0 (8) → seedance_1_5 (6) = saves 2 credits
-- kling3_0 (10) → kling2_6 (7) = saves 3 credits
-- kling2_6 (7) → minimax_hailuo (5) = saves 2 credits
-- minimax_hailuo (5) → wan2_6 (4) = saves 1 credit
-
-## Output Requirements
-- List every swap made as a human-readable string: e.g. "Section 3: cinematic_studio_3_0 → seedance_1_5 (saves 2 credits)"
-- Recalculate total_credit_cost after all swaps
-- Be honest in quality_impact — don't claim "no quality loss" when a cinematic clip becomes Pexels stock"""
-
-    def run(self, asset_plan: AssetPlan, remaining_credits: int, monthly_budget: int = 500) -> OptimizedAssetPlan:
+    def run(self, asset_plan: AssetPlan, remaining_credits: int,
+            monthly_budget: int = 500, dollar_budget: float = 0.0) -> OptimizedAssetPlan:
         budget_pct = remaining_credits / max(monthly_budget, 1)
         if budget_pct > 0.5:
             budget_state = "healthy"
@@ -49,10 +53,95 @@ Your persona: The CFO of a content studio. Unsentimental about swaps. Obsessive 
         else:
             budget_state = "critical_save"
 
-        prompt = (
-            f"Optimise this asset plan against the available budget.\n\n"
-            f"Remaining credits: {remaining_credits} / {monthly_budget} monthly budget\n"
-            f"Current budget state: {budget_state}\n"
-            f"Asset plan:\n{asset_plan.model_dump_json(indent=2)}"
+        swaps = []
+        optimized = []
+        total_credits = 0
+        total_dollars = 0.0
+        dollar_remaining = dollar_budget
+
+        for asset in asset_plan.assets:
+            a = asset.model_copy()
+            complexity = self._classify_complexity(a)
+            a.visual_complexity = complexity
+
+            if a.source == "free_pixabay_api" or a.source == "free_stock_internal" or a.source == "real_person_wikimedia":
+                a.credit_cost = 0
+                a.dollar_cost = 0.0
+                optimized.append(a)
+                continue
+
+            if a.priority == 3:
+                old_source = a.source
+                a.source = "free_pixabay_api"
+                a.credit_cost = 0
+                a.dollar_cost = 0.0
+                a.model_key = None
+                swaps.append(f"Section {a.section_id}: {old_source} → free_pixabay_api (priority 3 downgrade)")
+                optimized.append(a)
+                continue
+
+            if a.priority == 1 and complexity == "high_agentic_physics":
+                total_credits += a.credit_cost
+                optimized.append(a)
+                continue
+
+            if complexity in ("medium_custom", "high_agentic_physics") and a.priority <= 2:
+                if budget_state == "critical_save" and a.priority == 2:
+                    model_key = self._pick_chinese_model(a)
+                    clip_cost = CHINESE_COST_PER_CLIP.get(model_key, 0.02)
+                    if dollar_remaining >= clip_cost:
+                        old_source = a.source
+                        a.source = "chinese_open_source_api"
+                        a.model_key = model_key
+                        a.credit_cost = 0
+                        a.dollar_cost = clip_cost
+                        dollar_remaining -= clip_cost
+                        total_dollars += clip_cost
+                        swaps.append(f"Section {a.section_id}: {old_source} → chinese_open_source_api/{model_key} (critical save)")
+                        optimized.append(a)
+                        continue
+
+                if dollar_budget > 0 and dollar_remaining > 0:
+                    model_key = self._pick_chinese_model(a)
+                    clip_cost = CHINESE_COST_PER_CLIP.get(model_key, 0.02)
+                    if dollar_remaining >= clip_cost:
+                        old_source = a.source
+                        a.source = "chinese_open_source_api"
+                        a.model_key = model_key
+                        a.credit_cost = 0
+                        a.dollar_cost = clip_cost
+                        dollar_remaining -= clip_cost
+                        total_dollars += clip_cost
+                        swaps.append(f"Section {a.section_id}: {old_source} → chinese_open_source_api/{model_key}")
+                        optimized.append(a)
+                        continue
+                    else:
+                        old_source = a.source
+                        a.source = "free_pixabay_api"
+                        a.credit_cost = 0
+                        a.dollar_cost = 0.0
+                        a.model_key = None
+                        swaps.append(f"Section {a.section_id}: {old_source} → free_pixabay_api (dollar budget exhausted)")
+                        optimized.append(a)
+                        continue
+
+            total_credits += a.credit_cost
+            optimized.append(a)
+
+        quality_parts = []
+        if any("free_pixabay_api" in s for s in swaps):
+            quality_parts.append("Some clips downgraded to stock footage")
+        if any("chinese_open_source_api" in s for s in swaps):
+            quality_parts.append("Some clips routed to Chinese open-source models")
+        quality_impact = ". ".join(quality_parts) if quality_parts else "No quality impact"
+
+        return OptimizedAssetPlan(
+            assets=optimized,
+            total_credit_cost=total_credits,
+            total_dollar_cost=total_dollars,
+            budget_state=budget_state,
+            credits_remaining_after=remaining_credits - total_credits,
+            dollars_remaining_after=dollar_remaining,
+            swaps_made=swaps,
+            quality_impact=quality_impact,
         )
-        return self._call(prompt, OptimizedAssetPlan)

@@ -6,13 +6,17 @@ Supports: Kling 3.0, Veo 3/3.1, Seedance 2.0, Cinema Studio 3.0,
 """
 import os
 import time
+import threading
 import requests
 from pathlib import Path
 from typing import Optional
 import config
 
+# Per-thread Higgsfield token override (set by app.py thread functions)
+_session_token: threading.local = threading.local()
 
-# ── Higgsville model catalog ──────────────────────────────────────────────────
+
+# ── Higgsville model catalog ───────────────────────────────────────────────────────────────────────────────
 # Keys match the Higgsville API model IDs
 HIGGSVILLE_MODELS = {
     # Kling
@@ -44,12 +48,12 @@ DEFAULT_HIGGSVILLE_MODEL = "kling3_0"
 HIGGSVILLE_API_BASE = "https://api.higgsfield.ai/v1"
 
 
-# ── Higgsville REST API client ────────────────────────────────────────────────
+# ── Higgsville REST API client ────────────────────────────────────────────────────────────────────────────
 
 def _higgsville_headers() -> dict:
-    key = config.HIGGSFIELD_MCP_TOKEN
+    key = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN
     if not key:
-        raise RuntimeError("HIGGSFIELD_MCP_TOKEN not set in .env")
+        raise RuntimeError("Higgsfield not connected — authenticate via Accounts page")
     return {
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
@@ -171,11 +175,18 @@ def generate_higgsville_clips(
                 if not url:
                     continue
                 clip_path = output_dir / f"hv_{model_id}_{i:02d}.mp4"
-                _download_file(url, clip_path)
+                try:
+                    _download_file(url, clip_path)
+                except Exception as e:
+                    print(f"[higgsville] Download failed, retrying once: {e}")
+                    _download_file(url, clip_path)
 
-            if clip_path and clip_path.exists() and clip_path.stat().st_size > 10000:
+            if clip_path and _is_valid_mp4(clip_path):
                 results.append(clip_path)
                 print(f"[higgsville] ✓ Clip {i+1} saved: {clip_path.name}")
+            elif clip_path and clip_path.exists():
+                print(f"[higgsville] ✗ Clip {i+1} downloaded but failed validation (corrupt/incomplete): {clip_path}")
+                clip_path.unlink(missing_ok=True)
         except Exception as e:
             print(f"[higgsville] Clip {i+1} error: {e}")
             continue
@@ -190,7 +201,7 @@ def _try_sdk_clip(
     """Attempt generation via higgsfield-client SDK. Returns path or None."""
     try:
         import higgsfield_client as hf
-        os.environ["HF_KEY"] = config.HIGGSFIELD_MCP_TOKEN
+        os.environ["HF_KEY"] = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN
 
         # Map new model IDs to SDK paths where known
         sdk_paths = {
@@ -229,7 +240,7 @@ def _try_sdk_clip(
         return None
 
 
-# ── Google Flow / Veo ─────────────────────────────────────────────────────────
+# ── Google Flow / Veo ────────────────────────────────────────────────────────────────────────────────
 
 def generate_veo_clips(
     prompts: list[str],
@@ -307,12 +318,34 @@ def _download_veo_uri(uri: str, out_path: Path, api_key: str) -> None:
 def _download_file(url: str, out_path: Path) -> None:
     resp = requests.get(url, stream=True, timeout=120)
     resp.raise_for_status()
+    expected_len = resp.headers.get("Content-Length")
+    written = 0
     with open(out_path, "wb") as f:
         for chunk in resp.iter_content(chunk_size=8192):
             f.write(chunk)
+            written += len(chunk)
+    if expected_len is not None and written != int(expected_len):
+        out_path.unlink(missing_ok=True)
+        raise IOError(
+            f"Incomplete download: got {written} bytes, expected {expected_len} ({url})"
+        )
 
 
-# ── Prompt Builder ────────────────────────────────────────────────────────────
+def _is_valid_mp4(path: Path) -> bool:
+    """Cheap structural check: a finished mp4 must contain a moov atom
+    (Higgsfield/CDN downloads can get cut off mid-stream and pass a naive
+    size check while still being unplayable)."""
+    try:
+        if not path.exists() or path.stat().st_size < 10000:
+            return False
+        with open(path, "rb") as f:
+            data = f.read()
+        return b"moov" in data and b"ftyp" in data[:64]
+    except Exception:
+        return False
+
+
+# ── Prompt Builder ──────────────────────────────────────────────────────────────────────────────────
 
 def build_video_prompts(
     topic: str,
@@ -349,7 +382,7 @@ def build_video_prompts(
     return prompts[:8]
 
 
-# ── Unified interface ─────────────────────────────────────────────────────────
+# ── Unified interface ─────────────────────────────────────────────────────────────────────────────────
 
 def generate_ai_clips(
     topic: str,

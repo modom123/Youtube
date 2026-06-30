@@ -1,0 +1,10092 @@
+[
+ {
+  "id": 1,
+  "title": "Hey Jude",
+  "artist": "The Beatles",
+  "bpm": 148,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1968,
+  "duration": 431
+ },
+ {
+  "id": 2,
+  "title": "Let It Be",
+  "artist": "The Beatles",
+  "bpm": 76,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1970,
+  "duration": 243
+ },
+ {
+  "id": 3,
+  "title": "Come Together",
+  "artist": "The Beatles",
+  "bpm": 83,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 1969,
+  "duration": 259
+ },
+ {
+  "id": 4,
+  "title": "Yesterday",
+  "artist": "The Beatles",
+  "bpm": 96,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1965,
+  "duration": 125
+ },
+ {
+  "id": 5,
+  "title": "Here Comes the Sun",
+  "artist": "The Beatles",
+  "bpm": 129,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1969,
+  "duration": 185
+ },
+ {
+  "id": 6,
+  "title": "Twist and Shout",
+  "artist": "The Beatles",
+  "bpm": 125,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1963,
+  "duration": 155
+ },
+ {
+  "id": 7,
+  "title": "A Hard Day's Night",
+  "artist": "The Beatles",
+  "bpm": 138,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1964,
+  "duration": 154
+ },
+ {
+  "id": 8,
+  "title": "Help!",
+  "artist": "The Beatles",
+  "bpm": 178,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1965,
+  "duration": 139
+ },
+ {
+  "id": 9,
+  "title": "Eleanor Rigby",
+  "artist": "The Beatles",
+  "bpm": 132,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1966,
+  "duration": 128
+ },
+ {
+  "id": 10,
+  "title": "Strawberry Fields Forever",
+  "artist": "The Beatles",
+  "bpm": 90,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 1967,
+  "duration": 250
+ },
+ {
+  "id": 11,
+  "title": "(I Can't Get No) Satisfaction",
+  "artist": "The Rolling Stones",
+  "bpm": 136,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1965,
+  "duration": 222
+ },
+ {
+  "id": 12,
+  "title": "Paint It Black",
+  "artist": "The Rolling Stones",
+  "bpm": 162,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1966,
+  "duration": 225
+ },
+ {
+  "id": 13,
+  "title": "Sympathy for the Devil",
+  "artist": "The Rolling Stones",
+  "bpm": 116,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1968,
+  "duration": 378
+ },
+ {
+  "id": 14,
+  "title": "Gimme Shelter",
+  "artist": "The Rolling Stones",
+  "bpm": 120,
+  "key": "C#m",
+  "genre": "Rock",
+  "year": 1969,
+  "duration": 272
+ },
+ {
+  "id": 15,
+  "title": "My Girl",
+  "artist": "The Temptations",
+  "bpm": 104,
+  "key": "C",
+  "genre": "Soul",
+  "year": 1964,
+  "duration": 178
+ },
+ {
+  "id": 16,
+  "title": "Respect",
+  "artist": "Aretha Franklin",
+  "bpm": 115,
+  "key": "C",
+  "genre": "Soul",
+  "year": 1967,
+  "duration": 147
+ },
+ {
+  "id": 17,
+  "title": "Think",
+  "artist": "Aretha Franklin",
+  "bpm": 120,
+  "key": "Bb",
+  "genre": "Soul",
+  "year": 1968,
+  "duration": 145
+ },
+ {
+  "id": 18,
+  "title": "A Change Is Gonna Come",
+  "artist": "Sam Cooke",
+  "bpm": 64,
+  "key": "Bb",
+  "genre": "Soul",
+  "year": 1964,
+  "duration": 193
+ },
+ {
+  "id": 19,
+  "title": "What's Going On",
+  "artist": "Marvin Gaye",
+  "bpm": 100,
+  "key": "E",
+  "genre": "Soul",
+  "year": 1971,
+  "duration": 234
+ },
+ {
+  "id": 20,
+  "title": "I Heard It Through the Grapevine",
+  "artist": "Marvin Gaye",
+  "bpm": 116,
+  "key": "Eb",
+  "genre": "Soul",
+  "year": 1968,
+  "duration": 183
+ },
+ {
+  "id": 21,
+  "title": "Sittin' On The Dock of the Bay",
+  "artist": "Otis Redding",
+  "bpm": 104,
+  "key": "G",
+  "genre": "Soul",
+  "year": 1968,
+  "duration": 165
+ },
+ {
+  "id": 22,
+  "title": "Light My Fire",
+  "artist": "The Doors",
+  "bpm": 126,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1967,
+  "duration": 171
+ },
+ {
+  "id": 23,
+  "title": "Riders on the Storm",
+  "artist": "The Doors",
+  "bpm": 106,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1971,
+  "duration": 435
+ },
+ {
+  "id": 24,
+  "title": "Purple Haze",
+  "artist": "Jimi Hendrix",
+  "bpm": 105,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1967,
+  "duration": 168
+ },
+ {
+  "id": 25,
+  "title": "All Along the Watchtower",
+  "artist": "Jimi Hendrix",
+  "bpm": 114,
+  "key": "C#m",
+  "genre": "Rock",
+  "year": 1968,
+  "duration": 240
+ },
+ {
+  "id": 26,
+  "title": "Voodoo Child",
+  "artist": "Jimi Hendrix",
+  "bpm": 86,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1968,
+  "duration": 306
+ },
+ {
+  "id": 27,
+  "title": "Good Vibrations",
+  "artist": "The Beach Boys",
+  "bpm": 148,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 1966,
+  "duration": 215
+ },
+ {
+  "id": 28,
+  "title": "God Only Knows",
+  "artist": "The Beach Boys",
+  "bpm": 122,
+  "key": "E",
+  "genre": "Pop",
+  "year": 1966,
+  "duration": 173
+ },
+ {
+  "id": 29,
+  "title": "Stand By Me",
+  "artist": "Ben E. King",
+  "bpm": 118,
+  "key": "A",
+  "genre": "Soul",
+  "year": 1961,
+  "duration": 176
+ },
+ {
+  "id": 30,
+  "title": "Soul Man",
+  "artist": "Sam & Dave",
+  "bpm": 115,
+  "key": "E",
+  "genre": "Soul",
+  "year": 1967,
+  "duration": 165
+ },
+ {
+  "id": 31,
+  "title": "Dancing in the Street",
+  "artist": "Martha and the Vandellas",
+  "bpm": 127,
+  "key": "E",
+  "genre": "Soul",
+  "year": 1964,
+  "duration": 158
+ },
+ {
+  "id": 32,
+  "title": "Unchained Melody",
+  "artist": "The Righteous Brothers",
+  "bpm": 68,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1965,
+  "duration": 216
+ },
+ {
+  "id": 33,
+  "title": "You've Lost That Lovin' Feelin'",
+  "artist": "The Righteous Brothers",
+  "bpm": 68,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 1964,
+  "duration": 228
+ },
+ {
+  "id": 34,
+  "title": "The Sound of Silence",
+  "artist": "Simon & Garfunkel",
+  "bpm": 106,
+  "key": "Dm",
+  "genre": "Folk Rock",
+  "year": 1965,
+  "duration": 186
+ },
+ {
+  "id": 35,
+  "title": "Mrs. Robinson",
+  "artist": "Simon & Garfunkel",
+  "bpm": 104,
+  "key": "E",
+  "genre": "Folk Rock",
+  "year": 1968,
+  "duration": 244
+ },
+ {
+  "id": 36,
+  "title": "Bridge Over Troubled Water",
+  "artist": "Simon & Garfunkel",
+  "bpm": 82,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 1970,
+  "duration": 293
+ },
+ {
+  "id": 37,
+  "title": "Like a Rolling Stone",
+  "artist": "Bob Dylan",
+  "bpm": 96,
+  "key": "C",
+  "genre": "Folk Rock",
+  "year": 1965,
+  "duration": 373
+ },
+ {
+  "id": 38,
+  "title": "Blowin' in the Wind",
+  "artist": "Bob Dylan",
+  "bpm": 80,
+  "key": "D",
+  "genre": "Folk Rock",
+  "year": 1963,
+  "duration": 167
+ },
+ {
+  "id": 39,
+  "title": "The Times They Are a-Changin'",
+  "artist": "Bob Dylan",
+  "bpm": 90,
+  "key": "G",
+  "genre": "Folk Rock",
+  "year": 1964,
+  "duration": 196
+ },
+ {
+  "id": 40,
+  "title": "Johnny B. Goode",
+  "artist": "Chuck Berry",
+  "bpm": 168,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 1958,
+  "duration": 160
+ },
+ {
+  "id": 41,
+  "title": "Hound Dog",
+  "artist": "Elvis Presley",
+  "bpm": 172,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1956,
+  "duration": 136
+ },
+ {
+  "id": 42,
+  "title": "Suspicious Minds",
+  "artist": "Elvis Presley",
+  "bpm": 116,
+  "key": "G",
+  "genre": "Pop",
+  "year": 1969,
+  "duration": 268
+ },
+ {
+  "id": 43,
+  "title": "Jailhouse Rock",
+  "artist": "Elvis Presley",
+  "bpm": 168,
+  "key": "Eb",
+  "genre": "Rock",
+  "year": 1957,
+  "duration": 147
+ },
+ {
+  "id": 44,
+  "title": "Can't Help Falling in Love",
+  "artist": "Elvis Presley",
+  "bpm": 74,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1961,
+  "duration": 177
+ },
+ {
+  "id": 45,
+  "title": "Bohemian Rhapsody",
+  "artist": "Queen",
+  "bpm": 72,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 1975,
+  "duration": 354
+ },
+ {
+  "id": 46,
+  "title": "We Will Rock You",
+  "artist": "Queen",
+  "bpm": 81,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 122
+ },
+ {
+  "id": 47,
+  "title": "We Are the Champions",
+  "artist": "Queen",
+  "bpm": 64,
+  "key": "Cm",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 181
+ },
+ {
+  "id": 48,
+  "title": "Don't Stop Me Now",
+  "artist": "Queen",
+  "bpm": 156,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1978,
+  "duration": 209
+ },
+ {
+  "id": 49,
+  "title": "Somebody to Love",
+  "artist": "Queen",
+  "bpm": 112,
+  "key": "Ab",
+  "genre": "Rock",
+  "year": 1976,
+  "duration": 296
+ },
+ {
+  "id": 50,
+  "title": "Another One Bites the Dust",
+  "artist": "Queen",
+  "bpm": 110,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1980,
+  "duration": 215
+ },
+ {
+  "id": 51,
+  "title": "Killer Queen",
+  "artist": "Queen",
+  "bpm": 117,
+  "key": "Eb",
+  "genre": "Rock",
+  "year": 1974,
+  "duration": 180
+ },
+ {
+  "id": 52,
+  "title": "Stairway to Heaven",
+  "artist": "Led Zeppelin",
+  "bpm": 82,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1971,
+  "duration": 482
+ },
+ {
+  "id": 53,
+  "title": "Whole Lotta Love",
+  "artist": "Led Zeppelin",
+  "bpm": 90,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1969,
+  "duration": 334
+ },
+ {
+  "id": 54,
+  "title": "Kashmir",
+  "artist": "Led Zeppelin",
+  "bpm": 82,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 1975,
+  "duration": 508
+ },
+ {
+  "id": 55,
+  "title": "Black Dog",
+  "artist": "Led Zeppelin",
+  "bpm": 100,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1971,
+  "duration": 296
+ },
+ {
+  "id": 56,
+  "title": "Rock and Roll",
+  "artist": "Led Zeppelin",
+  "bpm": 170,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1971,
+  "duration": 220
+ },
+ {
+  "id": 57,
+  "title": "Comfortably Numb",
+  "artist": "Pink Floyd",
+  "bpm": 126,
+  "key": "Bm",
+  "genre": "Rock",
+  "year": 1979,
+  "duration": 383
+ },
+ {
+  "id": 58,
+  "title": "Wish You Were Here",
+  "artist": "Pink Floyd",
+  "bpm": 120,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1975,
+  "duration": 334
+ },
+ {
+  "id": 59,
+  "title": "Money",
+  "artist": "Pink Floyd",
+  "bpm": 120,
+  "key": "Bm",
+  "genre": "Rock",
+  "year": 1973,
+  "duration": 382
+ },
+ {
+  "id": 60,
+  "title": "Another Brick in the Wall",
+  "artist": "Pink Floyd",
+  "bpm": 104,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 1979,
+  "duration": 234
+ },
+ {
+  "id": 61,
+  "title": "Hotel California",
+  "artist": "Eagles",
+  "bpm": 74,
+  "key": "Bm",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 391
+ },
+ {
+  "id": 62,
+  "title": "Take It Easy",
+  "artist": "Eagles",
+  "bpm": 138,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1972,
+  "duration": 210
+ },
+ {
+  "id": 63,
+  "title": "Desperado",
+  "artist": "Eagles",
+  "bpm": 72,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1973,
+  "duration": 213
+ },
+ {
+  "id": 64,
+  "title": "Imagine",
+  "artist": "John Lennon",
+  "bpm": 76,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1971,
+  "duration": 187
+ },
+ {
+  "id": 65,
+  "title": "Space Oddity",
+  "artist": "David Bowie",
+  "bpm": 136,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1969,
+  "duration": 315
+ },
+ {
+  "id": 66,
+  "title": "Heroes",
+  "artist": "David Bowie",
+  "bpm": 116,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 372
+ },
+ {
+  "id": 67,
+  "title": "Ziggy Stardust",
+  "artist": "David Bowie",
+  "bpm": 76,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1972,
+  "duration": 194
+ },
+ {
+  "id": 68,
+  "title": "Changes",
+  "artist": "David Bowie",
+  "bpm": 133,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1972,
+  "duration": 216
+ },
+ {
+  "id": 69,
+  "title": "Starman",
+  "artist": "David Bowie",
+  "bpm": 80,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1972,
+  "duration": 257
+ },
+ {
+  "id": 70,
+  "title": "Let's Dance",
+  "artist": "David Bowie",
+  "bpm": 114,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1983,
+  "duration": 463
+ },
+ {
+  "id": 71,
+  "title": "Superstition",
+  "artist": "Stevie Wonder",
+  "bpm": 101,
+  "key": "Ebm",
+  "genre": "Soul",
+  "year": 1972,
+  "duration": 245
+ },
+ {
+  "id": 72,
+  "title": "Sir Duke",
+  "artist": "Stevie Wonder",
+  "bpm": 108,
+  "key": "B",
+  "genre": "Soul",
+  "year": 1977,
+  "duration": 235
+ },
+ {
+  "id": 73,
+  "title": "I Wish",
+  "artist": "Stevie Wonder",
+  "bpm": 100,
+  "key": "Ebm",
+  "genre": "Soul",
+  "year": 1976,
+  "duration": 253
+ },
+ {
+  "id": 74,
+  "title": "Isn't She Lovely",
+  "artist": "Stevie Wonder",
+  "bpm": 122,
+  "key": "E",
+  "genre": "Soul",
+  "year": 1976,
+  "duration": 376
+ },
+ {
+  "id": 75,
+  "title": "Signed Sealed Delivered",
+  "artist": "Stevie Wonder",
+  "bpm": 120,
+  "key": "F",
+  "genre": "Soul",
+  "year": 1970,
+  "duration": 190
+ },
+ {
+  "id": 76,
+  "title": "Higher Ground",
+  "artist": "Stevie Wonder",
+  "bpm": 118,
+  "key": "Ebm",
+  "genre": "Soul",
+  "year": 1973,
+  "duration": 180
+ },
+ {
+  "id": 77,
+  "title": "Stayin' Alive",
+  "artist": "Bee Gees",
+  "bpm": 104,
+  "key": "Fm",
+  "genre": "Disco",
+  "year": 1977,
+  "duration": 285
+ },
+ {
+  "id": 78,
+  "title": "How Deep Is Your Love",
+  "artist": "Bee Gees",
+  "bpm": 104,
+  "key": "Eb",
+  "genre": "Disco",
+  "year": 1977,
+  "duration": 244
+ },
+ {
+  "id": 79,
+  "title": "Night Fever",
+  "artist": "Bee Gees",
+  "bpm": 110,
+  "key": "Gm",
+  "genre": "Disco",
+  "year": 1977,
+  "duration": 211
+ },
+ {
+  "id": 80,
+  "title": "Crocodile Rock",
+  "artist": "Elton John",
+  "bpm": 164,
+  "key": "G",
+  "genre": "Pop",
+  "year": 1972,
+  "duration": 234
+ },
+ {
+  "id": 81,
+  "title": "Rocket Man",
+  "artist": "Elton John",
+  "bpm": 136,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 1972,
+  "duration": 282
+ },
+ {
+  "id": 82,
+  "title": "Your Song",
+  "artist": "Elton John",
+  "bpm": 126,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 1970,
+  "duration": 241
+ },
+ {
+  "id": 83,
+  "title": "Tiny Dancer",
+  "artist": "Elton John",
+  "bpm": 76,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1971,
+  "duration": 378
+ },
+ {
+  "id": 84,
+  "title": "Bennie and the Jets",
+  "artist": "Elton John",
+  "bpm": 112,
+  "key": "G",
+  "genre": "Pop",
+  "year": 1974,
+  "duration": 317
+ },
+ {
+  "id": 85,
+  "title": "Don't Let the Sun Go Down on Me",
+  "artist": "Elton John",
+  "bpm": 69,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1974,
+  "duration": 327
+ },
+ {
+  "id": 86,
+  "title": "Go Your Own Way",
+  "artist": "Fleetwood Mac",
+  "bpm": 136,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 218
+ },
+ {
+  "id": 87,
+  "title": "Dreams",
+  "artist": "Fleetwood Mac",
+  "bpm": 120,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 254
+ },
+ {
+  "id": 88,
+  "title": "The Chain",
+  "artist": "Fleetwood Mac",
+  "bpm": 152,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 268
+ },
+ {
+  "id": 89,
+  "title": "Everywhere",
+  "artist": "Fleetwood Mac",
+  "bpm": 126,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 1987,
+  "duration": 224
+ },
+ {
+  "id": 90,
+  "title": "Rhiannon",
+  "artist": "Fleetwood Mac",
+  "bpm": 132,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1975,
+  "duration": 256
+ },
+ {
+  "id": 91,
+  "title": "Let's Get It On",
+  "artist": "Marvin Gaye",
+  "bpm": 93,
+  "key": "Eb",
+  "genre": "Soul",
+  "year": 1973,
+  "duration": 282
+ },
+ {
+  "id": 92,
+  "title": "Sexual Healing",
+  "artist": "Marvin Gaye",
+  "bpm": 94,
+  "key": "Ab",
+  "genre": "R&B",
+  "year": 1982,
+  "duration": 240
+ },
+ {
+  "id": 93,
+  "title": "Highway to Hell",
+  "artist": "AC/DC",
+  "bpm": 116,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1979,
+  "duration": 210
+ },
+ {
+  "id": 94,
+  "title": "Back in Black",
+  "artist": "AC/DC",
+  "bpm": 94,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1980,
+  "duration": 255
+ },
+ {
+  "id": 95,
+  "title": "Thunderstruck",
+  "artist": "AC/DC",
+  "bpm": 133,
+  "key": "B",
+  "genre": "Rock",
+  "year": 1990,
+  "duration": 292
+ },
+ {
+  "id": 96,
+  "title": "T.N.T.",
+  "artist": "AC/DC",
+  "bpm": 126,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1975,
+  "duration": 215
+ },
+ {
+  "id": 97,
+  "title": "Crazy Train",
+  "artist": "Ozzy Osbourne",
+  "bpm": 138,
+  "key": "F#m",
+  "genre": "Metal",
+  "year": 1980,
+  "duration": 294
+ },
+ {
+  "id": 98,
+  "title": "Paranoid",
+  "artist": "Black Sabbath",
+  "bpm": 164,
+  "key": "E",
+  "genre": "Metal",
+  "year": 1970,
+  "duration": 171
+ },
+ {
+  "id": 99,
+  "title": "Iron Man",
+  "artist": "Black Sabbath",
+  "bpm": 76,
+  "key": "Bm",
+  "genre": "Metal",
+  "year": 1970,
+  "duration": 356
+ },
+ {
+  "id": 100,
+  "title": "War Pigs",
+  "artist": "Black Sabbath",
+  "bpm": 92,
+  "key": "D",
+  "genre": "Metal",
+  "year": 1970,
+  "duration": 478
+ },
+ {
+  "id": 101,
+  "title": "Dream On",
+  "artist": "Aerosmith",
+  "bpm": 80,
+  "key": "Fm",
+  "genre": "Rock",
+  "year": 1973,
+  "duration": 266
+ },
+ {
+  "id": 102,
+  "title": "Walk This Way",
+  "artist": "Aerosmith",
+  "bpm": 120,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1975,
+  "duration": 211
+ },
+ {
+  "id": 103,
+  "title": "More Than a Feeling",
+  "artist": "Boston",
+  "bpm": 110,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1976,
+  "duration": 285
+ },
+ {
+  "id": 104,
+  "title": "Barracuda",
+  "artist": "Heart",
+  "bpm": 135,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 250
+ },
+ {
+  "id": 105,
+  "title": "Carry On Wayward Son",
+  "artist": "Kansas",
+  "bpm": 124,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1976,
+  "duration": 325
+ },
+ {
+  "id": 106,
+  "title": "Don't Fear the Reaper",
+  "artist": "Blue Oyster Cult",
+  "bpm": 141,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1976,
+  "duration": 313
+ },
+ {
+  "id": 107,
+  "title": "Free Bird",
+  "artist": "Lynyrd Skynyrd",
+  "bpm": 60,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1973,
+  "duration": 558
+ },
+ {
+  "id": 108,
+  "title": "Sweet Home Alabama",
+  "artist": "Lynyrd Skynyrd",
+  "bpm": 98,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1974,
+  "duration": 283
+ },
+ {
+  "id": 109,
+  "title": "Born to Run",
+  "artist": "Bruce Springsteen",
+  "bpm": 148,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1975,
+  "duration": 270
+ },
+ {
+  "id": 110,
+  "title": "Thunder Road",
+  "artist": "Bruce Springsteen",
+  "bpm": 130,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1975,
+  "duration": 303
+ },
+ {
+  "id": 111,
+  "title": "Dancing in the Dark",
+  "artist": "Bruce Springsteen",
+  "bpm": 149,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1984,
+  "duration": 241
+ },
+ {
+  "id": 112,
+  "title": "September",
+  "artist": "Earth Wind & Fire",
+  "bpm": 126,
+  "key": "Ab",
+  "genre": "Funk",
+  "year": 1978,
+  "duration": 215
+ },
+ {
+  "id": 113,
+  "title": "Boogie Wonderland",
+  "artist": "Earth Wind & Fire",
+  "bpm": 131,
+  "key": "Cm",
+  "genre": "Funk",
+  "year": 1979,
+  "duration": 298
+ },
+ {
+  "id": 114,
+  "title": "Le Freak",
+  "artist": "Chic",
+  "bpm": 120,
+  "key": "Am",
+  "genre": "Disco",
+  "year": 1978,
+  "duration": 329
+ },
+ {
+  "id": 115,
+  "title": "Good Times",
+  "artist": "Chic",
+  "bpm": 111,
+  "key": "Em",
+  "genre": "Disco",
+  "year": 1979,
+  "duration": 483
+ },
+ {
+  "id": 116,
+  "title": "I Will Survive",
+  "artist": "Gloria Gaynor",
+  "bpm": 117,
+  "key": "Am",
+  "genre": "Disco",
+  "year": 1978,
+  "duration": 198
+ },
+ {
+  "id": 117,
+  "title": "Got to Give It Up",
+  "artist": "Marvin Gaye",
+  "bpm": 122,
+  "key": "A",
+  "genre": "Funk",
+  "year": 1977,
+  "duration": 356
+ },
+ {
+  "id": 118,
+  "title": "Ain't No Sunshine",
+  "artist": "Bill Withers",
+  "bpm": 76,
+  "key": "Am",
+  "genre": "Soul",
+  "year": 1971,
+  "duration": 123
+ },
+ {
+  "id": 119,
+  "title": "Lean on Me",
+  "artist": "Bill Withers",
+  "bpm": 78,
+  "key": "C",
+  "genre": "Soul",
+  "year": 1972,
+  "duration": 255
+ },
+ {
+  "id": 120,
+  "title": "Lovely Day",
+  "artist": "Bill Withers",
+  "bpm": 98,
+  "key": "F",
+  "genre": "Soul",
+  "year": 1977,
+  "duration": 254
+ },
+ {
+  "id": 121,
+  "title": "Rapper's Delight",
+  "artist": "The Sugarhill Gang",
+  "bpm": 113,
+  "key": "Em",
+  "genre": "Hip-Hop",
+  "year": 1979,
+  "duration": 891
+ },
+ {
+  "id": 122,
+  "title": "Three Little Birds",
+  "artist": "Bob Marley",
+  "bpm": 74,
+  "key": "A",
+  "genre": "Reggae",
+  "year": 1977,
+  "duration": 180
+ },
+ {
+  "id": 123,
+  "title": "No Woman No Cry",
+  "artist": "Bob Marley",
+  "bpm": 80,
+  "key": "C",
+  "genre": "Reggae",
+  "year": 1975,
+  "duration": 284
+ },
+ {
+  "id": 124,
+  "title": "Could You Be Loved",
+  "artist": "Bob Marley",
+  "bpm": 102,
+  "key": "Bm",
+  "genre": "Reggae",
+  "year": 1980,
+  "duration": 236
+ },
+ {
+  "id": 125,
+  "title": "One Love",
+  "artist": "Bob Marley",
+  "bpm": 77,
+  "key": "Bb",
+  "genre": "Reggae",
+  "year": 1977,
+  "duration": 172
+ },
+ {
+  "id": 126,
+  "title": "Redemption Song",
+  "artist": "Bob Marley",
+  "bpm": 84,
+  "key": "G",
+  "genre": "Reggae",
+  "year": 1980,
+  "duration": 228
+ },
+ {
+  "id": 127,
+  "title": "Is This Love",
+  "artist": "Bob Marley",
+  "bpm": 84,
+  "key": "F#",
+  "genre": "Reggae",
+  "year": 1978,
+  "duration": 230
+ },
+ {
+  "id": 128,
+  "title": "Buffalo Soldier",
+  "artist": "Bob Marley",
+  "bpm": 88,
+  "key": "Bb",
+  "genre": "Reggae",
+  "year": 1983,
+  "duration": 257
+ },
+ {
+  "id": 129,
+  "title": "Jamming",
+  "artist": "Bob Marley",
+  "bpm": 86,
+  "key": "Bm",
+  "genre": "Reggae",
+  "year": 1977,
+  "duration": 212
+ },
+ {
+  "id": 130,
+  "title": "Stir It Up",
+  "artist": "Bob Marley",
+  "bpm": 79,
+  "key": "A",
+  "genre": "Reggae",
+  "year": 1973,
+  "duration": 219
+ },
+ {
+  "id": 131,
+  "title": "Get Up Stand Up",
+  "artist": "Bob Marley",
+  "bpm": 102,
+  "key": "Bb",
+  "genre": "Reggae",
+  "year": 1973,
+  "duration": 197
+ },
+ {
+  "id": 132,
+  "title": "Billie Jean",
+  "artist": "Michael Jackson",
+  "bpm": 117,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 1982,
+  "duration": 294
+ },
+ {
+  "id": 133,
+  "title": "Thriller",
+  "artist": "Michael Jackson",
+  "bpm": 118,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 1982,
+  "duration": 357
+ },
+ {
+  "id": 134,
+  "title": "Beat It",
+  "artist": "Michael Jackson",
+  "bpm": 139,
+  "key": "Ebm",
+  "genre": "Pop",
+  "year": 1982,
+  "duration": 258
+ },
+ {
+  "id": 135,
+  "title": "Smooth Criminal",
+  "artist": "Michael Jackson",
+  "bpm": 118,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 1988,
+  "duration": 256
+ },
+ {
+  "id": 136,
+  "title": "The Way You Make Me Feel",
+  "artist": "Michael Jackson",
+  "bpm": 115,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 1987,
+  "duration": 300
+ },
+ {
+  "id": 137,
+  "title": "Don't Stop 'Til You Get Enough",
+  "artist": "Michael Jackson",
+  "bpm": 120,
+  "key": "B",
+  "genre": "Disco",
+  "year": 1979,
+  "duration": 366
+ },
+ {
+  "id": 138,
+  "title": "Bad",
+  "artist": "Michael Jackson",
+  "bpm": 114,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 1987,
+  "duration": 247
+ },
+ {
+  "id": 139,
+  "title": "Rock with You",
+  "artist": "Michael Jackson",
+  "bpm": 115,
+  "key": "Ebm",
+  "genre": "Pop",
+  "year": 1979,
+  "duration": 218
+ },
+ {
+  "id": 140,
+  "title": "Man in the Mirror",
+  "artist": "Michael Jackson",
+  "bpm": 100,
+  "key": "G",
+  "genre": "Pop",
+  "year": 1988,
+  "duration": 312
+ },
+ {
+  "id": 141,
+  "title": "Black or White",
+  "artist": "Michael Jackson",
+  "bpm": 116,
+  "key": "E",
+  "genre": "Pop",
+  "year": 1991,
+  "duration": 252
+ },
+ {
+  "id": 142,
+  "title": "Like a Virgin",
+  "artist": "Madonna",
+  "bpm": 116,
+  "key": "F",
+  "genre": "Pop",
+  "year": 1984,
+  "duration": 218
+ },
+ {
+  "id": 143,
+  "title": "Material Girl",
+  "artist": "Madonna",
+  "bpm": 130,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 1984,
+  "duration": 240
+ },
+ {
+  "id": 144,
+  "title": "Like a Prayer",
+  "artist": "Madonna",
+  "bpm": 112,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 1989,
+  "duration": 340
+ },
+ {
+  "id": 145,
+  "title": "Papa Don't Preach",
+  "artist": "Madonna",
+  "bpm": 116,
+  "key": "F",
+  "genre": "Pop",
+  "year": 1986,
+  "duration": 265
+ },
+ {
+  "id": 146,
+  "title": "Vogue",
+  "artist": "Madonna",
+  "bpm": 116,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 1990,
+  "duration": 319
+ },
+ {
+  "id": 147,
+  "title": "Into the Groove",
+  "artist": "Madonna",
+  "bpm": 116,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 1985,
+  "duration": 281
+ },
+ {
+  "id": 148,
+  "title": "Purple Rain",
+  "artist": "Prince",
+  "bpm": 114,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 1984,
+  "duration": 521
+ },
+ {
+  "id": 149,
+  "title": "When Doves Cry",
+  "artist": "Prince",
+  "bpm": 128,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 1984,
+  "duration": 337
+ },
+ {
+  "id": 150,
+  "title": "Kiss",
+  "artist": "Prince",
+  "bpm": 112,
+  "key": "A",
+  "genre": "Funk",
+  "year": 1986,
+  "duration": 218
+ },
+ {
+  "id": 151,
+  "title": "1999",
+  "artist": "Prince",
+  "bpm": 120,
+  "key": "Bbm",
+  "genre": "Funk",
+  "year": 1982,
+  "duration": 371
+ },
+ {
+  "id": 152,
+  "title": "Little Red Corvette",
+  "artist": "Prince",
+  "bpm": 124,
+  "key": "D",
+  "genre": "Pop",
+  "year": 1982,
+  "duration": 318
+ },
+ {
+  "id": 153,
+  "title": "Let's Go Crazy",
+  "artist": "Prince",
+  "bpm": 138,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1984,
+  "duration": 283
+ },
+ {
+  "id": 154,
+  "title": "Raspberry Beret",
+  "artist": "Prince",
+  "bpm": 129,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 1985,
+  "duration": 214
+ },
+ {
+  "id": 155,
+  "title": "I Wanna Dance with Somebody",
+  "artist": "Whitney Houston",
+  "bpm": 119,
+  "key": "G",
+  "genre": "Pop",
+  "year": 1987,
+  "duration": 291
+ },
+ {
+  "id": 156,
+  "title": "Greatest Love of All",
+  "artist": "Whitney Houston",
+  "bpm": 64,
+  "key": "E",
+  "genre": "Pop",
+  "year": 1985,
+  "duration": 294
+ },
+ {
+  "id": 157,
+  "title": "Saving All My Love for You",
+  "artist": "Whitney Houston",
+  "bpm": 66,
+  "key": "A",
+  "genre": "Pop",
+  "year": 1985,
+  "duration": 239
+ },
+ {
+  "id": 158,
+  "title": "I Will Always Love You",
+  "artist": "Whitney Houston",
+  "bpm": 67,
+  "key": "A",
+  "genre": "Pop",
+  "year": 1992,
+  "duration": 273
+ },
+ {
+  "id": 159,
+  "title": "How Will I Know",
+  "artist": "Whitney Houston",
+  "bpm": 120,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 1985,
+  "duration": 277
+ },
+ {
+  "id": 160,
+  "title": "Sweet Child O' Mine",
+  "artist": "Guns N' Roses",
+  "bpm": 126,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1987,
+  "duration": 356
+ },
+ {
+  "id": 161,
+  "title": "Welcome to the Jungle",
+  "artist": "Guns N' Roses",
+  "bpm": 122,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 1987,
+  "duration": 274
+ },
+ {
+  "id": 162,
+  "title": "Paradise City",
+  "artist": "Guns N' Roses",
+  "bpm": 100,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1987,
+  "duration": 411
+ },
+ {
+  "id": 163,
+  "title": "November Rain",
+  "artist": "Guns N' Roses",
+  "bpm": 80,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 536
+ },
+ {
+  "id": 164,
+  "title": "Patience",
+  "artist": "Guns N' Roses",
+  "bpm": 120,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1989,
+  "duration": 382
+ },
+ {
+  "id": 165,
+  "title": "Jump",
+  "artist": "Van Halen",
+  "bpm": 129,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1984,
+  "duration": 242
+ },
+ {
+  "id": 166,
+  "title": "Panama",
+  "artist": "Van Halen",
+  "bpm": 144,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1984,
+  "duration": 212
+ },
+ {
+  "id": 167,
+  "title": "Runnin' with the Devil",
+  "artist": "Van Halen",
+  "bpm": 95,
+  "key": "Ebm",
+  "genre": "Rock",
+  "year": 1978,
+  "duration": 213
+ },
+ {
+  "id": 168,
+  "title": "Livin' on a Prayer",
+  "artist": "Bon Jovi",
+  "bpm": 122,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1986,
+  "duration": 250
+ },
+ {
+  "id": 169,
+  "title": "You Give Love a Bad Name",
+  "artist": "Bon Jovi",
+  "bpm": 123,
+  "key": "Cm",
+  "genre": "Rock",
+  "year": 1986,
+  "duration": 223
+ },
+ {
+  "id": 170,
+  "title": "Wanted Dead or Alive",
+  "artist": "Bon Jovi",
+  "bpm": 74,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1986,
+  "duration": 308
+ },
+ {
+  "id": 171,
+  "title": "Pour Some Sugar on Me",
+  "artist": "Def Leppard",
+  "bpm": 92,
+  "key": "C#",
+  "genre": "Rock",
+  "year": 1987,
+  "duration": 256
+ },
+ {
+  "id": 172,
+  "title": "Every Breath You Take",
+  "artist": "The Police",
+  "bpm": 117,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 1983,
+  "duration": 254
+ },
+ {
+  "id": 173,
+  "title": "Roxanne",
+  "artist": "The Police",
+  "bpm": 132,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1978,
+  "duration": 193
+ },
+ {
+  "id": 174,
+  "title": "Don't Stand So Close to Me",
+  "artist": "The Police",
+  "bpm": 148,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 1980,
+  "duration": 240
+ },
+ {
+  "id": 175,
+  "title": "Message in a Bottle",
+  "artist": "The Police",
+  "bpm": 150,
+  "key": "C#m",
+  "genre": "Rock",
+  "year": 1979,
+  "duration": 290
+ },
+ {
+  "id": 176,
+  "title": "With or Without You",
+  "artist": "U2",
+  "bpm": 110,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1987,
+  "duration": 296
+ },
+ {
+  "id": 177,
+  "title": "Where the Streets Have No Name",
+  "artist": "U2",
+  "bpm": 126,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1987,
+  "duration": 336
+ },
+ {
+  "id": 178,
+  "title": "One",
+  "artist": "U2",
+  "bpm": 98,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 272
+ },
+ {
+  "id": 179,
+  "title": "Beautiful Day",
+  "artist": "U2",
+  "bpm": 136,
+  "key": "A",
+  "genre": "Rock",
+  "year": 2000,
+  "duration": 248
+ },
+ {
+  "id": 180,
+  "title": "Pride (In the Name of Love)",
+  "artist": "U2",
+  "bpm": 106,
+  "key": "B",
+  "genre": "Rock",
+  "year": 1984,
+  "duration": 231
+ },
+ {
+  "id": 181,
+  "title": "Sunday Bloody Sunday",
+  "artist": "U2",
+  "bpm": 102,
+  "key": "Bm",
+  "genre": "Rock",
+  "year": 1983,
+  "duration": 280
+ },
+ {
+  "id": 182,
+  "title": "Sweet Dreams",
+  "artist": "Eurythmics",
+  "bpm": 125,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 1983,
+  "duration": 216
+ },
+ {
+  "id": 183,
+  "title": "Take On Me",
+  "artist": "a-ha",
+  "bpm": 169,
+  "key": "A",
+  "genre": "Pop",
+  "year": 1985,
+  "duration": 225
+ },
+ {
+  "id": 184,
+  "title": "Don't You (Forget About Me)",
+  "artist": "Simple Minds",
+  "bpm": 111,
+  "key": "D",
+  "genre": "Pop",
+  "year": 1985,
+  "duration": 262
+ },
+ {
+  "id": 185,
+  "title": "Tainted Love",
+  "artist": "Soft Cell",
+  "bpm": 126,
+  "key": "G",
+  "genre": "Pop",
+  "year": 1981,
+  "duration": 159
+ },
+ {
+  "id": 186,
+  "title": "Blue Monday",
+  "artist": "New Order",
+  "bpm": 130,
+  "key": "Dm",
+  "genre": "Electronic",
+  "year": 1983,
+  "duration": 437
+ },
+ {
+  "id": 187,
+  "title": "Just Can't Get Enough",
+  "artist": "Depeche Mode",
+  "bpm": 133,
+  "key": "D",
+  "genre": "Electronic",
+  "year": 1981,
+  "duration": 223
+ },
+ {
+  "id": 188,
+  "title": "Personal Jesus",
+  "artist": "Depeche Mode",
+  "bpm": 129,
+  "key": "Am",
+  "genre": "Electronic",
+  "year": 1989,
+  "duration": 235
+ },
+ {
+  "id": 189,
+  "title": "Enjoy the Silence",
+  "artist": "Depeche Mode",
+  "bpm": 113,
+  "key": "Eb",
+  "genre": "Electronic",
+  "year": 1990,
+  "duration": 365
+ },
+ {
+  "id": 190,
+  "title": "West End Girls",
+  "artist": "Pet Shop Boys",
+  "bpm": 116,
+  "key": "Em",
+  "genre": "Pop",
+  "year": 1985,
+  "duration": 299
+ },
+ {
+  "id": 191,
+  "title": "Africa",
+  "artist": "Toto",
+  "bpm": 92,
+  "key": "A",
+  "genre": "Pop",
+  "year": 1982,
+  "duration": 275
+ },
+ {
+  "id": 192,
+  "title": "Rosanna",
+  "artist": "Toto",
+  "bpm": 96,
+  "key": "G",
+  "genre": "Pop",
+  "year": 1982,
+  "duration": 343
+ },
+ {
+  "id": 193,
+  "title": "Don't Stop Believin'",
+  "artist": "Journey",
+  "bpm": 118,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1981,
+  "duration": 251
+ },
+ {
+  "id": 194,
+  "title": "Separate Ways",
+  "artist": "Journey",
+  "bpm": 134,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1983,
+  "duration": 319
+ },
+ {
+  "id": 195,
+  "title": "Eye of the Tiger",
+  "artist": "Survivor",
+  "bpm": 109,
+  "key": "Cm",
+  "genre": "Rock",
+  "year": 1982,
+  "duration": 245
+ },
+ {
+  "id": 196,
+  "title": "Total Eclipse of the Heart",
+  "artist": "Bonnie Tyler",
+  "bpm": 64,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 1983,
+  "duration": 335
+ },
+ {
+  "id": 197,
+  "title": "Girls Just Want to Have Fun",
+  "artist": "Cyndi Lauper",
+  "bpm": 120,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1983,
+  "duration": 232
+ },
+ {
+  "id": 198,
+  "title": "Time After Time",
+  "artist": "Cyndi Lauper",
+  "bpm": 132,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1984,
+  "duration": 240
+ },
+ {
+  "id": 199,
+  "title": "Wake Me Up Before You Go-Go",
+  "artist": "Wham!",
+  "bpm": 163,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1984,
+  "duration": 229
+ },
+ {
+  "id": 200,
+  "title": "Careless Whisper",
+  "artist": "George Michael",
+  "bpm": 76,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 1984,
+  "duration": 307
+ },
+ {
+  "id": 201,
+  "title": "Faith",
+  "artist": "George Michael",
+  "bpm": 117,
+  "key": "F",
+  "genre": "Pop",
+  "year": 1987,
+  "duration": 194
+ },
+ {
+  "id": 202,
+  "title": "I Ran (So Far Away)",
+  "artist": "A Flock of Seagulls",
+  "bpm": 144,
+  "key": "A",
+  "genre": "Pop",
+  "year": 1982,
+  "duration": 212
+ },
+ {
+  "id": 203,
+  "title": "Come On Eileen",
+  "artist": "Dexys Midnight Runners",
+  "bpm": 162,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1982,
+  "duration": 260
+ },
+ {
+  "id": 204,
+  "title": "Under Pressure",
+  "artist": "Queen & David Bowie",
+  "bpm": 115,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1981,
+  "duration": 248
+ },
+ {
+  "id": 205,
+  "title": "Relax",
+  "artist": "Frankie Goes to Hollywood",
+  "bpm": 122,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 1983,
+  "duration": 234
+ },
+ {
+  "id": 206,
+  "title": "Walk Like an Egyptian",
+  "artist": "The Bangles",
+  "bpm": 100,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 1986,
+  "duration": 216
+ },
+ {
+  "id": 207,
+  "title": "Manic Monday",
+  "artist": "The Bangles",
+  "bpm": 136,
+  "key": "G",
+  "genre": "Pop",
+  "year": 1986,
+  "duration": 187
+ },
+ {
+  "id": 208,
+  "title": "I Love Rock 'n' Roll",
+  "artist": "Joan Jett",
+  "bpm": 148,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1981,
+  "duration": 175
+ },
+ {
+  "id": 209,
+  "title": "Push It",
+  "artist": "Salt-N-Pepa",
+  "bpm": 130,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 1987,
+  "duration": 271
+ },
+ {
+  "id": 210,
+  "title": "It's Tricky",
+  "artist": "Run-DMC",
+  "bpm": 105,
+  "key": "Fm",
+  "genre": "Hip-Hop",
+  "year": 1986,
+  "duration": 195
+ },
+ {
+  "id": 211,
+  "title": "Walk This Way",
+  "artist": "Run-DMC ft. Aerosmith",
+  "bpm": 108,
+  "key": "E",
+  "genre": "Hip-Hop",
+  "year": 1986,
+  "duration": 307
+ },
+ {
+  "id": 212,
+  "title": "Fight for Your Right",
+  "artist": "Beastie Boys",
+  "bpm": 133,
+  "key": "A",
+  "genre": "Hip-Hop",
+  "year": 1986,
+  "duration": 206
+ },
+ {
+  "id": 213,
+  "title": "Straight Outta Compton",
+  "artist": "N.W.A",
+  "bpm": 104,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 1988,
+  "duration": 262
+ },
+ {
+  "id": 214,
+  "title": "The Message",
+  "artist": "Grandmaster Flash",
+  "bpm": 111,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 1982,
+  "duration": 437
+ },
+ {
+  "id": 215,
+  "title": "Planet Rock",
+  "artist": "Afrika Bambaataa",
+  "bpm": 130,
+  "key": "Em",
+  "genre": "Hip-Hop",
+  "year": 1982,
+  "duration": 389
+ },
+ {
+  "id": 216,
+  "title": "Nuthin' but a 'G' Thang",
+  "artist": "Dr. Dre ft. Snoop Dogg",
+  "bpm": 96,
+  "key": "Gm",
+  "genre": "Hip-Hop",
+  "year": 1992,
+  "duration": 238
+ },
+ {
+  "id": 217,
+  "title": "Smells Like Teen Spirit",
+  "artist": "Nirvana",
+  "bpm": 116,
+  "key": "Fm",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 301
+ },
+ {
+  "id": 218,
+  "title": "Come as You Are",
+  "artist": "Nirvana",
+  "bpm": 120,
+  "key": "F#m",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 219
+ },
+ {
+  "id": 219,
+  "title": "Lithium",
+  "artist": "Nirvana",
+  "bpm": 124,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 257
+ },
+ {
+  "id": 220,
+  "title": "In Bloom",
+  "artist": "Nirvana",
+  "bpm": 78,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 254
+ },
+ {
+  "id": 221,
+  "title": "Heart-Shaped Box",
+  "artist": "Nirvana",
+  "bpm": 100,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1993,
+  "duration": 282
+ },
+ {
+  "id": 222,
+  "title": "Creep",
+  "artist": "Radiohead",
+  "bpm": 92,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1992,
+  "duration": 236
+ },
+ {
+  "id": 223,
+  "title": "Karma Police",
+  "artist": "Radiohead",
+  "bpm": 81,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1997,
+  "duration": 264
+ },
+ {
+  "id": 224,
+  "title": "No Surprises",
+  "artist": "Radiohead",
+  "bpm": 77,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1997,
+  "duration": 228
+ },
+ {
+  "id": 225,
+  "title": "Paranoid Android",
+  "artist": "Radiohead",
+  "bpm": 82,
+  "key": "Cm",
+  "genre": "Rock",
+  "year": 1997,
+  "duration": 386
+ },
+ {
+  "id": 226,
+  "title": "Everything in Its Right Place",
+  "artist": "Radiohead",
+  "bpm": 132,
+  "key": "Db",
+  "genre": "Electronic",
+  "year": 2000,
+  "duration": 251
+ },
+ {
+  "id": 227,
+  "title": "Wonderwall",
+  "artist": "Oasis",
+  "bpm": 87,
+  "key": "F#m",
+  "genre": "Rock",
+  "year": 1995,
+  "duration": 259
+ },
+ {
+  "id": 228,
+  "title": "Don't Look Back in Anger",
+  "artist": "Oasis",
+  "bpm": 83,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1996,
+  "duration": 288
+ },
+ {
+  "id": 229,
+  "title": "Champagne Supernova",
+  "artist": "Oasis",
+  "bpm": 78,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1996,
+  "duration": 452
+ },
+ {
+  "id": 230,
+  "title": "Live Forever",
+  "artist": "Oasis",
+  "bpm": 90,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1994,
+  "duration": 276
+ },
+ {
+  "id": 231,
+  "title": "Bitter Sweet Symphony",
+  "artist": "The Verve",
+  "bpm": 86,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1997,
+  "duration": 356
+ },
+ {
+  "id": 232,
+  "title": "Under the Bridge",
+  "artist": "Red Hot Chili Peppers",
+  "bpm": 84,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 264
+ },
+ {
+  "id": 233,
+  "title": "Californication",
+  "artist": "Red Hot Chili Peppers",
+  "bpm": 96,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1999,
+  "duration": 330
+ },
+ {
+  "id": 234,
+  "title": "Give It Away",
+  "artist": "Red Hot Chili Peppers",
+  "bpm": 92,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 284
+ },
+ {
+  "id": 235,
+  "title": "Scar Tissue",
+  "artist": "Red Hot Chili Peppers",
+  "bpm": 90,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1999,
+  "duration": 217
+ },
+ {
+  "id": 236,
+  "title": "Otherside",
+  "artist": "Red Hot Chili Peppers",
+  "bpm": 128,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 2000,
+  "duration": 255
+ },
+ {
+  "id": 237,
+  "title": "By the Way",
+  "artist": "Red Hot Chili Peppers",
+  "bpm": 122,
+  "key": "F",
+  "genre": "Rock",
+  "year": 2002,
+  "duration": 216
+ },
+ {
+  "id": 238,
+  "title": "Snow (Hey Oh)",
+  "artist": "Red Hot Chili Peppers",
+  "bpm": 105,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 2006,
+  "duration": 337
+ },
+ {
+  "id": 239,
+  "title": "Enter Sandman",
+  "artist": "Metallica",
+  "bpm": 123,
+  "key": "Em",
+  "genre": "Metal",
+  "year": 1991,
+  "duration": 332
+ },
+ {
+  "id": 240,
+  "title": "Nothing Else Matters",
+  "artist": "Metallica",
+  "bpm": 69,
+  "key": "Em",
+  "genre": "Metal",
+  "year": 1991,
+  "duration": 388
+ },
+ {
+  "id": 241,
+  "title": "Master of Puppets",
+  "artist": "Metallica",
+  "bpm": 212,
+  "key": "Em",
+  "genre": "Metal",
+  "year": 1986,
+  "duration": 516
+ },
+ {
+  "id": 242,
+  "title": "One",
+  "artist": "Metallica",
+  "bpm": 108,
+  "key": "Bm",
+  "genre": "Metal",
+  "year": 1988,
+  "duration": 446
+ },
+ {
+  "id": 243,
+  "title": "Fade to Black",
+  "artist": "Metallica",
+  "bpm": 116,
+  "key": "Bm",
+  "genre": "Metal",
+  "year": 1984,
+  "duration": 418
+ },
+ {
+  "id": 244,
+  "title": "Losing My Religion",
+  "artist": "R.E.M.",
+  "bpm": 126,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 270
+ },
+ {
+  "id": 245,
+  "title": "Everybody Hurts",
+  "artist": "R.E.M.",
+  "bpm": 68,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1992,
+  "duration": 316
+ },
+ {
+  "id": 246,
+  "title": "Man on the Moon",
+  "artist": "R.E.M.",
+  "bpm": 142,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1992,
+  "duration": 309
+ },
+ {
+  "id": 247,
+  "title": "Black Hole Sun",
+  "artist": "Soundgarden",
+  "bpm": 106,
+  "key": "Eb",
+  "genre": "Rock",
+  "year": 1994,
+  "duration": 319
+ },
+ {
+  "id": 248,
+  "title": "Jeremy",
+  "artist": "Pearl Jam",
+  "bpm": 108,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 318
+ },
+ {
+  "id": 249,
+  "title": "Alive",
+  "artist": "Pearl Jam",
+  "bpm": 76,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 341
+ },
+ {
+  "id": 250,
+  "title": "Even Flow",
+  "artist": "Pearl Jam",
+  "bpm": 100,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1991,
+  "duration": 293
+ },
+ {
+  "id": 251,
+  "title": "Would?",
+  "artist": "Alice in Chains",
+  "bpm": 108,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1992,
+  "duration": 209
+ },
+ {
+  "id": 252,
+  "title": "Man in the Box",
+  "artist": "Alice in Chains",
+  "bpm": 106,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1990,
+  "duration": 268
+ },
+ {
+  "id": 253,
+  "title": "Everlong",
+  "artist": "Foo Fighters",
+  "bpm": 158,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1997,
+  "duration": 250
+ },
+ {
+  "id": 254,
+  "title": "Learn to Fly",
+  "artist": "Foo Fighters",
+  "bpm": 136,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 1999,
+  "duration": 236
+ },
+ {
+  "id": 255,
+  "title": "My Hero",
+  "artist": "Foo Fighters",
+  "bpm": 172,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1997,
+  "duration": 260
+ },
+ {
+  "id": 256,
+  "title": "Best of You",
+  "artist": "Foo Fighters",
+  "bpm": 128,
+  "key": "Db",
+  "genre": "Rock",
+  "year": 2005,
+  "duration": 254
+ },
+ {
+  "id": 257,
+  "title": "The Pretender",
+  "artist": "Foo Fighters",
+  "bpm": 173,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 2007,
+  "duration": 269
+ },
+ {
+  "id": 258,
+  "title": "No Rain",
+  "artist": "Blind Melon",
+  "bpm": 130,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1992,
+  "duration": 218
+ },
+ {
+  "id": 259,
+  "title": "Basket Case",
+  "artist": "Green Day",
+  "bpm": 171,
+  "key": "Eb",
+  "genre": "Punk",
+  "year": 1994,
+  "duration": 181
+ },
+ {
+  "id": 260,
+  "title": "American Idiot",
+  "artist": "Green Day",
+  "bpm": 189,
+  "key": "Ab",
+  "genre": "Punk",
+  "year": 2004,
+  "duration": 177
+ },
+ {
+  "id": 261,
+  "title": "Boulevard of Broken Dreams",
+  "artist": "Green Day",
+  "bpm": 83,
+  "key": "Fm",
+  "genre": "Punk",
+  "year": 2004,
+  "duration": 262
+ },
+ {
+  "id": 262,
+  "title": "When I Come Around",
+  "artist": "Green Day",
+  "bpm": 96,
+  "key": "G",
+  "genre": "Punk",
+  "year": 1994,
+  "duration": 175
+ },
+ {
+  "id": 263,
+  "title": "Holiday",
+  "artist": "Green Day",
+  "bpm": 148,
+  "key": "Fm",
+  "genre": "Punk",
+  "year": 2004,
+  "duration": 232
+ },
+ {
+  "id": 264,
+  "title": "21 Guns",
+  "artist": "Green Day",
+  "bpm": 78,
+  "key": "Db",
+  "genre": "Rock",
+  "year": 2009,
+  "duration": 303
+ },
+ {
+  "id": 265,
+  "title": "Waterfalls",
+  "artist": "TLC",
+  "bpm": 80,
+  "key": "Ebm",
+  "genre": "R&B",
+  "year": 1995,
+  "duration": 271
+ },
+ {
+  "id": 266,
+  "title": "No Scrubs",
+  "artist": "TLC",
+  "bpm": 83,
+  "key": "Ebm",
+  "genre": "R&B",
+  "year": 1999,
+  "duration": 214
+ },
+ {
+  "id": 267,
+  "title": "Creep",
+  "artist": "TLC",
+  "bpm": 76,
+  "key": "Ab",
+  "genre": "R&B",
+  "year": 1994,
+  "duration": 261
+ },
+ {
+  "id": 268,
+  "title": "I'll Make Love to You",
+  "artist": "Boyz II Men",
+  "bpm": 63,
+  "key": "Db",
+  "genre": "R&B",
+  "year": 1994,
+  "duration": 243
+ },
+ {
+  "id": 269,
+  "title": "End of the Road",
+  "artist": "Boyz II Men",
+  "bpm": 60,
+  "key": "Ab",
+  "genre": "R&B",
+  "year": 1992,
+  "duration": 340
+ },
+ {
+  "id": 270,
+  "title": "Gangsta's Paradise",
+  "artist": "Coolio",
+  "bpm": 80,
+  "key": "Bbm",
+  "genre": "Hip-Hop",
+  "year": 1995,
+  "duration": 240
+ },
+ {
+  "id": 271,
+  "title": "California Love",
+  "artist": "2Pac",
+  "bpm": 92,
+  "key": "Fm",
+  "genre": "Hip-Hop",
+  "year": 1995,
+  "duration": 306
+ },
+ {
+  "id": 272,
+  "title": "Changes",
+  "artist": "2Pac",
+  "bpm": 73,
+  "key": "C",
+  "genre": "Hip-Hop",
+  "year": 1998,
+  "duration": 269
+ },
+ {
+  "id": 273,
+  "title": "Dear Mama",
+  "artist": "2Pac",
+  "bpm": 75,
+  "key": "Db",
+  "genre": "Hip-Hop",
+  "year": 1995,
+  "duration": 290
+ },
+ {
+  "id": 274,
+  "title": "Juicy",
+  "artist": "The Notorious B.I.G.",
+  "bpm": 96,
+  "key": "Eb",
+  "genre": "Hip-Hop",
+  "year": 1994,
+  "duration": 302
+ },
+ {
+  "id": 275,
+  "title": "Big Poppa",
+  "artist": "The Notorious B.I.G.",
+  "bpm": 90,
+  "key": "Ab",
+  "genre": "Hip-Hop",
+  "year": 1994,
+  "duration": 258
+ },
+ {
+  "id": 276,
+  "title": "Hypnotize",
+  "artist": "The Notorious B.I.G.",
+  "bpm": 93,
+  "key": "Eb",
+  "genre": "Hip-Hop",
+  "year": 1997,
+  "duration": 226
+ },
+ {
+  "id": 277,
+  "title": "C.R.E.A.M.",
+  "artist": "Wu-Tang Clan",
+  "bpm": 81,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 1993,
+  "duration": 243
+ },
+ {
+  "id": 278,
+  "title": "Shook Ones Pt. II",
+  "artist": "Mobb Deep",
+  "bpm": 95,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 1995,
+  "duration": 302
+ },
+ {
+  "id": 279,
+  "title": "Ready or Not",
+  "artist": "Fugees",
+  "bpm": 100,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 1996,
+  "duration": 259
+ },
+ {
+  "id": 280,
+  "title": "Killing Me Softly",
+  "artist": "Fugees",
+  "bpm": 96,
+  "key": "Fm",
+  "genre": "Hip-Hop",
+  "year": 1996,
+  "duration": 301
+ },
+ {
+  "id": 281,
+  "title": "Ms. Jackson",
+  "artist": "OutKast",
+  "bpm": 82,
+  "key": "A",
+  "genre": "Hip-Hop",
+  "year": 2000,
+  "duration": 261
+ },
+ {
+  "id": 282,
+  "title": "Hey Ya!",
+  "artist": "OutKast",
+  "bpm": 160,
+  "key": "G",
+  "genre": "Pop",
+  "year": 2003,
+  "duration": 249
+ },
+ {
+  "id": 283,
+  "title": "Roses",
+  "artist": "OutKast",
+  "bpm": 78,
+  "key": "G",
+  "genre": "Hip-Hop",
+  "year": 2003,
+  "duration": 375
+ },
+ {
+  "id": 284,
+  "title": "So Fresh So Clean",
+  "artist": "OutKast",
+  "bpm": 76,
+  "key": "C",
+  "genre": "Hip-Hop",
+  "year": 2000,
+  "duration": 258
+ },
+ {
+  "id": 285,
+  "title": "Jump Around",
+  "artist": "House of Pain",
+  "bpm": 107,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 1992,
+  "duration": 215
+ },
+ {
+  "id": 286,
+  "title": "Insane in the Brain",
+  "artist": "Cypress Hill",
+  "bpm": 96,
+  "key": "Eb",
+  "genre": "Hip-Hop",
+  "year": 1993,
+  "duration": 210
+ },
+ {
+  "id": 287,
+  "title": "Regulate",
+  "artist": "Warren G ft. Nate Dogg",
+  "bpm": 94,
+  "key": "Ab",
+  "genre": "Hip-Hop",
+  "year": 1994,
+  "duration": 244
+ },
+ {
+  "id": 288,
+  "title": "U Can't Touch This",
+  "artist": "MC Hammer",
+  "bpm": 133,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 1990,
+  "duration": 254
+ },
+ {
+  "id": 289,
+  "title": "Baby Got Back",
+  "artist": "Sir Mix-a-Lot",
+  "bpm": 130,
+  "key": "G",
+  "genre": "Hip-Hop",
+  "year": 1992,
+  "duration": 258
+ },
+ {
+  "id": 290,
+  "title": "Gin and Juice",
+  "artist": "Snoop Dogg",
+  "bpm": 92,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 1993,
+  "duration": 259
+ },
+ {
+  "id": 291,
+  "title": "Ice Ice Baby",
+  "artist": "Vanilla Ice",
+  "bpm": 117,
+  "key": "D",
+  "genre": "Hip-Hop",
+  "year": 1990,
+  "duration": 262
+ },
+ {
+  "id": 292,
+  "title": "No Diggity",
+  "artist": "Blackstreet",
+  "bpm": 85,
+  "key": "Cm",
+  "genre": "R&B",
+  "year": 1996,
+  "duration": 294
+ },
+ {
+  "id": 293,
+  "title": "Wannabe",
+  "artist": "Spice Girls",
+  "bpm": 110,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 1996,
+  "duration": 173
+ },
+ {
+  "id": 294,
+  "title": "Say You'll Be There",
+  "artist": "Spice Girls",
+  "bpm": 100,
+  "key": "Abm",
+  "genre": "Pop",
+  "year": 1996,
+  "duration": 236
+ },
+ {
+  "id": 295,
+  "title": "MMMBop",
+  "artist": "Hanson",
+  "bpm": 104,
+  "key": "A",
+  "genre": "Pop",
+  "year": 1997,
+  "duration": 256
+ },
+ {
+  "id": 296,
+  "title": "...Baby One More Time",
+  "artist": "Britney Spears",
+  "bpm": 93,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 1998,
+  "duration": 210
+ },
+ {
+  "id": 297,
+  "title": "Oops!...I Did It Again",
+  "artist": "Britney Spears",
+  "bpm": 95,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2000,
+  "duration": 212
+ },
+ {
+  "id": 298,
+  "title": "Toxic",
+  "artist": "Britney Spears",
+  "bpm": 143,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 2003,
+  "duration": 200
+ },
+ {
+  "id": 299,
+  "title": "Genie in a Bottle",
+  "artist": "Christina Aguilera",
+  "bpm": 84,
+  "key": "Fm",
+  "genre": "Pop",
+  "year": 1999,
+  "duration": 226
+ },
+ {
+  "id": 300,
+  "title": "Livin' La Vida Loca",
+  "artist": "Ricky Martin",
+  "bpm": 178,
+  "key": "C#m",
+  "genre": "Latin",
+  "year": 1999,
+  "duration": 219
+ },
+ {
+  "id": 301,
+  "title": "Macarena",
+  "artist": "Los Del Rio",
+  "bpm": 103,
+  "key": "Bb",
+  "genre": "Latin",
+  "year": 1995,
+  "duration": 213
+ },
+ {
+  "id": 302,
+  "title": "Smooth",
+  "artist": "Santana ft. Rob Thomas",
+  "bpm": 116,
+  "key": "Am",
+  "genre": "Latin",
+  "year": 1999,
+  "duration": 298
+ },
+ {
+  "id": 303,
+  "title": "Iris",
+  "artist": "Goo Goo Dolls",
+  "bpm": 100,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1998,
+  "duration": 283
+ },
+ {
+  "id": 304,
+  "title": "Slide",
+  "artist": "Goo Goo Dolls",
+  "bpm": 91,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1998,
+  "duration": 215
+ },
+ {
+  "id": 305,
+  "title": "Closing Time",
+  "artist": "Semisonic",
+  "bpm": 115,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1998,
+  "duration": 284
+ },
+ {
+  "id": 306,
+  "title": "I Want It That Way",
+  "artist": "Backstreet Boys",
+  "bpm": 100,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 1999,
+  "duration": 215
+ },
+ {
+  "id": 307,
+  "title": "Everybody (Backstreet's Back)",
+  "artist": "Backstreet Boys",
+  "bpm": 108,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 1997,
+  "duration": 233
+ },
+ {
+  "id": 308,
+  "title": "Larger Than Life",
+  "artist": "Backstreet Boys",
+  "bpm": 124,
+  "key": "Em",
+  "genre": "Pop",
+  "year": 1999,
+  "duration": 235
+ },
+ {
+  "id": 309,
+  "title": "Bye Bye Bye",
+  "artist": "NSYNC",
+  "bpm": 172,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2000,
+  "duration": 200
+ },
+ {
+  "id": 310,
+  "title": "It's Gonna Be Me",
+  "artist": "NSYNC",
+  "bpm": 108,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2000,
+  "duration": 193
+ },
+ {
+  "id": 311,
+  "title": "Tearin' Up My Heart",
+  "artist": "NSYNC",
+  "bpm": 136,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 1997,
+  "duration": 222
+ },
+ {
+  "id": 312,
+  "title": "Tubthumping",
+  "artist": "Chumbawamba",
+  "bpm": 104,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1997,
+  "duration": 216
+ },
+ {
+  "id": 313,
+  "title": "Return of the Mack",
+  "artist": "Mark Morrison",
+  "bpm": 99,
+  "key": "Gm",
+  "genre": "R&B",
+  "year": 1996,
+  "duration": 213
+ },
+ {
+  "id": 314,
+  "title": "Semi-Charmed Life",
+  "artist": "Third Eye Blind",
+  "bpm": 104,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1997,
+  "duration": 268
+ },
+ {
+  "id": 315,
+  "title": "Zombie",
+  "artist": "The Cranberries",
+  "bpm": 83,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1994,
+  "duration": 307
+ },
+ {
+  "id": 316,
+  "title": "Linger",
+  "artist": "The Cranberries",
+  "bpm": 94,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1993,
+  "duration": 271
+ },
+ {
+  "id": 317,
+  "title": "Crazy in Love",
+  "artist": "Beyonc\u00e9 ft. Jay-Z",
+  "bpm": 100,
+  "key": "Dm",
+  "genre": "R&B",
+  "year": 2003,
+  "duration": 236
+ },
+ {
+  "id": 318,
+  "title": "Halo",
+  "artist": "Beyonc\u00e9",
+  "bpm": 84,
+  "key": "A",
+  "genre": "Pop",
+  "year": 2008,
+  "duration": 262
+ },
+ {
+  "id": 319,
+  "title": "Single Ladies",
+  "artist": "Beyonc\u00e9",
+  "bpm": 193,
+  "key": "E",
+  "genre": "R&B",
+  "year": 2008,
+  "duration": 196
+ },
+ {
+  "id": 320,
+  "title": "Irreplaceable",
+  "artist": "Beyonc\u00e9",
+  "bpm": 88,
+  "key": "Db",
+  "genre": "R&B",
+  "year": 2006,
+  "duration": 237
+ },
+ {
+  "id": 321,
+  "title": "Love on Top",
+  "artist": "Beyonc\u00e9",
+  "bpm": 172,
+  "key": "C",
+  "genre": "R&B",
+  "year": 2011,
+  "duration": 278
+ },
+ {
+  "id": 322,
+  "title": "Drunk in Love",
+  "artist": "Beyonc\u00e9 ft. Jay-Z",
+  "bpm": 80,
+  "key": "Ebm",
+  "genre": "R&B",
+  "year": 2013,
+  "duration": 333
+ },
+ {
+  "id": 323,
+  "title": "Formation",
+  "artist": "Beyonc\u00e9",
+  "bpm": 130,
+  "key": "Gm",
+  "genre": "R&B",
+  "year": 2016,
+  "duration": 221
+ },
+ {
+  "id": 324,
+  "title": "Lemonade",
+  "artist": "Beyonc\u00e9",
+  "bpm": 92,
+  "key": "Cm",
+  "genre": "R&B",
+  "year": 2016,
+  "duration": 246
+ },
+ {
+  "id": 325,
+  "title": "In Da Club",
+  "artist": "50 Cent",
+  "bpm": 90,
+  "key": "C#m",
+  "genre": "Hip-Hop",
+  "year": 2003,
+  "duration": 193
+ },
+ {
+  "id": 326,
+  "title": "Lose Yourself",
+  "artist": "Eminem",
+  "bpm": 86,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 2002,
+  "duration": 326
+ },
+ {
+  "id": 327,
+  "title": "Stan",
+  "artist": "Eminem",
+  "bpm": 82,
+  "key": "Bm",
+  "genre": "Hip-Hop",
+  "year": 2000,
+  "duration": 404
+ },
+ {
+  "id": 328,
+  "title": "The Real Slim Shady",
+  "artist": "Eminem",
+  "bpm": 104,
+  "key": "G#m",
+  "genre": "Hip-Hop",
+  "year": 2000,
+  "duration": 283
+ },
+ {
+  "id": 329,
+  "title": "Without Me",
+  "artist": "Eminem",
+  "bpm": 105,
+  "key": "C#m",
+  "genre": "Hip-Hop",
+  "year": 2002,
+  "duration": 290
+ },
+ {
+  "id": 330,
+  "title": "Love the Way You Lie",
+  "artist": "Eminem ft. Rihanna",
+  "bpm": 87,
+  "key": "Em",
+  "genre": "Hip-Hop",
+  "year": 2010,
+  "duration": 263
+ },
+ {
+  "id": 331,
+  "title": "Rap God",
+  "artist": "Eminem",
+  "bpm": 148,
+  "key": "F#m",
+  "genre": "Hip-Hop",
+  "year": 2013,
+  "duration": 364
+ },
+ {
+  "id": 332,
+  "title": "Empire State of Mind",
+  "artist": "Jay-Z ft. Alicia Keys",
+  "bpm": 86,
+  "key": "F#",
+  "genre": "Hip-Hop",
+  "year": 2009,
+  "duration": 276
+ },
+ {
+  "id": 333,
+  "title": "99 Problems",
+  "artist": "Jay-Z",
+  "bpm": 87,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2004,
+  "duration": 224
+ },
+ {
+  "id": 334,
+  "title": "Hard Knock Life",
+  "artist": "Jay-Z",
+  "bpm": 104,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 1998,
+  "duration": 231
+ },
+ {
+  "id": 335,
+  "title": "Izzo (H.O.V.A.)",
+  "artist": "Jay-Z",
+  "bpm": 96,
+  "key": "Eb",
+  "genre": "Hip-Hop",
+  "year": 2001,
+  "duration": 240
+ },
+ {
+  "id": 336,
+  "title": "Gold Digger",
+  "artist": "Kanye West ft. Jamie Foxx",
+  "bpm": 91,
+  "key": "Db",
+  "genre": "Hip-Hop",
+  "year": 2005,
+  "duration": 209
+ },
+ {
+  "id": 337,
+  "title": "Stronger",
+  "artist": "Kanye West",
+  "bpm": 104,
+  "key": "F#m",
+  "genre": "Hip-Hop",
+  "year": 2007,
+  "duration": 312
+ },
+ {
+  "id": 338,
+  "title": "Heartless",
+  "artist": "Kanye West",
+  "bpm": 87,
+  "key": "C#m",
+  "genre": "Hip-Hop",
+  "year": 2008,
+  "duration": 211
+ },
+ {
+  "id": 339,
+  "title": "Power",
+  "artist": "Kanye West",
+  "bpm": 79,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2010,
+  "duration": 292
+ },
+ {
+  "id": 340,
+  "title": "Runaway",
+  "artist": "Kanye West",
+  "bpm": 84,
+  "key": "E",
+  "genre": "Hip-Hop",
+  "year": 2010,
+  "duration": 548
+ },
+ {
+  "id": 341,
+  "title": "All of the Lights",
+  "artist": "Kanye West",
+  "bpm": 120,
+  "key": "F#",
+  "genre": "Hip-Hop",
+  "year": 2010,
+  "duration": 293
+ },
+ {
+  "id": 342,
+  "title": "Ni**as in Paris",
+  "artist": "Jay-Z & Kanye West",
+  "bpm": 140,
+  "key": "A",
+  "genre": "Hip-Hop",
+  "year": 2011,
+  "duration": 218
+ },
+ {
+  "id": 343,
+  "title": "Clocks",
+  "artist": "Coldplay",
+  "bpm": 131,
+  "key": "Eb",
+  "genre": "Rock",
+  "year": 2002,
+  "duration": 307
+ },
+ {
+  "id": 344,
+  "title": "The Scientist",
+  "artist": "Coldplay",
+  "bpm": 74,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 2002,
+  "duration": 309
+ },
+ {
+  "id": 345,
+  "title": "Fix You",
+  "artist": "Coldplay",
+  "bpm": 69,
+  "key": "Eb",
+  "genre": "Rock",
+  "year": 2005,
+  "duration": 295
+ },
+ {
+  "id": 346,
+  "title": "Yellow",
+  "artist": "Coldplay",
+  "bpm": 87,
+  "key": "B",
+  "genre": "Rock",
+  "year": 2000,
+  "duration": 266
+ },
+ {
+  "id": 347,
+  "title": "Viva la Vida",
+  "artist": "Coldplay",
+  "bpm": 138,
+  "key": "Ab",
+  "genre": "Rock",
+  "year": 2008,
+  "duration": 242
+ },
+ {
+  "id": 348,
+  "title": "Paradise",
+  "artist": "Coldplay",
+  "bpm": 140,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 2011,
+  "duration": 277
+ },
+ {
+  "id": 349,
+  "title": "Something Just Like This",
+  "artist": "The Chainsmokers & Coldplay",
+  "bpm": 103,
+  "key": "G",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 247
+ },
+ {
+  "id": 350,
+  "title": "Mr. Brightside",
+  "artist": "The Killers",
+  "bpm": 148,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 2004,
+  "duration": 222
+ },
+ {
+  "id": 351,
+  "title": "Somebody Told Me",
+  "artist": "The Killers",
+  "bpm": 138,
+  "key": "Bbm",
+  "genre": "Rock",
+  "year": 2004,
+  "duration": 197
+ },
+ {
+  "id": 352,
+  "title": "Human",
+  "artist": "The Killers",
+  "bpm": 130,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 2008,
+  "duration": 247
+ },
+ {
+  "id": 353,
+  "title": "Seven Nation Army",
+  "artist": "The White Stripes",
+  "bpm": 124,
+  "key": "E",
+  "genre": "Rock",
+  "year": 2003,
+  "duration": 232
+ },
+ {
+  "id": 354,
+  "title": "Feel Good Inc",
+  "artist": "Gorillaz",
+  "bpm": 138,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 2005,
+  "duration": 222
+ },
+ {
+  "id": 355,
+  "title": "Clint Eastwood",
+  "artist": "Gorillaz",
+  "bpm": 86,
+  "key": "F#m",
+  "genre": "Rock",
+  "year": 2001,
+  "duration": 340
+ },
+ {
+  "id": 356,
+  "title": "Crazy",
+  "artist": "Gnarls Barkley",
+  "bpm": 112,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 2006,
+  "duration": 178
+ },
+ {
+  "id": 357,
+  "title": "Chasing Cars",
+  "artist": "Snow Patrol",
+  "bpm": 104,
+  "key": "A",
+  "genre": "Rock",
+  "year": 2006,
+  "duration": 267
+ },
+ {
+  "id": 358,
+  "title": "Since U Been Gone",
+  "artist": "Kelly Clarkson",
+  "bpm": 132,
+  "key": "G",
+  "genre": "Pop",
+  "year": 2004,
+  "duration": 186
+ },
+ {
+  "id": 359,
+  "title": "Stronger",
+  "artist": "Kelly Clarkson",
+  "bpm": 116,
+  "key": "G",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 222
+ },
+ {
+  "id": 360,
+  "title": "Umbrella",
+  "artist": "Rihanna ft. Jay-Z",
+  "bpm": 86,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2007,
+  "duration": 276
+ },
+ {
+  "id": 361,
+  "title": "We Found Love",
+  "artist": "Rihanna ft. Calvin Harris",
+  "bpm": 128,
+  "key": "G#m",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 215
+ },
+ {
+  "id": 362,
+  "title": "Diamonds",
+  "artist": "Rihanna",
+  "bpm": 92,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 2012,
+  "duration": 225
+ },
+ {
+  "id": 363,
+  "title": "Don't Stop the Music",
+  "artist": "Rihanna",
+  "bpm": 123,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2007,
+  "duration": 267
+ },
+ {
+  "id": 364,
+  "title": "Only Girl (In the World)",
+  "artist": "Rihanna",
+  "bpm": 126,
+  "key": "Ebm",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 235
+ },
+ {
+  "id": 365,
+  "title": "Rude Boy",
+  "artist": "Rihanna",
+  "bpm": 87,
+  "key": "Ebm",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 222
+ },
+ {
+  "id": 366,
+  "title": "Work",
+  "artist": "Rihanna ft. Drake",
+  "bpm": 92,
+  "key": "C#m",
+  "genre": "R&B",
+  "year": 2016,
+  "duration": 219
+ },
+ {
+  "id": 367,
+  "title": "Rehab",
+  "artist": "Amy Winehouse",
+  "bpm": 144,
+  "key": "C",
+  "genre": "Soul",
+  "year": 2006,
+  "duration": 213
+ },
+ {
+  "id": 368,
+  "title": "Back to Black",
+  "artist": "Amy Winehouse",
+  "bpm": 110,
+  "key": "Dm",
+  "genre": "Soul",
+  "year": 2006,
+  "duration": 241
+ },
+ {
+  "id": 369,
+  "title": "Valerie",
+  "artist": "Amy Winehouse",
+  "bpm": 100,
+  "key": "Eb",
+  "genre": "Soul",
+  "year": 2007,
+  "duration": 213
+ },
+ {
+  "id": 370,
+  "title": "Paper Planes",
+  "artist": "M.I.A.",
+  "bpm": 125,
+  "key": "Bbm",
+  "genre": "Hip-Hop",
+  "year": 2007,
+  "duration": 215
+ },
+ {
+  "id": 371,
+  "title": "Yeah!",
+  "artist": "Usher ft. Lil Jon",
+  "bpm": 105,
+  "key": "Ebm",
+  "genre": "R&B",
+  "year": 2004,
+  "duration": 250
+ },
+ {
+  "id": 372,
+  "title": "Let Me Love You",
+  "artist": "Mario",
+  "bpm": 88,
+  "key": "Dm",
+  "genre": "R&B",
+  "year": 2004,
+  "duration": 319
+ },
+ {
+  "id": 373,
+  "title": "Burn",
+  "artist": "Usher",
+  "bpm": 88,
+  "key": "Dm",
+  "genre": "R&B",
+  "year": 2004,
+  "duration": 283
+ },
+ {
+  "id": 374,
+  "title": "Beautiful",
+  "artist": "Christina Aguilera",
+  "bpm": 76,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 2002,
+  "duration": 239
+ },
+ {
+  "id": 375,
+  "title": "Dirrty",
+  "artist": "Christina Aguilera",
+  "bpm": 100,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 2002,
+  "duration": 240
+ },
+ {
+  "id": 376,
+  "title": "Get the Party Started",
+  "artist": "Pink",
+  "bpm": 126,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 2001,
+  "duration": 185
+ },
+ {
+  "id": 377,
+  "title": "Raise Your Glass",
+  "artist": "Pink",
+  "bpm": 128,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 197
+ },
+ {
+  "id": 378,
+  "title": "Hot in Herre",
+  "artist": "Nelly",
+  "bpm": 80,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2002,
+  "duration": 231
+ },
+ {
+  "id": 379,
+  "title": "Dilemma",
+  "artist": "Nelly ft. Kelly Rowland",
+  "bpm": 80,
+  "key": "Abm",
+  "genre": "R&B",
+  "year": 2002,
+  "duration": 279
+ },
+ {
+  "id": 380,
+  "title": "Shake Ya Tailfeather",
+  "artist": "Nelly",
+  "bpm": 132,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 2003,
+  "duration": 281
+ },
+ {
+  "id": 381,
+  "title": "Rolling in the Deep",
+  "artist": "Adele",
+  "bpm": 105,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 228
+ },
+ {
+  "id": 382,
+  "title": "Someone Like You",
+  "artist": "Adele",
+  "bpm": 68,
+  "key": "A",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 285
+ },
+ {
+  "id": 383,
+  "title": "Hello",
+  "artist": "Adele",
+  "bpm": 79,
+  "key": "Fm",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 295
+ },
+ {
+  "id": 384,
+  "title": "Set Fire to the Rain",
+  "artist": "Adele",
+  "bpm": 108,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 242
+ },
+ {
+  "id": 385,
+  "title": "Skyfall",
+  "artist": "Adele",
+  "bpm": 75,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 2012,
+  "duration": 286
+ },
+ {
+  "id": 386,
+  "title": "Easy on Me",
+  "artist": "Adele",
+  "bpm": 72,
+  "key": "F",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 216
+ },
+ {
+  "id": 387,
+  "title": "Shape of You",
+  "artist": "Ed Sheeran",
+  "bpm": 96,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 234
+ },
+ {
+  "id": 388,
+  "title": "Thinking Out Loud",
+  "artist": "Ed Sheeran",
+  "bpm": 79,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 281
+ },
+ {
+  "id": 389,
+  "title": "Perfect",
+  "artist": "Ed Sheeran",
+  "bpm": 95,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 263
+ },
+ {
+  "id": 390,
+  "title": "Castle on the Hill",
+  "artist": "Ed Sheeran",
+  "bpm": 135,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 261
+ },
+ {
+  "id": 391,
+  "title": "Photograph",
+  "artist": "Ed Sheeran",
+  "bpm": 108,
+  "key": "E",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 258
+ },
+ {
+  "id": 392,
+  "title": "Bad Habits",
+  "artist": "Ed Sheeran",
+  "bpm": 126,
+  "key": "Bm",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 231
+ },
+ {
+  "id": 393,
+  "title": "Uptown Funk",
+  "artist": "Bruno Mars ft. Mark Ronson",
+  "bpm": 115,
+  "key": "Dm",
+  "genre": "Funk",
+  "year": 2014,
+  "duration": 270
+ },
+ {
+  "id": 394,
+  "title": "Just the Way You Are",
+  "artist": "Bruno Mars",
+  "bpm": 109,
+  "key": "F",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 221
+ },
+ {
+  "id": 395,
+  "title": "Grenade",
+  "artist": "Bruno Mars",
+  "bpm": 110,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 223
+ },
+ {
+  "id": 396,
+  "title": "24K Magic",
+  "artist": "Bruno Mars",
+  "bpm": 107,
+  "key": "Abm",
+  "genre": "Funk",
+  "year": 2016,
+  "duration": 227
+ },
+ {
+  "id": 397,
+  "title": "That's What I Like",
+  "artist": "Bruno Mars",
+  "bpm": 134,
+  "key": "Ebm",
+  "genre": "R&B",
+  "year": 2017,
+  "duration": 206
+ },
+ {
+  "id": 398,
+  "title": "Locked Out of Heaven",
+  "artist": "Bruno Mars",
+  "bpm": 146,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2012,
+  "duration": 233
+ },
+ {
+  "id": 399,
+  "title": "Treasure",
+  "artist": "Bruno Mars",
+  "bpm": 116,
+  "key": "Ebm",
+  "genre": "Funk",
+  "year": 2012,
+  "duration": 178
+ },
+ {
+  "id": 400,
+  "title": "When I Was Your Man",
+  "artist": "Bruno Mars",
+  "bpm": 74,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2012,
+  "duration": 214
+ },
+ {
+  "id": 401,
+  "title": "Shake It Off",
+  "artist": "Taylor Swift",
+  "bpm": 160,
+  "key": "G",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 219
+ },
+ {
+  "id": 402,
+  "title": "Love Story",
+  "artist": "Taylor Swift",
+  "bpm": 119,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2008,
+  "duration": 235
+ },
+ {
+  "id": 403,
+  "title": "You Belong with Me",
+  "artist": "Taylor Swift",
+  "bpm": 130,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2009,
+  "duration": 231
+ },
+ {
+  "id": 404,
+  "title": "Blank Space",
+  "artist": "Taylor Swift",
+  "bpm": 96,
+  "key": "F",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 232
+ },
+ {
+  "id": 405,
+  "title": "Bad Blood",
+  "artist": "Taylor Swift",
+  "bpm": 170,
+  "key": "G",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 211
+ },
+ {
+  "id": 406,
+  "title": "Style",
+  "artist": "Taylor Swift",
+  "bpm": 95,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 231
+ },
+ {
+  "id": 407,
+  "title": "Wildest Dreams",
+  "artist": "Taylor Swift",
+  "bpm": 140,
+  "key": "B",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 220
+ },
+ {
+  "id": 408,
+  "title": "Cruel Summer",
+  "artist": "Taylor Swift",
+  "bpm": 170,
+  "key": "A",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 178
+ },
+ {
+  "id": 409,
+  "title": "Anti-Hero",
+  "artist": "Taylor Swift",
+  "bpm": 97,
+  "key": "E",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 200
+ },
+ {
+  "id": 410,
+  "title": "All Too Well (10 Minute Version)",
+  "artist": "Taylor Swift",
+  "bpm": 93,
+  "key": "G",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 613
+ },
+ {
+  "id": 411,
+  "title": "Blinding Lights",
+  "artist": "The Weeknd",
+  "bpm": 171,
+  "key": "Fm",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 200
+ },
+ {
+  "id": 412,
+  "title": "Starboy",
+  "artist": "The Weeknd ft. Daft Punk",
+  "bpm": 186,
+  "key": "Am",
+  "genre": "R&B",
+  "year": 2016,
+  "duration": 230
+ },
+ {
+  "id": 413,
+  "title": "Can't Feel My Face",
+  "artist": "The Weeknd",
+  "bpm": 108,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 213
+ },
+ {
+  "id": 414,
+  "title": "The Hills",
+  "artist": "The Weeknd",
+  "bpm": 113,
+  "key": "Dbm",
+  "genre": "R&B",
+  "year": 2015,
+  "duration": 242
+ },
+ {
+  "id": 415,
+  "title": "Save Your Tears",
+  "artist": "The Weeknd",
+  "bpm": 118,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 2020,
+  "duration": 215
+ },
+ {
+  "id": 416,
+  "title": "Earned It",
+  "artist": "The Weeknd",
+  "bpm": 120,
+  "key": "Bbm",
+  "genre": "R&B",
+  "year": 2014,
+  "duration": 253
+ },
+ {
+  "id": 417,
+  "title": "After Hours",
+  "artist": "The Weeknd",
+  "bpm": 108,
+  "key": "Dm",
+  "genre": "R&B",
+  "year": 2020,
+  "duration": 361
+ },
+ {
+  "id": 418,
+  "title": "Hotline Bling",
+  "artist": "Drake",
+  "bpm": 135,
+  "key": "Dbm",
+  "genre": "R&B",
+  "year": 2015,
+  "duration": 267
+ },
+ {
+  "id": 419,
+  "title": "God's Plan",
+  "artist": "Drake",
+  "bpm": 77,
+  "key": "Bbm",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 199
+ },
+ {
+  "id": 420,
+  "title": "In My Feelings",
+  "artist": "Drake",
+  "bpm": 91,
+  "key": "Bm",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 218
+ },
+ {
+  "id": 421,
+  "title": "One Dance",
+  "artist": "Drake",
+  "bpm": 104,
+  "key": "C#m",
+  "genre": "R&B",
+  "year": 2016,
+  "duration": 174
+ },
+ {
+  "id": 422,
+  "title": "Started from the Bottom",
+  "artist": "Drake",
+  "bpm": 84,
+  "key": "Bbm",
+  "genre": "Hip-Hop",
+  "year": 2013,
+  "duration": 178
+ },
+ {
+  "id": 423,
+  "title": "Hold On We're Going Home",
+  "artist": "Drake",
+  "bpm": 100,
+  "key": "Cm",
+  "genre": "R&B",
+  "year": 2013,
+  "duration": 231
+ },
+ {
+  "id": 424,
+  "title": "Nice for What",
+  "artist": "Drake",
+  "bpm": 133,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 211
+ },
+ {
+  "id": 425,
+  "title": "Passionfruit",
+  "artist": "Drake",
+  "bpm": 112,
+  "key": "Dm",
+  "genre": "R&B",
+  "year": 2017,
+  "duration": 299
+ },
+ {
+  "id": 426,
+  "title": "HUMBLE.",
+  "artist": "Kendrick Lamar",
+  "bpm": 150,
+  "key": "F#m",
+  "genre": "Hip-Hop",
+  "year": 2017,
+  "duration": 177
+ },
+ {
+  "id": 427,
+  "title": "Alright",
+  "artist": "Kendrick Lamar",
+  "bpm": 118,
+  "key": "F#m",
+  "genre": "Hip-Hop",
+  "year": 2015,
+  "duration": 219
+ },
+ {
+  "id": 428,
+  "title": "DNA.",
+  "artist": "Kendrick Lamar",
+  "bpm": 140,
+  "key": "Gm",
+  "genre": "Hip-Hop",
+  "year": 2017,
+  "duration": 185
+ },
+ {
+  "id": 429,
+  "title": "Swimming Pools",
+  "artist": "Kendrick Lamar",
+  "bpm": 74,
+  "key": "Bbm",
+  "genre": "Hip-Hop",
+  "year": 2012,
+  "duration": 313
+ },
+ {
+  "id": 430,
+  "title": "Money Trees",
+  "artist": "Kendrick Lamar",
+  "bpm": 72,
+  "key": "Em",
+  "genre": "Hip-Hop",
+  "year": 2012,
+  "duration": 387
+ },
+ {
+  "id": 431,
+  "title": "LOYALTY.",
+  "artist": "Kendrick Lamar ft. Rihanna",
+  "bpm": 98,
+  "key": "Em",
+  "genre": "Hip-Hop",
+  "year": 2017,
+  "duration": 188
+ },
+ {
+  "id": 432,
+  "title": "King Kunta",
+  "artist": "Kendrick Lamar",
+  "bpm": 106,
+  "key": "Bbm",
+  "genre": "Hip-Hop",
+  "year": 2015,
+  "duration": 234
+ },
+ {
+  "id": 433,
+  "title": "Get Lucky",
+  "artist": "Daft Punk ft. Pharrell",
+  "bpm": 116,
+  "key": "F#m",
+  "genre": "Electronic",
+  "year": 2013,
+  "duration": 369
+ },
+ {
+  "id": 434,
+  "title": "Around the World",
+  "artist": "Daft Punk",
+  "bpm": 121,
+  "key": "Em",
+  "genre": "Electronic",
+  "year": 1997,
+  "duration": 427
+ },
+ {
+  "id": 435,
+  "title": "One More Time",
+  "artist": "Daft Punk",
+  "bpm": 123,
+  "key": "Bbm",
+  "genre": "Electronic",
+  "year": 2000,
+  "duration": 320
+ },
+ {
+  "id": 436,
+  "title": "Harder Better Faster Stronger",
+  "artist": "Daft Punk",
+  "bpm": 123,
+  "key": "F#m",
+  "genre": "Electronic",
+  "year": 2001,
+  "duration": 231
+ },
+ {
+  "id": 437,
+  "title": "Instant Crush",
+  "artist": "Daft Punk ft. Julian Casablancas",
+  "bpm": 106,
+  "key": "F#m",
+  "genre": "Electronic",
+  "year": 2013,
+  "duration": 337
+ },
+ {
+  "id": 438,
+  "title": "Titanium",
+  "artist": "David Guetta ft. Sia",
+  "bpm": 126,
+  "key": "Eb",
+  "genre": "EDM",
+  "year": 2011,
+  "duration": 245
+ },
+ {
+  "id": 439,
+  "title": "Levels",
+  "artist": "Avicii",
+  "bpm": 126,
+  "key": "Am",
+  "genre": "EDM",
+  "year": 2011,
+  "duration": 207
+ },
+ {
+  "id": 440,
+  "title": "Wake Me Up",
+  "artist": "Avicii",
+  "bpm": 124,
+  "key": "Bm",
+  "genre": "EDM",
+  "year": 2013,
+  "duration": 250
+ },
+ {
+  "id": 441,
+  "title": "Waiting for Love",
+  "artist": "Avicii",
+  "bpm": 128,
+  "key": "Am",
+  "genre": "EDM",
+  "year": 2015,
+  "duration": 231
+ },
+ {
+  "id": 442,
+  "title": "The Nights",
+  "artist": "Avicii",
+  "bpm": 126,
+  "key": "C",
+  "genre": "EDM",
+  "year": 2014,
+  "duration": 177
+ },
+ {
+  "id": 443,
+  "title": "Hey Brother",
+  "artist": "Avicii",
+  "bpm": 125,
+  "key": "Dm",
+  "genre": "EDM",
+  "year": 2013,
+  "duration": 255
+ },
+ {
+  "id": 444,
+  "title": "Don't You Worry Child",
+  "artist": "Swedish House Mafia",
+  "bpm": 128,
+  "key": "Abm",
+  "genre": "EDM",
+  "year": 2012,
+  "duration": 211
+ },
+ {
+  "id": 445,
+  "title": "Lean On",
+  "artist": "Major Lazer & DJ Snake",
+  "bpm": 98,
+  "key": "G#m",
+  "genre": "EDM",
+  "year": 2015,
+  "duration": 177
+ },
+ {
+  "id": 446,
+  "title": "Where Are \u00dc Now",
+  "artist": "Jack \u00dc ft. Justin Bieber",
+  "bpm": 139,
+  "key": "Gbm",
+  "genre": "EDM",
+  "year": 2015,
+  "duration": 201
+ },
+ {
+  "id": 447,
+  "title": "Scary Monsters and Nice Sprites",
+  "artist": "Skrillex",
+  "bpm": 140,
+  "key": "Am",
+  "genre": "EDM",
+  "year": 2010,
+  "duration": 260
+ },
+ {
+  "id": 448,
+  "title": "Bangarang",
+  "artist": "Skrillex ft. Sirah",
+  "bpm": 110,
+  "key": "Em",
+  "genre": "EDM",
+  "year": 2012,
+  "duration": 209
+ },
+ {
+  "id": 449,
+  "title": "Midnight City",
+  "artist": "M83",
+  "bpm": 105,
+  "key": "Am",
+  "genre": "Electronic",
+  "year": 2011,
+  "duration": 244
+ },
+ {
+  "id": 450,
+  "title": "Runaway (U & I)",
+  "artist": "Galantis",
+  "bpm": 128,
+  "key": "C",
+  "genre": "EDM",
+  "year": 2014,
+  "duration": 213
+ },
+ {
+  "id": 451,
+  "title": "Clarity",
+  "artist": "Zedd ft. Foxes",
+  "bpm": 128,
+  "key": "Gbm",
+  "genre": "EDM",
+  "year": 2012,
+  "duration": 270
+ },
+ {
+  "id": 452,
+  "title": "Stay",
+  "artist": "Zedd ft. Alessia Cara",
+  "bpm": 103,
+  "key": "Bb",
+  "genre": "EDM",
+  "year": 2017,
+  "duration": 211
+ },
+ {
+  "id": 453,
+  "title": "Roses",
+  "artist": "The Chainsmokers ft. ROZES",
+  "bpm": 100,
+  "key": "Abm",
+  "genre": "EDM",
+  "year": 2015,
+  "duration": 229
+ },
+ {
+  "id": 454,
+  "title": "Closer",
+  "artist": "The Chainsmokers ft. Halsey",
+  "bpm": 95,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2016,
+  "duration": 244
+ },
+ {
+  "id": 455,
+  "title": "This Is What You Came For",
+  "artist": "Calvin Harris ft. Rihanna",
+  "bpm": 123,
+  "key": "Am",
+  "genre": "EDM",
+  "year": 2016,
+  "duration": 222
+ },
+ {
+  "id": 456,
+  "title": "Summer",
+  "artist": "Calvin Harris",
+  "bpm": 128,
+  "key": "Am",
+  "genre": "EDM",
+  "year": 2014,
+  "duration": 222
+ },
+ {
+  "id": 457,
+  "title": "Royals",
+  "artist": "Lorde",
+  "bpm": 85,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 217
+ },
+ {
+  "id": 458,
+  "title": "Team",
+  "artist": "Lorde",
+  "bpm": 100,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 213
+ },
+ {
+  "id": 459,
+  "title": "Green Light",
+  "artist": "Lorde",
+  "bpm": 96,
+  "key": "F",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 233
+ },
+ {
+  "id": 460,
+  "title": "Stay with Me",
+  "artist": "Sam Smith",
+  "bpm": 84,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 172
+ },
+ {
+  "id": 461,
+  "title": "Too Good at Goodbyes",
+  "artist": "Sam Smith",
+  "bpm": 92,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 202
+ },
+ {
+  "id": 462,
+  "title": "Chandelier",
+  "artist": "Sia",
+  "bpm": 93,
+  "key": "Bbm",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 218
+ },
+ {
+  "id": 463,
+  "title": "Cheap Thrills",
+  "artist": "Sia",
+  "bpm": 90,
+  "key": "Fm",
+  "genre": "Pop",
+  "year": 2016,
+  "duration": 211
+ },
+ {
+  "id": 464,
+  "title": "Elastic Heart",
+  "artist": "Sia",
+  "bpm": 130,
+  "key": "Db",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 257
+ },
+ {
+  "id": 465,
+  "title": "Happy",
+  "artist": "Pharrell Williams",
+  "bpm": 160,
+  "key": "F",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 232
+ },
+ {
+  "id": 466,
+  "title": "All About That Bass",
+  "artist": "Meghan Trainor",
+  "bpm": 134,
+  "key": "A",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 188
+ },
+ {
+  "id": 467,
+  "title": "Counting Stars",
+  "artist": "OneRepublic",
+  "bpm": 122,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 257
+ },
+ {
+  "id": 468,
+  "title": "Radioactive",
+  "artist": "Imagine Dragons",
+  "bpm": 68,
+  "key": "Bm",
+  "genre": "Rock",
+  "year": 2012,
+  "duration": 186
+ },
+ {
+  "id": 469,
+  "title": "Demons",
+  "artist": "Imagine Dragons",
+  "bpm": 90,
+  "key": "C",
+  "genre": "Rock",
+  "year": 2012,
+  "duration": 177
+ },
+ {
+  "id": 470,
+  "title": "Believer",
+  "artist": "Imagine Dragons",
+  "bpm": 125,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 2017,
+  "duration": 204
+ },
+ {
+  "id": 471,
+  "title": "Thunder",
+  "artist": "Imagine Dragons",
+  "bpm": 168,
+  "key": "C",
+  "genre": "Rock",
+  "year": 2017,
+  "duration": 187
+ },
+ {
+  "id": 472,
+  "title": "Take Me to Church",
+  "artist": "Hozier",
+  "bpm": 65,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 2013,
+  "duration": 242
+ },
+ {
+  "id": 473,
+  "title": "Riptide",
+  "artist": "Vance Joy",
+  "bpm": 101,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 203
+ },
+ {
+  "id": 474,
+  "title": "Pompeii",
+  "artist": "Bastille",
+  "bpm": 128,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 224
+ },
+ {
+  "id": 475,
+  "title": "Thinkin Bout You",
+  "artist": "Frank Ocean",
+  "bpm": 120,
+  "key": "Db",
+  "genre": "R&B",
+  "year": 2012,
+  "duration": 202
+ },
+ {
+  "id": 476,
+  "title": "Nights",
+  "artist": "Frank Ocean",
+  "bpm": 90,
+  "key": "Dbm",
+  "genre": "R&B",
+  "year": 2016,
+  "duration": 305
+ },
+ {
+  "id": 477,
+  "title": "Pyramids",
+  "artist": "Frank Ocean",
+  "bpm": 80,
+  "key": "Am",
+  "genre": "R&B",
+  "year": 2012,
+  "duration": 593
+ },
+ {
+  "id": 478,
+  "title": "Pink + White",
+  "artist": "Frank Ocean",
+  "bpm": 80,
+  "key": "C",
+  "genre": "R&B",
+  "year": 2016,
+  "duration": 182
+ },
+ {
+  "id": 479,
+  "title": "Redbone",
+  "artist": "Childish Gambino",
+  "bpm": 83,
+  "key": "Db",
+  "genre": "R&B",
+  "year": 2016,
+  "duration": 327
+ },
+ {
+  "id": 480,
+  "title": "This Is America",
+  "artist": "Childish Gambino",
+  "bpm": 120,
+  "key": "Fm",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 226
+ },
+ {
+  "id": 481,
+  "title": "XO Tour Llif3",
+  "artist": "Lil Uzi Vert",
+  "bpm": 155,
+  "key": "F",
+  "genre": "Hip-Hop",
+  "year": 2017,
+  "duration": 183
+ },
+ {
+  "id": 482,
+  "title": "Mask Off",
+  "artist": "Future",
+  "bpm": 150,
+  "key": "F#m",
+  "genre": "Hip-Hop",
+  "year": 2017,
+  "duration": 205
+ },
+ {
+  "id": 483,
+  "title": "Bodak Yellow",
+  "artist": "Cardi B",
+  "bpm": 125,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2017,
+  "duration": 224
+ },
+ {
+  "id": 484,
+  "title": "I Like It",
+  "artist": "Cardi B ft. Bad Bunny & J Balvin",
+  "bpm": 136,
+  "key": "Abm",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 253
+ },
+ {
+  "id": 485,
+  "title": "WAP",
+  "artist": "Cardi B ft. Megan Thee Stallion",
+  "bpm": 133,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2020,
+  "duration": 187
+ },
+ {
+  "id": 486,
+  "title": "SICKO MODE",
+  "artist": "Travis Scott",
+  "bpm": 155,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 312
+ },
+ {
+  "id": 487,
+  "title": "Goosebumps",
+  "artist": "Travis Scott",
+  "bpm": 130,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2016,
+  "duration": 244
+ },
+ {
+  "id": 488,
+  "title": "Antidote",
+  "artist": "Travis Scott",
+  "bpm": 130,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2015,
+  "duration": 267
+ },
+ {
+  "id": 489,
+  "title": "Old Town Road",
+  "artist": "Lil Nas X",
+  "bpm": 136,
+  "key": "Dbm",
+  "genre": "Hip-Hop",
+  "year": 2019,
+  "duration": 113
+ },
+ {
+  "id": 490,
+  "title": "MONTERO",
+  "artist": "Lil Nas X",
+  "bpm": 150,
+  "key": "Gm",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 137
+ },
+ {
+  "id": 491,
+  "title": "INDUSTRY BABY",
+  "artist": "Lil Nas X ft. Jack Harlow",
+  "bpm": 150,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2021,
+  "duration": 212
+ },
+ {
+  "id": 492,
+  "title": "Despacito",
+  "artist": "Luis Fonsi ft. Daddy Yankee",
+  "bpm": 89,
+  "key": "Bm",
+  "genre": "Latin",
+  "year": 2017,
+  "duration": 228
+ },
+ {
+  "id": 493,
+  "title": "Mi Gente",
+  "artist": "J Balvin",
+  "bpm": 105,
+  "key": "Am",
+  "genre": "Latin",
+  "year": 2017,
+  "duration": 188
+ },
+ {
+  "id": 494,
+  "title": "D\u00e1kiti",
+  "artist": "Bad Bunny & Jhay Cortez",
+  "bpm": 110,
+  "key": "Dm",
+  "genre": "Latin",
+  "year": 2020,
+  "duration": 205
+ },
+ {
+  "id": 495,
+  "title": "Tusa",
+  "artist": "Karol G & Nicki Minaj",
+  "bpm": 76,
+  "key": "Am",
+  "genre": "Latin",
+  "year": 2019,
+  "duration": 200
+ },
+ {
+  "id": 496,
+  "title": "Haw\u00e1i",
+  "artist": "Maluma",
+  "bpm": 97,
+  "key": "Dm",
+  "genre": "Latin",
+  "year": 2020,
+  "duration": 217
+ },
+ {
+  "id": 497,
+  "title": "Hips Don't Lie",
+  "artist": "Shakira ft. Wyclef Jean",
+  "bpm": 100,
+  "key": "Am",
+  "genre": "Latin",
+  "year": 2006,
+  "duration": 218
+ },
+ {
+  "id": 498,
+  "title": "Whenever Wherever",
+  "artist": "Shakira",
+  "bpm": 130,
+  "key": "Am",
+  "genre": "Latin",
+  "year": 2001,
+  "duration": 196
+ },
+ {
+  "id": 499,
+  "title": "Waka Waka",
+  "artist": "Shakira",
+  "bpm": 130,
+  "key": "E",
+  "genre": "Latin",
+  "year": 2010,
+  "duration": 193
+ },
+ {
+  "id": 500,
+  "title": "La Bamba",
+  "artist": "Ritchie Valens",
+  "bpm": 136,
+  "key": "C",
+  "genre": "Latin",
+  "year": 1958,
+  "duration": 126
+ },
+ {
+  "id": 501,
+  "title": "Gasolina",
+  "artist": "Daddy Yankee",
+  "bpm": 96,
+  "key": "Bb",
+  "genre": "Latin",
+  "year": 2004,
+  "duration": 197
+ },
+ {
+  "id": 502,
+  "title": "Vivir Mi Vida",
+  "artist": "Marc Anthony",
+  "bpm": 126,
+  "key": "Bb",
+  "genre": "Latin",
+  "year": 2013,
+  "duration": 252
+ },
+ {
+  "id": 503,
+  "title": "Bailando",
+  "artist": "Enrique Iglesias",
+  "bpm": 102,
+  "key": "Dm",
+  "genre": "Latin",
+  "year": 2014,
+  "duration": 267
+ },
+ {
+  "id": 504,
+  "title": "Suavemente",
+  "artist": "Elvis Crespo",
+  "bpm": 150,
+  "key": "Am",
+  "genre": "Latin",
+  "year": 1998,
+  "duration": 277
+ },
+ {
+  "id": 505,
+  "title": "La Tortura",
+  "artist": "Shakira ft. Alejandro Sanz",
+  "bpm": 84,
+  "key": "Am",
+  "genre": "Latin",
+  "year": 2005,
+  "duration": 221
+ },
+ {
+  "id": 506,
+  "title": "Reggaet\u00f3n Lento",
+  "artist": "CNCO",
+  "bpm": 94,
+  "key": "Dm",
+  "genre": "Latin",
+  "year": 2016,
+  "duration": 246
+ },
+ {
+  "id": 507,
+  "title": "Calma",
+  "artist": "Pedro Cap\u00f3",
+  "bpm": 126,
+  "key": "Em",
+  "genre": "Latin",
+  "year": 2018,
+  "duration": 236
+ },
+ {
+  "id": 508,
+  "title": "Con Calma",
+  "artist": "Daddy Yankee ft. Snow",
+  "bpm": 94,
+  "key": "Bbm",
+  "genre": "Latin",
+  "year": 2019,
+  "duration": 193
+ },
+ {
+  "id": 509,
+  "title": "Yo Perreo Sola",
+  "artist": "Bad Bunny",
+  "bpm": 92,
+  "key": "Bbm",
+  "genre": "Latin",
+  "year": 2020,
+  "duration": 172
+ },
+ {
+  "id": 510,
+  "title": "BESO",
+  "artist": "ROSAL\u00cdA & Rauw Alejandro",
+  "bpm": 96,
+  "key": "Am",
+  "genre": "Latin",
+  "year": 2023,
+  "duration": 200
+ },
+ {
+  "id": 511,
+  "title": "Agua",
+  "artist": "Tainy & J Balvin",
+  "bpm": 100,
+  "key": "Am",
+  "genre": "Latin",
+  "year": 2020,
+  "duration": 191
+ },
+ {
+  "id": 512,
+  "title": "Do I Wanna Know?",
+  "artist": "Arctic Monkeys",
+  "bpm": 85,
+  "key": "Gm",
+  "genre": "Indie",
+  "year": 2013,
+  "duration": 272
+ },
+ {
+  "id": 513,
+  "title": "R U Mine?",
+  "artist": "Arctic Monkeys",
+  "bpm": 160,
+  "key": "F#m",
+  "genre": "Indie",
+  "year": 2012,
+  "duration": 202
+ },
+ {
+  "id": 514,
+  "title": "505",
+  "artist": "Arctic Monkeys",
+  "bpm": 139,
+  "key": "Dm",
+  "genre": "Indie",
+  "year": 2007,
+  "duration": 254
+ },
+ {
+  "id": 515,
+  "title": "I Bet You Look Good on the Dancefloor",
+  "artist": "Arctic Monkeys",
+  "bpm": 163,
+  "key": "A",
+  "genre": "Indie",
+  "year": 2005,
+  "duration": 175
+ },
+ {
+  "id": 516,
+  "title": "Why'd You Only Call Me When You're High?",
+  "artist": "Arctic Monkeys",
+  "bpm": 93,
+  "key": "Fm",
+  "genre": "Indie",
+  "year": 2013,
+  "duration": 164
+ },
+ {
+  "id": 517,
+  "title": "The Less I Know the Better",
+  "artist": "Tame Impala",
+  "bpm": 116,
+  "key": "C#m",
+  "genre": "Indie",
+  "year": 2015,
+  "duration": 217
+ },
+ {
+  "id": 518,
+  "title": "Let It Happen",
+  "artist": "Tame Impala",
+  "bpm": 118,
+  "key": "F#m",
+  "genre": "Indie",
+  "year": 2015,
+  "duration": 468
+ },
+ {
+  "id": 519,
+  "title": "Feels Like We Only Go Backwards",
+  "artist": "Tame Impala",
+  "bpm": 105,
+  "key": "Bb",
+  "genre": "Indie",
+  "year": 2012,
+  "duration": 193
+ },
+ {
+  "id": 520,
+  "title": "Elephant",
+  "artist": "Tame Impala",
+  "bpm": 104,
+  "key": "Bm",
+  "genre": "Indie",
+  "year": 2012,
+  "duration": 195
+ },
+ {
+  "id": 521,
+  "title": "Borderline",
+  "artist": "Tame Impala",
+  "bpm": 116,
+  "key": "C",
+  "genre": "Indie",
+  "year": 2019,
+  "duration": 238
+ },
+ {
+  "id": 522,
+  "title": "Somebody That I Used to Know",
+  "artist": "Gotye",
+  "bpm": 129,
+  "key": "Dm",
+  "genre": "Indie",
+  "year": 2011,
+  "duration": 244
+ },
+ {
+  "id": 523,
+  "title": "Ho Hey",
+  "artist": "The Lumineers",
+  "bpm": 163,
+  "key": "C",
+  "genre": "Indie",
+  "year": 2012,
+  "duration": 163
+ },
+ {
+  "id": 524,
+  "title": "Ophelia",
+  "artist": "The Lumineers",
+  "bpm": 118,
+  "key": "D",
+  "genre": "Indie",
+  "year": 2016,
+  "duration": 205
+ },
+ {
+  "id": 525,
+  "title": "Home",
+  "artist": "Edward Sharpe",
+  "bpm": 138,
+  "key": "C",
+  "genre": "Indie",
+  "year": 2009,
+  "duration": 305
+ },
+ {
+  "id": 526,
+  "title": "Little Talks",
+  "artist": "Of Monsters and Men",
+  "bpm": 103,
+  "key": "Am",
+  "genre": "Indie",
+  "year": 2011,
+  "duration": 263
+ },
+ {
+  "id": 527,
+  "title": "Sweater Weather",
+  "artist": "The Neighbourhood",
+  "bpm": 124,
+  "key": "Dm",
+  "genre": "Indie",
+  "year": 2012,
+  "duration": 240
+ },
+ {
+  "id": 528,
+  "title": "Electric Feel",
+  "artist": "MGMT",
+  "bpm": 105,
+  "key": "Cm",
+  "genre": "Indie",
+  "year": 2007,
+  "duration": 229
+ },
+ {
+  "id": 529,
+  "title": "Kids",
+  "artist": "MGMT",
+  "bpm": 130,
+  "key": "G",
+  "genre": "Indie",
+  "year": 2008,
+  "duration": 304
+ },
+ {
+  "id": 530,
+  "title": "Time to Pretend",
+  "artist": "MGMT",
+  "bpm": 121,
+  "key": "D",
+  "genre": "Indie",
+  "year": 2008,
+  "duration": 246
+ },
+ {
+  "id": 531,
+  "title": "1901",
+  "artist": "Phoenix",
+  "bpm": 144,
+  "key": "Db",
+  "genre": "Indie",
+  "year": 2009,
+  "duration": 321
+ },
+ {
+  "id": 532,
+  "title": "Lisztomania",
+  "artist": "Phoenix",
+  "bpm": 130,
+  "key": "Db",
+  "genre": "Indie",
+  "year": 2009,
+  "duration": 242
+ },
+ {
+  "id": 533,
+  "title": "Young Folks",
+  "artist": "Peter Bjorn and John",
+  "bpm": 105,
+  "key": "A",
+  "genre": "Indie",
+  "year": 2006,
+  "duration": 256
+ },
+ {
+  "id": 534,
+  "title": "Skinny Love",
+  "artist": "Bon Iver",
+  "bpm": 80,
+  "key": "Am",
+  "genre": "Indie",
+  "year": 2007,
+  "duration": 226
+ },
+ {
+  "id": 535,
+  "title": "Holocene",
+  "artist": "Bon Iver",
+  "bpm": 105,
+  "key": "C",
+  "genre": "Indie",
+  "year": 2011,
+  "duration": 333
+ },
+ {
+  "id": 536,
+  "title": "Two Weeks",
+  "artist": "Grizzly Bear",
+  "bpm": 118,
+  "key": "F",
+  "genre": "Indie",
+  "year": 2009,
+  "duration": 248
+ },
+ {
+  "id": 537,
+  "title": "My Body",
+  "artist": "Young the Giant",
+  "bpm": 110,
+  "key": "Fm",
+  "genre": "Indie",
+  "year": 2010,
+  "duration": 299
+ },
+ {
+  "id": 538,
+  "title": "Tongue Tied",
+  "artist": "Grouplove",
+  "bpm": 135,
+  "key": "G",
+  "genre": "Indie",
+  "year": 2011,
+  "duration": 188
+ },
+ {
+  "id": 539,
+  "title": "A-Punk",
+  "artist": "Vampire Weekend",
+  "bpm": 160,
+  "key": "D",
+  "genre": "Indie",
+  "year": 2008,
+  "duration": 127
+ },
+ {
+  "id": 540,
+  "title": "Diane Young",
+  "artist": "Vampire Weekend",
+  "bpm": 95,
+  "key": "D",
+  "genre": "Indie",
+  "year": 2013,
+  "duration": 200
+ },
+ {
+  "id": 541,
+  "title": "Unravel",
+  "artist": "Bj\u00f6rk",
+  "bpm": 84,
+  "key": "A",
+  "genre": "Indie",
+  "year": 1997,
+  "duration": 287
+ },
+ {
+  "id": 542,
+  "title": "Float On",
+  "artist": "Modest Mouse",
+  "bpm": 100,
+  "key": "Am",
+  "genre": "Indie",
+  "year": 2004,
+  "duration": 210
+ },
+ {
+  "id": 543,
+  "title": "Rebellion (Lies)",
+  "artist": "Arcade Fire",
+  "bpm": 96,
+  "key": "D",
+  "genre": "Indie",
+  "year": 2004,
+  "duration": 309
+ },
+ {
+  "id": 544,
+  "title": "Ready to Start",
+  "artist": "Arcade Fire",
+  "bpm": 131,
+  "key": "Db",
+  "genre": "Indie",
+  "year": 2010,
+  "duration": 259
+ },
+ {
+  "id": 545,
+  "title": "Wake Up",
+  "artist": "Arcade Fire",
+  "bpm": 118,
+  "key": "D",
+  "genre": "Indie",
+  "year": 2004,
+  "duration": 341
+ },
+ {
+  "id": 546,
+  "title": "The Suburbs",
+  "artist": "Arcade Fire",
+  "bpm": 143,
+  "key": "D",
+  "genre": "Indie",
+  "year": 2010,
+  "duration": 313
+ },
+ {
+  "id": 547,
+  "title": "Bad Guy",
+  "artist": "Billie Eilish",
+  "bpm": 135,
+  "key": "Gm",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 194
+ },
+ {
+  "id": 548,
+  "title": "Therefore I Am",
+  "artist": "Billie Eilish",
+  "bpm": 120,
+  "key": "Em",
+  "genre": "Pop",
+  "year": 2020,
+  "duration": 174
+ },
+ {
+  "id": 549,
+  "title": "Happier Than Ever",
+  "artist": "Billie Eilish",
+  "bpm": 65,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 298
+ },
+ {
+  "id": 550,
+  "title": "Everything I Wanted",
+  "artist": "Billie Eilish",
+  "bpm": 120,
+  "key": "Ebm",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 245
+ },
+ {
+  "id": 551,
+  "title": "Lovely",
+  "artist": "Billie Eilish & Khalid",
+  "bpm": 115,
+  "key": "Ebm",
+  "genre": "Pop",
+  "year": 2018,
+  "duration": 200
+ },
+ {
+  "id": 552,
+  "title": "Ocean Eyes",
+  "artist": "Billie Eilish",
+  "bpm": 72,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2016,
+  "duration": 200
+ },
+ {
+  "id": 553,
+  "title": "When the Party's Over",
+  "artist": "Billie Eilish",
+  "bpm": 82,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2018,
+  "duration": 196
+ },
+ {
+  "id": 554,
+  "title": "Don't Start Now",
+  "artist": "Dua Lipa",
+  "bpm": 124,
+  "key": "Bm",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 183
+ },
+ {
+  "id": 555,
+  "title": "Levitating",
+  "artist": "Dua Lipa",
+  "bpm": 103,
+  "key": "Bm",
+  "genre": "Pop",
+  "year": 2020,
+  "duration": 203
+ },
+ {
+  "id": 556,
+  "title": "New Rules",
+  "artist": "Dua Lipa",
+  "bpm": 116,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 209
+ },
+ {
+  "id": 557,
+  "title": "Physical",
+  "artist": "Dua Lipa",
+  "bpm": 124,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 2020,
+  "duration": 194
+ },
+ {
+  "id": 558,
+  "title": "One Kiss",
+  "artist": "Calvin Harris & Dua Lipa",
+  "bpm": 124,
+  "key": "Bm",
+  "genre": "Pop",
+  "year": 2018,
+  "duration": 215
+ },
+ {
+  "id": 559,
+  "title": "Break My Heart",
+  "artist": "Dua Lipa",
+  "bpm": 113,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 2020,
+  "duration": 222
+ },
+ {
+  "id": 560,
+  "title": "Houdini",
+  "artist": "Dua Lipa",
+  "bpm": 128,
+  "key": "Abm",
+  "genre": "Pop",
+  "year": 2023,
+  "duration": 179
+ },
+ {
+  "id": 561,
+  "title": "drivers license",
+  "artist": "Olivia Rodrigo",
+  "bpm": 72,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 248
+ },
+ {
+  "id": 562,
+  "title": "good 4 u",
+  "artist": "Olivia Rodrigo",
+  "bpm": 166,
+  "key": "A",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 178
+ },
+ {
+  "id": 563,
+  "title": "deja vu",
+  "artist": "Olivia Rodrigo",
+  "bpm": 141,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 215
+ },
+ {
+  "id": 564,
+  "title": "vampire",
+  "artist": "Olivia Rodrigo",
+  "bpm": 138,
+  "key": "Fm",
+  "genre": "Pop",
+  "year": 2023,
+  "duration": 220
+ },
+ {
+  "id": 565,
+  "title": "Peaches",
+  "artist": "Justin Bieber ft. Daniel Caesar",
+  "bpm": 90,
+  "key": "C",
+  "genre": "R&B",
+  "year": 2021,
+  "duration": 198
+ },
+ {
+  "id": 566,
+  "title": "Stay",
+  "artist": "The Kid LAROI & Justin Bieber",
+  "bpm": 170,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 141
+ },
+ {
+  "id": 567,
+  "title": "Ghost",
+  "artist": "Justin Bieber",
+  "bpm": 80,
+  "key": "Db",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 153
+ },
+ {
+  "id": 568,
+  "title": "As It Was",
+  "artist": "Harry Styles",
+  "bpm": 174,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 167
+ },
+ {
+  "id": 569,
+  "title": "Watermelon Sugar",
+  "artist": "Harry Styles",
+  "bpm": 95,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 174
+ },
+ {
+  "id": 570,
+  "title": "Adore You",
+  "artist": "Harry Styles",
+  "bpm": 99,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 207
+ },
+ {
+  "id": 571,
+  "title": "Late Night Talking",
+  "artist": "Harry Styles",
+  "bpm": 107,
+  "key": "Db",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 177
+ },
+ {
+  "id": 572,
+  "title": "Sign of the Times",
+  "artist": "Harry Styles",
+  "bpm": 120,
+  "key": "F",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 340
+ },
+ {
+  "id": 573,
+  "title": "Flowers",
+  "artist": "Miley Cyrus",
+  "bpm": 118,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2023,
+  "duration": 200
+ },
+ {
+  "id": 574,
+  "title": "Wrecking Ball",
+  "artist": "Miley Cyrus",
+  "bpm": 120,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 222
+ },
+ {
+  "id": 575,
+  "title": "Party in the U.S.A.",
+  "artist": "Miley Cyrus",
+  "bpm": 96,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2009,
+  "duration": 196
+ },
+ {
+  "id": 576,
+  "title": "Midnight Rain",
+  "artist": "Taylor Swift",
+  "bpm": 139,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 174
+ },
+ {
+  "id": 577,
+  "title": "Lavender Haze",
+  "artist": "Taylor Swift",
+  "bpm": 97,
+  "key": "Bm",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 202
+ },
+ {
+  "id": 578,
+  "title": "Karma",
+  "artist": "Taylor Swift",
+  "bpm": 90,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 205
+ },
+ {
+  "id": 579,
+  "title": "About Damn Time",
+  "artist": "Lizzo",
+  "bpm": 109,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 196
+ },
+ {
+  "id": 580,
+  "title": "Good as Hell",
+  "artist": "Lizzo",
+  "bpm": 96,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2016,
+  "duration": 161
+ },
+ {
+  "id": 581,
+  "title": "Truth Hurts",
+  "artist": "Lizzo",
+  "bpm": 98,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 173
+ },
+ {
+  "id": 582,
+  "title": "Heat Waves",
+  "artist": "Glass Animals",
+  "bpm": 81,
+  "key": "Bm",
+  "genre": "Indie",
+  "year": 2020,
+  "duration": 239
+ },
+ {
+  "id": 583,
+  "title": "Dreamland",
+  "artist": "Glass Animals",
+  "bpm": 80,
+  "key": "Dm",
+  "genre": "Indie",
+  "year": 2020,
+  "duration": 231
+ },
+ {
+  "id": 584,
+  "title": "Butter",
+  "artist": "BTS",
+  "bpm": 110,
+  "key": "Db",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 165
+ },
+ {
+  "id": 585,
+  "title": "Dynamite",
+  "artist": "BTS",
+  "bpm": 114,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2020,
+  "duration": 199
+ },
+ {
+  "id": 586,
+  "title": "Boy with Luv",
+  "artist": "BTS ft. Halsey",
+  "bpm": 101,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 230
+ },
+ {
+  "id": 587,
+  "title": "How You Like That",
+  "artist": "BLACKPINK",
+  "bpm": 130,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2020,
+  "duration": 183
+ },
+ {
+  "id": 588,
+  "title": "DDU-DU DDU-DU",
+  "artist": "BLACKPINK",
+  "bpm": 148,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 2018,
+  "duration": 209
+ },
+ {
+  "id": 589,
+  "title": "Kill This Love",
+  "artist": "BLACKPINK",
+  "bpm": 130,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 190
+ },
+ {
+  "id": 590,
+  "title": "Espresso",
+  "artist": "Sabrina Carpenter",
+  "bpm": 104,
+  "key": "Bbm",
+  "genre": "Pop",
+  "year": 2024,
+  "duration": 175
+ },
+ {
+  "id": 591,
+  "title": "Snooze",
+  "artist": "SZA",
+  "bpm": 104,
+  "key": "E",
+  "genre": "R&B",
+  "year": 2022,
+  "duration": 202
+ },
+ {
+  "id": 592,
+  "title": "Kill Bill",
+  "artist": "SZA",
+  "bpm": 88,
+  "key": "Dm",
+  "genre": "R&B",
+  "year": 2022,
+  "duration": 154
+ },
+ {
+  "id": 593,
+  "title": "Good Days",
+  "artist": "SZA",
+  "bpm": 121,
+  "key": "Db",
+  "genre": "R&B",
+  "year": 2020,
+  "duration": 279
+ },
+ {
+  "id": 594,
+  "title": "Kiss Me More",
+  "artist": "Doja Cat ft. SZA",
+  "bpm": 111,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 209
+ },
+ {
+  "id": 595,
+  "title": "Say So",
+  "artist": "Doja Cat",
+  "bpm": 111,
+  "key": "Gb",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 237
+ },
+ {
+  "id": 596,
+  "title": "Need to Know",
+  "artist": "Doja Cat",
+  "bpm": 128,
+  "key": "Abm",
+  "genre": "R&B",
+  "year": 2021,
+  "duration": 209
+ },
+ {
+  "id": 597,
+  "title": "Leave the Door Open",
+  "artist": "Silk Sonic",
+  "bpm": 148,
+  "key": "C",
+  "genre": "R&B",
+  "year": 2021,
+  "duration": 242
+ },
+ {
+  "id": 598,
+  "title": "Smokin Out the Window",
+  "artist": "Silk Sonic",
+  "bpm": 120,
+  "key": "C",
+  "genre": "R&B",
+  "year": 2021,
+  "duration": 195
+ },
+ {
+  "id": 599,
+  "title": "Skate",
+  "artist": "Silk Sonic",
+  "bpm": 90,
+  "key": "Abm",
+  "genre": "R&B",
+  "year": 2021,
+  "duration": 215
+ },
+ {
+  "id": 600,
+  "title": "Montero (Call Me by Your Name)",
+  "artist": "Lil Nas X",
+  "bpm": 150,
+  "key": "Gm",
+  "genre": "Pop",
+  "year": 2021,
+  "duration": 137
+ },
+ {
+  "id": 601,
+  "title": "Savage Love",
+  "artist": "Jawsh 685 & Jason Derulo",
+  "bpm": 150,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2020,
+  "duration": 171
+ },
+ {
+  "id": 602,
+  "title": "Mood",
+  "artist": "24kGoldn ft. iann dior",
+  "bpm": 91,
+  "key": "Fm",
+  "genre": "Hip-Hop",
+  "year": 2020,
+  "duration": 141
+ },
+ {
+  "id": 603,
+  "title": "Rockstar",
+  "artist": "DaBaby ft. Roddy Ricch",
+  "bpm": 90,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2020,
+  "duration": 181
+ },
+ {
+  "id": 604,
+  "title": "THE BOX",
+  "artist": "Roddy Ricch",
+  "bpm": 116,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 2019,
+  "duration": 196
+ },
+ {
+  "id": 605,
+  "title": "Praise God",
+  "artist": "Kanye West",
+  "bpm": 120,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 2021,
+  "duration": 245
+ },
+ {
+  "id": 606,
+  "title": "Off the Grid",
+  "artist": "Kanye West",
+  "bpm": 145,
+  "key": "Abm",
+  "genre": "Hip-Hop",
+  "year": 2021,
+  "duration": 339
+ },
+ {
+  "id": 607,
+  "title": "Bohemian Like You",
+  "artist": "The Dandy Warhols",
+  "bpm": 128,
+  "key": "A",
+  "genre": "Rock",
+  "year": 2000,
+  "duration": 213
+ },
+ {
+  "id": 608,
+  "title": "Song 2",
+  "artist": "Blur",
+  "bpm": 130,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1997,
+  "duration": 122
+ },
+ {
+  "id": 609,
+  "title": "Smash Mouth",
+  "artist": "All Star",
+  "bpm": 104,
+  "key": "G",
+  "genre": "Pop",
+  "year": 1999,
+  "duration": 200
+ },
+ {
+  "id": 610,
+  "title": "Teenage Dirtbag",
+  "artist": "Wheatus",
+  "bpm": 93,
+  "key": "E",
+  "genre": "Rock",
+  "year": 2000,
+  "duration": 240
+ },
+ {
+  "id": 611,
+  "title": "Torn",
+  "artist": "Natalie Imbruglia",
+  "bpm": 94,
+  "key": "F",
+  "genre": "Pop",
+  "year": 1997,
+  "duration": 244
+ },
+ {
+  "id": 612,
+  "title": "Lovefool",
+  "artist": "The Cardigans",
+  "bpm": 115,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 1996,
+  "duration": 194
+ },
+ {
+  "id": 613,
+  "title": "Virtual Insanity",
+  "artist": "Jamiroquai",
+  "bpm": 90,
+  "key": "Eb",
+  "genre": "Funk",
+  "year": 1996,
+  "duration": 233
+ },
+ {
+  "id": 614,
+  "title": "Cosmic Girl",
+  "artist": "Jamiroquai",
+  "bpm": 114,
+  "key": "Am",
+  "genre": "Funk",
+  "year": 1996,
+  "duration": 250
+ },
+ {
+  "id": 615,
+  "title": "Canned Heat",
+  "artist": "Jamiroquai",
+  "bpm": 102,
+  "key": "Am",
+  "genre": "Funk",
+  "year": 1999,
+  "duration": 296
+ },
+ {
+  "id": 616,
+  "title": "Vertigo",
+  "artist": "U2",
+  "bpm": 147,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 2004,
+  "duration": 191
+ },
+ {
+  "id": 617,
+  "title": "Walk",
+  "artist": "Foo Fighters",
+  "bpm": 168,
+  "key": "C#m",
+  "genre": "Rock",
+  "year": 2011,
+  "duration": 256
+ },
+ {
+  "id": 618,
+  "title": "Rope",
+  "artist": "Foo Fighters",
+  "bpm": 165,
+  "key": "G#m",
+  "genre": "Rock",
+  "year": 2011,
+  "duration": 265
+ },
+ {
+  "id": 619,
+  "title": "Praise You",
+  "artist": "Fatboy Slim",
+  "bpm": 130,
+  "key": "Eb",
+  "genre": "Electronic",
+  "year": 1998,
+  "duration": 335
+ },
+ {
+  "id": 620,
+  "title": "Right Here Right Now",
+  "artist": "Fatboy Slim",
+  "bpm": 126,
+  "key": "Eb",
+  "genre": "Electronic",
+  "year": 1999,
+  "duration": 364
+ },
+ {
+  "id": 621,
+  "title": "Rockafeller Skank",
+  "artist": "Fatboy Slim",
+  "bpm": 160,
+  "key": "F#",
+  "genre": "Electronic",
+  "year": 1998,
+  "duration": 293
+ },
+ {
+  "id": 622,
+  "title": "Born Slippy",
+  "artist": "Underworld",
+  "bpm": 139,
+  "key": "F",
+  "genre": "Electronic",
+  "year": 1995,
+  "duration": 398
+ },
+ {
+  "id": 623,
+  "title": "Sandstorm",
+  "artist": "Darude",
+  "bpm": 136,
+  "key": "Bm",
+  "genre": "Electronic",
+  "year": 1999,
+  "duration": 224
+ },
+ {
+  "id": 624,
+  "title": "Insomnia",
+  "artist": "Faithless",
+  "bpm": 128,
+  "key": "D",
+  "genre": "Electronic",
+  "year": 1995,
+  "duration": 309
+ },
+ {
+  "id": 625,
+  "title": "Children",
+  "artist": "Robert Miles",
+  "bpm": 138,
+  "key": "Bm",
+  "genre": "Electronic",
+  "year": 1995,
+  "duration": 295
+ },
+ {
+  "id": 626,
+  "title": "Firestarter",
+  "artist": "The Prodigy",
+  "bpm": 139,
+  "key": "Em",
+  "genre": "Electronic",
+  "year": 1996,
+  "duration": 280
+ },
+ {
+  "id": 627,
+  "title": "Breathe",
+  "artist": "The Prodigy",
+  "bpm": 90,
+  "key": "Gm",
+  "genre": "Electronic",
+  "year": 1996,
+  "duration": 345
+ },
+ {
+  "id": 628,
+  "title": "Smack My Bitch Up",
+  "artist": "The Prodigy",
+  "bpm": 133,
+  "key": "Dm",
+  "genre": "Electronic",
+  "year": 1997,
+  "duration": 338
+ },
+ {
+  "id": 629,
+  "title": "No Limit",
+  "artist": "2 Unlimited",
+  "bpm": 150,
+  "key": "D",
+  "genre": "Electronic",
+  "year": 1993,
+  "duration": 229
+ },
+ {
+  "id": 630,
+  "title": "What Is Love",
+  "artist": "Haddaway",
+  "bpm": 124,
+  "key": "Am",
+  "genre": "Electronic",
+  "year": 1993,
+  "duration": 268
+ },
+ {
+  "id": 631,
+  "title": "Rhythm Is a Dancer",
+  "artist": "Snap!",
+  "bpm": 128,
+  "key": "Am",
+  "genre": "Electronic",
+  "year": 1992,
+  "duration": 239
+ },
+ {
+  "id": 632,
+  "title": "Gonna Make You Sweat",
+  "artist": "C+C Music Factory",
+  "bpm": 120,
+  "key": "Cm",
+  "genre": "Electronic",
+  "year": 1990,
+  "duration": 295
+ },
+ {
+  "id": 633,
+  "title": "Mr. Vain",
+  "artist": "Culture Beat",
+  "bpm": 127,
+  "key": "Em",
+  "genre": "Electronic",
+  "year": 1993,
+  "duration": 258
+ },
+ {
+  "id": 634,
+  "title": "Show Me Love",
+  "artist": "Robin S",
+  "bpm": 124,
+  "key": "Gm",
+  "genre": "Electronic",
+  "year": 1993,
+  "duration": 279
+ },
+ {
+  "id": 635,
+  "title": "Finally",
+  "artist": "CeCe Peniston",
+  "bpm": 124,
+  "key": "Ab",
+  "genre": "Electronic",
+  "year": 1991,
+  "duration": 250
+ },
+ {
+  "id": 636,
+  "title": "Gypsy Woman",
+  "artist": "Crystal Waters",
+  "bpm": 116,
+  "key": "Cm",
+  "genre": "Electronic",
+  "year": 1991,
+  "duration": 256
+ },
+ {
+  "id": 637,
+  "title": "Hung Up",
+  "artist": "Madonna",
+  "bpm": 130,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2005,
+  "duration": 336
+ },
+ {
+  "id": 638,
+  "title": "Ray of Light",
+  "artist": "Madonna",
+  "bpm": 128,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 1998,
+  "duration": 313
+ },
+ {
+  "id": 639,
+  "title": "Music",
+  "artist": "Madonna",
+  "bpm": 120,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2000,
+  "duration": 224
+ },
+ {
+  "id": 640,
+  "title": "Burning Down the House",
+  "artist": "Talking Heads",
+  "bpm": 134,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1983,
+  "duration": 240
+ },
+ {
+  "id": 641,
+  "title": "Psycho Killer",
+  "artist": "Talking Heads",
+  "bpm": 100,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 261
+ },
+ {
+  "id": 642,
+  "title": "Once in a Lifetime",
+  "artist": "Talking Heads",
+  "bpm": 123,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1981,
+  "duration": 254
+ },
+ {
+  "id": 643,
+  "title": "Love Will Tear Us Apart",
+  "artist": "Joy Division",
+  "bpm": 145,
+  "key": "Bm",
+  "genre": "Rock",
+  "year": 1980,
+  "duration": 202
+ },
+ {
+  "id": 644,
+  "title": "Heart of Glass",
+  "artist": "Blondie",
+  "bpm": 114,
+  "key": "E",
+  "genre": "Pop",
+  "year": 1978,
+  "duration": 210
+ },
+ {
+  "id": 645,
+  "title": "Rapture",
+  "artist": "Blondie",
+  "bpm": 136,
+  "key": "E",
+  "genre": "Pop",
+  "year": 1981,
+  "duration": 296
+ },
+ {
+  "id": 646,
+  "title": "Call Me",
+  "artist": "Blondie",
+  "bpm": 138,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 1980,
+  "duration": 211
+ },
+ {
+  "id": 647,
+  "title": "Ring of Fire",
+  "artist": "Johnny Cash",
+  "bpm": 107,
+  "key": "G",
+  "genre": "Country",
+  "year": 1963,
+  "duration": 157
+ },
+ {
+  "id": 648,
+  "title": "Folsom Prison Blues",
+  "artist": "Johnny Cash",
+  "bpm": 104,
+  "key": "E",
+  "genre": "Country",
+  "year": 1955,
+  "duration": 173
+ },
+ {
+  "id": 649,
+  "title": "I Walk the Line",
+  "artist": "Johnny Cash",
+  "bpm": 104,
+  "key": "A",
+  "genre": "Country",
+  "year": 1956,
+  "duration": 166
+ },
+ {
+  "id": 650,
+  "title": "Jolene",
+  "artist": "Dolly Parton",
+  "bpm": 112,
+  "key": "C#m",
+  "genre": "Country",
+  "year": 1973,
+  "duration": 162
+ },
+ {
+  "id": 651,
+  "title": "9 to 5",
+  "artist": "Dolly Parton",
+  "bpm": 100,
+  "key": "F#",
+  "genre": "Country",
+  "year": 1980,
+  "duration": 162
+ },
+ {
+  "id": 652,
+  "title": "On the Road Again",
+  "artist": "Willie Nelson",
+  "bpm": 132,
+  "key": "E",
+  "genre": "Country",
+  "year": 1980,
+  "duration": 152
+ },
+ {
+  "id": 653,
+  "title": "Friends in Low Places",
+  "artist": "Garth Brooks",
+  "bpm": 108,
+  "key": "A",
+  "genre": "Country",
+  "year": 1990,
+  "duration": 249
+ },
+ {
+  "id": 654,
+  "title": "The Dance",
+  "artist": "Garth Brooks",
+  "bpm": 72,
+  "key": "G",
+  "genre": "Country",
+  "year": 1990,
+  "duration": 227
+ },
+ {
+  "id": 655,
+  "title": "Achy Breaky Heart",
+  "artist": "Billy Ray Cyrus",
+  "bpm": 124,
+  "key": "A",
+  "genre": "Country",
+  "year": 1992,
+  "duration": 196
+ },
+ {
+  "id": 656,
+  "title": "Cruise",
+  "artist": "Florida Georgia Line",
+  "bpm": 80,
+  "key": "Bb",
+  "genre": "Country",
+  "year": 2012,
+  "duration": 199
+ },
+ {
+  "id": 657,
+  "title": "Body Like a Back Road",
+  "artist": "Sam Hunt",
+  "bpm": 96,
+  "key": "E",
+  "genre": "Country",
+  "year": 2017,
+  "duration": 181
+ },
+ {
+  "id": 658,
+  "title": "Meant to Be",
+  "artist": "Bebe Rexha ft. FGL",
+  "bpm": 80,
+  "key": "Bb",
+  "genre": "Country",
+  "year": 2017,
+  "duration": 176
+ },
+ {
+  "id": 659,
+  "title": "Before He Cheats",
+  "artist": "Carrie Underwood",
+  "bpm": 106,
+  "key": "F#m",
+  "genre": "Country",
+  "year": 2005,
+  "duration": 193
+ },
+ {
+  "id": 660,
+  "title": "Need You Now",
+  "artist": "Lady A",
+  "bpm": 108,
+  "key": "A",
+  "genre": "Country",
+  "year": 2009,
+  "duration": 253
+ },
+ {
+  "id": 661,
+  "title": "Wagon Wheel",
+  "artist": "Darius Rucker",
+  "bpm": 75,
+  "key": "A",
+  "genre": "Country",
+  "year": 2013,
+  "duration": 275
+ },
+ {
+  "id": 662,
+  "title": "Tennessee Whiskey",
+  "artist": "Chris Stapleton",
+  "bpm": 68,
+  "key": "A",
+  "genre": "Country",
+  "year": 2015,
+  "duration": 286
+ },
+ {
+  "id": 663,
+  "title": "Die a Happy Man",
+  "artist": "Thomas Rhett",
+  "bpm": 80,
+  "key": "Bb",
+  "genre": "Country",
+  "year": 2015,
+  "duration": 212
+ },
+ {
+  "id": 664,
+  "title": "Humble and Kind",
+  "artist": "Tim McGraw",
+  "bpm": 98,
+  "key": "Db",
+  "genre": "Country",
+  "year": 2015,
+  "duration": 254
+ },
+ {
+  "id": 665,
+  "title": "The Thrill Is Gone",
+  "artist": "B.B. King",
+  "bpm": 88,
+  "key": "Bm",
+  "genre": "Blues",
+  "year": 1969,
+  "duration": 317
+ },
+ {
+  "id": 666,
+  "title": "Crossroad Blues",
+  "artist": "Robert Johnson",
+  "bpm": 94,
+  "key": "A",
+  "genre": "Blues",
+  "year": 1936,
+  "duration": 157
+ },
+ {
+  "id": 667,
+  "title": "Born Under a Bad Sign",
+  "artist": "Albert King",
+  "bpm": 92,
+  "key": "C#m",
+  "genre": "Blues",
+  "year": 1967,
+  "duration": 158
+ },
+ {
+  "id": 668,
+  "title": "Hoochie Coochie Man",
+  "artist": "Muddy Waters",
+  "bpm": 72,
+  "key": "E",
+  "genre": "Blues",
+  "year": 1954,
+  "duration": 170
+ },
+ {
+  "id": 669,
+  "title": "Mannish Boy",
+  "artist": "Muddy Waters",
+  "bpm": 68,
+  "key": "E",
+  "genre": "Blues",
+  "year": 1955,
+  "duration": 193
+ },
+ {
+  "id": 670,
+  "title": "Pride and Joy",
+  "artist": "Stevie Ray Vaughan",
+  "bpm": 122,
+  "key": "E",
+  "genre": "Blues",
+  "year": 1983,
+  "duration": 214
+ },
+ {
+  "id": 671,
+  "title": "Texas Flood",
+  "artist": "Stevie Ray Vaughan",
+  "bpm": 60,
+  "key": "G",
+  "genre": "Blues",
+  "year": 1983,
+  "duration": 321
+ },
+ {
+  "id": 672,
+  "title": "Cold Shot",
+  "artist": "Stevie Ray Vaughan",
+  "bpm": 100,
+  "key": "Am",
+  "genre": "Blues",
+  "year": 1984,
+  "duration": 286
+ },
+ {
+  "id": 673,
+  "title": "Red House",
+  "artist": "Jimi Hendrix",
+  "bpm": 66,
+  "key": "B",
+  "genre": "Blues",
+  "year": 1966,
+  "duration": 235
+ },
+ {
+  "id": 674,
+  "title": "Still Got the Blues",
+  "artist": "Gary Moore",
+  "bpm": 62,
+  "key": "Am",
+  "genre": "Blues",
+  "year": 1990,
+  "duration": 365
+ },
+ {
+  "id": 675,
+  "title": "Take Five",
+  "artist": "Dave Brubeck",
+  "bpm": 170,
+  "key": "Ebm",
+  "genre": "Jazz",
+  "year": 1959,
+  "duration": 325
+ },
+ {
+  "id": 676,
+  "title": "So What",
+  "artist": "Miles Davis",
+  "bpm": 136,
+  "key": "Dm",
+  "genre": "Jazz",
+  "year": 1959,
+  "duration": 555
+ },
+ {
+  "id": 677,
+  "title": "Blue in Green",
+  "artist": "Miles Davis",
+  "bpm": 72,
+  "key": "Bbm",
+  "genre": "Jazz",
+  "year": 1959,
+  "duration": 327
+ },
+ {
+  "id": 678,
+  "title": "A Love Supreme",
+  "artist": "John Coltrane",
+  "bpm": 90,
+  "key": "F",
+  "genre": "Jazz",
+  "year": 1965,
+  "duration": 1988
+ },
+ {
+  "id": 679,
+  "title": "My Favorite Things",
+  "artist": "John Coltrane",
+  "bpm": 136,
+  "key": "Em",
+  "genre": "Jazz",
+  "year": 1961,
+  "duration": 822
+ },
+ {
+  "id": 680,
+  "title": "Summertime",
+  "artist": "Ella Fitzgerald",
+  "bpm": 66,
+  "key": "Am",
+  "genre": "Jazz",
+  "year": 1968,
+  "duration": 298
+ },
+ {
+  "id": 681,
+  "title": "Fly Me to the Moon",
+  "artist": "Frank Sinatra",
+  "bpm": 120,
+  "key": "Am",
+  "genre": "Jazz",
+  "year": 1964,
+  "duration": 148
+ },
+ {
+  "id": 682,
+  "title": "My Way",
+  "artist": "Frank Sinatra",
+  "bpm": 72,
+  "key": "D",
+  "genre": "Jazz",
+  "year": 1969,
+  "duration": 277
+ },
+ {
+  "id": 683,
+  "title": "New York New York",
+  "artist": "Frank Sinatra",
+  "bpm": 120,
+  "key": "D",
+  "genre": "Jazz",
+  "year": 1977,
+  "duration": 208
+ },
+ {
+  "id": 684,
+  "title": "What a Wonderful World",
+  "artist": "Louis Armstrong",
+  "bpm": 70,
+  "key": "F",
+  "genre": "Jazz",
+  "year": 1967,
+  "duration": 140
+ },
+ {
+  "id": 685,
+  "title": "Unholy",
+  "artist": "Sam Smith & Kim Petras",
+  "bpm": 131,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 177
+ },
+ {
+  "id": 686,
+  "title": "Running Up That Hill",
+  "artist": "Kate Bush",
+  "bpm": 108,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 1985,
+  "duration": 298
+ },
+ {
+  "id": 687,
+  "title": "Until I Found You",
+  "artist": "Stephen Sanchez",
+  "bpm": 110,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 177
+ },
+ {
+  "id": 688,
+  "title": "Calm Down",
+  "artist": "Rema",
+  "bpm": 107,
+  "key": "Fm",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 239
+ },
+ {
+  "id": 689,
+  "title": "Creepin'",
+  "artist": "Metro Boomin ft. The Weeknd",
+  "bpm": 104,
+  "key": "Dm",
+  "genre": "R&B",
+  "year": 2022,
+  "duration": 210
+ },
+ {
+  "id": 690,
+  "title": "Under the Influence",
+  "artist": "Chris Brown",
+  "bpm": 116,
+  "key": "Am",
+  "genre": "R&B",
+  "year": 2019,
+  "duration": 186
+ },
+ {
+  "id": 691,
+  "title": "Superhero",
+  "artist": "Metro Boomin ft. Future & Chris Brown",
+  "bpm": 141,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2022,
+  "duration": 210
+ },
+ {
+  "id": 692,
+  "title": "Rich Flex",
+  "artist": "Drake & 21 Savage",
+  "bpm": 84,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 2022,
+  "duration": 239
+ },
+ {
+  "id": 693,
+  "title": "On the Floor",
+  "artist": "Jennifer Lopez ft. Pitbull",
+  "bpm": 130,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 234
+ },
+ {
+  "id": 694,
+  "title": "Let's Get Loud",
+  "artist": "Jennifer Lopez",
+  "bpm": 126,
+  "key": "Am",
+  "genre": "Latin",
+  "year": 1999,
+  "duration": 242
+ },
+ {
+  "id": 695,
+  "title": "Waiting for Tonight",
+  "artist": "Jennifer Lopez",
+  "bpm": 132,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 1999,
+  "duration": 290
+ },
+ {
+  "id": 696,
+  "title": "I Gotta Feeling",
+  "artist": "Black Eyed Peas",
+  "bpm": 128,
+  "key": "G",
+  "genre": "Pop",
+  "year": 2009,
+  "duration": 289
+ },
+ {
+  "id": 697,
+  "title": "Where Is the Love?",
+  "artist": "Black Eyed Peas",
+  "bpm": 102,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 2003,
+  "duration": 276
+ },
+ {
+  "id": 698,
+  "title": "Boom Boom Pow",
+  "artist": "Black Eyed Peas",
+  "bpm": 130,
+  "key": "Ebm",
+  "genre": "Pop",
+  "year": 2009,
+  "duration": 258
+ },
+ {
+  "id": 699,
+  "title": "Se\u00f1orita",
+  "artist": "Shawn Mendes & Camila Cabello",
+  "bpm": 117,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 191
+ },
+ {
+  "id": 700,
+  "title": "Stitches",
+  "artist": "Shawn Mendes",
+  "bpm": 150,
+  "key": "Bm",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 207
+ },
+ {
+  "id": 701,
+  "title": "There's Nothing Holdin' Me Back",
+  "artist": "Shawn Mendes",
+  "bpm": 122,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 200
+ },
+ {
+  "id": 702,
+  "title": "Memories",
+  "artist": "Maroon 5",
+  "bpm": 91,
+  "key": "E",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 189
+ },
+ {
+  "id": 703,
+  "title": "Sugar",
+  "artist": "Maroon 5",
+  "bpm": 120,
+  "key": "Dbm",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 235
+ },
+ {
+  "id": 704,
+  "title": "Girls Like You",
+  "artist": "Maroon 5 ft. Cardi B",
+  "bpm": 125,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2018,
+  "duration": 235
+ },
+ {
+  "id": 705,
+  "title": "Maps",
+  "artist": "Maroon 5",
+  "bpm": 120,
+  "key": "A",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 195
+ },
+ {
+  "id": 706,
+  "title": "This Love",
+  "artist": "Maroon 5",
+  "bpm": 95,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 2004,
+  "duration": 205
+ },
+ {
+  "id": 707,
+  "title": "Payphone",
+  "artist": "Maroon 5 ft. Wiz Khalifa",
+  "bpm": 110,
+  "key": "Abm",
+  "genre": "Pop",
+  "year": 2012,
+  "duration": 231
+ },
+ {
+  "id": 708,
+  "title": "Moves Like Jagger",
+  "artist": "Maroon 5 ft. Christina Aguilera",
+  "bpm": 128,
+  "key": "Bm",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 208
+ },
+ {
+  "id": 709,
+  "title": "Attention",
+  "artist": "Charlie Puth",
+  "bpm": 100,
+  "key": "Ebm",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 203
+ },
+ {
+  "id": 710,
+  "title": "See You Again",
+  "artist": "Wiz Khalifa ft. Charlie Puth",
+  "bpm": 80,
+  "key": "Bb",
+  "genre": "Hip-Hop",
+  "year": 2015,
+  "duration": 237
+ },
+ {
+  "id": 711,
+  "title": "Love Yourself",
+  "artist": "Justin Bieber",
+  "bpm": 100,
+  "key": "E",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 233
+ },
+ {
+  "id": 712,
+  "title": "Sorry",
+  "artist": "Justin Bieber",
+  "bpm": 100,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 200
+ },
+ {
+  "id": 713,
+  "title": "What Do You Mean?",
+  "artist": "Justin Bieber",
+  "bpm": 125,
+  "key": "Bbm",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 206
+ },
+ {
+  "id": 714,
+  "title": "Baby",
+  "artist": "Justin Bieber ft. Ludacris",
+  "bpm": 65,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 214
+ },
+ {
+  "id": 715,
+  "title": "Havana",
+  "artist": "Camila Cabello ft. Young Thug",
+  "bpm": 105,
+  "key": "Gm",
+  "genre": "Pop",
+  "year": 2017,
+  "duration": 217
+ },
+ {
+  "id": 716,
+  "title": "Thank U Next",
+  "artist": "Ariana Grande",
+  "bpm": 107,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2018,
+  "duration": 207
+ },
+ {
+  "id": 717,
+  "title": "7 Rings",
+  "artist": "Ariana Grande",
+  "bpm": 140,
+  "key": "Dbm",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 179
+ },
+ {
+  "id": 718,
+  "title": "Positions",
+  "artist": "Ariana Grande",
+  "bpm": 144,
+  "key": "Am",
+  "genre": "R&B",
+  "year": 2020,
+  "duration": 173
+ },
+ {
+  "id": 719,
+  "title": "No Tears Left to Cry",
+  "artist": "Ariana Grande",
+  "bpm": 122,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 2018,
+  "duration": 206
+ },
+ {
+  "id": 720,
+  "title": "Into You",
+  "artist": "Ariana Grande",
+  "bpm": 107,
+  "key": "Fm",
+  "genre": "Pop",
+  "year": 2016,
+  "duration": 244
+ },
+ {
+  "id": 721,
+  "title": "Problem",
+  "artist": "Ariana Grande ft. Iggy Azalea",
+  "bpm": 103,
+  "key": "G#m",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 194
+ },
+ {
+  "id": 722,
+  "title": "Break Free",
+  "artist": "Ariana Grande ft. Zedd",
+  "bpm": 130,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 215
+ },
+ {
+  "id": 723,
+  "title": "Rain on Me",
+  "artist": "Lady Gaga & Ariana Grande",
+  "bpm": 123,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2020,
+  "duration": 182
+ },
+ {
+  "id": 724,
+  "title": "Poker Face",
+  "artist": "Lady Gaga",
+  "bpm": 119,
+  "key": "G#m",
+  "genre": "Pop",
+  "year": 2008,
+  "duration": 237
+ },
+ {
+  "id": 725,
+  "title": "Bad Romance",
+  "artist": "Lady Gaga",
+  "bpm": 119,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2009,
+  "duration": 295
+ },
+ {
+  "id": 726,
+  "title": "Born This Way",
+  "artist": "Lady Gaga",
+  "bpm": 124,
+  "key": "F#",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 260
+ },
+ {
+  "id": 727,
+  "title": "Just Dance",
+  "artist": "Lady Gaga ft. Colby O'Donis",
+  "bpm": 119,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2008,
+  "duration": 241
+ },
+ {
+  "id": 728,
+  "title": "Alejandro",
+  "artist": "Lady Gaga",
+  "bpm": 99,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 2009,
+  "duration": 275
+ },
+ {
+  "id": 729,
+  "title": "Shallow",
+  "artist": "Lady Gaga & Bradley Cooper",
+  "bpm": 96,
+  "key": "G",
+  "genre": "Pop",
+  "year": 2018,
+  "duration": 216
+ },
+ {
+  "id": 730,
+  "title": "Applause",
+  "artist": "Lady Gaga",
+  "bpm": 140,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 194
+ },
+ {
+  "id": 731,
+  "title": "Firework",
+  "artist": "Katy Perry",
+  "bpm": 124,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 228
+ },
+ {
+  "id": 732,
+  "title": "Roar",
+  "artist": "Katy Perry",
+  "bpm": 90,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 224
+ },
+ {
+  "id": 733,
+  "title": "California Gurls",
+  "artist": "Katy Perry ft. Snoop Dogg",
+  "bpm": 125,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 227
+ },
+ {
+  "id": 734,
+  "title": "Dark Horse",
+  "artist": "Katy Perry ft. Juicy J",
+  "bpm": 132,
+  "key": "Em",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 215
+ },
+ {
+  "id": 735,
+  "title": "Teenage Dream",
+  "artist": "Katy Perry",
+  "bpm": 120,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 229
+ },
+ {
+  "id": 736,
+  "title": "I Kissed a Girl",
+  "artist": "Katy Perry",
+  "bpm": 131,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2008,
+  "duration": 179
+ },
+ {
+  "id": 737,
+  "title": "Last Friday Night",
+  "artist": "Katy Perry",
+  "bpm": 126,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 232
+ },
+ {
+  "id": 738,
+  "title": "Wide Awake",
+  "artist": "Katy Perry",
+  "bpm": 140,
+  "key": "Eb",
+  "genre": "Pop",
+  "year": 2012,
+  "duration": 220
+ },
+ {
+  "id": 739,
+  "title": "Call Me Maybe",
+  "artist": "Carly Rae Jepsen",
+  "bpm": 120,
+  "key": "G",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 193
+ },
+ {
+  "id": 740,
+  "title": "Run Away with Me",
+  "artist": "Carly Rae Jepsen",
+  "bpm": 150,
+  "key": "E",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 253
+ },
+ {
+  "id": 741,
+  "title": "Timber",
+  "artist": "Pitbull ft. Kesha",
+  "bpm": 130,
+  "key": "A#m",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 204
+ },
+ {
+  "id": 742,
+  "title": "TiK ToK",
+  "artist": "Kesha",
+  "bpm": 120,
+  "key": "C#m",
+  "genre": "Pop",
+  "year": 2009,
+  "duration": 200
+ },
+ {
+  "id": 743,
+  "title": "We R Who We R",
+  "artist": "Kesha",
+  "bpm": 120,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 2010,
+  "duration": 213
+ },
+ {
+  "id": 744,
+  "title": "Party Rock Anthem",
+  "artist": "LMFAO",
+  "bpm": 130,
+  "key": "Fm",
+  "genre": "EDM",
+  "year": 2011,
+  "duration": 366
+ },
+ {
+  "id": 745,
+  "title": "Sexy and I Know It",
+  "artist": "LMFAO",
+  "bpm": 130,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 196
+ },
+ {
+  "id": 746,
+  "title": "Shots",
+  "artist": "LMFAO ft. Lil Jon",
+  "bpm": 128,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2009,
+  "duration": 226
+ },
+ {
+  "id": 747,
+  "title": "Stressed Out",
+  "artist": "twenty one pilots",
+  "bpm": 85,
+  "key": "Fm",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 202
+ },
+ {
+  "id": 748,
+  "title": "Ride",
+  "artist": "twenty one pilots",
+  "bpm": 75,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 214
+ },
+ {
+  "id": 749,
+  "title": "Heathens",
+  "artist": "twenty one pilots",
+  "bpm": 90,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2016,
+  "duration": 195
+ },
+ {
+  "id": 750,
+  "title": "Tear in My Heart",
+  "artist": "twenty one pilots",
+  "bpm": 122,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2015,
+  "duration": 188
+ },
+ {
+  "id": 751,
+  "title": "Wake Me Up When September Ends",
+  "artist": "Green Day",
+  "bpm": 105,
+  "key": "G",
+  "genre": "Rock",
+  "year": 2004,
+  "duration": 285
+ },
+ {
+  "id": 752,
+  "title": "Numb",
+  "artist": "Linkin Park",
+  "bpm": 110,
+  "key": "Fm",
+  "genre": "Rock",
+  "year": 2003,
+  "duration": 187
+ },
+ {
+  "id": 753,
+  "title": "In the End",
+  "artist": "Linkin Park",
+  "bpm": 105,
+  "key": "C#m",
+  "genre": "Rock",
+  "year": 2000,
+  "duration": 216
+ },
+ {
+  "id": 754,
+  "title": "Crawling",
+  "artist": "Linkin Park",
+  "bpm": 84,
+  "key": "C#m",
+  "genre": "Rock",
+  "year": 2000,
+  "duration": 209
+ },
+ {
+  "id": 755,
+  "title": "One Step Closer",
+  "artist": "Linkin Park",
+  "bpm": 95,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 2000,
+  "duration": 156
+ },
+ {
+  "id": 756,
+  "title": "New Divide",
+  "artist": "Linkin Park",
+  "bpm": 106,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 2009,
+  "duration": 267
+ },
+ {
+  "id": 757,
+  "title": "Faint",
+  "artist": "Linkin Park",
+  "bpm": 135,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 2003,
+  "duration": 162
+ },
+ {
+  "id": 758,
+  "title": "Somewhere I Belong",
+  "artist": "Linkin Park",
+  "bpm": 79,
+  "key": "C#m",
+  "genre": "Rock",
+  "year": 2003,
+  "duration": 214
+ },
+ {
+  "id": 759,
+  "title": "Chop Suey!",
+  "artist": "System of a Down",
+  "bpm": 127,
+  "key": "Gm",
+  "genre": "Metal",
+  "year": 2001,
+  "duration": 210
+ },
+ {
+  "id": 760,
+  "title": "Toxicity",
+  "artist": "System of a Down",
+  "bpm": 128,
+  "key": "Cm",
+  "genre": "Metal",
+  "year": 2001,
+  "duration": 213
+ },
+ {
+  "id": 761,
+  "title": "B.Y.O.B.",
+  "artist": "System of a Down",
+  "bpm": 149,
+  "key": "G",
+  "genre": "Metal",
+  "year": 2005,
+  "duration": 256
+ },
+ {
+  "id": 762,
+  "title": "The Beautiful People",
+  "artist": "Marilyn Manson",
+  "bpm": 102,
+  "key": "Em",
+  "genre": "Metal",
+  "year": 1996,
+  "duration": 235
+ },
+ {
+  "id": 763,
+  "title": "Du Hast",
+  "artist": "Rammstein",
+  "bpm": 120,
+  "key": "Em",
+  "genre": "Metal",
+  "year": 1997,
+  "duration": 233
+ },
+ {
+  "id": 764,
+  "title": "Bodies",
+  "artist": "Drowning Pool",
+  "bpm": 87,
+  "key": "D",
+  "genre": "Metal",
+  "year": 2001,
+  "duration": 202
+ },
+ {
+  "id": 765,
+  "title": "Down with the Sickness",
+  "artist": "Disturbed",
+  "bpm": 94,
+  "key": "Bbm",
+  "genre": "Metal",
+  "year": 2000,
+  "duration": 264
+ },
+ {
+  "id": 766,
+  "title": "Last Resort",
+  "artist": "Papa Roach",
+  "bpm": 100,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 2000,
+  "duration": 179
+ },
+ {
+  "id": 767,
+  "title": "Bring Me to Life",
+  "artist": "Evanescence",
+  "bpm": 95,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 2003,
+  "duration": 227
+ },
+ {
+  "id": 768,
+  "title": "My Immortal",
+  "artist": "Evanescence",
+  "bpm": 80,
+  "key": "A",
+  "genre": "Rock",
+  "year": 2003,
+  "duration": 265
+ },
+ {
+  "id": 769,
+  "title": "Animal I Have Become",
+  "artist": "Three Days Grace",
+  "bpm": 100,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 2006,
+  "duration": 217
+ },
+ {
+  "id": 770,
+  "title": "Misery Business",
+  "artist": "Paramore",
+  "bpm": 173,
+  "key": "Ab",
+  "genre": "Rock",
+  "year": 2007,
+  "duration": 209
+ },
+ {
+  "id": 771,
+  "title": "Decode",
+  "artist": "Paramore",
+  "bpm": 170,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 2008,
+  "duration": 255
+ },
+ {
+  "id": 772,
+  "title": "Still Into You",
+  "artist": "Paramore",
+  "bpm": 116,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 2013,
+  "duration": 216
+ },
+ {
+  "id": 773,
+  "title": "Sugar We're Goin Down",
+  "artist": "Fall Out Boy",
+  "bpm": 80,
+  "key": "Db",
+  "genre": "Rock",
+  "year": 2005,
+  "duration": 229
+ },
+ {
+  "id": 774,
+  "title": "Thnks fr th Mmrs",
+  "artist": "Fall Out Boy",
+  "bpm": 131,
+  "key": "Eb",
+  "genre": "Rock",
+  "year": 2007,
+  "duration": 213
+ },
+ {
+  "id": 775,
+  "title": "My Songs Know What You Did in the Dark",
+  "artist": "Fall Out Boy",
+  "bpm": 144,
+  "key": "C#m",
+  "genre": "Rock",
+  "year": 2013,
+  "duration": 208
+ },
+ {
+  "id": 776,
+  "title": "Centuries",
+  "artist": "Fall Out Boy",
+  "bpm": 89,
+  "key": "Gm",
+  "genre": "Rock",
+  "year": 2014,
+  "duration": 230
+ },
+ {
+  "id": 777,
+  "title": "The Middle",
+  "artist": "Jimmy Eat World",
+  "bpm": 162,
+  "key": "D",
+  "genre": "Rock",
+  "year": 2001,
+  "duration": 170
+ },
+ {
+  "id": 778,
+  "title": "I Write Sins Not Tragedies",
+  "artist": "Panic! at the Disco",
+  "bpm": 107,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 2005,
+  "duration": 192
+ },
+ {
+  "id": 779,
+  "title": "High Hopes",
+  "artist": "Panic! at the Disco",
+  "bpm": 82,
+  "key": "Bbm",
+  "genre": "Pop",
+  "year": 2018,
+  "duration": 190
+ },
+ {
+  "id": 780,
+  "title": "Welcome to the Black Parade",
+  "artist": "My Chemical Romance",
+  "bpm": 97,
+  "key": "G",
+  "genre": "Rock",
+  "year": 2006,
+  "duration": 311
+ },
+ {
+  "id": 781,
+  "title": "Helena",
+  "artist": "My Chemical Romance",
+  "bpm": 150,
+  "key": "E",
+  "genre": "Rock",
+  "year": 2004,
+  "duration": 191
+ },
+ {
+  "id": 782,
+  "title": "Teenagers",
+  "artist": "My Chemical Romance",
+  "bpm": 120,
+  "key": "D",
+  "genre": "Rock",
+  "year": 2006,
+  "duration": 179
+ },
+ {
+  "id": 783,
+  "title": "When You Were Young",
+  "artist": "The Killers",
+  "bpm": 130,
+  "key": "F",
+  "genre": "Rock",
+  "year": 2006,
+  "duration": 224
+ },
+ {
+  "id": 784,
+  "title": "All the Small Things",
+  "artist": "blink-182",
+  "bpm": 148,
+  "key": "C",
+  "genre": "Punk",
+  "year": 2000,
+  "duration": 168
+ },
+ {
+  "id": 785,
+  "title": "I Miss You",
+  "artist": "blink-182",
+  "bpm": 107,
+  "key": "D",
+  "genre": "Punk",
+  "year": 2003,
+  "duration": 229
+ },
+ {
+  "id": 786,
+  "title": "What's My Age Again?",
+  "artist": "blink-182",
+  "bpm": 149,
+  "key": "F#",
+  "genre": "Punk",
+  "year": 2000,
+  "duration": 152
+ },
+ {
+  "id": 787,
+  "title": "Dammit",
+  "artist": "blink-182",
+  "bpm": 109,
+  "key": "C",
+  "genre": "Punk",
+  "year": 1997,
+  "duration": 166
+ },
+ {
+  "id": 788,
+  "title": "Ocean Avenue",
+  "artist": "Yellowcard",
+  "bpm": 155,
+  "key": "C",
+  "genre": "Rock",
+  "year": 2003,
+  "duration": 214
+ },
+ {
+  "id": 789,
+  "title": "Fat Lip",
+  "artist": "Sum 41",
+  "bpm": 106,
+  "key": "C",
+  "genre": "Punk",
+  "year": 2001,
+  "duration": 192
+ },
+ {
+  "id": 790,
+  "title": "In Too Deep",
+  "artist": "Sum 41",
+  "bpm": 93,
+  "key": "Db",
+  "genre": "Punk",
+  "year": 2001,
+  "duration": 204
+ },
+ {
+  "id": 791,
+  "title": "The Anthem",
+  "artist": "Good Charlotte",
+  "bpm": 91,
+  "key": "Dm",
+  "genre": "Punk",
+  "year": 2002,
+  "duration": 179
+ },
+ {
+  "id": 792,
+  "title": "My Happy Ending",
+  "artist": "Avril Lavigne",
+  "bpm": 72,
+  "key": "A",
+  "genre": "Rock",
+  "year": 2004,
+  "duration": 240
+ },
+ {
+  "id": 793,
+  "title": "Complicated",
+  "artist": "Avril Lavigne",
+  "bpm": 79,
+  "key": "Db",
+  "genre": "Pop",
+  "year": 2002,
+  "duration": 244
+ },
+ {
+  "id": 794,
+  "title": "Sk8er Boi",
+  "artist": "Avril Lavigne",
+  "bpm": 150,
+  "key": "Db",
+  "genre": "Rock",
+  "year": 2002,
+  "duration": 207
+ },
+ {
+  "id": 795,
+  "title": "Time",
+  "artist": "Pink Floyd",
+  "bpm": 120,
+  "key": "F#m",
+  "genre": "Rock",
+  "year": 1973,
+  "duration": 413
+ },
+ {
+  "id": 796,
+  "title": "Breathe",
+  "artist": "Pink Floyd",
+  "bpm": 63,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1973,
+  "duration": 169
+ },
+ {
+  "id": 797,
+  "title": "Us and Them",
+  "artist": "Pink Floyd",
+  "bpm": 60,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1973,
+  "duration": 469
+ },
+ {
+  "id": 798,
+  "title": "Have a Cigar",
+  "artist": "Pink Floyd",
+  "bpm": 104,
+  "key": "Em",
+  "genre": "Rock",
+  "year": 1975,
+  "duration": 306
+ },
+ {
+  "id": 799,
+  "title": "The Immigrant Song",
+  "artist": "Led Zeppelin",
+  "bpm": 113,
+  "key": "F#m",
+  "genre": "Rock",
+  "year": 1970,
+  "duration": 146
+ },
+ {
+  "id": 800,
+  "title": "Going to California",
+  "artist": "Led Zeppelin",
+  "bpm": 78,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1971,
+  "duration": 212
+ },
+ {
+  "id": 801,
+  "title": "Ramble On",
+  "artist": "Led Zeppelin",
+  "bpm": 116,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1969,
+  "duration": 271
+ },
+ {
+  "id": 802,
+  "title": "Babe I'm Gonna Leave You",
+  "artist": "Led Zeppelin",
+  "bpm": 70,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1969,
+  "duration": 401
+ },
+ {
+  "id": 803,
+  "title": "Sultans of Swing",
+  "artist": "Dire Straits",
+  "bpm": 148,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 1978,
+  "duration": 345
+ },
+ {
+  "id": 804,
+  "title": "Money for Nothing",
+  "artist": "Dire Straits",
+  "bpm": 134,
+  "key": "Gm",
+  "genre": "Rock",
+  "year": 1985,
+  "duration": 485
+ },
+ {
+  "id": 805,
+  "title": "Walk of Life",
+  "artist": "Dire Straits",
+  "bpm": 120,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1985,
+  "duration": 246
+ },
+ {
+  "id": 806,
+  "title": "Smoke on the Water",
+  "artist": "Deep Purple",
+  "bpm": 112,
+  "key": "Gm",
+  "genre": "Rock",
+  "year": 1972,
+  "duration": 338
+ },
+ {
+  "id": 807,
+  "title": "Child in Time",
+  "artist": "Deep Purple",
+  "bpm": 63,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1970,
+  "duration": 621
+ },
+ {
+  "id": 808,
+  "title": "Spirit of Radio",
+  "artist": "Rush",
+  "bpm": 132,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1980,
+  "duration": 299
+ },
+ {
+  "id": 809,
+  "title": "Tom Sawyer",
+  "artist": "Rush",
+  "bpm": 175,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1981,
+  "duration": 263
+ },
+ {
+  "id": 810,
+  "title": "Limelight",
+  "artist": "Rush",
+  "bpm": 132,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1981,
+  "duration": 259
+ },
+ {
+  "id": 811,
+  "title": "Layla",
+  "artist": "Derek and the Dominos",
+  "bpm": 116,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 1970,
+  "duration": 428
+ },
+ {
+  "id": 812,
+  "title": "Wonderful Tonight",
+  "artist": "Eric Clapton",
+  "bpm": 95,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 219
+ },
+ {
+  "id": 813,
+  "title": "Tears in Heaven",
+  "artist": "Eric Clapton",
+  "bpm": 80,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1992,
+  "duration": 273
+ },
+ {
+  "id": 814,
+  "title": "Cocaine",
+  "artist": "Eric Clapton",
+  "bpm": 104,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1977,
+  "duration": 214
+ },
+ {
+  "id": 815,
+  "title": "While My Guitar Gently Weeps",
+  "artist": "The Beatles",
+  "bpm": 116,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1968,
+  "duration": 285
+ },
+ {
+  "id": 816,
+  "title": "Norwegian Wood",
+  "artist": "The Beatles",
+  "bpm": 120,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1965,
+  "duration": 125
+ },
+ {
+  "id": 817,
+  "title": "Sunshine of Your Love",
+  "artist": "Cream",
+  "bpm": 116,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1967,
+  "duration": 251
+ },
+ {
+  "id": 818,
+  "title": "White Room",
+  "artist": "Cream",
+  "bpm": 114,
+  "key": "Dm",
+  "genre": "Rock",
+  "year": 1968,
+  "duration": 300
+ },
+ {
+  "id": 819,
+  "title": "Badge",
+  "artist": "Cream",
+  "bpm": 116,
+  "key": "Am",
+  "genre": "Rock",
+  "year": 1969,
+  "duration": 168
+ },
+ {
+  "id": 820,
+  "title": "Life on Mars",
+  "artist": "David Bowie",
+  "bpm": 66,
+  "key": "F",
+  "genre": "Rock",
+  "year": 1971,
+  "duration": 231
+ },
+ {
+  "id": 821,
+  "title": "Ashes to Ashes",
+  "artist": "David Bowie",
+  "bpm": 120,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1980,
+  "duration": 254
+ },
+ {
+  "id": 822,
+  "title": "Rebel Rebel",
+  "artist": "David Bowie",
+  "bpm": 128,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1974,
+  "duration": 268
+ },
+ {
+  "id": 823,
+  "title": "Suffragette City",
+  "artist": "David Bowie",
+  "bpm": 138,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1972,
+  "duration": 191
+ },
+ {
+  "id": 824,
+  "title": "Waterloo",
+  "artist": "ABBA",
+  "bpm": 150,
+  "key": "D",
+  "genre": "Pop",
+  "year": 1974,
+  "duration": 168
+ },
+ {
+  "id": 825,
+  "title": "Dancing Queen",
+  "artist": "ABBA",
+  "bpm": 101,
+  "key": "A",
+  "genre": "Pop",
+  "year": 1976,
+  "duration": 231
+ },
+ {
+  "id": 826,
+  "title": "Mamma Mia",
+  "artist": "ABBA",
+  "bpm": 136,
+  "key": "D",
+  "genre": "Pop",
+  "year": 1975,
+  "duration": 212
+ },
+ {
+  "id": 827,
+  "title": "SOS",
+  "artist": "ABBA",
+  "bpm": 118,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 1975,
+  "duration": 201
+ },
+ {
+  "id": 828,
+  "title": "Gimme! Gimme! Gimme!",
+  "artist": "ABBA",
+  "bpm": 120,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 1979,
+  "duration": 286
+ },
+ {
+  "id": 829,
+  "title": "The Winner Takes It All",
+  "artist": "ABBA",
+  "bpm": 77,
+  "key": "Gb",
+  "genre": "Pop",
+  "year": 1980,
+  "duration": 296
+ },
+ {
+  "id": 830,
+  "title": "Fernando",
+  "artist": "ABBA",
+  "bpm": 132,
+  "key": "A",
+  "genre": "Pop",
+  "year": 1976,
+  "duration": 253
+ },
+ {
+  "id": 831,
+  "title": "Take a Chance on Me",
+  "artist": "ABBA",
+  "bpm": 125,
+  "key": "B",
+  "genre": "Pop",
+  "year": 1977,
+  "duration": 247
+ },
+ {
+  "id": 832,
+  "title": "Knowing Me Knowing You",
+  "artist": "ABBA",
+  "bpm": 113,
+  "key": "D",
+  "genre": "Pop",
+  "year": 1977,
+  "duration": 241
+ },
+ {
+  "id": 833,
+  "title": "Lay All Your Love on Me",
+  "artist": "ABBA",
+  "bpm": 130,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 1980,
+  "duration": 271
+ },
+ {
+  "id": 834,
+  "title": "Don't Speak",
+  "artist": "No Doubt",
+  "bpm": 76,
+  "key": "Cm",
+  "genre": "Rock",
+  "year": 1996,
+  "duration": 267
+ },
+ {
+  "id": 835,
+  "title": "Just a Girl",
+  "artist": "No Doubt",
+  "bpm": 132,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1995,
+  "duration": 207
+ },
+ {
+  "id": 836,
+  "title": "Hey There Delilah",
+  "artist": "Plain White T's",
+  "bpm": 110,
+  "key": "D",
+  "genre": "Pop",
+  "year": 2006,
+  "duration": 227
+ },
+ {
+  "id": 837,
+  "title": "Drops of Jupiter",
+  "artist": "Train",
+  "bpm": 80,
+  "key": "C",
+  "genre": "Pop",
+  "year": 2001,
+  "duration": 262
+ },
+ {
+  "id": 838,
+  "title": "Hey Soul Sister",
+  "artist": "Train",
+  "bpm": 97,
+  "key": "E",
+  "genre": "Pop",
+  "year": 2009,
+  "duration": 216
+ },
+ {
+  "id": 839,
+  "title": "Unwritten",
+  "artist": "Natasha Bedingfield",
+  "bpm": 118,
+  "key": "Bb",
+  "genre": "Pop",
+  "year": 2004,
+  "duration": 264
+ },
+ {
+  "id": 840,
+  "title": "A Sky Full of Stars",
+  "artist": "Coldplay",
+  "bpm": 125,
+  "key": "Ab",
+  "genre": "Rock",
+  "year": 2014,
+  "duration": 268
+ },
+ {
+  "id": 841,
+  "title": "Adventure of a Lifetime",
+  "artist": "Coldplay",
+  "bpm": 112,
+  "key": "Ebm",
+  "genre": "Rock",
+  "year": 2015,
+  "duration": 263
+ },
+ {
+  "id": 842,
+  "title": "Hymn for the Weekend",
+  "artist": "Coldplay",
+  "bpm": 90,
+  "key": "F#m",
+  "genre": "Rock",
+  "year": 2016,
+  "duration": 258
+ },
+ {
+  "id": 843,
+  "title": "Praise the Lord",
+  "artist": "A$AP Rocky",
+  "bpm": 78,
+  "key": "Bbm",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 195
+ },
+ {
+  "id": 844,
+  "title": "F**kin' Problems",
+  "artist": "A$AP Rocky",
+  "bpm": 78,
+  "key": "Fm",
+  "genre": "Hip-Hop",
+  "year": 2012,
+  "duration": 234
+ },
+ {
+  "id": 845,
+  "title": "m.A.A.d city",
+  "artist": "Kendrick Lamar",
+  "bpm": 86,
+  "key": "Bbm",
+  "genre": "Hip-Hop",
+  "year": 2012,
+  "duration": 345
+ },
+ {
+  "id": 846,
+  "title": "Bitch Don't Kill My Vibe",
+  "artist": "Kendrick Lamar",
+  "bpm": 146,
+  "key": "F#m",
+  "genre": "Hip-Hop",
+  "year": 2012,
+  "duration": 312
+ },
+ {
+  "id": 847,
+  "title": "ELEMENT.",
+  "artist": "Kendrick Lamar",
+  "bpm": 85,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2017,
+  "duration": 207
+ },
+ {
+  "id": 848,
+  "title": "All the Stars",
+  "artist": "Kendrick Lamar & SZA",
+  "bpm": 103,
+  "key": "F",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 233
+ },
+ {
+  "id": 849,
+  "title": "Headlines",
+  "artist": "Drake",
+  "bpm": 85,
+  "key": "Gm",
+  "genre": "Hip-Hop",
+  "year": 2011,
+  "duration": 232
+ },
+ {
+  "id": 850,
+  "title": "The Motto",
+  "artist": "Drake ft. Lil Wayne",
+  "bpm": 100,
+  "key": "Ebm",
+  "genre": "Hip-Hop",
+  "year": 2011,
+  "duration": 198
+ },
+ {
+  "id": 851,
+  "title": "Over",
+  "artist": "Drake",
+  "bpm": 81,
+  "key": "Bbm",
+  "genre": "Hip-Hop",
+  "year": 2010,
+  "duration": 216
+ },
+ {
+  "id": 852,
+  "title": "Best I Ever Had",
+  "artist": "Drake",
+  "bpm": 89,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2009,
+  "duration": 258
+ },
+ {
+  "id": 853,
+  "title": "Lucid Dreams",
+  "artist": "Juice WRLD",
+  "bpm": 84,
+  "key": "F#m",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 240
+ },
+ {
+  "id": 854,
+  "title": "Robbery",
+  "artist": "Juice WRLD",
+  "bpm": 80,
+  "key": "F#m",
+  "genre": "Hip-Hop",
+  "year": 2019,
+  "duration": 240
+ },
+ {
+  "id": 855,
+  "title": "Legends",
+  "artist": "Juice WRLD",
+  "bpm": 85,
+  "key": "C#m",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 196
+ },
+ {
+  "id": 856,
+  "title": "Sunflower",
+  "artist": "Post Malone & Swae Lee",
+  "bpm": 86,
+  "key": "Db",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 158
+ },
+ {
+  "id": 857,
+  "title": "Congratulations",
+  "artist": "Post Malone",
+  "bpm": 123,
+  "key": "C",
+  "genre": "Hip-Hop",
+  "year": 2016,
+  "duration": 220
+ },
+ {
+  "id": 858,
+  "title": "rockstar",
+  "artist": "Post Malone ft. 21 Savage",
+  "bpm": 80,
+  "key": "Dbm",
+  "genre": "Hip-Hop",
+  "year": 2017,
+  "duration": 218
+ },
+ {
+  "id": 859,
+  "title": "Circles",
+  "artist": "Post Malone",
+  "bpm": 120,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2019,
+  "duration": 215
+ },
+ {
+  "id": 860,
+  "title": "Better Now",
+  "artist": "Post Malone",
+  "bpm": 145,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2018,
+  "duration": 232
+ },
+ {
+  "id": 861,
+  "title": "Wow.",
+  "artist": "Post Malone",
+  "bpm": 75,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 152
+ },
+ {
+  "id": 862,
+  "title": "Psycho",
+  "artist": "Post Malone ft. Ty Dolla $ign",
+  "bpm": 140,
+  "key": "C#m",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 221
+ },
+ {
+  "id": 863,
+  "title": "Laugh Now Cry Later",
+  "artist": "Drake ft. Lil Durk",
+  "bpm": 133,
+  "key": "Bm",
+  "genre": "Hip-Hop",
+  "year": 2020,
+  "duration": 261
+ },
+ {
+  "id": 864,
+  "title": "Life Is Good",
+  "artist": "Future ft. Drake",
+  "bpm": 145,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2020,
+  "duration": 237
+ },
+ {
+  "id": 865,
+  "title": "Savage",
+  "artist": "Megan Thee Stallion",
+  "bpm": 90,
+  "key": "Fm",
+  "genre": "Hip-Hop",
+  "year": 2020,
+  "duration": 162
+ },
+ {
+  "id": 866,
+  "title": "Hot Girl Summer",
+  "artist": "Megan Thee Stallion",
+  "bpm": 80,
+  "key": "Ebm",
+  "genre": "Hip-Hop",
+  "year": 2019,
+  "duration": 210
+ },
+ {
+  "id": 867,
+  "title": "Pop Out",
+  "artist": "Polo G",
+  "bpm": 82,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2019,
+  "duration": 183
+ },
+ {
+  "id": 868,
+  "title": "Rapstar",
+  "artist": "Polo G",
+  "bpm": 82,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 2021,
+  "duration": 196
+ },
+ {
+  "id": 869,
+  "title": "Drankin N Smokin",
+  "artist": "Future & Lil Uzi Vert",
+  "bpm": 126,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2020,
+  "duration": 181
+ },
+ {
+  "id": 870,
+  "title": "Uproar",
+  "artist": "Lil Wayne",
+  "bpm": 150,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2018,
+  "duration": 218
+ },
+ {
+  "id": 871,
+  "title": "Lollipop",
+  "artist": "Lil Wayne",
+  "bpm": 84,
+  "key": "Dm",
+  "genre": "Hip-Hop",
+  "year": 2008,
+  "duration": 300
+ },
+ {
+  "id": 872,
+  "title": "A Milli",
+  "artist": "Lil Wayne",
+  "bpm": 82,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2008,
+  "duration": 238
+ },
+ {
+  "id": 873,
+  "title": "6 Foot 7 Foot",
+  "artist": "Lil Wayne",
+  "bpm": 86,
+  "key": "Cm",
+  "genre": "Hip-Hop",
+  "year": 2011,
+  "duration": 224
+ },
+ {
+  "id": 874,
+  "title": "Drop the World",
+  "artist": "Lil Wayne ft. Eminem",
+  "bpm": 79,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2010,
+  "duration": 235
+ },
+ {
+  "id": 875,
+  "title": "Adorn",
+  "artist": "Miguel",
+  "bpm": 80,
+  "key": "F#m",
+  "genre": "R&B",
+  "year": 2012,
+  "duration": 202
+ },
+ {
+  "id": 876,
+  "title": "Sure Thing",
+  "artist": "Miguel",
+  "bpm": 104,
+  "key": "A",
+  "genre": "R&B",
+  "year": 2010,
+  "duration": 221
+ },
+ {
+  "id": 877,
+  "title": "If I Ain't Got You",
+  "artist": "Alicia Keys",
+  "bpm": 67,
+  "key": "Gm",
+  "genre": "R&B",
+  "year": 2003,
+  "duration": 227
+ },
+ {
+  "id": 878,
+  "title": "No One",
+  "artist": "Alicia Keys",
+  "bpm": 100,
+  "key": "E",
+  "genre": "R&B",
+  "year": 2007,
+  "duration": 254
+ },
+ {
+  "id": 879,
+  "title": "Fallin'",
+  "artist": "Alicia Keys",
+  "bpm": 68,
+  "key": "Em",
+  "genre": "R&B",
+  "year": 2001,
+  "duration": 212
+ },
+ {
+  "id": 880,
+  "title": "Girl on Fire",
+  "artist": "Alicia Keys",
+  "bpm": 92,
+  "key": "Gm",
+  "genre": "R&B",
+  "year": 2012,
+  "duration": 238
+ },
+ {
+  "id": 881,
+  "title": "Best Part",
+  "artist": "Daniel Caesar ft. H.E.R.",
+  "bpm": 68,
+  "key": "Gb",
+  "genre": "R&B",
+  "year": 2017,
+  "duration": 209
+ },
+ {
+  "id": 882,
+  "title": "Get You",
+  "artist": "Daniel Caesar ft. Kali Uchis",
+  "bpm": 118,
+  "key": "Ab",
+  "genre": "R&B",
+  "year": 2016,
+  "duration": 313
+ },
+ {
+  "id": 883,
+  "title": "Die for You",
+  "artist": "The Weeknd",
+  "bpm": 102,
+  "key": "E",
+  "genre": "R&B",
+  "year": 2016,
+  "duration": 260
+ },
+ {
+  "id": 884,
+  "title": "Often",
+  "artist": "The Weeknd",
+  "bpm": 104,
+  "key": "Ebm",
+  "genre": "R&B",
+  "year": 2014,
+  "duration": 249
+ },
+ {
+  "id": 885,
+  "title": "Wicked Games",
+  "artist": "The Weeknd",
+  "bpm": 80,
+  "key": "Fm",
+  "genre": "R&B",
+  "year": 2011,
+  "duration": 325
+ },
+ {
+  "id": 886,
+  "title": "The Zone",
+  "artist": "The Weeknd",
+  "bpm": 90,
+  "key": "Bbm",
+  "genre": "R&B",
+  "year": 2012,
+  "duration": 323
+ },
+ {
+  "id": 887,
+  "title": "Climax",
+  "artist": "Usher",
+  "bpm": 80,
+  "key": "F#m",
+  "genre": "R&B",
+  "year": 2012,
+  "duration": 262
+ },
+ {
+  "id": 888,
+  "title": "Confessions Part II",
+  "artist": "Usher",
+  "bpm": 86,
+  "key": "Dm",
+  "genre": "R&B",
+  "year": 2004,
+  "duration": 272
+ },
+ {
+  "id": 889,
+  "title": "OMG",
+  "artist": "Usher ft. will.i.am",
+  "bpm": 130,
+  "key": "Fm",
+  "genre": "R&B",
+  "year": 2010,
+  "duration": 236
+ },
+ {
+  "id": 890,
+  "title": "Love in This Club",
+  "artist": "Usher ft. Young Jeezy",
+  "bpm": 100,
+  "key": "Abm",
+  "genre": "R&B",
+  "year": 2008,
+  "duration": 280
+ },
+ {
+  "id": 891,
+  "title": "Get Lucky",
+  "artist": "Daft Punk ft. Pharrell Williams",
+  "bpm": 116,
+  "key": "F#m",
+  "genre": "Electronic",
+  "year": 2013,
+  "duration": 369
+ },
+ {
+  "id": 892,
+  "title": "We Can't Stop",
+  "artist": "Miley Cyrus",
+  "bpm": 128,
+  "key": "Ebm",
+  "genre": "Pop",
+  "year": 2013,
+  "duration": 230
+ },
+ {
+  "id": 893,
+  "title": "Starships",
+  "artist": "Nicki Minaj",
+  "bpm": 125,
+  "key": "G#m",
+  "genre": "Pop",
+  "year": 2012,
+  "duration": 210
+ },
+ {
+  "id": 894,
+  "title": "Super Bass",
+  "artist": "Nicki Minaj",
+  "bpm": 127,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 200
+ },
+ {
+  "id": 895,
+  "title": "Anaconda",
+  "artist": "Nicki Minaj",
+  "bpm": 130,
+  "key": "Am",
+  "genre": "Hip-Hop",
+  "year": 2014,
+  "duration": 261
+ },
+ {
+  "id": 896,
+  "title": "Bang Bang",
+  "artist": "Jessie J, Ariana Grande, Nicki Minaj",
+  "bpm": 150,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2014,
+  "duration": 198
+ },
+ {
+  "id": 897,
+  "title": "Domino",
+  "artist": "Jessie J",
+  "bpm": 127,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 230
+ },
+ {
+  "id": 898,
+  "title": "Price Tag",
+  "artist": "Jessie J ft. B.o.B",
+  "bpm": 116,
+  "key": "F",
+  "genre": "Pop",
+  "year": 2011,
+  "duration": 222
+ },
+ {
+  "id": 899,
+  "title": "Turn Me On",
+  "artist": "David Guetta ft. Nicki Minaj",
+  "bpm": 128,
+  "key": "C#m",
+  "genre": "EDM",
+  "year": 2011,
+  "duration": 196
+ },
+ {
+  "id": 900,
+  "title": "Without You",
+  "artist": "David Guetta ft. Usher",
+  "bpm": 126,
+  "key": "Am",
+  "genre": "EDM",
+  "year": 2011,
+  "duration": 213
+ },
+ {
+  "id": 901,
+  "title": "When Love Takes Over",
+  "artist": "David Guetta ft. Kelly Rowland",
+  "bpm": 128,
+  "key": "Gm",
+  "genre": "EDM",
+  "year": 2009,
+  "duration": 198
+ },
+ {
+  "id": 902,
+  "title": "Where Them Girls At",
+  "artist": "David Guetta",
+  "bpm": 130,
+  "key": "Am",
+  "genre": "EDM",
+  "year": 2011,
+  "duration": 213
+ },
+ {
+  "id": 903,
+  "title": "Sexy Bitch",
+  "artist": "David Guetta ft. Akon",
+  "bpm": 130,
+  "key": "Am",
+  "genre": "EDM",
+  "year": 2009,
+  "duration": 191
+ },
+ {
+  "id": 904,
+  "title": "Strobe",
+  "artist": "deadmau5",
+  "bpm": 128,
+  "key": "F#m",
+  "genre": "Electronic",
+  "year": 2009,
+  "duration": 637
+ },
+ {
+  "id": 905,
+  "title": "Ghosts 'n' Stuff",
+  "artist": "deadmau5 ft. Rob Swire",
+  "bpm": 128,
+  "key": "Fm",
+  "genre": "Electronic",
+  "year": 2008,
+  "duration": 340
+ },
+ {
+  "id": 906,
+  "title": "Raise Your Weapon",
+  "artist": "deadmau5",
+  "bpm": 128,
+  "key": "F",
+  "genre": "Electronic",
+  "year": 2010,
+  "duration": 479
+ },
+ {
+  "id": 907,
+  "title": "I Remember",
+  "artist": "deadmau5 & Kaskade",
+  "bpm": 128,
+  "key": "Am",
+  "genre": "Electronic",
+  "year": 2008,
+  "duration": 529
+ },
+ {
+  "id": 908,
+  "title": "Opus",
+  "artist": "Eric Prydz",
+  "bpm": 126,
+  "key": "Dm",
+  "genre": "Electronic",
+  "year": 2016,
+  "duration": 545
+ },
+ {
+  "id": 909,
+  "title": "Call On Me",
+  "artist": "Eric Prydz",
+  "bpm": 127,
+  "key": "Cm",
+  "genre": "Electronic",
+  "year": 2004,
+  "duration": 202
+ },
+ {
+  "id": 910,
+  "title": "Pjanoo",
+  "artist": "Eric Prydz",
+  "bpm": 128,
+  "key": "A",
+  "genre": "Electronic",
+  "year": 2008,
+  "duration": 389
+ },
+ {
+  "id": 911,
+  "title": "Language",
+  "artist": "Porter Robinson",
+  "bpm": 128,
+  "key": "Ab",
+  "genre": "Electronic",
+  "year": 2012,
+  "duration": 380
+ },
+ {
+  "id": 912,
+  "title": "Shelter",
+  "artist": "Porter Robinson & Madeon",
+  "bpm": 100,
+  "key": "Bb",
+  "genre": "Electronic",
+  "year": 2016,
+  "duration": 226
+ },
+ {
+  "id": 913,
+  "title": "Divinity",
+  "artist": "Porter Robinson ft. Amy Millan",
+  "bpm": 128,
+  "key": "F#m",
+  "genre": "Electronic",
+  "year": 2014,
+  "duration": 370
+ },
+ {
+  "id": 914,
+  "title": "Adagio for Strings",
+  "artist": "Tiesto",
+  "bpm": 138,
+  "key": "Dm",
+  "genre": "Electronic",
+  "year": 2005,
+  "duration": 383
+ },
+ {
+  "id": 915,
+  "title": "In the Air Tonight",
+  "artist": "Phil Collins",
+  "bpm": 84,
+  "key": "Dm",
+  "genre": "Pop",
+  "year": 1981,
+  "duration": 334
+ },
+ {
+  "id": 916,
+  "title": "Against All Odds",
+  "artist": "Phil Collins",
+  "bpm": 67,
+  "key": "Ab",
+  "genre": "Pop",
+  "year": 1984,
+  "duration": 206
+ },
+ {
+  "id": 917,
+  "title": "Easy Lover",
+  "artist": "Phil Collins & Philip Bailey",
+  "bpm": 110,
+  "key": "Cm",
+  "genre": "Pop",
+  "year": 1984,
+  "duration": 308
+ },
+ {
+  "id": 918,
+  "title": "Sussudio",
+  "artist": "Phil Collins",
+  "bpm": 132,
+  "key": "F#",
+  "genre": "Pop",
+  "year": 1985,
+  "duration": 262
+ },
+ {
+  "id": 919,
+  "title": "Sledgehammer",
+  "artist": "Peter Gabriel",
+  "bpm": 97,
+  "key": "Ab",
+  "genre": "Rock",
+  "year": 1986,
+  "duration": 307
+ },
+ {
+  "id": 920,
+  "title": "In Your Eyes",
+  "artist": "Peter Gabriel",
+  "bpm": 83,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1986,
+  "duration": 323
+ },
+ {
+  "id": 921,
+  "title": "The Gambler",
+  "artist": "Kenny Rogers",
+  "bpm": 95,
+  "key": "Eb",
+  "genre": "Country",
+  "year": 1978,
+  "duration": 209
+ },
+ {
+  "id": 922,
+  "title": "Islands in the Stream",
+  "artist": "Kenny Rogers & Dolly Parton",
+  "bpm": 106,
+  "key": "C",
+  "genre": "Country",
+  "year": 1983,
+  "duration": 247
+ },
+ {
+  "id": 923,
+  "title": "Take Me Home Country Roads",
+  "artist": "John Denver",
+  "bpm": 82,
+  "key": "A",
+  "genre": "Country",
+  "year": 1971,
+  "duration": 191
+ },
+ {
+  "id": 924,
+  "title": "Rhinestone Cowboy",
+  "artist": "Glen Campbell",
+  "bpm": 100,
+  "key": "Eb",
+  "genre": "Country",
+  "year": 1975,
+  "duration": 194
+ },
+ {
+  "id": 925,
+  "title": "Mammas Don't Let Your Babies Grow Up to Be Cowboys",
+  "artist": "Waylon Jennings & Willie Nelson",
+  "bpm": 78,
+  "key": "D",
+  "genre": "Country",
+  "year": 1978,
+  "duration": 202
+ },
+ {
+  "id": 926,
+  "title": "Stand by Your Man",
+  "artist": "Tammy Wynette",
+  "bpm": 66,
+  "key": "D",
+  "genre": "Country",
+  "year": 1968,
+  "duration": 159
+ },
+ {
+  "id": 927,
+  "title": "Coal Miner's Daughter",
+  "artist": "Loretta Lynn",
+  "bpm": 98,
+  "key": "G",
+  "genre": "Country",
+  "year": 1970,
+  "duration": 163
+ },
+ {
+  "id": 928,
+  "title": "Fancy",
+  "artist": "Reba McEntire",
+  "bpm": 82,
+  "key": "Am",
+  "genre": "Country",
+  "year": 1990,
+  "duration": 304
+ },
+ {
+  "id": 929,
+  "title": "Broken Wing",
+  "artist": "Martina McBride",
+  "bpm": 92,
+  "key": "Fm",
+  "genre": "Country",
+  "year": 1997,
+  "duration": 270
+ },
+ {
+  "id": 930,
+  "title": "Breathe",
+  "artist": "Faith Hill",
+  "bpm": 78,
+  "key": "D",
+  "genre": "Country",
+  "year": 1999,
+  "duration": 234
+ },
+ {
+  "id": 931,
+  "title": "Live Like You Were Dying",
+  "artist": "Tim McGraw",
+  "bpm": 84,
+  "key": "A",
+  "genre": "Country",
+  "year": 2004,
+  "duration": 297
+ },
+ {
+  "id": 932,
+  "title": "Chicken Fried",
+  "artist": "Zac Brown Band",
+  "bpm": 94,
+  "key": "E",
+  "genre": "Country",
+  "year": 2008,
+  "duration": 303
+ },
+ {
+  "id": 933,
+  "title": "Toes",
+  "artist": "Zac Brown Band",
+  "bpm": 132,
+  "key": "E",
+  "genre": "Country",
+  "year": 2008,
+  "duration": 248
+ },
+ {
+  "id": 934,
+  "title": "Drink in My Hand",
+  "artist": "Eric Church",
+  "bpm": 112,
+  "key": "C",
+  "genre": "Country",
+  "year": 2011,
+  "duration": 229
+ },
+ {
+  "id": 935,
+  "title": "Springsteen",
+  "artist": "Eric Church",
+  "bpm": 118,
+  "key": "E",
+  "genre": "Country",
+  "year": 2011,
+  "duration": 262
+ },
+ {
+  "id": 936,
+  "title": "Drunk on a Plane",
+  "artist": "Dierks Bentley",
+  "bpm": 126,
+  "key": "Eb",
+  "genre": "Country",
+  "year": 2014,
+  "duration": 219
+ },
+ {
+  "id": 937,
+  "title": "Girl in a Country Song",
+  "artist": "Maddie & Tae",
+  "bpm": 132,
+  "key": "A",
+  "genre": "Country",
+  "year": 2014,
+  "duration": 198
+ },
+ {
+  "id": 938,
+  "title": "Something Like That",
+  "artist": "Tim McGraw",
+  "bpm": 108,
+  "key": "Ab",
+  "genre": "Country",
+  "year": 1999,
+  "duration": 253
+ },
+ {
+  "id": 939,
+  "title": "Big Green Tractor",
+  "artist": "Jason Aldean",
+  "bpm": 90,
+  "key": "G",
+  "genre": "Country",
+  "year": 2009,
+  "duration": 234
+ },
+ {
+  "id": 940,
+  "title": "Dirt Road Anthem",
+  "artist": "Jason Aldean",
+  "bpm": 82,
+  "key": "C",
+  "genre": "Country",
+  "year": 2011,
+  "duration": 268
+ },
+ {
+  "id": 941,
+  "title": "Red Red Wine",
+  "artist": "UB40",
+  "bpm": 82,
+  "key": "A",
+  "genre": "Reggae",
+  "year": 1983,
+  "duration": 289
+ },
+ {
+  "id": 942,
+  "title": "Kingston Town",
+  "artist": "UB40",
+  "bpm": 88,
+  "key": "C",
+  "genre": "Reggae",
+  "year": 1989,
+  "duration": 209
+ },
+ {
+  "id": 943,
+  "title": "Can't Help Falling in Love",
+  "artist": "UB40",
+  "bpm": 68,
+  "key": "C",
+  "genre": "Reggae",
+  "year": 1993,
+  "duration": 183
+ },
+ {
+  "id": 944,
+  "title": "Electric Avenue",
+  "artist": "Eddy Grant",
+  "bpm": 108,
+  "key": "Am",
+  "genre": "Reggae",
+  "year": 1982,
+  "duration": 223
+ },
+ {
+  "id": 945,
+  "title": "Pass the Dutchie",
+  "artist": "Musical Youth",
+  "bpm": 100,
+  "key": "A",
+  "genre": "Reggae",
+  "year": 1982,
+  "duration": 197
+ },
+ {
+  "id": 946,
+  "title": "Here Comes the Hotstepper",
+  "artist": "Ini Kamoze",
+  "bpm": 100,
+  "key": "Dm",
+  "genre": "Reggae",
+  "year": 1994,
+  "duration": 247
+ },
+ {
+  "id": 947,
+  "title": "Murder She Wrote",
+  "artist": "Chaka Demus & Pliers",
+  "bpm": 102,
+  "key": "Am",
+  "genre": "Reggae",
+  "year": 1992,
+  "duration": 233
+ },
+ {
+  "id": 948,
+  "title": "Angel",
+  "artist": "Shaggy",
+  "bpm": 96,
+  "key": "Bbm",
+  "genre": "Reggae",
+  "year": 2000,
+  "duration": 237
+ },
+ {
+  "id": 949,
+  "title": "It Wasn't Me",
+  "artist": "Shaggy",
+  "bpm": 94,
+  "key": "Cm",
+  "genre": "Reggae",
+  "year": 2000,
+  "duration": 221
+ },
+ {
+  "id": 950,
+  "title": "Boombastic",
+  "artist": "Shaggy",
+  "bpm": 94,
+  "key": "Am",
+  "genre": "Reggae",
+  "year": 1995,
+  "duration": 241
+ },
+ {
+  "id": 951,
+  "title": "Informer",
+  "artist": "Snow",
+  "bpm": 88,
+  "key": "Am",
+  "genre": "Reggae",
+  "year": 1992,
+  "duration": 267
+ },
+ {
+  "id": 952,
+  "title": "Sweat (A La La La La Long)",
+  "artist": "Inner Circle",
+  "bpm": 84,
+  "key": "Cm",
+  "genre": "Reggae",
+  "year": 1992,
+  "duration": 250
+ },
+ {
+  "id": 953,
+  "title": "Iron Lion Zion",
+  "artist": "Bob Marley",
+  "bpm": 84,
+  "key": "G",
+  "genre": "Reggae",
+  "year": 1992,
+  "duration": 218
+ },
+ {
+  "id": 954,
+  "title": "Sun Is Shining",
+  "artist": "Bob Marley",
+  "bpm": 72,
+  "key": "A",
+  "genre": "Reggae",
+  "year": 1971,
+  "duration": 290
+ },
+ {
+  "id": 955,
+  "title": "Superbad",
+  "artist": "James Brown",
+  "bpm": 112,
+  "key": "G",
+  "genre": "Funk",
+  "year": 1970,
+  "duration": 169
+ },
+ {
+  "id": 956,
+  "title": "Get Up (I Feel Like Being a) Sex Machine",
+  "artist": "James Brown",
+  "bpm": 112,
+  "key": "Eb",
+  "genre": "Funk",
+  "year": 1970,
+  "duration": 328
+ },
+ {
+  "id": 957,
+  "title": "I Got You (I Feel Good)",
+  "artist": "James Brown",
+  "bpm": 143,
+  "key": "D",
+  "genre": "Soul",
+  "year": 1965,
+  "duration": 147
+ },
+ {
+  "id": 958,
+  "title": "Papa's Got a Brand New Bag",
+  "artist": "James Brown",
+  "bpm": 131,
+  "key": "G",
+  "genre": "Funk",
+  "year": 1965,
+  "duration": 127
+ },
+ {
+  "id": 959,
+  "title": "Cold Sweat",
+  "artist": "James Brown",
+  "bpm": 116,
+  "key": "D",
+  "genre": "Funk",
+  "year": 1967,
+  "duration": 164
+ },
+ {
+  "id": 960,
+  "title": "Get Up Offa That Thing",
+  "artist": "James Brown",
+  "bpm": 120,
+  "key": "Ab",
+  "genre": "Funk",
+  "year": 1976,
+  "duration": 221
+ },
+ {
+  "id": 961,
+  "title": "Play That Funky Music",
+  "artist": "Wild Cherry",
+  "bpm": 110,
+  "key": "E",
+  "genre": "Funk",
+  "year": 1976,
+  "duration": 302
+ },
+ {
+  "id": 962,
+  "title": "Brick House",
+  "artist": "Commodores",
+  "bpm": 104,
+  "key": "Am",
+  "genre": "Funk",
+  "year": 1977,
+  "duration": 213
+ },
+ {
+  "id": 963,
+  "title": "Easy",
+  "artist": "Commodores",
+  "bpm": 65,
+  "key": "Ab",
+  "genre": "Soul",
+  "year": 1977,
+  "duration": 254
+ },
+ {
+  "id": 964,
+  "title": "Flashlight",
+  "artist": "Parliament",
+  "bpm": 116,
+  "key": "Em",
+  "genre": "Funk",
+  "year": 1977,
+  "duration": 326
+ },
+ {
+  "id": 965,
+  "title": "Give Up the Funk",
+  "artist": "Parliament",
+  "bpm": 108,
+  "key": "Am",
+  "genre": "Funk",
+  "year": 1975,
+  "duration": 345
+ },
+ {
+  "id": 966,
+  "title": "Atomic Dog",
+  "artist": "George Clinton",
+  "bpm": 100,
+  "key": "E",
+  "genre": "Funk",
+  "year": 1982,
+  "duration": 390
+ },
+ {
+  "id": 967,
+  "title": "Jungle Boogie",
+  "artist": "Kool & the Gang",
+  "bpm": 113,
+  "key": "Gm",
+  "genre": "Funk",
+  "year": 1973,
+  "duration": 203
+ },
+ {
+  "id": 968,
+  "title": "Celebration",
+  "artist": "Kool & the Gang",
+  "bpm": 120,
+  "key": "Ab",
+  "genre": "Funk",
+  "year": 1980,
+  "duration": 221
+ },
+ {
+  "id": 969,
+  "title": "Ladies' Night",
+  "artist": "Kool & the Gang",
+  "bpm": 114,
+  "key": "Dm",
+  "genre": "Funk",
+  "year": 1979,
+  "duration": 258
+ },
+ {
+  "id": 970,
+  "title": "That's the Way (I Like It)",
+  "artist": "KC and the Sunshine Band",
+  "bpm": 110,
+  "key": "F",
+  "genre": "Disco",
+  "year": 1975,
+  "duration": 188
+ },
+ {
+  "id": 971,
+  "title": "Get Down Tonight",
+  "artist": "KC and the Sunshine Band",
+  "bpm": 116,
+  "key": "Eb",
+  "genre": "Disco",
+  "year": 1975,
+  "duration": 199
+ },
+ {
+  "id": 972,
+  "title": "Love Rollercoaster",
+  "artist": "Ohio Players",
+  "bpm": 110,
+  "key": "E",
+  "genre": "Funk",
+  "year": 1975,
+  "duration": 168
+ },
+ {
+  "id": 973,
+  "title": "Fire",
+  "artist": "Ohio Players",
+  "bpm": 108,
+  "key": "Em",
+  "genre": "Funk",
+  "year": 1974,
+  "duration": 237
+ },
+ {
+  "id": 974,
+  "title": "Car Wash",
+  "artist": "Rose Royce",
+  "bpm": 120,
+  "key": "Eb",
+  "genre": "Funk",
+  "year": 1976,
+  "duration": 238
+ },
+ {
+  "id": 975,
+  "title": "Super Freak",
+  "artist": "Rick James",
+  "bpm": 132,
+  "key": "Am",
+  "genre": "Funk",
+  "year": 1981,
+  "duration": 213
+ },
+ {
+  "id": 976,
+  "title": "Give It to Me Baby",
+  "artist": "Rick James",
+  "bpm": 110,
+  "key": "Dm",
+  "genre": "Funk",
+  "year": 1981,
+  "duration": 246
+ },
+ {
+  "id": 977,
+  "title": "Outstanding",
+  "artist": "The Gap Band",
+  "bpm": 120,
+  "key": "Fm",
+  "genre": "Funk",
+  "year": 1982,
+  "duration": 389
+ },
+ {
+  "id": 978,
+  "title": "You Dropped a Bomb on Me",
+  "artist": "The Gap Band",
+  "bpm": 120,
+  "key": "Cm",
+  "genre": "Funk",
+  "year": 1982,
+  "duration": 337
+ },
+ {
+  "id": 979,
+  "title": "Oops Upside Your Head",
+  "artist": "The Gap Band",
+  "bpm": 118,
+  "key": "Fm",
+  "genre": "Funk",
+  "year": 1979,
+  "duration": 329
+ },
+ {
+  "id": 980,
+  "title": "Fortnight",
+  "artist": "Taylor Swift ft. Post Malone",
+  "bpm": 100,
+  "key": "Am",
+  "genre": "Pop",
+  "year": 2024,
+  "duration": 228
+ },
+ {
+  "id": 981,
+  "title": "Lovin on Me",
+  "artist": "Jack Harlow",
+  "bpm": 96,
+  "key": "C",
+  "genre": "Hip-Hop",
+  "year": 2023,
+  "duration": 152
+ },
+ {
+  "id": 982,
+  "title": "Paint the Town Red",
+  "artist": "Doja Cat",
+  "bpm": 100,
+  "key": "G#m",
+  "genre": "Hip-Hop",
+  "year": 2023,
+  "duration": 232
+ },
+ {
+  "id": 983,
+  "title": "Shirt",
+  "artist": "SZA",
+  "bpm": 97,
+  "key": "C",
+  "genre": "R&B",
+  "year": 2022,
+  "duration": 215
+ },
+ {
+  "id": 984,
+  "title": "Cuff It",
+  "artist": "Beyonc\u00e9",
+  "bpm": 115,
+  "key": "A",
+  "genre": "R&B",
+  "year": 2022,
+  "duration": 225
+ },
+ {
+  "id": 985,
+  "title": "BREAK MY SOUL",
+  "artist": "Beyonc\u00e9",
+  "bpm": 115,
+  "key": "F#m",
+  "genre": "Pop",
+  "year": 2022,
+  "duration": 279
+ },
+ {
+  "id": 986,
+  "title": "ALIEN SUPERSTAR",
+  "artist": "Beyonc\u00e9",
+  "bpm": 115,
+  "key": "F#m",
+  "genre": "R&B",
+  "year": 2022,
+  "duration": 218
+ },
+ {
+  "id": 987,
+  "title": "TEXAS HOLD 'EM",
+  "artist": "Beyonc\u00e9",
+  "bpm": 130,
+  "key": "A",
+  "genre": "Country",
+  "year": 2024,
+  "duration": 237
+ },
+ {
+  "id": 988,
+  "title": "All I Want for Christmas Is You",
+  "artist": "Mariah Carey",
+  "bpm": 150,
+  "key": "G",
+  "genre": "Pop",
+  "year": 1994,
+  "duration": 241
+ },
+ {
+  "id": 989,
+  "title": "Hero",
+  "artist": "Mariah Carey",
+  "bpm": 64,
+  "key": "E",
+  "genre": "Pop",
+  "year": 1993,
+  "duration": 250
+ },
+ {
+  "id": 990,
+  "title": "We Belong Together",
+  "artist": "Mariah Carey",
+  "bpm": 72,
+  "key": "Bbm",
+  "genre": "R&B",
+  "year": 2005,
+  "duration": 198
+ },
+ {
+  "id": 991,
+  "title": "Fantasy",
+  "artist": "Mariah Carey",
+  "bpm": 120,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1995,
+  "duration": 244
+ },
+ {
+  "id": 992,
+  "title": "Always Be My Baby",
+  "artist": "Mariah Carey",
+  "bpm": 84,
+  "key": "E",
+  "genre": "Pop",
+  "year": 1996,
+  "duration": 261
+ },
+ {
+  "id": 993,
+  "title": "Vision of Love",
+  "artist": "Mariah Carey",
+  "bpm": 67,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1990,
+  "duration": 203
+ },
+ {
+  "id": 994,
+  "title": "Emotions",
+  "artist": "Mariah Carey",
+  "bpm": 115,
+  "key": "C",
+  "genre": "Pop",
+  "year": 1991,
+  "duration": 253
+ },
+ {
+  "id": 995,
+  "title": "Dreamlover",
+  "artist": "Mariah Carey",
+  "bpm": 106,
+  "key": "E",
+  "genre": "Pop",
+  "year": 1993,
+  "duration": 237
+ },
+ {
+  "id": 996,
+  "title": "Hallelujah",
+  "artist": "Jeff Buckley",
+  "bpm": 52,
+  "key": "C",
+  "genre": "Rock",
+  "year": 1994,
+  "duration": 417
+ },
+ {
+  "id": 997,
+  "title": "Killing in the Name",
+  "artist": "Rage Against the Machine",
+  "bpm": 86,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1992,
+  "duration": 313
+ },
+ {
+  "id": 998,
+  "title": "Bullet with Butterfly Wings",
+  "artist": "Smashing Pumpkins",
+  "bpm": 127,
+  "key": "Eb",
+  "genre": "Rock",
+  "year": 1995,
+  "duration": 258
+ },
+ {
+  "id": 999,
+  "title": "1979",
+  "artist": "Smashing Pumpkins",
+  "bpm": 124,
+  "key": "Eb",
+  "genre": "Rock",
+  "year": 1995,
+  "duration": 265
+ },
+ {
+  "id": 1000,
+  "title": "Today",
+  "artist": "Smashing Pumpkins",
+  "bpm": 132,
+  "key": "Eb",
+  "genre": "Rock",
+  "year": 1993,
+  "duration": 234
+ },
+ {
+  "id": 1001,
+  "title": "Disarm",
+  "artist": "Smashing Pumpkins",
+  "bpm": 120,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1993,
+  "duration": 196
+ },
+ {
+  "id": 1002,
+  "title": "Loser",
+  "artist": "Beck",
+  "bpm": 95,
+  "key": "E",
+  "genre": "Rock",
+  "year": 1994,
+  "duration": 236
+ },
+ {
+  "id": 1003,
+  "title": "Lovesong",
+  "artist": "The Cure",
+  "bpm": 100,
+  "key": "Bm",
+  "genre": "Rock",
+  "year": 1989,
+  "duration": 213
+ },
+ {
+  "id": 1004,
+  "title": "Friday I'm in Love",
+  "artist": "The Cure",
+  "bpm": 132,
+  "key": "D",
+  "genre": "Rock",
+  "year": 1992,
+  "duration": 215
+ },
+ {
+  "id": 1005,
+  "title": "Just Like Heaven",
+  "artist": "The Cure",
+  "bpm": 132,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1987,
+  "duration": 211
+ },
+ {
+  "id": 1006,
+  "title": "Boys Don't Cry",
+  "artist": "The Cure",
+  "bpm": 132,
+  "key": "A",
+  "genre": "Rock",
+  "year": 1979,
+  "duration": 160
+ },
+ {
+  "id": 1007,
+  "title": "How Soon Is Now?",
+  "artist": "The Smiths",
+  "bpm": 96,
+  "key": "F#m",
+  "genre": "Rock",
+  "year": 1984,
+  "duration": 383
+ },
+ {
+  "id": 1008,
+  "title": "There Is a Light That Never Goes Out",
+  "artist": "The Smiths",
+  "bpm": 82,
+  "key": "Bb",
+  "genre": "Rock",
+  "year": 1986,
+  "duration": 247
+ },
+ {
+  "id": 1009,
+  "title": "This Charming Man",
+  "artist": "The Smiths",
+  "bpm": 149,
+  "key": "G",
+  "genre": "Rock",
+  "year": 1983,
+  "duration": 163
+ }
+]

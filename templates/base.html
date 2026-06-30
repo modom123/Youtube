@@ -3,7 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Social Optimize Machine{% endblock %}</title>
+  <title>{% block title %}Social Optimize{% endblock %}</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#d4a017">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SOM">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16.png">
+
+  <!-- Desktop / Windows / Microsoft -->
+  <meta name="msapplication-TileColor" content="#d4a017">
+  <meta name="msapplication-TileImage" content="/static/icons/icon-144.png">
+  <meta name="application-name" content="Social Optimize">
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Social Optimize">
+  <meta property="og:description" content="AI-powered social media content creation platform">
+  <meta property="og:image" content="/static/icons/icon-512.png">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
@@ -12,12 +35,13 @@
 <div class="layout">
 
   <!-- Sidebar -->
+  {% if not request.args.get('embed') %}
   <aside class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-icon">🎬</div>
       <div class="logo-text">
-        <span class="red">Social Optimize</span>
-        <span class="dim">Command Center</span>
+        <span class="red">{% if current_user.is_authenticated and current_user.is_admin %}Social Money{% else %}Social Optimize{% endif %}</span>
+        <span class="dim">{% if current_user.is_authenticated and current_user.is_admin %}Internal Dashboard{% else %}Command Center{% endif %}</span>
       </div>
     </div>
 
@@ -29,11 +53,23 @@
       <a href="/create" class="nav-item {% if active_page=='create' %}active{% endif %}">
         <span class="icon">🚀</span> Create Content
       </a>
-      <a href="/studio" class="nav-item {% if active_page=='studio' %}active{% endif %}">
-        <span class="icon">🎙</span> Production Studio
+      <a href="/quickpost" class="nav-item {% if active_page=='quickpost' %}active{% endif %}">
+        <span class="icon">📸</span> Quick Post
+      </a>
+      <a href="/studio" class="nav-item {% if active_page=='studio' %}active{% endif %}" title="The Forge — Premium YouTube video production">
+        <span class="icon">🔥</span> The Forge
+      </a>
+      <a href="/commercial" class="nav-item {% if active_page=='commercial' %}active{% endif %}" title="Ad Lab — Scroll-stopping product ads">
+        <span class="icon">📢</span> Ad Lab
+      </a>
+      <a href="/hollywood" class="nav-item {% if active_page=='hollywood' %}active{% endif %}" title="Cinema House — Documentary-grade storytelling">
+        <span class="icon">🎬</span> Cinema House
+      </a>
+      <a href="/music-studio" class="nav-item {% if active_page=='music' %}active{% endif %}" title="Hit Factory — Beats that sound radio-ready">
+        <span class="icon">🎵</span> Hit Factory
       </a>
       <a href="/batch" class="nav-item {% if active_page=='batch' %}active{% endif %}">
-        <span class="icon">📦</span> Batch Mode
+        <span class="icon">📦</span> The Forge Batch
       </a>
       <a href="/jobs" class="nav-item {% if active_page=='jobs' %}active{% endif %}">
         <span class="icon">📋</span> Jobs
@@ -49,14 +85,24 @@
       <a href="/accounts" class="nav-item {% if active_page=='accounts' %}active{% endif %}">
         <span class="icon">🔗</span> Social Accounts
       </a>
-      <a href="/contacts" class="nav-item {% if active_page=='contacts' %}active{% endif %}">
-        <span class="icon">👥</span> Contacts
+      <a href="/madison-avenue" class="nav-item {% if active_page=='madison_avenue' %}active{% endif %}" title="Madison Avenue — Contacts, Inbox, Engagement, Outreach &amp; Competitors in one place">
+        <span class="icon">📇</span> Madison Avenue
+        <span id="inbox-badge" style="display:none;margin-left:auto;background:var(--accent);color:#fff;font-size:9px;font-weight:800;border-radius:10px;padding:1px 6px;"></span>
       </a>
-      <a href="/competitors" class="nav-item {% if active_page=='competitors' %}active{% endif %}">
-        <span class="icon">🔍</span> Competitors
+      <a href="/agency" class="nav-item {% if active_page=='agency' %}active{% endif %}" title="Agency Command Center — Clients, Deals, Projects, Revenue">
+        <span class="icon">🏢</span> Agency
       </a>
 
       <span class="sidebar-section-label">Tools</span>
+      <a href="/clipper" class="nav-item {% if active_page=='clipper' %}active{% endif %}">
+        <span class="icon">✂️</span> The Scalpel
+      </a>
+      <a href="/editing-room" class="nav-item {% if active_page=='editing-room' %}active{% endif %}">
+        <span class="icon">🎛️</span> The Cut
+      </a>
+      <a href="/music-studio" class="nav-item {% if active_page=='music-studio' %}active{% endif %}">
+        <span class="icon">🎵</span> Hit Factory
+      </a>
       <a href="/templates-library" class="nav-item {% if active_page=='templates' %}active{% endif %}">
         <span class="icon">📁</span> Templates
       </a>
@@ -71,6 +117,20 @@
       <a href="/settings" class="nav-item {% if active_page=='settings' %}active{% endif %}">
         <span class="icon">⚙️</span> Settings
       </a>
+      {% if current_user.is_authenticated and current_user.is_admin %}
+      <a href="/admin" class="nav-item {% if active_page=='admin' %}active{% endif %}">
+        <span class="icon">🛡</span> Admin
+      </a>
+      <a href="/monetizer" class="nav-item {% if active_page=='monetizer' %}active{% endif %}">
+        <span class="icon">💰</span> Monetizer
+      </a>
+      <a href="/monetizer/executives" class="nav-item {% if active_page=='executives' %}active{% endif %}">
+        <span class="icon">🏛</span> IEBC C-Suite
+      </a>
+      <a href="/monetizer/plan" class="nav-item {% if active_page=='plan' %}active{% endif %}">
+        <span class="icon">📊</span> Business Plan
+      </a>
+      {% endif %}
     </nav>
 
     <div class="sidebar-footer">
@@ -87,9 +147,11 @@
       {% endif %}
     </div>
   </aside>
+  {% endif %}
 
   <!-- Main Content -->
   <div class="main">
+    {% if not request.args.get('embed') %}
     <header class="topbar">
       <div>
         <div class="topbar-title">{% block topbar_title %}Dashboard{% endblock %}</div>
@@ -119,6 +181,7 @@
         {% endif %}
       </div>
     </header>
+    {% endif %}
 
     <div class="content">
       {% block content %}{% endblock %}
@@ -131,6 +194,17 @@
 
 <script src="/static/js/app.js"></script>
 {% block scripts %}{% endblock %}
+
+<!-- PWA service worker registration -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/static/sw.js')
+      .then(function(reg) { console.log('SW registered:', reg.scope); })
+      .catch(function(err) { console.warn('SW registration failed:', err); });
+  });
+}
+</script>
 
 {% if current_user.is_authenticated %}
 <script>
@@ -189,6 +263,146 @@ document.addEventListener('click', function(e) {
 });
 loadNotifications();
 setInterval(loadNotifications, 30000);
+</script>
+
+<!-- ── My Assistant (onboarding assistant) ─────────────────────────────── -->
+<div id="hermesBubble" onclick="toggleHermes()" style="position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#0a0a0a;display:{% if current_user.assistant_enabled == false %}none{% else %}flex{% endif %};align-items:center;justify-content:center;font-size:24px;cursor:pointer;box-shadow:var(--shadow);z-index:1000;">🪽</div>
+
+<div id="hermesPanel" style="display:none;position:fixed;bottom:92px;right:24px;width:360px;max-width:calc(100vw - 32px);height:480px;max-height:calc(100vh - 140px);background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);z-index:1000;flex-direction:column;overflow:hidden;">
+  <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+    <div style="font-weight:700;font-size:14px;color:var(--text);">🪽 My Assistant</div>
+    <button onclick="toggleHermes()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;">✕</button>
+  </div>
+  <div id="hermesMessages" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-size:13px;">
+    <div style="color:var(--muted);">Hi, I'm here to help. Ask me anything about connecting your accounts, your plan, or why something failed — I can take action directly, not just explain.</div>
+  </div>
+  <div style="padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;">
+    <input id="hermesInput" type="text" placeholder="Ask My Assistant…" onkeydown="if(event.key==='Enter')sendHermes()" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;">
+    <button onclick="sendHermes()" id="hermesSendBtn" class="btn btn-primary btn-sm">Send</button>
+  </div>
+</div>
+
+<script>
+var _hermesHistory = [];
+var _hermesOpen = false;
+window._assistantEnabled = {{ 'true' if current_user.assistant_enabled != false else 'false' }};
+
+function _assistantApplyVisibility() {
+  var bubble = document.getElementById('hermesBubble');
+  if (!bubble) return;
+  if (window._assistantEnabled) {
+    bubble.style.display = 'flex';
+  } else {
+    bubble.style.display = 'none';
+    _hermesOpen = false;
+    document.getElementById('hermesPanel').style.display = 'none';
+  }
+}
+
+function toggleHermes() {
+  if (!window._assistantEnabled) return;
+  _hermesOpen = !_hermesOpen;
+  var panel = document.getElementById('hermesPanel');
+  panel.style.display = _hermesOpen ? 'flex' : 'none';
+  if (_hermesOpen) document.getElementById('hermesInput').focus();
+}
+
+function _hermesEsc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _hermesAppend(role, text) {
+  var box = document.getElementById('hermesMessages');
+  var bubble = document.createElement('div');
+  bubble.style.cssText = role === 'user'
+    ? 'align-self:flex-end;background:var(--accent);color:#0a0a0a;padding:8px 12px;border-radius:10px;max-width:85%;white-space:pre-wrap;'
+    : 'align-self:flex-start;background:var(--bg);color:var(--text);padding:8px 12px;border-radius:10px;max-width:85%;white-space:pre-wrap;border:1px solid var(--border);';
+  bubble.innerHTML = _hermesEsc(text);
+  box.appendChild(bubble);
+  box.scrollTop = box.scrollHeight;
+  return bubble;
+}
+
+async function sendHermes() {
+  var input = document.getElementById('hermesInput');
+  var msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  document.getElementById('hermesSendBtn').disabled = true;
+
+  _hermesAppend('user', msg);
+  var thinking = _hermesAppend('assistant', 'Thinking…');
+
+  try {
+    var resp = await fetch('/api/hermes/chat', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message: msg, history: _hermesHistory }),
+    });
+    var data = await resp.json();
+    if (!resp.ok || data.error) {
+      thinking.textContent = data.error || 'Something went wrong — please try again.';
+    } else {
+      thinking.innerHTML = _hermesEsc(data.reply);
+      _hermesHistory.push({ role: 'user', content: msg });
+      _hermesHistory.push({ role: 'assistant', content: data.reply });
+      _hermesHandleActions(data.actions || []);
+    }
+  } catch (e) {
+    thinking.textContent = 'Network error — please try again.';
+  } finally {
+    document.getElementById('hermesSendBtn').disabled = false;
+    document.getElementById('hermesMessages').scrollTop = document.getElementById('hermesMessages').scrollHeight;
+  }
+}
+
+function _hermesHandleActions(actions) {
+  actions.forEach(function(a) {
+    if (a.type === 'highlight_element') {
+      _hermesHighlight(a.selector, a.message);
+    } else if (a.type === 'request_external_fix') {
+      _hermesAppend('assistant', a.instructions || ('Run: python scripts/hermes_companion.py --task "' + a.task + '"'));
+    }
+  });
+}
+
+function _hermesHighlight(selector, message) {
+  document.querySelectorAll('.hermes-highlight-ring, .hermes-highlight-label').forEach(function(el) { el.remove(); });
+  var target;
+  try { target = document.querySelector(selector); } catch (e) { target = null; }
+  if (!target) {
+    _hermesAppend('assistant', "I couldn't find that on the current page — try navigating there first.");
+    return;
+  }
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  var rect = target.getBoundingClientRect();
+  var ring = document.createElement('div');
+  ring.className = 'hermes-highlight-ring';
+  ring.style.cssText = 'position:fixed;top:' + (rect.top - 6) + 'px;left:' + (rect.left - 6) + 'px;'
+    + 'width:' + (rect.width + 12) + 'px;height:' + (rect.height + 12) + 'px;'
+    + 'border:3px solid var(--accent);border-radius:10px;z-index:2000;pointer-events:none;'
+    + 'box-shadow:0 0 0 4px rgba(212,160,23,0.25);animation:hermesPulse 1.2s ease-in-out infinite;';
+  document.body.appendChild(ring);
+
+  var label = document.createElement('div');
+  label.className = 'hermes-highlight-label';
+  label.textContent = message || '';
+  label.style.cssText = 'position:fixed;top:' + Math.max(8, rect.top - 34) + 'px;left:' + rect.left + 'px;'
+    + 'background:var(--accent);color:#0a0a0a;padding:5px 10px;border-radius:6px;font-size:12px;'
+    + 'font-weight:600;z-index:2001;pointer-events:none;max-width:280px;box-shadow:var(--shadow);';
+  document.body.appendChild(label);
+
+  setTimeout(function() {
+    ring.remove();
+    label.remove();
+  }, 8000);
+}
+
+(function() {
+  var style = document.createElement('style');
+  style.textContent = '@keyframes hermesPulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }';
+  document.head.appendChild(style);
+})();
 </script>
 {% endif %}
 </body>

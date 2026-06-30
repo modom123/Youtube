@@ -16,7 +16,7 @@
   --red-dim:       #8a6910;
   --red-glow:      rgba(212,160,23,0.20);
   --white:         #f5f5f5;
-  --white-dim:     #aaaaaa;
+  --white-dim:     #cccccc;
   --black:         #0a0a0a;
 
   /* Highlight accents — Red moved here */
@@ -36,6 +36,13 @@
   --radius-lg:     16px;
   --shadow:        0 4px 24px rgba(0,0,0,0.5);
   --transition:    all 0.2s ease;
+
+  /* Landing page aliases */
+  --bg:            #0a0a0a;
+  --text:          #f5f5f5;
+  --muted:         #cccccc;
+  --card:          #141414;
+  --accent:        #d4a017;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -947,6 +954,12 @@ tbody td {
 .glow-green  { text-shadow: 0 0 20px var(--green); }
 .glow-blue   { text-shadow: 0 0 20px var(--blue); }
 .glow-yellow { text-shadow: 0 0 20px var(--yellow); }
+
+/* ── Brand Progress Counter (spells "SOCIAL OPTIMIZE" as a job runs) ─────── */
+.so-brand-counter   { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; font-family: 'Courier New', monospace; white-space: nowrap; }
+.so-brand-letter    { color: #3a3a3a; transition: color .25s ease; }
+.so-brand-letter.revealed { color: var(--accent); text-shadow: 0 0 6px rgba(212,160,23,.4); }
+.so-brand-pct       { color: #777; font-weight: 600; margin-left: 8px; letter-spacing: 0; font-family: inherit; }
 
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 1100px) {

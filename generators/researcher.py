@@ -5,7 +5,6 @@ Uses Wikipedia, DuckDuckGo Instant Answer, and web scraping — all free, no API
 import re
 import time
 import json
-import urllib.parse
 import requests
 from dataclasses import dataclass, field
 
@@ -13,6 +12,61 @@ from dataclasses import dataclass, field
 HEADERS = {
     "User-Agent": "SocialOptimizeMachine/1.0 (content research bot; educational use)"
 }
+
+# Keywords that indicate a ranked-list / countdown topic
+_RANKED_LIST_SIGNALS = {
+    "top", "best", "greatest", "ranked", "ranking", "countdown", "all time",
+    "alltime", "all-time", "worst", "most", "least", "highest", "lowest",
+    "richest", "famous", "popular", "powerful", "strongest", "fastest",
+}
+
+
+def _is_ranked_list_topic(topic: str) -> bool:
+    t = topic.lower()
+    return any(sig in t for sig in _RANKED_LIST_SIGNALS)
+
+
+def _extract_count_from_topic(topic: str) -> int | None:
+    """Return the N in 'top N' / 'top-N' if present, else None."""
+    m = re.search(r'\btop[\s-]?(\d+)\b', topic, re.IGNORECASE)
+    return int(m.group(1)) if m else None
+
+
+def _ranked_list_wikipedia_queries(topic: str) -> list[str]:
+    """
+    Generate targeted Wikipedia search queries for a ranked-list topic.
+    E.g. "top 25 soccer players goals" → searches for 'List of top scorers' etc.
+    """
+    t = topic.lower()
+    queries = [topic]
+
+    if any(w in t for w in ("soccer", "football", "futbol")):
+        if any(w in t for w in ("goal", "scorer", "score")):
+            queries += [
+                "List of top UEFA Champions League scorers",
+                "FIFA World Cup top scorers",
+                "International football goals records",
+                "List of association football records",
+            ]
+        else:
+            queries += [
+                "List of best association football players",
+                "Ballon d'Or winners all time",
+            ]
+    elif any(w in t for w in ("basketball", "nba")):
+        if any(w in t for w in ("point", "score")):
+            queries.append("List of NBA all-time scoring leaders")
+    elif any(w in t for w in ("tennis")):
+        queries.append("List of tennis records")
+    elif any(w in t for w in ("boxing")):
+        queries.append("List of boxing records and statistics")
+
+    # Generic "List of top X" search
+    subject_words = re.sub(r'\btop\s*\d+\b|\bbed\b|\ball.time\b|\bcountdown\b|\branked?\b|\bbest\b|\bgreatest\b', '', t).strip()
+    if subject_words:
+        queries.append(f"List of {subject_words}")
+
+    return queries
 
 
 @dataclass
@@ -153,9 +207,13 @@ def _research_with_gemini(topic: str) -> dict:
             "statistics (list of strings), sources (list of strings). "
             "Return ONLY valid JSON, no markdown or code fences."
         )
+        from google.genai import types as genai_types
         response = client.models.generate_content(
             model="gemini-2.0-flash",
             contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                http_options=genai_types.HttpOptions(timeout=30_000),
+            ),
         )
         raw = response.text.strip()
         raw = re.sub(r"^```(?:json)?\s*", "", raw)
@@ -194,16 +252,32 @@ def research_topic(topic: str) -> ResearchBrief:
     """Research a topic — always returns a brief, never raises."""
     brief = ResearchBrief(topic=topic, summary="", key_facts=[], data_points=[])
 
-    try:
-        results = _search_wikipedia(topic)
-        articles_text = []
+    # For ranked-list topics, search multiple targeted articles in parallel
+    wikipedia_queries = (
+        _ranked_list_wikipedia_queries(topic)
+        if _is_ranked_list_topic(topic)
+        else [topic]
+    )
 
-        for result in results[:3]:
-            title = result.get("title", "")
-            text = _get_wikipedia_sections(title)
-            if text and len(text) > 200:
-                articles_text.append((title, text))
-                brief.sources.append(f"Wikipedia: {title}")
+    try:
+        articles_text = []
+        seen_titles: set[str] = set()
+
+        for query in wikipedia_queries[:4]:
+            results = _search_wikipedia(query)
+            for result in results[:2]:
+                title = result.get("title", "")
+                if title in seen_titles:
+                    continue
+                seen_titles.add(title)
+                text = _get_wikipedia_sections(title)
+                if text and len(text) > 200:
+                    articles_text.append((title, text))
+                    brief.sources.append(f"Wikipedia: {title}")
+                if len(articles_text) >= 5:
+                    break
+            if len(articles_text) >= 5:
+                break
 
         if articles_text:
             best_title, best_text = articles_text[0]
@@ -237,10 +311,60 @@ def research_topic(topic: str) -> ResearchBrief:
     except Exception as e:
         print(f"[research] Gemini merge failed ({e})")
 
+    # For ranked-list topics with sparse data: use Claude to generate the ranked list directly
+    if _is_ranked_list_topic(topic) and len(brief.key_facts) + len(brief.data_points) < 8:
+        try:
+            _claude_ranked_list_research(brief, topic)
+        except Exception as e:
+            print(f"[research] Claude ranked-list research failed ({e})")
+
     if not brief.summary and not brief.key_facts:
         brief.summary = f"Research on: {topic}"
 
     return brief
+
+
+def _claude_ranked_list_research(brief: "ResearchBrief", topic: str) -> None:
+    """
+    Use Claude to populate a ranked-list brief when Wikipedia/DDG data is sparse.
+    Asks Claude to produce the actual ranked entries with stats.
+    """
+    try:
+        import config as _config
+        import anthropic as _anthropic
+        if not getattr(_config, "ANTHROPIC_API_KEY", ""):
+            return
+        n = _extract_count_from_topic(topic) or 10
+        client = _anthropic.Anthropic(api_key=_config.ANTHROPIC_API_KEY)
+        prompt = (
+            f"I need accurate research data for this video topic: {topic}\n\n"
+            f"Generate the top {n} ranked entries with real, accurate statistics. "
+            "For each entry include: rank number, name, and the key statistic/reason for the ranking. "
+            "Format as a numbered list, e.g.:\n"
+            "1. Cristiano Ronaldo — 919 career goals (club + international)\n"
+            "2. ...\n\n"
+            "Use only real, verifiable facts from your training data. "
+            f"Return ONLY the numbered list of {n} entries, nothing else."
+        )
+        response = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = response.content[0].text.strip()
+        entries = re.findall(r'\d+\.\s+(.+)', raw)
+        existing = {e.lower()[:60] for e in brief.data_points}
+        for entry in entries:
+            entry = entry.strip()
+            if entry and entry.lower()[:60] not in existing:
+                brief.data_points.append(entry)
+                existing.add(entry.lower()[:60])
+        if not brief.summary and raw:
+            brief.summary = f"Ranked list research for: {topic}"
+        brief.sources.append("Claude AI knowledge base")
+        print(f"[research] Claude ranked-list: {len(entries)} entries found")
+    except Exception as e:
+        print(f"[research] Claude ranked-list failed: {e}")
 
 
 def brief_to_context(brief: ResearchBrief) -> str:

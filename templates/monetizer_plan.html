@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Business Plan Progress{% endblock %}
+{% block content %}
+<style>
+.plan-hero{background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;padding:32px;margin-bottom:24px;color:#fff}
+.plan-hero h1{font-size:28px;margin:0 0 8px}
+.plan-hero .sub{color:#a5b4fc;font-size:14px}
+.plan-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.plan-kpi{background:#1e1b4b;border-radius:12px;padding:20px;color:#fff;text-align:center}
+.plan-kpi .label{font-size:11px;text-transform:uppercase;color:#a5b4fc;letter-spacing:1px}
+.plan-kpi .value{font-size:28px;font-weight:700;margin:8px 0 4px}
+.plan-kpi .target{font-size:12px;color:#818cf8}
+.plan-kpi .ahead{color:#34d399}.plan-kpi .behind{color:#f87171}
+.progress-bar-wrap{background:#312e81;border-radius:8px;height:12px;margin:16px 0;overflow:hidden}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:8px;transition:width .5s}
+.phase-section{margin-bottom:32px}
+.phase-header{font-size:18px;font-weight:700;color:#7c3aed;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #312e81}
+.milestone-row{display:grid;grid-template-columns:60px 100px 1fr 100px 100px 120px 80px;gap:8px;align-items:center;padding:10px 12px;background:#0f0e1a;border-radius:8px;margin-bottom:6px;font-size:13px;color:#e2e8f0}
+.milestone-row.header{font-weight:700;color:#a5b4fc;font-size:11px;text-transform:uppercase;background:transparent}
+.milestone-row .week{color:#818cf8;font-weight:600}
+.milestone-row .focus{font-weight:600;color:#fff}
+.status-badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase;cursor:pointer;border:none}
+.status-badge.pending{background:#1e1b4b;color:#6366f1}
+.status-badge.in_progress{background:#1e3a5f;color:#38bdf8}
+.status-badge.completed{background:#064e3b;color:#34d399}
+.status-badge.skipped{background:#292524;color:#a8a29e}
+.actual-vs{font-size:11px;color:#a5b4fc}
+.actual-vs .val{color:#fff;font-weight:600}
+.current-week-marker{border-left:3px solid #7c3aed;background:#1a1744 !important}
+.nav-back{color:#a5b4fc;text-decoration:none;font-size:14px;display:inline-block;margin-bottom:16px}
+.nav-back:hover{color:#fff}
+.notes-input{background:#1e1b4b;border:1px solid #312e81;color:#fff;border-radius:6px;padding:4px 8px;font-size:12px;width:100%}
+</style>
+
+<a href="/monetizer" class="nav-back">&larr; Back to Monetizer</a>
+
+<div class="plan-hero">
+    <h1>Business Plan Progress Tracker</h1>
+    <p class="sub">Social Optimize 2-Year Plan | Launch July 4, 2026 | Target $10M ARR</p>
+    <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progressBar" style="width:0%"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:#a5b4fc">
+        <span id="progressLabel">Loading...</span>
+        <span id="weekLabel"></span>
+    </div>
+</div>
+
+<div class="plan-kpis" id="kpiCards"></div>
+
+<div id="milestonesContainer"></div>
+
+<script>
+let DATA=null;
+async function loadPlan(){
+    const r=await fetch('/monetizer/api/plan/overview');
+    DATA=await r.json();
+    renderKPIs();
+    renderMilestones();
+}
+
+function renderKPIs(){
+    const d=DATA;
+    const a=d.actual, t=d.target, p=d.progress;
+    const pct=p.pct;
+    document.getElementById('progressBar').style.width=pct+'%';
+    document.getElementById('progressLabel').textContent=`${p.completed}/${p.total} milestones completed (${pct}%)`;
+    document.getElementById('weekLabel').textContent=`Week ${d.current_week} of 78`;
+
+    const uDiff=a.total_users-t.users;
+    const mDiff=a.mrr-t.mrr;
+    document.getElementById('kpiCards').innerHTML=`
+        <div class="plan-kpi">
+            <div class="label">Current Users</div>
+            <div class="value">${a.total_users.toLocaleString()}</div>
+            <div class="target">Target: ${t.users.toLocaleString()}</div>
+            <div class="${uDiff>=0?'ahead':'behind'}">${uDiff>=0?'+':''}${uDiff.toLocaleString()} ${uDiff>=0?'ahead':'behind'}</div>
+        </div>
+        <div class="plan-kpi">
+            <div class="label">MRR</div>
+            <div class="value">$${a.mrr.toLocaleString()}</div>
+            <div class="target">Target: $${t.mrr.toLocaleString()}</div>
+            <div class="${mDiff>=0?'ahead':'behind'}">${mDiff>=0?'+$':'- $'}${Math.abs(mDiff).toLocaleString()}</div>
+        </div>
+        <div class="plan-kpi">
+            <div class="label">ARR</div>
+            <div class="value">$${a.arr.toLocaleString()}</div>
+            <div class="target">Target: $10,000,000</div>
+        </div>
+        <div class="plan-kpi">
+            <div class="label">Paying Users</div>
+            <div class="value">${a.paying_users.toLocaleString()}</div>
+            <div class="target">${a.total_users?((a.paying_users/a.total_users*100).toFixed(1)):'0'}% conversion</div>
+        </div>
+        <div class="plan-kpi">
+            <div class="label">Plan Progress</div>
+            <div class="value">${pct}%</div>
+            <div class="target">${p.completed} done, ${p.in_progress} active</div>
+        </div>
+        <div class="plan-kpi">
+            <div class="label">Current Phase</div>
+            <div class="value" style="font-size:16px">${d.current_milestone?d.current_milestone.phase_name:'--'}</div>
+            <div class="target">${d.current_milestone?'Focus: '+d.current_milestone.focus:''}</div>
+        </div>
+    `;
+}
+
+function renderMilestones(){
+    const phases={};
+    DATA.milestones.forEach(m=>{
+        if(!phases[m.phase])phases[m.phase]={name:m.phase_name,items:[]};
+        phases[m.phase].items.push(m);
+    });
+    let html='';
+    for(const[p,data]of Object.entries(phases)){
+        const done=data.items.filter(m=>m.status==='completed').length;
+        html+=`<div class="phase-section">
+            <div class="phase-header">Phase ${p}: ${data.name} <span style="font-size:13px;color:#a5b4fc;font-weight:400">(${done}/${data.items.length} complete)</span></div>
+            <div class="milestone-row header">
+                <span>Week</span><span>Dates</span><span>Focus / Deliverables</span>
+                <span>Target Users</span><span>Target MRR</span><span>Status</span><span>Actual</span>
+            </div>`;
+        data.items.forEach(m=>{
+            const isCurrent=m.week_number===DATA.current_week||(DATA.current_milestone&&m.id===DATA.current_milestone.id);
+            html+=`<div class="milestone-row ${isCurrent?'current-week-marker':''}">
+                <span class="week">W${m.week_number}</span>
+                <span>${m.week_dates||''}</span>
+                <span><span class="focus">${m.focus}</span><br><span style="color:#94a3b8;font-size:11px">${m.deliverables||''}</span></span>
+                <span>${m.target_users.toLocaleString()}</span>
+                <span>$${m.target_mrr.toLocaleString()}</span>
+                <span><button class="status-badge ${m.status}" onclick="cycleStatus(${m.id},'${m.status}')">${m.status.replace('_',' ')}</button></span>
+                <span class="actual-vs">${m.actual_users?'<span class="val">'+m.actual_users.toLocaleString()+'</span>':'-'}</span>
+            </div>`;
+        });
+        html+=`</div>`;
+    }
+    document.getElementById('milestonesContainer').innerHTML=html;
+}
+
+async function cycleStatus(id,current){
+    const order=['pending','in_progress','completed','skipped'];
+    const next=order[(order.indexOf(current)+1)%order.length];
+    await fetch(`/monetizer/api/plan/milestone/${id}`,{
+        method:'PATCH',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({status:next})
+    });
+    loadPlan();
+}
+
+loadPlan();
+setInterval(loadPlan,60000);
+</script>
+{% endblock %}

@@ -1,47 +1,69 @@
-"""Auth Blueprint — register, login, logout."""
+"""Auth Blueprint — register, login, logout, password reset."""
+import secrets
+import smtplib
+from datetime import datetime, timedelta
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import database as db
+import config
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+
+
+PAID_PLANS = {"starter", "creator", "pro", "agency"}
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
+        plan = request.args.get("plan", "").strip()
+        if plan in PAID_PLANS:
+            return redirect(url_for("billing.checkout", tier_name=plan))
         return redirect(url_for("dashboard"))
+
+    plan = request.args.get("plan", "").strip()
 
     if request.method == "POST":
         name  = request.form.get("name", "").strip()
         email = request.form.get("email", "").strip().lower()
         pw    = request.form.get("password", "")
         pw2   = request.form.get("password2", "")
+        plan  = request.form.get("plan", plan).strip()
 
         if not email or not pw:
             flash("Email and password are required.", "error")
-            return render_template("auth/register.html")
+            return render_template("auth/register.html", plan=plan)
 
         if pw != pw2:
             flash("Passwords do not match.", "error")
-            return render_template("auth/register.html")
+            return render_template("auth/register.html", plan=plan)
 
         if len(pw) < 8:
             flash("Password must be at least 8 characters.", "error")
-            return render_template("auth/register.html")
+            return render_template("auth/register.html", plan=plan)
 
         if db.get_user_by_email(email):
             flash("An account with that email already exists.", "error")
-            return render_template("auth/register.html")
+            return render_template("auth/register.html", plan=plan)
 
         pw_hash = generate_password_hash(pw)
         user_id = db.create_user(email=email, password_hash=pw_hash, name=name or email.split("@")[0])
+        ref_code = request.cookies.get("ref", "")
+        if ref_code:
+            db.update_user(user_id, referred_by=ref_code)
         user_data = db.get_user_by_id(user_id)
         user = _UserObj(user_data)
         login_user(user, remember=True)
+
+        if plan in PAID_PLANS:
+            return redirect(url_for("billing.checkout", tier_name=plan))
         return redirect(url_for("dashboard"))
 
-    return render_template("auth/register.html")
+    return render_template("auth/register.html", plan=plan)
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
@@ -74,6 +96,82 @@ def logout():
     return redirect(url_for("landing"))
 
 
+@auth_bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        user = db.get_user_by_email(email)
+        # Always show success message to prevent email enumeration
+        if user:
+            token = secrets.token_urlsafe(32)
+            expires = (datetime.utcnow() + timedelta(hours=2)).isoformat()
+            db.create_password_reset_token(user["id"], token, expires)
+            _send_reset_email(email, token)
+        flash("If that email has an account, a reset link has been sent.", "info")
+        return redirect(url_for("auth.forgot_password"))
+    return render_template("auth/forgot_password.html")
+
+
+@auth_bp.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    if current_user.is_authenticated:
+        return redirect(url_for("dashboard"))
+    record = db.get_password_reset_token(token)
+    if not record:
+        flash("This reset link is invalid or has already been used.", "error")
+        return redirect(url_for("auth.forgot_password"))
+    if datetime.utcnow().isoformat() > record["expires_at"]:
+        flash("This reset link has expired. Please request a new one.", "error")
+        return redirect(url_for("auth.forgot_password"))
+    if request.method == "POST":
+        pw = request.form.get("password", "")
+        pw2 = request.form.get("password2", "")
+        if len(pw) < 8:
+            flash("Password must be at least 8 characters.", "error")
+            return render_template("auth/reset_password.html", token=token)
+        if pw != pw2:
+            flash("Passwords do not match.", "error")
+            return render_template("auth/reset_password.html", token=token)
+        db.update_user(record["user_id"], password_hash=generate_password_hash(pw))
+        db.consume_password_reset_token(token)
+        flash("Password updated. Please log in.", "success")
+        return redirect(url_for("auth.login"))
+    return render_template("auth/reset_password.html", token=token)
+
+
+def _send_reset_email(email: str, token: str):
+    host = config.SMTP_HOST
+    if not host or not config.SMTP_USER:
+        return
+    reset_url = f"{config.APP_BASE_URL}/auth/reset-password/{token}"
+    html = f"""<html><body style="font-family:sans-serif;background:#111;color:#eee;padding:32px;">
+    <div style="max-width:520px;margin:0 auto;">
+      <h2 style="color:#d4a017;">Reset Your Password</h2>
+      <p style="color:#ccc;">Click the button below to set a new password. This link expires in 2 hours.</p>
+      <a href="{reset_url}" style="display:inline-block;margin-top:16px;padding:12px 28px;background:#d4a017;color:#000;font-weight:700;text-decoration:none;border-radius:10px;">
+        Reset Password
+      </a>
+      <p style="color:#666;font-size:12px;margin-top:24px;">If you didn't request this, ignore this email.</p>
+    </div></body></html>"""
+    text = f"Reset your password:\n{reset_url}\n\nExpires in 2 hours."
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "Reset your Social Optimize password"
+        msg["From"] = config.SMTP_FROM
+        msg["To"] = email
+        msg.attach(MIMEText(text, "plain"))
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(host, config.SMTP_PORT) as srv:
+            srv.ehlo()
+            srv.starttls()
+            srv.login(config.SMTP_USER, config.SMTP_PASS)
+            srv.sendmail(config.SMTP_FROM, email, msg.as_string())
+    except Exception:
+        pass
+
+
 # ── Flask-Login User class ────────────────────────────────────────────────────
 
 class _UserObj:
@@ -104,6 +202,8 @@ class _UserObj:
     @property
     def videos_used(self): return self._d.get("videos_used") or 0
     @property
+    def videos_used_this_month(self): return self._d.get("videos_used") or 0
+    @property
     def credits_used(self): return self._d.get("credits_used") or 0
     @property
     def stripe_customer_id(self): return self._d.get("stripe_customer_id")
@@ -111,6 +211,10 @@ class _UserObj:
     def stripe_subscription_id(self): return self._d.get("stripe_subscription_id")
     @property
     def is_admin(self): return bool(self._d.get("is_admin"))
+    @property
+    def assistant_enabled(self): return self._d.get("assistant_enabled") != 0
+    @property
+    def default_voice(self): return self._d.get("default_voice") or "en-US-Studio-O"
 
     def refresh(self):
         self._d = db.get_user_by_id(self._d["id"])
@@ -119,3 +223,58 @@ class _UserObj:
 
 def make_user(user_data: dict) -> _UserObj:
     return _UserObj(user_data)
+
+
+# ── Bootstrap: first-admin setup (only works when 0 users exist) ─────────────
+
+@auth_bp.route("/setup", methods=["GET", "POST"])
+def setup():
+    """Create the first admin account when the database is empty.
+    Disabled once any user exists."""
+    user_count = db.count_users()
+    if user_count > 0:
+        flash("Setup is disabled — accounts already exist.", "error")
+        return redirect(url_for("auth.login"))
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        pw    = request.form.get("password", "")
+        pw2   = request.form.get("password2", "")
+        name  = request.form.get("name", "").strip()
+
+        if not email or not pw:
+            flash("Email and password are required.", "error")
+            return render_template("auth/setup.html")
+        if pw != pw2:
+            flash("Passwords do not match.", "error")
+            return render_template("auth/setup.html")
+        if len(pw) < 8:
+            flash("Password must be at least 8 characters.", "error")
+            return render_template("auth/setup.html")
+
+        pw_hash = generate_password_hash(pw)
+        user_id = db.create_user(email=email, password_hash=pw_hash, name=name or email.split("@")[0])
+        db.update_user(user_id, is_admin=1, subscription_tier="agency", subscription_status="active")
+        user_data = db.get_user_by_id(user_id)
+        user = _UserObj(user_data)
+        login_user(user, remember=True)
+        flash("Admin account created. Welcome!", "success")
+        return redirect(url_for("dashboard"))
+
+    return render_template("auth/setup.html")
+
+
+# ── Invite links — admin generates, tester clicks to auto-register ────────────
+
+_invite_store: dict[str, dict] = {}  # token → {tier, expires}
+
+
+@auth_bp.route("/invite/<token>", methods=["GET"])
+def accept_invite(token):
+    """Pre-approved invite link. Redirects to register with tier pre-set."""
+    invite = _invite_store.get(token)
+    if not invite or datetime.utcnow().isoformat() > invite["expires"]:
+        flash("This invite link has expired or is invalid.", "error")
+        return redirect(url_for("auth.register"))
+    tier = invite.get("tier", "free")
+    return redirect(url_for("auth.register") + f"?plan={tier}")

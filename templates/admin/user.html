@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}User #{{ u.id }} — Admin{% endblock %}
+{% block topbar_title %}User Detail{% endblock %}
+{% block topbar_sub %}{{ u.email }}{% endblock %}
+
+{% block content %}
+<style>
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .detail-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; }
+  .detail-card h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 0 0 16px; }
+  .field-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+  .field-row:last-child { border-bottom: none; }
+  .field-label { font-size: 13px; color: var(--muted); }
+  .field-val { font-size: 13px; color: var(--text); font-weight: 600; }
+  .tier-badge { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .tier-free { background: rgba(110,110,122,.15); color: var(--muted); }
+  .tier-starter { background: rgba(59,130,246,.12); color: #60a5fa; }
+  .tier-creator { background: rgba(168,85,247,.12); color: #c084fc; }
+  .tier-pro { background: rgba(59,130,246,.12); color: #60a5fa; }
+  .tier-agency { background: rgba(201,162,39,.12); color: var(--gold); }
+  .status-active { background: rgba(34,197,94,.1); color: #4ade80; }
+  .status-canceled { background: rgba(239,68,68,.1); color: #f87171; }
+  .status-past_due { background: rgba(251,191,36,.1); color: #fbbf24; }
+  .status-suspended { background: rgba(239,68,68,.1); color: #f87171; }
+  .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .btn-admin { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 8px 18px; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; transition: all .2s; }
+  .btn-admin:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-admin.danger:hover { border-color: #f87171; color: #f87171; }
+  .job-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .job-table th { text-align: left; padding: 8px 12px; font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  .job-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--text-secondary); }
+  .status-done { color: #4ade80; } .status-error { color: #f87171; } .status-running { color: var(--gold); }
+</style>
+
+<div style="margin-bottom:16px;">
+  <a href="/admin" style="color:var(--muted);font-size:13px;text-decoration:none;">← Back to Admin</a>
+</div>
+
+<!-- Quick actions -->
+<div class="action-row">
+  <select id="tierSel" style="background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 14px;cursor:pointer;">
+    <option value="free"    {% if u.subscription_tier=='free'    %}selected{% endif %}>Free</option>
+    <option value="starter" {% if u.subscription_tier=='starter' %}selected{% endif %}>Starter</option>
+    <option value="creator" {% if u.subscription_tier=='creator' %}selected{% endif %}>Creator</option>
+    <option value="pro"     {% if u.subscription_tier=='pro'     %}selected{% endif %}>Pro</option>
+    <option value="agency"  {% if u.subscription_tier=='agency'  %}selected{% endif %}>Agency</option>
+  </select>
+  <button class="btn-admin" onclick="setTier()">Save Tier</button>
+
+  <select id="statusSel" style="background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 14px;cursor:pointer;">
+    <option value="active"    {% if u.subscription_status=='active'    %}selected{% endif %}>Active</option>
+    <option value="canceled"  {% if u.subscription_status=='canceled'  %}selected{% endif %}>Canceled</option>
+    <option value="past_due"  {% if u.subscription_status=='past_due'  %}selected{% endif %}>Past Due</option>
+    <option value="suspended" {% if u.subscription_status=='suspended' %}selected{% endif %}>Suspended</option>
+  </select>
+  <button class="btn-admin" onclick="setStatus()">Save Status</button>
+
+  <button class="btn-admin" onclick="resetUsage()">Reset Usage</button>
+  <button class="btn-admin" onclick="toggleAdmin()" id="adminBtn">
+    {% if u.is_admin %}Remove Admin{% else %}Make Admin{% endif %}
+  </button>
+</div>
+
+<div class="detail-grid">
+  <!-- Account info -->
+  <div class="detail-card">
+    <h3>Account</h3>
+    <div class="field-row"><span class="field-label">ID</span><span class="field-val">#{{ u.id }}</span></div>
+    <div class="field-row"><span class="field-label">Name</span><span class="field-val">{{ u.name or '—' }}</span></div>
+    <div class="field-row"><span class="field-label">Email</span><span class="field-val">{{ u.email }}</span></div>
+    <div class="field-row"><span class="field-label">Joined</span><span class="field-val">{{ (u.created_at or '')[:10] }}</span></div>
+    <div class="field-row"><span class="field-label">Admin</span><span class="field-val">{{ 'Yes' if u.is_admin else 'No' }}</span></div>
+    <div class="field-row"><span class="field-label">Tier</span><span class="field-val"><span class="tier-badge tier-{{ u.subscription_tier or 'free' }}">{{ u.subscription_tier or 'free' }}</span></span></div>
+    <div class="field-row"><span class="field-label">Status</span><span class="field-val"><span class="tier-badge status-{{ u.subscription_status or 'active' }}">{{ u.subscription_status or 'active' }}</span></span></div>
+  </div>
+
+  <!-- Billing & usage -->
+  <div class="detail-card">
+    <h3>Billing & Usage</h3>
+    <div class="field-row"><span class="field-label">Videos this month</span><span class="field-val">{{ u.videos_used or 0 }}</span></div>
+    <div class="field-row"><span class="field-label">Credits used</span><span class="field-val">{{ u.credits_used or 0 }}</span></div>
+    <div class="field-row"><span class="field-label">Period start</span><span class="field-val">{{ (u.period_start or '')[:10] }}</span></div>
+    <div class="field-row"><span class="field-label">Stripe customer</span><span class="field-val" style="font-size:12px;color:var(--muted);">{{ u.stripe_customer_id or '—' }}</span></div>
+    <div class="field-row"><span class="field-label">Stripe subscription</span><span class="field-val" style="font-size:12px;color:var(--muted);">{{ u.stripe_subscription_id or '—' }}</span></div>
+    <div class="field-row"><span class="field-label">Total jobs</span><span class="field-val">{{ jobs.total }}</span></div>
+    <div class="field-row"><span class="field-label">Completed jobs</span><span class="field-val" style="color:#4ade80;">{{ jobs.done }}</span></div>
+  </div>
+</div>
+
+<!-- Recent jobs -->
+<div class="card">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border);font-weight:700;font-size:14px;">Recent Jobs</div>
+  {% if jobs.recent %}
+  <table class="job-table">
+    <thead><tr><th>#</th><th>Topic</th><th>Format</th><th>Status</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+    {% for j in jobs.recent %}
+    <tr>
+      <td style="color:var(--muted);font-size:12px;">#{{ j.id }}</td>
+      <td>{{ j.topic }}</td>
+      <td style="color:var(--muted);">{{ j.format }}</td>
+      <td class="status-{{ j.status }}">{{ j.status }}</td>
+      <td style="color:var(--muted);font-size:12px;">{{ j.created_at | datefmt if j.created_at else '' }}</td>
+      <td><a href="/jobs/{{ j.id }}" style="font-size:12px;color:var(--gold);">View</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div style="padding:32px;text-align:center;color:var(--muted);">No jobs yet.</div>
+  {% endif %}
+</div>
+
+<script>
+const uid = {{ u.id }};
+function api(path, body) {
+  return fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined})
+    .then(r => r.json());
+}
+function setTier() {
+  api('/api/admin/user/'+uid+'/tier', {tier: document.getElementById('tierSel').value})
+    .then(d => d.ok ? showToast('Tier updated','success') : showToast(d.error,'error'));
+}
+function setStatus() {
+  api('/api/admin/user/'+uid+'/status', {status: document.getElementById('statusSel').value})
+    .then(d => d.ok ? showToast('Status updated','success') : showToast(d.error,'error'));
+}
+function resetUsage() {
+  api('/api/admin/user/'+uid+'/reset-usage')
+    .then(d => d.ok ? showToast('Usage reset','success') : showToast(d.error,'error'));
+}
+function toggleAdmin() {
+  api('/api/admin/user/'+uid+'/toggle-admin').then(d => {
+    if (d.ok) {
+      document.getElementById('adminBtn').textContent = d.is_admin ? 'Remove Admin' : 'Make Admin';
+      showToast('Admin status updated','success');
+    } else showToast(d.error,'error');
+  });
+}
+</script>
+{% endblock %}
