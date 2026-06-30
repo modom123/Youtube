@@ -340,6 +340,7 @@ async function sendHermes() {
       thinking.innerHTML = _hermesEsc(data.reply);
       _hermesHistory.push({ role: 'user', content: msg });
       _hermesHistory.push({ role: 'assistant', content: data.reply });
+      _hermesHandleActions(data.actions || []);
     }
   } catch (e) {
     thinking.textContent = 'Network error — please try again.';
@@ -348,6 +349,54 @@ async function sendHermes() {
     document.getElementById('hermesMessages').scrollTop = document.getElementById('hermesMessages').scrollHeight;
   }
 }
+
+function _hermesHandleActions(actions) {
+  actions.forEach(function(a) {
+    if (a.type === 'highlight_element') {
+      _hermesHighlight(a.selector, a.message);
+    } else if (a.type === 'request_external_fix') {
+      _hermesAppend('assistant', a.instructions || ('Run: python scripts/hermes_companion.py --task "' + a.task + '"'));
+    }
+  });
+}
+
+function _hermesHighlight(selector, message) {
+  document.querySelectorAll('.hermes-highlight-ring, .hermes-highlight-label').forEach(function(el) { el.remove(); });
+  var target;
+  try { target = document.querySelector(selector); } catch (e) { target = null; }
+  if (!target) {
+    _hermesAppend('assistant', "I couldn't find that on the current page — try navigating there first.");
+    return;
+  }
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  var rect = target.getBoundingClientRect();
+  var ring = document.createElement('div');
+  ring.className = 'hermes-highlight-ring';
+  ring.style.cssText = 'position:fixed;top:' + (rect.top - 6) + 'px;left:' + (rect.left - 6) + 'px;'
+    + 'width:' + (rect.width + 12) + 'px;height:' + (rect.height + 12) + 'px;'
+    + 'border:3px solid var(--accent);border-radius:10px;z-index:2000;pointer-events:none;'
+    + 'box-shadow:0 0 0 4px rgba(212,160,23,0.25);animation:hermesPulse 1.2s ease-in-out infinite;';
+  document.body.appendChild(ring);
+
+  var label = document.createElement('div');
+  label.className = 'hermes-highlight-label';
+  label.textContent = message || '';
+  label.style.cssText = 'position:fixed;top:' + Math.max(8, rect.top - 34) + 'px;left:' + rect.left + 'px;'
+    + 'background:var(--accent);color:#0a0a0a;padding:5px 10px;border-radius:6px;font-size:12px;'
+    + 'font-weight:600;z-index:2001;pointer-events:none;max-width:280px;box-shadow:var(--shadow);';
+  document.body.appendChild(label);
+
+  setTimeout(function() {
+    ring.remove();
+    label.remove();
+  }, 8000);
+}
+
+(function() {
+  var style = document.createElement('style');
+  style.textContent = '@keyframes hermesPulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }';
+  document.head.appendChild(style);
+})();
 </script>
 {% endif %}
 </body>

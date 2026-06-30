@@ -75,6 +75,58 @@ _TOOLS = [
         ),
         "input_schema": {"type": "object", "properties": {}},
     },
+    {
+        "name": "highlight_element",
+        "description": (
+            "Point at a specific button, field, or section on the CURRENT "
+            "Social Optimize page the user is looking at, by drawing a "
+            "glowing outline around it. Use this for 'DIY' walkthroughs — "
+            "when you've told the user what to click, also call this so "
+            "they can see exactly where it is. selector must be a valid "
+            "CSS selector that exists on Social Optimize pages (e.g. "
+            "'#hermesBubble', 'a[href=\"/billing\"]', '.connect-btn')."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "selector": {
+                    "type": "string",
+                    "description": "CSS selector of the element to highlight.",
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Short label shown next to the highlight, e.g. 'Click here to connect YouTube'.",
+                },
+            },
+            "required": ["selector", "message"],
+        },
+    },
+    {
+        "name": "request_external_fix",
+        "description": (
+            "Use this when solving the user's problem requires logging into "
+            "and clicking around on a THIRD-PARTY dashboard outside Social "
+            "Optimize (Supabase, Render, Stripe, Google Cloud, etc.) — "
+            "something Hermes cannot do itself because it would require the "
+            "user's external login session. Instead, this hands the precise "
+            "task off to 'Hermes Companion', a small script the user runs on "
+            "their own computer, which drives their own already-logged-in "
+            "Chrome browser to do exactly the task you describe and report "
+            "back the result. Write `task` as clear, step-by-step "
+            "instructions a browser-automation agent can follow on that "
+            "dashboard (which page to go to, what to click, what to copy)."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "Precise step-by-step instructions for the external dashboard task.",
+                }
+            },
+            "required": ["task"],
+        },
+    },
 ]
 
 
@@ -103,6 +155,29 @@ def _tool_get_platform_connect_link(platform: str) -> dict:
     return {"connect_url": f"/oauth/{platform}/start"}
 
 
+def _tool_highlight_element(selector: str, message: str) -> dict:
+    return {"selector": selector, "message": message, "status": "ok"}
+
+
+def _tool_request_external_fix(task: str) -> dict:
+    return {
+        "mode": "hermes_companion",
+        "task": task,
+        "instructions": (
+            "This needs to happen on an external dashboard, so I can't do it "
+            "from inside Social Optimize. Run Hermes Companion on your own "
+            "computer — it drives your own already-logged-in Chrome, never "
+            "our servers. Steps:\n"
+            "1. Close Chrome, then reopen it with remote debugging enabled "
+            "(see the comment at the top of scripts/hermes_companion.py for "
+            "the exact command for your OS).\n"
+            "2. Log into the dashboard you need in that Chrome window.\n"
+            "3. Run: python scripts/hermes_companion.py --task \"" + task.replace('"', "'") + "\"\n"
+            "It will narrate what it's doing and print the result when done."
+        ),
+    }
+
+
 def _tool_get_recent_errors(user_id: int) -> dict:
     jobs = db.get_jobs(limit=50, user_id=user_id) or []
     failed = [j for j in jobs if j.get("status") == "failed"][:5]
@@ -123,6 +198,8 @@ _TOOL_IMPLS = {
     "get_account_status": _tool_get_account_status,
     "get_platform_connect_link": _tool_get_platform_connect_link,
     "get_recent_errors": _tool_get_recent_errors,
+    "highlight_element": _tool_highlight_element,
+    "request_external_fix": _tool_request_external_fix,
 }
 
 
@@ -135,12 +212,21 @@ never guess at what's connected or what plan the user is on. When the user needs
 connect a platform, give them the connect link from get_platform_connect_link and tell \
 them what to expect (a permission screen on that platform's site).
 
+When you tell the user to click something on the CURRENT Social Optimize page, also call \
+highlight_element so they can see exactly where it is — don't just describe it in words.
+
+If the fix requires logging into an external dashboard (Supabase, Render, Stripe, Google \
+Cloud, etc.) that Social Optimize itself doesn't control, call request_external_fix with \
+precise step-by-step instructions for that dashboard. Never ask the user for passwords or \
+API keys directly in chat.
+
 If something needs a human (billing dispute, refund, a bug you can't diagnose), say so \
 plainly and tell the user to use the support contact rather than inventing a fix."""
 
 
-def _run_agent(user_id: int, messages: list[dict]) -> str:
+def _run_agent(user_id: int, messages: list[dict]) -> tuple[str, list[dict]]:
     client = _get_client()
+    actions: list[dict] = []
 
     for _ in range(6):  # bounded tool-use loop
         response = client.messages.create(
@@ -153,7 +239,7 @@ def _run_agent(user_id: int, messages: list[dict]) -> str:
 
         if response.stop_reason != "tool_use":
             text_blocks = [b.text for b in response.content if b.type == "text"]
-            return "\n".join(text_blocks).strip()
+            return "\n".join(text_blocks).strip(), actions
 
         messages.append({"role": "assistant", "content": response.content})
         tool_results = []
@@ -172,6 +258,8 @@ def _run_agent(user_id: int, messages: list[dict]) -> str:
                 except Exception as exc:  # noqa: BLE001
                     log.exception("Hermes tool %s failed", block.name)
                     result = {"error": str(exc)}
+            if block.name in ("highlight_element", "request_external_fix") and "error" not in result:
+                actions.append({"type": block.name, **result})
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": block.id,
@@ -179,7 +267,7 @@ def _run_agent(user_id: int, messages: list[dict]) -> str:
             })
         messages.append({"role": "user", "content": tool_results})
 
-    return "I'm having trouble finishing that — please try rephrasing, or reach out to support."
+    return "I'm having trouble finishing that — please try rephrasing, or reach out to support.", actions
 
 
 @hermes_bp.route("/api/hermes/chat", methods=["POST"])
@@ -203,9 +291,9 @@ def hermes_chat():
     messages.append({"role": "user", "content": user_message})
 
     try:
-        reply = _run_agent(current_user.id, messages)
+        reply, actions = _run_agent(current_user.id, messages)
     except Exception as exc:  # noqa: BLE001
         log.exception("Hermes chat failed")
         return jsonify({"error": "Hermes hit an error — please try again."}), 500
 
-    return jsonify({"reply": reply})
+    return jsonify({"reply": reply, "actions": actions})
