@@ -4526,33 +4526,12 @@ SCRIPT_SECTIONS:
             full_script_display += f"\n[{v.framework}]\n{v.headline}\n{v.body}\n"
         full_script_display += f"\n=== COMMERCIAL SCRIPT ===\n{script_text}"
 
-        step("Generating AI commercial video...", 55)
-
-        # ── Step 5: Generate video with Higgsfield ───────────────────────────
-        from generators.ai_video_generator import generate_higgsville_clips
         out_dir = COMMERCIAL_UPLOADS / job_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        model_id = "grok_video_v15" if not is_video else "marketing_studio_video"
-
-        clips = generate_higgsville_clips(
-            prompts=[video_prompt],
-            output_dir=out_dir,
-            model_id=model_id,
-            aspect_ratio="9:16",
-            duration=min(duration, 10),
-        )
-
-        step("Adding voiceover...", 80)
-
-        # ── Step 6: Generate voiceover ────────────────────────────────────────
-        if not clips:
-            raise RuntimeError(
-                "Video generation failed — the AI video provider didn't return a usable clip. Please try again."
-            )
-        final_video = str(clips[0])
+        # ── Step 5: Generate voiceover first (drives final video duration) ────
+        step("Recording voiceover...", 55)
         audio_path = None
-
         if voiceover_text:
             try:
                 from generators.audio_generator import generate_audio
@@ -4561,6 +4540,39 @@ SCRIPT_SECTIONS:
                 audio_path = str(audio_out)
             except Exception as e:
                 print(f"[commercial] Voiceover error: {e}")
+
+        if not audio_path:
+            raise RuntimeError("Voiceover generation failed — couldn't produce narration audio for the commercial.")
+
+        # ── Step 6: Find 5-7 stock clips that match the story, assemble them ──
+        step("Finding clips that match your story...", 65)
+        from generators.media_fetcher import fetch_media_for_topic
+        from generators.video_generator import create_video
+
+        keywords = [brand, product_description, tagline, style]
+        keywords = [k for k in keywords if k]
+        if not keywords:
+            keywords = [video_prompt or "product commercial"]
+
+        video_clips, image_clips = fetch_media_for_topic(
+            keywords, out_dir, video_count=6, is_portrait=True,
+        )
+
+        if not video_clips and not image_clips:
+            raise RuntimeError(
+                "Couldn't find stock clips matching your product. Try a more descriptive brand/description."
+            )
+
+        step("Assembling your commercial...", 80)
+        final_video_path = out_dir / "commercial_final.mp4"
+        create_video(
+            audio_path=Path(audio_path),
+            output_path=final_video_path,
+            video_clips=video_clips,
+            image_clips=image_clips,
+            width=720, height=1280,
+        )
+        final_video = str(final_video_path)
 
         # Save manifest
         manifest = {
