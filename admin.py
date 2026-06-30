@@ -79,7 +79,7 @@ def admin_user_detail(uid):
 def admin_set_tier(uid):
     _require_admin()
     tier = request.json.get("tier", "").strip()
-    if tier not in ("free", "starter", "creator", "agency"):
+    if tier not in ("free", "starter", "creator", "pro", "agency"):
         return jsonify({"ok": False, "error": "Invalid tier"}), 400
     db.update_user(uid, subscription_tier=tier)
     db.log_audit(current_user.id, "set_tier", uid, {"tier": tier})
@@ -142,7 +142,7 @@ def admin_provision():
 
     if not email:
         return jsonify({"ok": False, "error": "Email is required"}), 400
-    if tier not in ("free", "starter", "creator", "agency"):
+    if tier not in ("free", "starter", "creator", "pro", "agency"):
         return jsonify({"ok": False, "error": "Invalid tier"}), 400
     if db.get_user_by_email(email):
         return jsonify({"ok": False, "error": "An account with that email already exists"}), 409
@@ -195,7 +195,7 @@ def admin_create_invite():
     from auth import _invite_store
     data = request.json or {}
     tier = (data.get("tier") or "free").strip()
-    if tier not in ("free", "starter", "creator", "agency"):
+    if tier not in ("free", "starter", "creator", "pro", "agency"):
         return jsonify({"ok": False, "error": "Invalid tier"}), 400
     token = secrets.token_urlsafe(24)
     expires = (datetime.utcnow() + timedelta(hours=48)).isoformat()
@@ -381,7 +381,7 @@ def admin_overview():
 @login_required
 def admin_revenue():
     _require_admin()
-    tier_prices = {"free": 0, "starter": 29, "creator": 79, "agency": 199}
+    tier_prices = {"free": 0, "starter": 9.99, "creator": 29.99, "pro": 79.99, "agency": 199.99}
     with db.get_conn() as conn:
         rows = conn.execute(
             "SELECT COALESCE(subscription_tier,'free') AS tier, COUNT(*) AS cnt FROM users GROUP BY tier"
@@ -538,11 +538,11 @@ def admin_config_api():
             val = os.getenv(var_name, "") or db.get_setting(f"env:{var_name}") or ""
             api_keys[var_name] = "configured" if val else "missing"
     tiers = {
-        "free":    {"label": "Free",    "price_monthly": 0,     "videos_per_month": 3,   "higgsfield_credits": 0,   "features": ["Basic AI", "3 videos/mo"]},
-        "starter": {"label": "Starter", "price_monthly": 9.99,  "videos_per_month": 10,  "higgsfield_credits": 50,  "features": ["All platforms", "10 videos/mo", "Analytics"]},
-        "creator": {"label": "Creator", "price_monthly": 29,    "videos_per_month": 30,  "higgsfield_credits": 200, "features": ["AI Clipper", "30 videos/mo", "Batch creation"]},
-        "pro":     {"label": "Pro",     "price_monthly": 79,    "videos_per_month": 100, "higgsfield_credits": 500, "features": ["Hollywood AI", "100 videos/mo", "Multi-language", "Team seats"]},
-        "agency":  {"label": "Agency",  "price_monthly": 199,   "videos_per_month": 200, "higgsfield_credits": 1000, "features": ["200 videos/mo", "White-label", "API access", "10 seats"]},
+        "free":    {"label": "Free",    "price_monthly": 0,      "videos_per_month": 3,   "higgsfield_credits": 10,   "features": ["3 videos/mo", "3 platforms", "Basic AI scripts", "The Cut"]},
+        "starter": {"label": "Starter", "price_monthly": 9.99,  "videos_per_month": 7,   "higgsfield_credits": 50,   "features": ["5 platforms", "7 videos/mo", "Template Library", "The Cut"]},
+        "creator": {"label": "Creator", "price_monthly": 29.99, "videos_per_month": 15,  "higgsfield_credits": 150,  "features": ["8 platforms", "15 videos/mo", "The Forge", "Ad Lab", "Hit Factory"]},
+        "pro":     {"label": "Pro",     "price_monthly": 79.99, "videos_per_month": 50,  "higgsfield_credits": 500,  "features": ["Everything in Creator", "50 videos/mo", "Cinema House", "The Scalpel", "Advanced analytics"]},
+        "agency":  {"label": "Agency",  "price_monthly": 199.99,"videos_per_month": 125, "higgsfield_credits": 2000, "features": ["Everything in Pro", "125 videos/mo", "White-label", "API access", "Team (5 seats)"]},
     }
     return jsonify({"api_keys": api_keys, "tiers": tiers})
 

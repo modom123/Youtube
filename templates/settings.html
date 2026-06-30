@@ -124,6 +124,13 @@
         <option value="0">Disabled</option>
       </select>
     </div>
+    <div class="form-group">
+      <label>My Assistant</label>
+      <select id="acc-assistant" {% if user.assistant_enabled == 0 %}data-off{% endif %}>
+        <option value="1" {% if user.assistant_enabled != 0 %}selected{% endif %}>On</option>
+        <option value="0" {% if user.assistant_enabled == 0 %}selected{% endif %}>Off</option>
+      </select>
+    </div>
     <button class="btn btn-primary btn-block" onclick="saveAccount()">Save Account</button>
   </div>
 </div>
@@ -160,9 +167,9 @@ const API_SERVICES = [
   {
     key: 'HIGGSFIELD_MCP_TOKEN',
     icon: '🎬', name: 'Social Optimize AI Video',
-    desc: 'AI video generation — Kling 3, Cinema Studio, Wan and more. Used by Hollywood Studio.',
+    desc: 'AI video generation — Kling 3, Cinema Studio, Wan and more. Used by Cinema House.',
     required: false,
-    why: 'Enables AI-generated cinematic video clips instead of stock footage. Used by Production Studio and Hollywood mode.',
+    why: 'Enables AI-generated cinematic video clips instead of stock footage. Used by The Forge and Cinema House.',
     portalUrl: 'https://app.higgsfield.ai/',
     portalLabel: 'Open Higgsfield Dashboard',
     howto: '1. Log in to your Higgsfield account\n2. Go to Account → API Keys (or Settings → Tokens)\n3. Copy your Bearer Token (long alphanumeric string)\n\nNote: paste the token, NOT the endpoint URL',
@@ -315,9 +322,14 @@ async function saveAccount() {
     body: JSON.stringify({
       name: document.getElementById('acc-name').value,
       notify_email: parseInt(document.getElementById('acc-notify').value),
+      assistant_enabled: parseInt(document.getElementById('acc-assistant').value),
     }),
   });
-  if (resp.ok) toast('success', 'Saved', 'Account settings updated.');
+  if (resp.ok) {
+    window._assistantEnabled = parseInt(document.getElementById('acc-assistant').value) === 1;
+    _assistantApplyVisibility();
+    toast('success', 'Saved', 'Account settings updated.');
+  }
   else toast('error', 'Failed', 'Could not save.');
 }
 

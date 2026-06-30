@@ -1,5 +1,5 @@
 """
-Editing Room — Enhanced video assembly engine connected to the jobs system.
+The Cut — Enhanced video assembly engine connected to the jobs system.
 
 Three production studios:
   hollywood   — cinematic long-form (16:9, ~50-60s)
@@ -37,19 +37,19 @@ FONT_PATH_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 STUDIO_PRESETS = {
     "hollywood": {
-        "label": "Hollywood Studio",
+        "label": "Cinema House",
         "width": 1920, "height": 1080, "fps": 30,
         "music_key": "ambient_dark",
         "default_topic": "The Silent Revolution: How AI Changed Everything",
     },
     "studio56": {
-        "label": "Studio 56",
+        "label": "The Forge",
         "width": 1080, "height": 1920, "fps": 30,
         "music_key": "upbeat",
         "default_topic": "5 Things Nobody Tells You About Going Viral",
     },
     "commercials": {
-        "label": "Commercial Studio",
+        "label": "Ad Lab",
         "width": 1920, "height": 1080, "fps": 30,
         "music_key": "corporate",
         "default_topic": "Social Optimize — Your Content Engine",
@@ -554,7 +554,7 @@ def produce(
     has_music = False
     try:
         if custom_bgm_path and Path(custom_bgm_path).exists():
-            # Use custom track from Music Studio — loop/trim to fit duration
+            # Use custom track from Hit Factory — loop/trim to fit duration
             subprocess.run(
                 ["ffmpeg", "-y", "-stream_loop", "-1", "-i", str(custom_bgm_path),
                  "-t", str(full_dur), "-codec:a", "libmp3lame", "-b:a", "192k", str(music_path)],

@@ -72,7 +72,7 @@ def _identify_high_value_accounts():
         bus.publish(AGENT_NAME, "enterprise_prospect", {"user_id": p["id"], "email": p.get("email"), "videos": p["video_count"]})
         db.set_setting(f"elena:enterprise_flagged:{p['id']}", datetime.now(timezone.utc).isoformat())
 
-        if p.get("subscription_tier") in ("starter", "creator"):
+        if p.get("subscription_tier") in ("starter", "creator", "pro"):
             _send_upsell_pitch(p)
 
 
@@ -82,8 +82,8 @@ def _send_upsell_pitch(user):
     if not email:
         return
     tier = user.get("subscription_tier", "starter")
-    next_tier = "Creator" if tier == "starter" else ("Pro" if tier == "creator" else "Agency")
-    price = "$29" if tier == "starter" else ("$79" if tier == "creator" else "$199")
+    next_tier = {"starter": "Creator", "creator": "Pro", "pro": "Agency"}.get(tier, "Agency")
+    price = {"starter": "$29.99", "creator": "$79.99", "pro": "$199.99"}.get(tier, "$199.99")
 
     subject = f"Your content volume is impressive — let's talk {next_tier}"
     body = f"""Hi {(user.get('name') or 'there').split()[0]},
@@ -92,10 +92,10 @@ I'm Elena from Social Optimize's enterprise team. I noticed you've created {user
 
 Your current {tier.title()} plan is great, but with your volume, the {next_tier} plan ({price}/mo) would give you:
 
-{"- 30 AI videos/month" if next_tier == "Creator" else ("- 100 AI videos/month" if next_tier == "Pro" else "- 200 AI videos/month")}
-{"- AI Clipper + Batch creation" if next_tier == "Creator" else ("- Hollywood AI + Multi-language" if next_tier == "Pro" else "- White-label exports")}
-{"- Studio 56 production suite" if next_tier == "Creator" else ("- Team seats included" if next_tier == "Pro" else "- 10 team seats + API access")}
-{"- 200 Social Optimize Credits" if next_tier == "Creator" else ("- 500 Social Optimize Credits" if next_tier == "Pro" else "- 1000 Credits + dedicated support")}
+{"- 50 AI videos/month" if next_tier == "Creator" else "- 125 AI videos/month"}
+{"- Cinema House + The Scalpel" if next_tier == "Creator" else "- Team management (5 seats)"}
+{"- Multi-language (15 languages)" if next_tier == "Creator" else "- White-label exports"}
+{"- Advanced analytics & reporting" if next_tier == "Creator" else "- API access + dedicated support"}
 - 14-day free trial on the upgrade
 
 I'd love to set up a quick call to discuss how we can scale your content operation.
@@ -146,8 +146,7 @@ def _compute_pipeline_metrics():
     with db.get_conn() as conn:
         agency_users = conn.execute("SELECT COUNT(*) FROM users WHERE subscription_tier='agency'").fetchone()[0]
         creator_users = conn.execute("SELECT COUNT(*) FROM users WHERE subscription_tier='creator'").fetchone()[0]
-        pro_users = conn.execute("SELECT COUNT(*) FROM users WHERE subscription_tier='pro'").fetchone()[0]
-        total_acv = agency_users * 199 * 12 + pro_users * 79 * 12 + creator_users * 29 * 12
+        total_acv = agency_users * 199 * 12 + creator_users * 79 * 12
 
     metrics = {
         "agency_accounts": agency_users,
@@ -156,7 +155,7 @@ def _compute_pipeline_metrics():
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%d")
     }
     bus.publish(AGENT_NAME, "pipeline_metrics", metrics)
-    bus.log_msg(AGENT_NAME, f"Pipeline: {agency_users} agency + {pro_users} pro + {creator_users} creator accounts, ${total_acv:,.0f} ACV")
+    bus.log_msg(AGENT_NAME, f"Pipeline: {agency_users} agency + {creator_users} creator accounts, ${total_acv:,.0f} ACV")
 
 
 def _handle_new_signup(sender, payload):

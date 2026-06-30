@@ -163,7 +163,7 @@
           <tr>
             <td>
               <div class="text-bold text-sm">{{ (job.title or job.topic)[:35] }}{% if (job.title or job.topic)|length > 35 %}…{% endif %}</div>
-              <div class="text-xs text-dim">{{ job.created_at[:16].replace('T',' ') }}</div>
+              <div class="text-xs text-dim">{{ job.created_at | datefmt }}</div>
             </td>
             <td>
               <span class="pill

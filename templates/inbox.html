@@ -128,7 +128,7 @@
       <div class="msg-body">
         <div class="msg-from">{{ m.from_number }}</div>
         <div class="msg-text">{{ m.body }}</div>
-        <div class="msg-time">{{ (m.received_at or '').replace('T',' ')[:16] }}{% if m.to_number %} · To: {{ m.to_number }}{% endif %}</div>
+        <div class="msg-time">{{ m.received_at | datefmt if m.received_at else '' }}{% if m.to_number %} · To: {{ m.to_number }}{% endif %}</div>
         <div class="msg-actions">
           <button class="btn btn-primary" style="font-size:12px;padding:5px 14px;" onclick="openReply('{{ m.from_number|e }}')">↩ Reply</button>
         </div>
@@ -154,7 +154,7 @@
         <div class="msg-from">{{ c.from_number }}</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">
           {% if c.caller_city %}{{ c.caller_city }}{% if c.caller_state %}, {{ c.caller_state }}{% endif %} · {% endif %}
-          {{ (c.received_at or '').replace('T',' ')[:16] }}
+          {{ c.received_at | datefmt if c.received_at else '' }}
         </div>
         <div class="call-meta">
           <span class="call-badge {% if c.call_status == 'completed' %}completed{% elif c.call_status in ('failed','busy','no-answer') %}failed{% elif c.call_status == 'in-progress' %}in-progress{% endif %}">

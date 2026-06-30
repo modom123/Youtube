@@ -83,7 +83,7 @@
               <span class="text-dim">—</span>
             {% endif %}
           </td>
-          <td class="text-xs text-dim">{{ job.created_at[:16].replace('T',' ') }}</td>
+          <td class="text-xs text-dim">{{ job.created_at | datefmt }}</td>
           <td>
             <div class="flex gap-8" style="flex-wrap:wrap;">
               <a href="/jobs/{{ job.id }}" class="btn btn-ghost btn-sm">View</a>
@@ -127,7 +127,7 @@
 <div id="videoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px;" onclick="closePreview(event)">
   <div style="position:relative;width:min(90vw,900px);" onclick="event.stopPropagation()">
     <button onclick="closePreview()" style="position:absolute;top:-44px;right:0;background:none;border:none;color:#fff;font-size:26px;cursor:pointer;line-height:1;padding:8px;">✕</button>
-    <div id="previewTitle" style="font-size:14px;font-weight:600;color:#aaa;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;"></div>
+    <div id="previewTitle" style="font-size:14px;font-weight:600;color:#ccc;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;"></div>
     <div id="previewError" style="display:none;background:rgba(255,80,80,.15);border:1px solid rgba(255,80,80,.4);border-radius:10px;padding:20px;color:#ff6b6b;text-align:center;font-size:14px;"></div>
     <video id="previewPlayer" controls style="width:100%;border-radius:12px;max-height:70vh;background:#000;display:none;"></video>
     <div id="audioWrap" style="display:none;background:var(--bg-card,#1a1a1a);border-radius:12px;padding:28px;text-align:center;">

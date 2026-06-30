@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Editing Room — Social Optimize{% endblock %}
-{% block topbar_title %}Editing Room{% endblock %}
+{% block title %}The Cut — Social Optimize{% endblock %}
+{% block topbar_title %}🎛️ The Cut{% endblock %}
 
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;">
@@ -8,8 +8,8 @@
   <!-- Header -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;">
     <div>
-      <h2 style="margin:0;font-size:22px;font-weight:700;">Editing Room</h2>
-      <p style="margin:4px 0 0;color:var(--muted);font-size:13px;">Produce, remix, and re-edit videos from any studio</p>
+      <h2 style="margin:0;font-size:22px;font-weight:700;">The Cut</h2>
+      <p style="margin:4px 0 0;color:var(--muted);font-size:13px;">Polish until it shines — remix and re-edit videos from any studio</p>
     </div>
   </div>
 
@@ -25,23 +25,23 @@
             <input type="radio" name="studio" value="hollywood" checked style="display:none;">
             <div class="studio-inner" id="studio-hollywood" style="border:2px solid var(--accent);border-radius:10px;padding:14px;text-align:center;transition:all .2s;">
               <div style="font-size:28px;">🎬</div>
-              <div style="font-weight:700;font-size:13px;margin-top:4px;">Hollywood</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px;">Cinema House</div>
               <div style="font-size:11px;color:var(--muted);">Cinematic 16:9</div>
             </div>
           </label>
           <label class="studio-card" data-studio="studio56" style="cursor:pointer;">
             <input type="radio" name="studio" value="studio56" style="display:none;">
             <div class="studio-inner" id="studio-studio56" style="border:2px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all .2s;">
-              <div style="font-size:28px;">📱</div>
-              <div style="font-weight:700;font-size:13px;margin-top:4px;">Studio 56</div>
+              <div style="font-size:28px;">🔥</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px;">The Forge</div>
               <div style="font-size:11px;color:var(--muted);">Vertical 9:16</div>
             </div>
           </label>
           <label class="studio-card" data-studio="commercials" style="cursor:pointer;">
             <input type="radio" name="studio" value="commercials" style="display:none;">
             <div class="studio-inner" id="studio-commercials" style="border:2px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:all .2s;">
-              <div style="font-size:28px;">📺</div>
-              <div style="font-weight:700;font-size:13px;margin-top:4px;">Commercials</div>
+              <div style="font-size:28px;">📢</div>
+              <div style="font-weight:700;font-size:13px;margin-top:4px;">Ad Lab</div>
               <div style="font-size:11px;color:var(--muted);">Product Ads 16:9</div>
             </div>
           </label>
@@ -139,7 +139,7 @@
           <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid var(--border);">
             <div>
               <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px;">{{ job.title or job.topic }}</div>
-              <div style="font-size:11px;color:var(--muted);">{{ job.format }} &middot; {{ job.created_at[:10] }}</div>
+              <div style="font-size:11px;color:var(--muted);">{{ job.format }} &middot; {{ job.created_at | datefmt("%Y-%m-%d") }}</div>
             </div>
             <a href="/editing-room/remix/{{ job.id }}" style="padding:4px 12px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;color:var(--accent);text-decoration:none;">Remix</a>
           </div>
@@ -251,7 +251,7 @@ function renderSections() {
         <div id="media-list-${i}" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div>
         <label style="display:inline-block;margin-top:6px;padding:5px 12px;border:1px dashed var(--border);border-radius:6px;cursor:pointer;font-size:11px;color:var(--muted);">
           + Add Media
-          <input type="file" accept="image/*,video/mp4,video/mov,video/avi,video/webm" multiple
+          <input type="file" accept="image/*,video/*,.mkv,.m4v,.flv,.3gp,.ts,.mts,.wmv,.mpg,.mpeg" multiple
             onchange="uploadSectionMedia(${i}, this.files)" style="display:none;">
         </label>
       </div>`;

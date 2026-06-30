@@ -1,6 +1,6 @@
 """
-Hollywood — AI Agent for Social Optimize
-Interfaces with Studio 56 and manages deployment config.
+Cinema House — AI Agent for Social Optimize
+Interfaces with The Forge and manages deployment config.
 """
 import json
 import os
@@ -13,7 +13,7 @@ import config
 import database as db
 import generators.hollywood_browser
 
-HOLLYWOOD_PERSONA = """You are Hollywood, the AI production agent for Social Optimize's Studio 56.
+HOLLYWOOD_PERSONA = """You are Hollywood, the AI production agent for Social Optimize's The Forge.
 You are confident, creative, and speak like a seasoned Hollywood producer.
 
 ## Your Capabilities
@@ -85,7 +85,7 @@ TOOLS = [
     },
     {
         "name": "create_content",
-        "description": "Create a standard content job in Studio 56. Use for general social media content, shorts, and commercial videos. For high-quality documentaries and sports history, use create_hollywood_video instead.",
+        "description": "Create a standard content job in The Forge. Use for general social media content, shorts, and commercial videos. For high-quality documentaries and sports history, use create_hollywood_video instead.",
         "input_schema": {
             "type": "object",
             "properties": {

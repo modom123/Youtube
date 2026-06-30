@@ -69,12 +69,9 @@ def _patch_config_dirs():
 
 @pytest.fixture(scope="session")
 def _init_test_db(_patch_config_dirs):
-    """Initialise a fresh SQLite DB in the temp DATA_DIR."""
-    import config as cfg
+    """Initialise a fresh PostgreSQL test DB (requires DATABASE_URL env var)."""
     import database as db
 
-    # Point database module at the temp directory
-    db.DB_PATH = cfg.DATA_DIR / "som_test.db"
     db.init_db()
     yield db
 
@@ -83,20 +80,18 @@ def _init_test_db(_patch_config_dirs):
 def db_conn(_init_test_db):
     """Per-test: clean all rows so tests are isolated, return the db module."""
     db = _init_test_db
-    # Wipe data but keep schema
-    conn = db.get_conn()
-    for table in [
-        "follow_tracking", "dm_templates", "auto_reply_rules",
-        "rss_feeds", "growth_snapshots",
-        "engagement_targets", "engagement_actions", "engagement_campaigns",
-        "team_members", "teams", "competitor_videos", "competitor_channels",
-        "in_app_notifications", "notification_log", "dub_jobs",
-        "content_templates", "batch_jobs", "scheduled_posts",
-        "published_videos", "analytics_cache", "contacts",
-        "social_accounts", "jobs", "settings", "users",
-    ]:
-        conn.execute(f"DELETE FROM {table}")
-    conn.commit()
+    with db.get_conn() as conn:
+        for table in [
+            "follow_tracking", "dm_templates", "auto_reply_rules",
+            "rss_feeds", "growth_snapshots",
+            "engagement_targets", "engagement_actions", "engagement_campaigns",
+            "team_members", "teams", "competitor_videos", "competitor_channels",
+            "in_app_notifications", "notification_log", "dub_jobs",
+            "content_templates", "batch_jobs", "scheduled_posts",
+            "published_videos", "analytics_cache", "contacts",
+            "social_accounts", "jobs", "settings", "users",
+        ]:
+            conn.execute(f"DELETE FROM {table}")
     conn.close()
     return db
 

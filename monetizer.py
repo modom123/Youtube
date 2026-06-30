@@ -73,9 +73,9 @@ def _month_start(offset_months=0):
 
 def init_monetizer_tables():
     with _conn() as conn:
-        conn.executescript("""
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_revenue_log (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             user_id     INTEGER,
             event_type  TEXT NOT NULL,
             amount      REAL NOT NULL DEFAULT 0,
@@ -83,11 +83,11 @@ def init_monetizer_tables():
             tier        TEXT,
             stripe_event_id TEXT,
             notes       TEXT,
-            created_at  TEXT DEFAULT (datetime('now'))
-        );
-
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_expenses (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             category    TEXT NOT NULL,
             vendor      TEXT,
             description TEXT,
@@ -95,11 +95,11 @@ def init_monetizer_tables():
             currency    TEXT DEFAULT 'usd',
             recurring   INTEGER DEFAULT 0,
             period      TEXT DEFAULT 'monthly',
-            created_at  TEXT DEFAULT (datetime('now'))
-        );
-
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_kpi_snapshots (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             snapshot_date TEXT NOT NULL,
             mrr         REAL DEFAULT 0,
             arr         REAL DEFAULT 0,
@@ -115,32 +115,32 @@ def init_monetizer_tables():
             churn_rate  REAL DEFAULT 0,
             ltv         REAL DEFAULT 0,
             cac         REAL DEFAULT 0,
-            created_at  TEXT DEFAULT (datetime('now')),
+            created_at  TIMESTAMP DEFAULT NOW(),
             UNIQUE(snapshot_date)
-        );
-
+        )""")
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_goals (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             metric      TEXT NOT NULL,
             target_value REAL NOT NULL,
             current_value REAL DEFAULT 0,
             deadline    TEXT,
             status      TEXT DEFAULT 'active',
-            created_at  TEXT DEFAULT (datetime('now'))
-        );
-
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_cost_centers (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             name        TEXT NOT NULL,
             category    TEXT NOT NULL,
             monthly_budget REAL DEFAULT 0,
             actual_spend REAL DEFAULT 0,
             notes       TEXT,
-            updated_at  TEXT DEFAULT (datetime('now'))
-        );
-
+            updated_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_campaigns (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             name        TEXT NOT NULL,
             channel     TEXT NOT NULL,
             status      TEXT DEFAULT 'draft',
@@ -153,21 +153,21 @@ def init_monetizer_tables():
             start_date  TEXT,
             end_date    TEXT,
             notes       TEXT,
-            created_at  TEXT DEFAULT (datetime('now'))
-        );
-
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_feature_flags (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             name        TEXT UNIQUE NOT NULL,
             enabled     INTEGER DEFAULT 0,
             tier_min    TEXT DEFAULT 'free',
             rollout_pct INTEGER DEFAULT 100,
             description TEXT,
-            updated_at  TEXT DEFAULT (datetime('now'))
-        );
-
+            updated_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_support_tickets (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             user_id     INTEGER,
             subject     TEXT NOT NULL,
             body        TEXT,
@@ -175,22 +175,22 @@ def init_monetizer_tables():
             status      TEXT DEFAULT 'open',
             assigned_to TEXT,
             resolution  TEXT,
-            created_at  TEXT DEFAULT (datetime('now')),
+            created_at  TIMESTAMP DEFAULT NOW(),
             resolved_at TEXT
-        );
-
+        )""")
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_changelog (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             version     TEXT,
             title       TEXT NOT NULL,
             body        TEXT,
             category    TEXT DEFAULT 'feature',
             published   INTEGER DEFAULT 0,
-            created_at  TEXT DEFAULT (datetime('now'))
-        );
-
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_alerts (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             alert_type  TEXT NOT NULL,
             severity    TEXT DEFAULT 'info',
             message     TEXT NOT NULL,
@@ -198,11 +198,11 @@ def init_monetizer_tables():
             metric_value REAL,
             threshold   REAL,
             acknowledged INTEGER DEFAULT 0,
-            created_at  TEXT DEFAULT (datetime('now'))
-        );
-
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS business_plan_milestones (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          SERIAL PRIMARY KEY,
             phase       INTEGER NOT NULL,
             phase_name  TEXT NOT NULL,
             week_number INTEGER NOT NULL,
@@ -216,10 +216,9 @@ def init_monetizer_tables():
             actual_mrr  REAL DEFAULT 0,
             notes       TEXT,
             completed_at TEXT,
-            created_at  TEXT DEFAULT (datetime('now')),
+            created_at  TIMESTAMP DEFAULT NOW(),
             UNIQUE(week_number)
-        );
-        """)
+        )""")
     _seed_milestones()
 
 
@@ -237,7 +236,7 @@ def _seed_milestones():
             return
         conn.execute("DELETE FROM business_plan_milestones")
         try:
-            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('plan_version', ?)", (PLAN_VERSION,))
+            conn.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", ('plan_version', PLAN_VERSION))
         except Exception:
             pass
 
@@ -494,7 +493,7 @@ def user_cohorts():
     with _conn() as conn:
         # Signup cohorts by month
         cohorts = _rows_to_list(conn.execute("""
-            SELECT strftime('%Y-%m', created_at) as cohort_month,
+            SELECT to_char(created_at, 'YYYY-MM') as cohort_month,
                    COUNT(*) as signups,
                    SUM(CASE WHEN subscription_tier != 'free' AND subscription_status = 'active' THEN 1 ELSE 0 END) as converted,
                    SUM(CASE WHEN subscription_status = 'canceled' THEN 1 ELSE 0 END) as churned
@@ -681,9 +680,9 @@ def growth_overview():
         # New signups per day (last 30 days)
         thirty_ago = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d")
         daily_signups = _rows_to_list(conn.execute("""
-            SELECT date(created_at) as day, COUNT(*) as signups
+            SELECT created_at::date as day, COUNT(*) as signups
             FROM users WHERE created_at >= ?
-            GROUP BY day ORDER BY day
+            GROUP BY created_at::date ORDER BY day
         """, (thirty_ago,)).fetchall())
 
         # Conversion funnel
@@ -779,10 +778,10 @@ def content_stats():
         # Daily production (last 30 days)
         thirty_ago = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d")
         daily_production = _rows_to_list(conn.execute("""
-            SELECT date(created_at) as day, COUNT(*) as videos,
+            SELECT created_at::date as day, COUNT(*) as videos,
                    SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as completed
             FROM jobs WHERE created_at >= ?
-            GROUP BY day ORDER BY day
+            GROUP BY created_at::date ORDER BY day
         """, (thirty_ago,)).fetchall())
 
         # Platform publishing stats
@@ -864,7 +863,7 @@ def upsert_feature():
 def toggle_feature(flag_id):
     with _conn() as conn:
         conn.execute("""
-            UPDATE monetizer_feature_flags SET enabled = NOT enabled, updated_at = ? WHERE id = ?
+            UPDATE monetizer_feature_flags SET enabled = CASE WHEN enabled = 1 THEN 0 ELSE 1 END, updated_at = ? WHERE id = ?
         """, (_now(), flag_id))
     return jsonify({"ok": True})
 
@@ -950,7 +949,7 @@ def take_kpi_snapshot():
 
         # New signups today
         new_today = conn.execute("""
-            SELECT COUNT(*) as c FROM users WHERE date(created_at) = ?
+            SELECT COUNT(*) as c FROM users WHERE created_at::date = ?
         """, (today,)).fetchone()["c"]
 
         total_videos = conn.execute("SELECT COUNT(*) as c FROM jobs WHERE status='done'").fetchone()["c"]
@@ -962,11 +961,18 @@ def take_kpi_snapshot():
         ltv = arpu / (churn_rate / 100) if churn_rate > 0 else arpu * 24
 
         conn.execute("""
-            INSERT OR REPLACE INTO monetizer_kpi_snapshots
+            INSERT INTO monetizer_kpi_snapshots
             (snapshot_date, mrr, arr, total_users, paying_users, free_users,
              churned_users, new_signups, total_videos, total_credits_used,
              avg_revenue_per_user, conversion_rate, churn_rate, ltv)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (snapshot_date) DO UPDATE SET
+             mrr = EXCLUDED.mrr, arr = EXCLUDED.arr, total_users = EXCLUDED.total_users,
+             paying_users = EXCLUDED.paying_users, free_users = EXCLUDED.free_users,
+             churned_users = EXCLUDED.churned_users, new_signups = EXCLUDED.new_signups,
+             total_videos = EXCLUDED.total_videos, total_credits_used = EXCLUDED.total_credits_used,
+             avg_revenue_per_user = EXCLUDED.avg_revenue_per_user, conversion_rate = EXCLUDED.conversion_rate,
+             churn_rate = EXCLUDED.churn_rate, ltv = EXCLUDED.ltv
         """, (today, round(mrr, 2), round(mrr * 12, 2), total, paying,
               total - paying, churned, new_today, total_videos, total_credits,
               round(arpu, 2), round(conversion, 2), round(churn_rate, 2), round(ltv, 2)))
@@ -1100,9 +1106,6 @@ def create_alert(alert_type, message, severity="warning", metric_name=None, metr
 def system_health():
     import shutil
 
-    db_path = Path(db.DB_PATH)
-    db_size = db_path.stat().st_size if db_path.exists() else 0
-
     output_dir = config.OUTPUT_DIR
     output_size = sum(f.stat().st_size for f in output_dir.rglob("*") if f.is_file()) if output_dir.exists() else 0
 
@@ -1112,18 +1115,18 @@ def system_health():
         stuck_jobs = conn.execute("""
             SELECT COUNT(*) as c FROM jobs
             WHERE status IN ('pending', 'running')
-            AND datetime(created_at) < datetime('now', '-1 hour')
+            AND created_at < NOW() - INTERVAL '1 hour'
         """).fetchone()["c"]
 
         error_jobs_24h = conn.execute("""
             SELECT COUNT(*) as c FROM jobs
             WHERE status = 'error'
-            AND datetime(created_at) > datetime('now', '-1 day')
+            AND created_at > NOW() - INTERVAL '1 day'
         """).fetchone()["c"]
 
         total_jobs_24h = conn.execute("""
             SELECT COUNT(*) as c FROM jobs
-            WHERE datetime(created_at) > datetime('now', '-1 day')
+            WHERE created_at > NOW() - INTERVAL '1 day'
         """).fetchone()["c"]
 
     # API key status
@@ -1137,7 +1140,7 @@ def system_health():
     }
 
     return jsonify({
-        "database_size_mb": round(db_size / 1024 / 1024, 2),
+        "database": "PostgreSQL (Supabase)",
         "output_size_mb": round(output_size / 1024 / 1024, 2),
         "disk_total_gb": round(disk.total / 1024**3, 2),
         "disk_used_gb": round(disk.used / 1024**3, 2),
@@ -1210,19 +1213,19 @@ def export_report(report_type):
         if report_type == "users":
             writer.writerow(["ID", "Email", "Name", "Tier", "Status", "Videos Used", "Credits Used", "Created"])
             for r in conn.execute("SELECT id, email, name, subscription_tier, subscription_status, videos_used, credits_used, created_at FROM users ORDER BY id").fetchall():
-                writer.writerow(list(r))
+                writer.writerow(list(r.values()))
         elif report_type == "revenue":
             writer.writerow(["ID", "User ID", "Event", "Amount", "Tier", "Date"])
             for r in conn.execute("SELECT id, user_id, event_type, amount, tier, created_at FROM monetizer_revenue_log ORDER BY created_at DESC").fetchall():
-                writer.writerow(list(r))
+                writer.writerow(list(r.values()))
         elif report_type == "kpi":
             writer.writerow(["Date", "MRR", "ARR", "Total Users", "Paying", "Free", "Churned", "Conv Rate", "Churn Rate", "LTV"])
             for r in conn.execute("SELECT snapshot_date, mrr, arr, total_users, paying_users, free_users, churned_users, conversion_rate, churn_rate, ltv FROM monetizer_kpi_snapshots ORDER BY snapshot_date DESC").fetchall():
-                writer.writerow(list(r))
+                writer.writerow(list(r.values()))
         elif report_type == "jobs":
             writer.writerow(["ID", "User ID", "Topic", "Type", "Status", "Created"])
             for r in conn.execute("SELECT id, user_id, topic, content_type, status, created_at FROM jobs ORDER BY created_at DESC LIMIT 1000").fetchall():
-                writer.writerow(list(r))
+                writer.writerow(list(r.values()))
         else:
             return jsonify({"error": f"Unknown report type: {report_type}"}), 400
 

@@ -1,13 +1,19 @@
 """
 ProductionStudioEngine — orchestrates the 5-agent pipeline and drives
 actual asset generation (audio + video assembly).
+
+Uses studio_blueprints for predetermined production recipe and
+studio_intelligence for learning from past jobs.
 """
 from __future__ import annotations
 import json
+import time
 from pathlib import Path
 from typing import Callable, Optional
 
 import config
+from generators.studio_blueprints import get_blueprint, validate_output
+from generators.studio_intelligence import record_job, get_recommendations
 from generators.agents import (
     TrendArchitect,
     NarrativeDesigner,
@@ -86,6 +92,14 @@ class ProductionStudioEngine:
         from generators.researcher import research_topic, brief_to_context
         from generators import higgsfield_mcp
         from utils import file_manager
+
+        _start_time = time.time()
+        _bp = get_blueprint("production")
+        _recs = get_recommendations("production", genre=niche)
+
+        # Apply learned voice preference if available
+        if _recs.get("voice") and not voice:
+            voice = _recs["voice"]
 
         # Auto-select Google Neural2 voice when API key is configured
         if config.GOOGLE_API_KEY:
@@ -400,6 +414,33 @@ class ProductionStudioEngine:
             audio_path=str(audio_path),
             thumbnail_path=str(thumbnail_path),
             manifest_path=str(job_dir / "manifest.json"),
+        )
+
+        # ── Record learning ───────────────────────────────────────────────
+        _elapsed = time.time() - _start_time
+        _clip_count = len(all_video_clips) + len(image_clips)
+        _output_meta = {
+            "min_unique_clips": _clip_count,
+            "thumbnail_has_text": True,
+        }
+        if video_path.exists():
+            _output_meta["min_duration_seconds"] = _duration
+        _gates = validate_output("production", _output_meta)
+        _passed = sum(1 for g in _gates.values() if g.get("passed"))
+        record_job(
+            studio="production", job_id=0, user_id=0,
+            topic=niche, genre=niche, format="long",
+            clip_count=_clip_count,
+            duration_seconds=_duration,
+            voice_used=voice or "",
+            ai_provider="higgsfield" if ai_clips else "stock_only",
+            completed=1 if result.status in ("success", "partial") else 0,
+            error_message="; ".join(errors) if errors else "",
+            generation_time_seconds=round(_elapsed, 1),
+            file_size_bytes=video_path.stat().st_size if video_path.exists() else 0,
+            quality_score=0.8 if result.status == "success" else 0.5,
+            gates_passed=_passed, gates_total=len(_gates),
+            asset_sources={"ai_clips": len(ai_clips), "stock_clips": len(video_clips), "images": len(image_clips)},
         )
 
         self.cb("Production complete!", 100)

@@ -26,7 +26,7 @@ LIFECYCLE_MESSAGES = {
     "welcome": {
         "title": "Welcome to Social Optimize Machine!",
         "body": (
-            "You're all set with your free trial — 2 AI-generated videos per month, "
+            "You're all set — 3 AI-generated videos per month, publish to 3 platforms, "
             "no credit card required. Head to the Create page to make your first video."
         ),
         "link": "/create",
@@ -59,8 +59,8 @@ LIFECYCLE_MESSAGES = {
     "trial_3days": {
         "title": "3 days left on your free trial",
         "body": (
-            "Your free trial ends in 3 days. Upgrade to Starter ($9.99/mo) to keep creating — "
-            "you'll get 10 videos/month, 50 AI credits, and YouTube publishing."
+            "Your free trial ends in 3 days. Upgrade to Starter ($29.99/mo) to keep creating — "
+            "you'll get 15 videos/month, 150 AI credits, 8 platforms, and full studio access."
         ),
         "link": "/billing",
     },

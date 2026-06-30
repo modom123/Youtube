@@ -42,136 +42,173 @@ STRIPE_PRICE_CREATOR  = os.getenv("STRIPE_PRICE_CREATOR", "")
 STRIPE_PRICE_PRO      = os.getenv("STRIPE_PRICE_PRO", "")
 STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 
+# ── Whop ─────────────────────────────────────────────────────────────────────
+WHOP_API_KEY          = os.getenv("WHOP_API_KEY", "")
+WHOP_WEBHOOK_SECRET   = os.getenv("WHOP_WEBHOOK_SECRET", "")
+WHOP_PLAN_STARTER     = os.getenv("WHOP_PLAN_STARTER", "")
+WHOP_PLAN_CREATOR     = os.getenv("WHOP_PLAN_CREATOR", "")
+WHOP_PLAN_PRO         = os.getenv("WHOP_PLAN_PRO", "")
+WHOP_PLAN_AGENCY      = os.getenv("WHOP_PLAN_AGENCY", "")
+
+# ── Gumroad ───────────────────────────────────────────────────────────────────
+GUMROAD_ACCESS_TOKEN    = os.getenv("GUMROAD_ACCESS_TOKEN", "")
+GUMROAD_WEBHOOK_SECRET  = os.getenv("GUMROAD_WEBHOOK_SECRET", "")
+GUMROAD_PRODUCT_STARTER = os.getenv("GUMROAD_PRODUCT_STARTER", "")
+GUMROAD_PRODUCT_CREATOR = os.getenv("GUMROAD_PRODUCT_CREATOR", "")
+GUMROAD_PRODUCT_PRO     = os.getenv("GUMROAD_PRODUCT_PRO", "")
+GUMROAD_PRODUCT_AGENCY  = os.getenv("GUMROAD_PRODUCT_AGENCY", "")
+
+# ── LemonSqueezy ──────────────────────────────────────────────────────────────
+LEMONSQUEEZY_API_KEY        = os.getenv("LEMONSQUEEZY_API_KEY", "")
+LEMONSQUEEZY_WEBHOOK_SECRET = os.getenv("LEMONSQUEEZY_WEBHOOK_SECRET", "")
+LEMONSQUEEZY_STORE_ID       = os.getenv("LEMONSQUEEZY_STORE_ID", "")
+LEMONSQUEEZY_VARIANT_STARTER = os.getenv("LEMONSQUEEZY_VARIANT_STARTER", "")
+LEMONSQUEEZY_VARIANT_CREATOR = os.getenv("LEMONSQUEEZY_VARIANT_CREATOR", "")
+LEMONSQUEEZY_VARIANT_PRO     = os.getenv("LEMONSQUEEZY_VARIANT_PRO", "")
+LEMONSQUEEZY_VARIANT_AGENCY  = os.getenv("LEMONSQUEEZY_VARIANT_AGENCY", "")
+
+# ── AppSumo ───────────────────────────────────────────────────────────────────
+APPSUMO_API_KEY         = os.getenv("APPSUMO_API_KEY", "")
+APPSUMO_WEBHOOK_SECRET  = os.getenv("APPSUMO_WEBHOOK_SECRET", "")
+APPSUMO_PRODUCT_ID      = os.getenv("APPSUMO_PRODUCT_ID", "")
+
+# ── PayPal ────────────────────────────────────────────────────────────────────
+PAYPAL_CLIENT_ID        = os.getenv("PAYPAL_CLIENT_ID", "")
+PAYPAL_CLIENT_SECRET    = os.getenv("PAYPAL_CLIENT_SECRET", "")
+PAYPAL_WEBHOOK_ID       = os.getenv("PAYPAL_WEBHOOK_ID", "")
+PAYPAL_MODE             = os.getenv("PAYPAL_MODE", "sandbox")
+PAYPAL_PLAN_STARTER     = os.getenv("PAYPAL_PLAN_STARTER", "")
+PAYPAL_PLAN_CREATOR     = os.getenv("PAYPAL_PLAN_CREATOR", "")
+PAYPAL_PLAN_PRO         = os.getenv("PAYPAL_PLAN_PRO", "")
+PAYPAL_PLAN_AGENCY      = os.getenv("PAYPAL_PLAN_AGENCY", "")
+
+# ── Affiliate Program ────────────────────────────────────────────────────────
+AFFILIATE_COMMISSION_PCT  = float(os.getenv("AFFILIATE_COMMISSION_PCT", "20"))
+AFFILIATE_COOKIE_DAYS     = int(os.getenv("AFFILIATE_COOKIE_DAYS", "30"))
+
 # ── Testing / bypass flags ───────────────────────────────────────────────────
 # Set BYPASS_USAGE_GATE=1 on Render while testing to skip video-count limits.
 BYPASS_USAGE_GATE = os.getenv("BYPASS_USAGE_GATE", "0") not in ("", "0", "false", "no")
-
-# ── Whop Marketplace ────────────────────────────────────────────────────────
-WHOP_API_KEY        = os.getenv("WHOP_API_KEY", "")
-WHOP_APP_API_KEY    = os.getenv("WHOP_APP_API_KEY", "")
-WHOP_WEBHOOK_SECRET = os.getenv("WHOP_WEBHOOK_SECRET", "")
-WHOP_COMPANY_ID     = os.getenv("WHOP_COMPANY_ID", "")
 
 # ── Subscription tiers ───────────────────────────────────────────────────────
 TIERS = {
     "free": {
         "label": "Free",
-        "description": "Get started free — no credit card required. Create 3 videos and see what AI content can do.",
+        "description": "Get started for free — no credit card, no commitment. 3 AI videos per month with 10 credits.",
         "price_monthly": 0,
         "trial_days": 0,
-        "videos_per_month": 3,
+        "videos_per_month": -1,
         "higgsfield_credits": 10,
         "stripe_price_id": None,
         "features": [
             "3 AI videos/month",
             "10 Social Optimize Credits",
-            "Publish to YouTube",
-            "Basic AI scripts (Haiku)",
+            "5-agent AI pipeline",
+            "Publish to 3 platforms",
+            "Content Calendar",
             "Pexels stock media library",
             "Quick Post from photo/video",
+            "Basic AI script writing",
+            "Hashtag suggestions",
+            "The Cut",
             "Community support",
-        ],
-        "limitations": [
-            "No AI Clipper",
-            "No batch creation",
-            "No scheduling",
-            "No analytics",
-            "Watermark on exports",
         ],
     },
     "starter": {
         "label": "Starter",
-        "description": "Everything you need to start posting consistently. 10 videos, scheduling, and multi-platform publishing.",
+        "description": "Essential tools to start growing your brand — just $9.99/mo.",
         "price_monthly": 9.99,
         "trial_days": 7,
-        "videos_per_month": 10,
+        "videos_per_month": 7,
         "higgsfield_credits": 50,
         "stripe_price_id": STRIPE_PRICE_STARTER,
+        "whop_plan_id": WHOP_PLAN_STARTER,
         "features": [
             "7-day free trial",
-            "10 AI videos/month",
-            "Publish to 8 platforms",
+            "7 AI videos/month",
+            "Publish to 5 platforms",
             "50 Social Optimize Credits/mo",
             "5-agent AI pipeline",
             "Content calendar & scheduling",
+            "The Cut",
+            "Template Library",
             "Hashtag research",
-            "No watermark",
             "Quick Post from photo/video",
+            "Pexels stock media library",
             "Email support",
-        ],
-        "limitations": [
-            "No AI Clipper",
-            "No batch creation",
-            "Basic analytics only",
         ],
     },
     "creator": {
         "label": "Creator",
-        "description": "The sweet spot for serious creators. 30 videos, AI Clipper, batch creation, and advanced tools.",
-        "price_monthly": 29,
+        "description": "Built for entrepreneurs and small businesses. 14-day free trial, then $29.99/mo.",
+        "price_monthly": 29.99,
         "trial_days": 14,
-        "videos_per_month": 30,
-        "higgsfield_credits": 200,
+        "videos_per_month": 15,
+        "higgsfield_credits": 150,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
+        "whop_plan_id": WHOP_PLAN_CREATOR,
         "features": [
             "14-day free trial",
-            "30 AI videos/month",
-            "Publish to all 8 platforms",
-            "200 Social Optimize Credits/mo",
-            "AI Clipper — 10 clips/month",
-            "Batch create 10 videos at once",
+            "15 AI videos/month",
+            "Publish to 8 platforms",
+            "150 Social Optimize Credits/mo",
+            "5-agent AI pipeline",
+            "The Forge — production suite",
+            "Ad Lab — photo → ad",
+            "Hit Factory",
+            "Quick Post from photo/video",
+            "Batch Generator",
+            "Content calendar & scheduling",
             "Template Library",
-            "Studio 56 — full production suite",
-            "Competitor & trend analysis",
-            "Advanced analytics",
-            "Priority email support",
-        ],
-        "limitations": [
-            "No Hollywood AI agent",
-            "No multi-language",
-            "No team seats",
+            "Hashtag research",
+            "Email support",
         ],
     },
     "pro": {
         "label": "Pro",
-        "description": "For full-time creators and small teams. 100 videos, unlimited clips, Hollywood AI, and every tool unlocked.",
-        "price_monthly": 79,
+        "description": "The full creative suite for serious creators. 14-day free trial, then $79.99/mo.",
+        "price_monthly": 79.99,
         "trial_days": 14,
-        "videos_per_month": 100,
-        "higgsfield_credits": 750,
+        "videos_per_month": 50,
+        "higgsfield_credits": 500,
         "stripe_price_id": STRIPE_PRICE_PRO,
+        "whop_plan_id": WHOP_PLAN_PRO,
         "features": [
             "14-day free trial",
-            "100 AI videos/month",
+            "50 AI videos/month",
             "Publish to all 8 platforms",
-            "750 Social Optimize Credits/mo",
-            "AI Clipper — unlimited clips",
-            "Batch create 50 videos at once",
-            "Hollywood AI agent",
-            "Commercial Studio — photo to ad",
+            "500 Social Optimize Credits/mo",
+            "Everything in Creator",
+            "The Forge — full production suite",
+            "Cinema House — cinematic AI",
+            "Hit Factory — DJ & beat maker",
+            "The Scalpel — auto-clip to shorts",
             "Documentary & Animation formats",
+            "Competitor & trend analysis",
             "Multi-language (15 languages)",
-            "3 team seats",
+            "Batch create 30 videos at once",
+            "Advanced analytics & reporting",
+            "The Cut — full editing suite",
             "Priority support",
         ],
-        "limitations": [],
     },
     "agency": {
         "label": "Agency",
-        "description": "Scale without limits. 200 videos, white-label, API access, CRM, and a dedicated account manager.",
-        "price_monthly": 199,
+        "description": "Scale your content operation. 14-day free trial, then $199.99/mo.",
+        "price_monthly": 199.99,
         "trial_days": 14,
-        "videos_per_month": 200,
+        "videos_per_month": 125,
         "higgsfield_credits": 2000,
         "stripe_price_id": STRIPE_PRICE_AGENCY,
+        "whop_plan_id": WHOP_PLAN_AGENCY,
         "features": [
             "14-day free trial",
-            "200 AI videos/month",
+            "125 AI videos/month",
             "Publish to all 8 platforms",
             "2,000 Social Optimize Credits/mo",
             "Everything in Pro",
-            "AI Clipper — unlimited clips",
-            "10 team seats",
+            "The Scalpel — unlimited clips",
+            "Team management (5 seats)",
             "White-label exports",
             "SMS/WhatsApp outreach (Twilio)",
             "Contacts / CRM",
@@ -179,7 +216,6 @@ TIERS = {
             "Dedicated account manager",
             "24/7 priority support",
         ],
-        "limitations": [],
     },
 }
 
@@ -219,7 +255,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # "Adam" — deep male narrator
 
-# Music Studio providers
+# Hit Factory providers
 SUNO_COOKIE = os.getenv("SUNO_COOKIE", "")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
 MUBERT_KEY = os.getenv("MUBERT_KEY", "")

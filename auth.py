@@ -52,6 +52,9 @@ def register():
 
         pw_hash = generate_password_hash(pw)
         user_id = db.create_user(email=email, password_hash=pw_hash, name=name or email.split("@")[0])
+        ref_code = request.cookies.get("ref", "")
+        if ref_code:
+            db.update_user(user_id, referred_by=ref_code)
         user_data = db.get_user_by_id(user_id)
         user = _UserObj(user_data)
         login_user(user, remember=True)
@@ -208,6 +211,8 @@ class _UserObj:
     def stripe_subscription_id(self): return self._d.get("stripe_subscription_id")
     @property
     def is_admin(self): return bool(self._d.get("is_admin"))
+    @property
+    def assistant_enabled(self): return self._d.get("assistant_enabled") != 0
 
     def refresh(self):
         self._d = db.get_user_by_id(self._d["id"])
