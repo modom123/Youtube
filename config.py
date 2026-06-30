@@ -82,6 +82,11 @@ PAYPAL_PLAN_CREATOR     = os.getenv("PAYPAL_PLAN_CREATOR", "")
 PAYPAL_PLAN_PRO         = os.getenv("PAYPAL_PLAN_PRO", "")
 PAYPAL_PLAN_AGENCY      = os.getenv("PAYPAL_PLAN_AGENCY", "")
 
+# ── Patreon ──────────────────────────────────────────────────────────────────
+PATREON_CLIENT_ID       = os.getenv("PATREON_CLIENT_ID", "")
+PATREON_CLIENT_SECRET   = os.getenv("PATREON_CLIENT_SECRET", "")
+PATREON_WEBHOOK_SECRET  = os.getenv("PATREON_WEBHOOK_SECRET", "")
+
 # ── Affiliate Program ────────────────────────────────────────────────────────
 AFFILIATE_COMMISSION_PCT  = float(os.getenv("AFFILIATE_COMMISSION_PCT", "20"))
 AFFILIATE_COOKIE_DAYS     = int(os.getenv("AFFILIATE_COOKIE_DAYS", "30"))

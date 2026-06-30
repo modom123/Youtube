@@ -75,16 +75,29 @@ def init_monetizer_tables():
     with _conn() as conn:
         conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_revenue_log (
-            id          SERIAL PRIMARY KEY,
-            user_id     INTEGER,
-            event_type  TEXT NOT NULL,
-            amount      REAL NOT NULL DEFAULT 0,
-            currency    TEXT DEFAULT 'usd',
-            tier        TEXT,
-            stripe_event_id TEXT,
-            notes       TEXT,
-            created_at  TIMESTAMP DEFAULT NOW()
+            id                  SERIAL PRIMARY KEY,
+            platform            TEXT DEFAULT 'stripe',
+            user_id             INTEGER,
+            event_type          TEXT NOT NULL,
+            amount              REAL NOT NULL DEFAULT 0,
+            currency            TEXT DEFAULT 'usd',
+            tier                TEXT,
+            stripe_event_id     TEXT,
+            platform_event_id   TEXT,
+            customer_email      TEXT,
+            notes               TEXT,
+            created_at          TIMESTAMP DEFAULT NOW()
         )""")
+        # Migrate: add new columns to existing table if not present
+        for col, defn in [
+            ("platform",          "TEXT DEFAULT 'stripe'"),
+            ("platform_event_id", "TEXT"),
+            ("customer_email",    "TEXT"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE monetizer_revenue_log ADD COLUMN {col} {defn}")
+            except Exception:
+                pass  # column already exists
         conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_expenses (
             id          SERIAL PRIMARY KEY,
@@ -446,11 +459,35 @@ def revenue_overview():
             ORDER BY snapshot_date DESC LIMIT 12
         """).fetchall())
 
+        # Revenue by platform (last 30 days from webhook events)
+        platform_breakdown = _rows_to_list(conn.execute("""
+            SELECT platform,
+                   COUNT(*) FILTER (WHERE event_type='sale') as sales,
+                   COALESCE(SUM(amount) FILTER (WHERE event_type='sale'), 0) as revenue,
+                   COUNT(*) FILTER (WHERE event_type='churn') as churns,
+                   COUNT(*) FILTER (WHERE event_type='refund') as refunds
+            FROM monetizer_revenue_log
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY platform ORDER BY revenue DESC
+        """).fetchall())
+
+        # All-time platform totals
+        platform_alltime = _rows_to_list(conn.execute("""
+            SELECT platform,
+                   COALESCE(SUM(amount) FILTER (WHERE event_type='sale'), 0) as total_revenue,
+                   COUNT(*) FILTER (WHERE event_type='sale') as total_sales
+            FROM monetizer_revenue_log
+            GROUP BY platform ORDER BY total_revenue DESC
+        """).fetchall())
+
         # Recent revenue events
         recent_events = _rows_to_list(conn.execute("""
-            SELECT r.*, u.email FROM monetizer_revenue_log r
+            SELECT r.id, r.platform, r.event_type, r.amount, r.currency,
+                   r.tier, r.customer_email, r.notes, r.created_at,
+                   u.email as user_email
+            FROM monetizer_revenue_log r
             LEFT JOIN users u ON r.user_id = u.id
-            ORDER BY r.created_at DESC LIMIT 25
+            ORDER BY r.created_at DESC LIMIT 50
         """).fetchall())
 
     return jsonify({
@@ -464,6 +501,8 @@ def revenue_overview():
         "tier_breakdown": tier_breakdown,
         "tier_prices": tier_prices,
         "trend": trend,
+        "platform_breakdown": platform_breakdown,
+        "platform_alltime": platform_alltime,
         "recent_events": recent_events,
     })
 
