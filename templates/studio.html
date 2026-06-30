@@ -281,6 +281,7 @@
       <div class="progress-bar-wrap">
         <div class="progress-bar-track"><div class="progress-bar-fill" id="studioPbar"></div></div>
         <div class="progress-label" id="studioStepLabel">Starting…</div>
+        <span class="so-brand-counter" id="studioBrand"></span>
       </div>
       <div class="log-box" id="studioLogBox"></div>
     </div>
@@ -642,6 +643,7 @@ function studioRun() {
   document.getElementById('studioProgressCard').style.display = '';
   document.getElementById('studioResults').classList.remove('visible');
   document.getElementById('studioPbar').style.width = '0%';
+  soBrandCounterRender('studioBrand', 0);
   document.getElementById('studioLogBox').innerHTML = '';
   document.getElementById('r-errors-card').style.display = 'none';
   ['agent-1','agent-2','agent-3','agent-35','agent-4','agent-compile'].forEach(id => agentState(id, null, 'Waiting'));
@@ -702,6 +704,7 @@ function listenStudio(jobId) {
 
     document.getElementById('studioPbar').style.width = pct + '%';
     document.getElementById('studioStepLabel').textContent = step;
+    soBrandCounterRender('studioBrand', pct);
     if (step) addLog(step);
 
     updateAgentsFromProgress(pct);
@@ -736,6 +739,7 @@ function pollStatus(jobId) {
       const pct = data.progress || 0;
       document.getElementById('studioPbar').style.width = pct + '%';
       document.getElementById('studioStepLabel').textContent = data.step || '';
+      soBrandCounterRender('studioBrand', pct);
       updateAgentsFromProgress(pct);
 
       if (data.status === 'done') {

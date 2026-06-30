@@ -336,6 +336,7 @@
           <div class="pct" id="progress-pct">0%</div>
         </div>
         <div style="font-size:14px;font-weight:700;margin-bottom:4px;" id="progress-title">Preparing...</div>
+        <div class="so-brand-counter" id="clipBrand" style="display:block;text-align:center;margin-bottom:10px;font-size:11px;"></div>
         <div class="progress-steps" id="progress-steps">
           <div class="progress-step active" data-step="download"><span class="step-dot"></span> Downloading source video</div>
           <div class="progress-step" data-step="analyze"><span class="step-dot"></span> Analyzing content</div>
@@ -603,6 +604,7 @@
       const offset = 326.7 - (326.7 * pct / 100);
       circle.style.strokeDashoffset = offset;
       $('progress-pct').textContent = Math.round(pct) + '%';
+      soBrandCounterRender('clipBrand', pct);
     }
 
     try {

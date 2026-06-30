@@ -527,6 +527,9 @@
       <div class="progress-track">
         <div class="progress-bar" id="prog-bar" style="width:0%"></div>
       </div>
+      <div class="flex-between mt-8">
+        <span class="so-brand-counter" id="prog-brand"></span>
+      </div>
       <div class="job-log" id="prog-log"></div>
       <div class="flex gap-12 mt-16" id="prog-done-actions" style="display:none!important">
         <a href="#" class="btn btn-green" id="prog-download">⬇ Download MP4</a>
@@ -818,7 +821,10 @@ async function launchJob(payload) {
 
     es.onmessage = (e) => {
       const d = JSON.parse(e.data);
-      if (d.progress !== undefined) document.getElementById('prog-bar').style.width = d.progress + '%';
+      if (d.progress !== undefined) {
+        document.getElementById('prog-bar').style.width = d.progress + '%';
+        soBrandCounterRender('prog-brand', d.progress);
+      }
       if (d.step) document.getElementById('prog-step').textContent = d.step;
       if (d.log) {
         const span = document.createElement('span');
@@ -833,6 +839,8 @@ async function launchJob(payload) {
         document.getElementById('prog-status').className = 'pill pill-done';
         document.getElementById('prog-status').textContent = 'Done!';
         document.getElementById('prog-bar').className = 'progress-bar green';
+        document.getElementById('prog-bar').style.width = '100%';
+        soBrandCounterRender('prog-brand', 100);
         document.getElementById('prog-title').textContent = d.title || payload.topic;
         const acts = document.getElementById('prog-done-actions');
         acts.style.removeProperty('display');
@@ -857,6 +865,7 @@ async function launchJob(payload) {
 function resetProgress() {
   document.getElementById('prog-bar').style.width = '0%';
   document.getElementById('prog-bar').className = 'progress-bar';
+  soBrandCounterRender('prog-brand', 0);
   document.getElementById('prog-step').textContent = 'Starting...';
   document.getElementById('prog-status').className = 'pill pill-running';
   document.getElementById('prog-status').textContent = 'Running';

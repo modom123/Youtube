@@ -255,6 +255,9 @@
         <div class="progress-bar-wrap">
           <div class="progress-bar" id="progressBar"></div>
         </div>
+        <div style="text-align:right;margin-top:6px;">
+          <span class="so-brand-counter" id="comBrand"></span>
+        </div>
       </div>
 
       <!-- Done -->
@@ -532,6 +535,7 @@ async function runCommercial() {
   document.getElementById('progressSection').style.display = 'block';
   document.getElementById('doneSection').style.display = 'none';
   document.getElementById('progressBar').style.width = '0%';
+  soBrandCounterRender('comBrand', 0);
   document.getElementById('stepLog').textContent = 'Uploading media...';
   startTimer();
 
@@ -586,6 +590,7 @@ async function pollStatus(jobId) {
 function handleEvent(d, jobId, es) {
   if (d.progress !== undefined) {
     document.getElementById('progressBar').style.width = d.progress + '%';
+    soBrandCounterRender('comBrand', d.progress);
   }
   if (d.step) {
     document.getElementById('stepLog').textContent = d.step;
