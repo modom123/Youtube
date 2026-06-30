@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Social Optimize Pro</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          brand: { 400:'#fb923c', 500:'#f97316', 600:'#ea580c' },
+          pro: { 400:'#a78bfa', 500:'#8b5cf6', 600:'#7c3aed' },
+        },
+        animation: {
+          'fade-up': 'fadeUp .55s ease both',
+          'pulse-slow': 'pulse 3s ease-in-out infinite',
+          'shimmer': 'shimmer 2.5s linear infinite',
+          'float': 'float 4s ease-in-out infinite',
+        },
+        keyframes: {
+          fadeUp: { '0%':{ opacity:'0', transform:'translateY(20px)' }, '100%':{ opacity:'1', transform:'translateY(0)' } },
+          shimmer: { '0%':{ backgroundPosition:'200% center' }, '100%':{ backgroundPosition:'-200% center' } },
+          float: { '0%,100%':{ transform:'translateY(0)' }, '50%':{ transform:'translateY(-8px)' } },
+        }
+      }
+    }
+  }
+</script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { font-family: Inter, system-ui, sans-serif; }
+
+  .gradient-pro {
+    background: linear-gradient(135deg, #f97316, #8b5cf6, #f97316);
+    background-size: 300% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s linear infinite;
+  }
+
+  .btn-pro {
+    background: linear-gradient(135deg, #f97316, #8b5cf6);
+    background-size: 200% auto;
+    transition: background-position .4s ease, transform .15s ease, box-shadow .15s ease;
+    box-shadow: 0 0 40px rgba(139,92,246,.35), 0 0 80px rgba(249,115,22,.15);
+  }
+  .btn-pro:hover {
+    background-position: right center;
+    transform: translateY(-2px);
+    box-shadow: 0 0 60px rgba(139,92,246,.5), 0 0 100px rgba(249,115,22,.2);
+  }
+  .btn-pro:active { transform: scale(.97); }
+
+  .glass {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    backdrop-filter: blur(12px);
+  }
+
+  .pro-glow {
+    box-shadow: 0 0 0 1px rgba(139,92,246,.4), 0 0 40px rgba(139,92,246,.2), 0 0 80px rgba(249,115,22,.1);
+  }
+
+  .reveal { opacity:0; transform:translateY(24px); transition: opacity .55s ease, transform .55s ease; }
+  .reveal.in { opacity:1; transform:none; }
+  .d1 { transition-delay:.08s; }
+  .d2 { transition-delay:.16s; }
+  .d3 { transition-delay:.24s; }
+  .d4 { transition-delay:.32s; }
+
+  .check::before { content:'✓'; color:#a78bfa; margin-right:10px; font-weight:800; }
+
+  /* Animated border */
+  .pro-border {
+    position: relative;
+    border-radius: 24px;
+  }
+  .pro-border::before {
+    content:'';
+    position:absolute; inset:-1px;
+    border-radius:25px;
+    background: linear-gradient(135deg,#f97316,#8b5cf6,#f97316);
+    background-size: 300% auto;
+    animation: shimmer 3s linear infinite;
+    z-index:-1;
+  }
+
+  /* Stat cards */
+  .stat { text-align:center; }
+  .stat-num { font-size: clamp(2rem,5vw,3.5rem); font-weight:900; line-height:1; }
+  .stat-lbl { font-size:.8rem; color:#9ca3af; margin-top:4px; text-transform:uppercase; letter-spacing:.08em; }
+
+  /* Feature row */
+  .feat { display:flex; gap:14px; align-items:flex-start; }
+  .feat-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;
+    background:linear-gradient(135deg,rgba(249,115,22,.15),rgba(139,92,246,.15));
+    border:1px solid rgba(139,92,246,.25); }
+
+  /* Ticker */
+  @keyframes tick { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+  .tick-inner { display:flex; animation:tick 28s linear infinite; white-space:nowrap; }
+
+  /* Light mode */
+  html:not(.dark) body { background:#fafafa; color:#111; }
+  html:not(.dark) .glass { background:rgba(255,255,255,.85); border-color:rgba(0,0,0,.08); }
+  html:not(.dark) .text-gray-400 { color:#6b7280; }
+  html:not(.dark) .hero-bg { background:linear-gradient(160deg,#fff7ed,#faf5ff,#fff); }
+</style>
+</head>
+<body class="dark bg-[#080810] text-white antialiased overflow-x-hidden">
+
+<!-- Theme toggle -->
+<button id="thm" aria-label="Toggle theme"
+  class="fixed top-4 right-4 z-50 w-10 h-10 rounded-full glass flex items-center justify-center text-lg hover:scale-110 transition-transform">🌙</button>
+
+<!-- ═══════════ HERO ═══════════ -->
+<section class="hero-bg relative min-h-screen flex flex-col items-center justify-center text-center px-5 py-28 overflow-hidden">
+  <!-- Orbs -->
+  <div class="absolute top-1/3 left-1/4 w-[500px] h-[500px] rounded-full blur-[120px] opacity-[.12] animate-pulse-slow pointer-events-none"
+       style="background:radial-gradient(circle,#8b5cf6,transparent)"></div>
+  <div class="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full blur-[100px] opacity-[.1] animate-pulse-slow pointer-events-none"
+       style="background:radial-gradient(circle,#f97316,transparent);animation-delay:1.8s"></div>
+
+  <!-- Badge -->
+  <div class="animate-fade-up inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-8 text-xs font-bold tracking-widest uppercase"
+       style="color:#a78bfa;border-color:rgba(139,92,246,.3)">
+    <span class="w-2 h-2 rounded-full bg-[#a78bfa] animate-pulse"></span>
+    Pro Plan · Social Optimize
+  </div>
+
+  <!-- Headline -->
+  <h1 class="animate-fade-up text-5xl md:text-7xl font-black leading-[1.05] mb-6 max-w-4xl" style="animation-delay:.05s">
+    Built for creators who<br><span class="gradient-pro">publish like a team.</span>
+  </h1>
+
+  <!-- Sub -->
+  <p class="animate-fade-up text-lg md:text-xl text-gray-400 max-w-xl mb-10 leading-relaxed" style="animation-delay:.1s">
+    100 videos/month. Unlimited AI Clipper. Hollywood AI engine. 3 team seats. Everything you need to run content at scale — without hiring a team.
+  </p>
+
+  <!-- Price + CTA -->
+  <div class="animate-fade-up flex flex-col sm:flex-row items-center gap-5" style="animation-delay:.18s">
+    <a data-gumroad-action="buy" data-gumroad-option="Pro" data-gumroad-recurrence="monthly"
+       class="btn-pro cursor-pointer inline-flex items-center gap-3 text-white font-black text-xl px-12 py-5 rounded-2xl">
+      Get Pro — $79/mo
+      <span class="text-2xl">→</span>
+    </a>
+    <div class="text-center">
+      <div class="text-sm text-gray-400">or</div>
+      <a data-gumroad-action="buy" data-gumroad-option="Pro" data-gumroad-recurrence="yearly"
+         class="cursor-pointer text-[#a78bfa] font-bold underline underline-offset-4 hover:text-white transition-colors text-sm">
+        $63/mo billed annually — save 20%
+      </a>
+    </div>
+  </div>
+
+  <!-- Trust -->
+  <div class="animate-fade-up flex flex-wrap justify-center gap-5 mt-12 text-sm text-gray-500" style="animation-delay:.26s">
+    <span>🔥 100 videos/month</span>
+    <span>✂️ Unlimited AI Clipper</span>
+    <span>👥 3 team seats</span>
+    <span>✅ 7-day guarantee</span>
+  </div>
+</section>
+
+<!-- ═══════════ STATS ═══════════ -->
+<div class="py-14 border-y border-white/5 bg-white/[.02]">
+  <div class="max-w-4xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8">
+    <div class="stat reveal"><div class="stat-num gradient-pro">100</div><div class="stat-lbl">Videos / month</div></div>
+    <div class="stat reveal d1"><div class="stat-num gradient-pro">∞</div><div class="stat-lbl">AI Clips</div></div>
+    <div class="stat reveal d2"><div class="stat-num gradient-pro">8</div><div class="stat-lbl">Platforms</div></div>
+    <div class="stat reveal d3"><div class="stat-num gradient-pro">3</div><div class="stat-lbl">Team Seats</div></div>
+  </div>
+</div>
+
+<!-- ═══════════ TICKER ═══════════ -->
+<div class="py-3 overflow-hidden border-b border-white/5">
+  <div class="tick-inner text-xs font-semibold tracking-widest text-gray-600 uppercase select-none">
+    <span class="px-6">Hollywood AI</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">Unlimited Clipper</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">100 Videos</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">3 Seats</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">8 Platforms</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">AI Script</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">Auto-Publish</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">Scheduling</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <!-- dupe -->
+    <span class="px-6">Hollywood AI</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">Unlimited Clipper</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">100 Videos</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">3 Seats</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">8 Platforms</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">AI Script</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">Auto-Publish</span><span class="px-3 text-[#a78bfa]">✦</span>
+    <span class="px-6">Scheduling</span><span class="px-3 text-[#a78bfa]">✦</span>
+  </div>
+</div>
+
+<!-- ═══════════ FEATURES ═══════════ -->
+<section class="py-24 px-6 max-w-5xl mx-auto">
+  <div class="text-center mb-16 reveal">
+    <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color:#a78bfa">What you get</p>
+    <h2 class="text-4xl md:text-5xl font-black">Everything in Creator,<br>then some.</h2>
+  </div>
+
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="reveal glass rounded-2xl p-6 space-y-5">
+      <div class="feat">
+        <div class="feat-icon">🎬</div>
+        <div>
+          <div class="font-bold text-lg mb-1">100 Videos / Month</div>
+          <div class="text-gray-400 text-sm leading-relaxed">Publish daily across every platform without ever hitting a cap. That's 3+ videos every single day.</div>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">✂️</div>
+        <div>
+          <div class="font-bold text-lg mb-1">Unlimited AI Clipper</div>
+          <div class="text-gray-400 text-sm leading-relaxed">Turn every long-form video into as many short clips as you want — captions, hooks, and reframing all done automatically. No monthly cap.</div>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🎭</div>
+        <div>
+          <div class="font-bold text-lg mb-1">Hollywood AI Engine</div>
+          <div class="text-gray-400 text-sm leading-relaxed">Advanced cinematic production pipeline for higher-fidelity video assembly. Better b-roll matching, richer script structure, more polished output.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="reveal d1 glass rounded-2xl p-6 space-y-5">
+      <div class="feat">
+        <div class="feat-icon">👥</div>
+        <div>
+          <div class="font-bold text-lg mb-1">3 Team Seats</div>
+          <div class="text-gray-400 text-sm leading-relaxed">Bring in editors, VAs, or partners. Everyone on the team gets full access under one plan.</div>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🏭</div>
+        <div>
+          <div class="font-bold text-lg mb-1">Production Studio</div>
+          <div class="text-gray-400 text-sm leading-relaxed">5-agent AI pipeline — Trend Architect, Narrative Designer, Asset Curator, Cost Engineer, Growth Engineer — for maximum-quality output.</div>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">📡</div>
+        <div>
+          <div class="font-bold text-lg mb-1">8-Platform Publishing + Scheduling</div>
+          <div class="text-gray-400 text-sm leading-relaxed">YouTube, TikTok, Instagram, and more. Schedule weeks ahead. Set it and let it run.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full-width row -->
+    <div class="reveal d2 glass rounded-2xl p-6 md:col-span-2">
+      <div class="text-sm font-bold uppercase tracking-widest mb-5" style="color:#a78bfa">Everything from Starter + Creator also included</div>
+      <div class="grid sm:grid-cols-3 gap-4 text-sm text-gray-300">
+        <div class="space-y-2">
+          <div class="check">AI Script Writer</div>
+          <div class="check">Natural AI Voiceover</div>
+          <div class="check">Auto Stock Media</div>
+        </div>
+        <div class="space-y-2">
+          <div class="check">Branded Thumbnails</div>
+          <div class="check">Batch Creation</div>
+          <div class="check">Trend Research</div>
+        </div>
+        <div class="space-y-2">
+          <div class="check">No watermark</div>
+          <div class="check">Shorts &amp; Reels formats</div>
+          <div class="check">Podcast format</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ WHO IT'S FOR ═══════════ -->
+<section class="py-16 px-6 bg-white/[.02] border-y border-white/5">
+  <div class="max-w-4xl mx-auto">
+    <div class="text-center mb-12 reveal">
+      <h2 class="text-3xl font-black">Pro is right for you if…</h2>
+    </div>
+    <div class="grid sm:grid-cols-3 gap-5">
+      <div class="reveal glass rounded-2xl p-6 text-center">
+        <div class="text-4xl mb-4 animate-float">🔥</div>
+        <div class="font-bold text-lg mb-2">You post daily</div>
+        <div class="text-gray-400 text-sm">100 videos/mo means you can publish 3+ times a day across every platform without ever slowing down.</div>
+      </div>
+      <div class="reveal d1 glass rounded-2xl p-6 text-center">
+        <div class="text-4xl mb-4 animate-float" style="animation-delay:.5s">👥</div>
+        <div class="font-bold text-lg mb-2">You work with a small team</div>
+        <div class="text-gray-400 text-sm">3 seats means your editors, VAs, or co-creators all work in the same account — no account sharing hacks.</div>
+      </div>
+      <div class="reveal d2 glass rounded-2xl p-6 text-center">
+        <div class="text-4xl mb-4 animate-float" style="animation-delay:1s">♾️</div>
+        <div class="font-bold text-lg mb-2">You want unlimited clips</div>
+        <div class="text-gray-400 text-sm">One podcast becomes 20 clips. One interview becomes a week of content. No cap on the AI Clipper — ever.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ PRICING CARD ═══════════ -->
+<section class="py-28 px-6">
+  <div class="max-w-lg mx-auto">
+    <div class="text-center mb-12 reveal">
+      <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color:#a78bfa">Pricing</p>
+      <h2 class="text-4xl font-black">Simple. No surprises.</h2>
+    </div>
+
+    <!-- Monthly card -->
+    <div class="reveal pro-border p-[1px] mb-5">
+      <div class="pro-glow rounded-[23px] dark:bg-[#0f0f1a] bg-white p-8">
+        <div class="flex justify-between items-start mb-6">
+          <div>
+            <div class="text-xs font-bold tracking-widest uppercase mb-2" style="color:#a78bfa">Pro Monthly</div>
+            <div class="text-5xl font-black">$79<span class="text-xl font-normal text-gray-400">/mo</span></div>
+          </div>
+          <span class="text-2xl">🔥</span>
+        </div>
+        <ul class="space-y-3 text-sm text-gray-300 mb-8">
+          <li class="check">100 videos/month</li>
+          <li class="check">Unlimited AI Clipper</li>
+          <li class="check">Hollywood AI engine</li>
+          <li class="check">3 team seats</li>
+          <li class="check">8-platform publishing + scheduling</li>
+          <li class="check">Production Studio (5-agent pipeline)</li>
+          <li class="check">All formats — Shorts, Reels, Long-form, Podcast</li>
+          <li class="check">Cancel anytime</li>
+        </ul>
+        <a data-gumroad-action="buy" data-gumroad-option="Pro" data-gumroad-recurrence="monthly"
+           class="btn-pro cursor-pointer block text-center text-white font-black text-lg py-4 rounded-xl">
+          Get Pro — $79/month
+        </a>
+      </div>
+    </div>
+
+    <!-- Annual card -->
+    <div class="reveal d1 glass rounded-2xl p-6 flex items-center justify-between gap-4">
+      <div>
+        <div class="text-xs font-bold tracking-widest uppercase mb-1 text-gray-500">Annual — Save 20%</div>
+        <div class="text-2xl font-black">$63<span class="text-base font-normal text-gray-400">/mo</span></div>
+        <div class="text-xs text-gray-500 mt-1">Billed as $756/year</div>
+      </div>
+      <a data-gumroad-action="buy" data-gumroad-option="Pro" data-gumroad-recurrence="yearly"
+         class="cursor-pointer flex-shrink-0 px-6 py-3 rounded-xl font-bold text-sm"
+         style="background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.4);color:#a78bfa;">
+        Get Annual →
+      </a>
+    </div>
+
+    <p class="text-center text-xs text-gray-600 mt-5">7-day money-back guarantee · No contracts · Cancel from dashboard</p>
+  </div>
+</section>
+
+<!-- ═══════════ FAQ ═══════════ -->
+<section class="py-16 px-6 border-t border-white/5">
+  <div class="max-w-2xl mx-auto">
+    <h2 class="text-2xl font-black text-center mb-10 reveal">Quick answers</h2>
+    <div id="faq" class="space-y-3"></div>
+  </div>
+</section>
+
+<!-- ═══════════ FINAL CTA ═══════════ -->
+<section class="py-32 px-6 text-center relative overflow-hidden">
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(139,92,246,.08),transparent)"></div>
+  <div class="relative max-w-2xl mx-auto reveal">
+    <h2 class="text-5xl md:text-6xl font-black mb-6 leading-tight">
+      Stop capping yourself.<br><span class="gradient-pro">Go Pro.</span>
+    </h2>
+    <p class="text-gray-400 text-lg mb-10">100 videos. Unlimited clips. 3 seats. One flat monthly price.</p>
+    <a data-gumroad-action="buy" data-gumroad-option="Pro" data-gumroad-recurrence="monthly"
+       class="btn-pro cursor-pointer inline-flex items-center gap-3 text-white font-black text-xl px-14 py-5 rounded-2xl">
+      Get Pro — $79/month →
+    </a>
+    <div class="mt-5 text-sm text-gray-600">7-day guarantee · Cancel anytime</div>
+  </div>
+</section>
+
+<footer class="py-8 text-center text-xs text-gray-700 border-t border-white/5">
+  Social Optimize Pro · AI-Powered Content at Scale
+</footer>
+
+<script>
+// Theme
+(function(){
+  var h=document.documentElement,b=document.getElementById('thm');
+  var dark=!localStorage.theme||localStorage.theme==='dark';
+  function apply(d){d?h.classList.add('dark'):h.classList.remove('dark');b.textContent=d?'☀️':'🌙';}
+  apply(dark);
+  b.onclick=function(){dark=!dark;localStorage.theme=dark?'dark':'light';apply(dark);};
+})();
+
+// Scroll reveal
+(function(){
+  var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target);}});},{threshold:.12});
+  document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
+})();
+
+// FAQ
+(function(){
+  var data=[
+    ['What is the AI Clipper?','It finds the most engaging moments in any long-form video and exports them as short-form clips — right aspect ratio, captions, and hooks included. On Pro, there\'s no limit to how many clips you can make.'],
+    ['What is the Hollywood AI engine?','A more advanced video assembly pipeline that produces higher-fidelity outputs — better b-roll selection, more cinematic pacing, and richer script structuring compared to the standard engine.'],
+    ['What are the 3 team seats?','Three separate logins that all share the same Pro account. Teammates can create videos, use the clipper, and publish — everything you can do, they can do.'],
+    ['How does the annual plan work?','You\'re billed once as $756/year, which works out to $63/month — 20% less than monthly. Same features, no lock-in beyond the billing period.'],
+    ['Can I cancel anytime?','Yes. Cancel from your account dashboard at any time. No fees, no questions.'],
+    ['Is there a money-back guarantee?','Yes — 7 days, no questions asked.'],
+  ];
+  var c=document.getElementById('faq');
+  data.forEach(function(f,i){
+    var w=document.createElement('div');
+    w.className='reveal glass rounded-xl overflow-hidden';
+    if(i)w.style.transitionDelay=(i*.06)+'s';
+    var btn=document.createElement('button');
+    btn.className='w-full text-left px-5 py-4 flex justify-between items-center font-semibold hover:text-[#a78bfa] transition-colors';
+    btn.innerHTML='<span>'+f[0]+'</span><span class="icon text-lg ml-4 flex-shrink-0 transition-transform">+</span>';
+    var body=document.createElement('div');
+    body.style.cssText='max-height:0;overflow:hidden;transition:max-height .3s ease';
+    var p=document.createElement('p');
+    p.className='px-5 pb-4 text-sm text-gray-400 leading-relaxed';
+    p.textContent=f[1];
+    body.appendChild(p);
+    btn.onclick=function(){
+      var open=body.style.maxHeight!=='0px'&&body.style.maxHeight!=='';
+      c.querySelectorAll('div > div').forEach(function(b){b.style.maxHeight='0';});
+      c.querySelectorAll('.icon').forEach(function(ic){ic.textContent='+';ic.style.transform='';});
+      if(!open){body.style.maxHeight=body.scrollHeight+'px';btn.querySelector('.icon').textContent='−';}
+    };
+    w.appendChild(btn);w.appendChild(body);c.appendChild(w);
+  });
+})();
+</script>
+</body>
+</html>

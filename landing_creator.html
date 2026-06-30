@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Social Optimize Creator</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        animation: { 'fade-up':'fadeUp .55s ease both','pulse-slow':'pulse 3s ease-in-out infinite','float':'float 4s ease-in-out infinite','shimmer':'shimmer 3s linear infinite' },
+        keyframes: {
+          fadeUp:{ '0%':{opacity:'0',transform:'translateY(20px)'},'100%':{opacity:'1',transform:'none'} },
+          float:{ '0%,100%':{transform:'translateY(0)'},'50%':{transform:'translateY(-8px)'} },
+          shimmer:{ '0%':{backgroundPosition:'200% center'},'100%':{backgroundPosition:'-200% center'} },
+        }
+      }
+    }
+  }
+</script>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html{font-family:Inter,system-ui,sans-serif}
+  .gradient-creator{background:linear-gradient(135deg,#f59e0b,#ef4444,#f59e0b);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 3s linear infinite}
+  .btn-creator{background:linear-gradient(135deg,#f59e0b,#ef4444);background-size:200% auto;transition:background-position .4s,transform .15s,box-shadow .15s;box-shadow:0 0 40px rgba(245,158,11,.35),0 0 80px rgba(239,68,68,.1)}
+  .btn-creator:hover{background-position:right center;transform:translateY(-2px);box-shadow:0 0 60px rgba(245,158,11,.5)}
+  .btn-creator:active{transform:scale(.97)}
+  .glass{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .55s ease,transform .55s ease}
+  .reveal.in{opacity:1;transform:none}
+  .d1{transition-delay:.08s}.d2{transition-delay:.16s}.d3{transition-delay:.24s}
+  .check::before{content:'✓';color:#fbbf24;margin-right:10px;font-weight:800}
+  .feat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:linear-gradient(135deg,rgba(245,158,11,.15),rgba(239,68,68,.15));border:1px solid rgba(245,158,11,.3)}
+  @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .tick-inner{display:flex;animation:tick 26s linear infinite;white-space:nowrap}
+  .creator-border{position:relative;border-radius:24px}
+  .creator-border::before{content:'';position:absolute;inset:-1px;border-radius:25px;background:linear-gradient(135deg,#f59e0b,#ef4444,#f59e0b);background-size:300% auto;animation:shimmer 3s linear infinite;z-index:-1}
+  html:not(.dark) body{background:#fffbeb;color:#111}
+  html:not(.dark) .glass{background:rgba(255,255,255,.85);border-color:rgba(0,0,0,.08)}
+  html:not(.dark) .hero-bg{background:linear-gradient(160deg,#fffbeb,#fff7ed,#fff)}
+</style>
+</head>
+<body class="dark bg-[#0d0900] text-white antialiased overflow-x-hidden">
+
+<button id="thm" class="fixed top-4 right-4 z-50 w-10 h-10 rounded-full glass flex items-center justify-center text-lg hover:scale-110 transition-transform">🌙</button>
+
+<!-- HERO -->
+<section class="hero-bg relative min-h-screen flex flex-col items-center justify-center text-center px-5 py-28 overflow-hidden">
+  <div class="absolute top-1/3 left-1/4 w-[500px] h-[500px] rounded-full blur-[120px] opacity-[.1] animate-pulse-slow pointer-events-none" style="background:radial-gradient(circle,#f59e0b,transparent)"></div>
+  <div class="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full blur-[100px] opacity-[.08] animate-pulse-slow pointer-events-none" style="background:radial-gradient(circle,#ef4444,transparent);animation-delay:2s"></div>
+
+  <div class="animate-fade-up inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-8 text-xs font-bold tracking-widest uppercase" style="color:#fbbf24;border-color:rgba(245,158,11,.35)">
+    <span class="w-2 h-2 rounded-full bg-[#fbbf24] animate-pulse"></span>
+    Creator Plan · Social Optimize
+  </div>
+
+  <h1 class="animate-fade-up text-5xl md:text-7xl font-black leading-[1.05] mb-6 max-w-4xl" style="animation-delay:.05s">
+    One video becomes<br><span class="gradient-creator">a week of content.</span>
+  </h1>
+
+  <p class="animate-fade-up text-lg md:text-xl text-gray-400 max-w-xl mb-10 leading-relaxed" style="animation-delay:.1s">
+    30 videos/month plus the AI Clipper — the tool that automatically turns your long-form content into viral short clips. Built for full-time creators who need to be everywhere at once.
+  </p>
+
+  <div class="animate-fade-up flex flex-col sm:flex-row items-center gap-5" style="animation-delay:.18s">
+    <a data-gumroad-action="buy" data-gumroad-option="Creator" data-gumroad-recurrence="monthly"
+       class="btn-creator cursor-pointer inline-flex items-center gap-3 text-white font-black text-xl px-12 py-5 rounded-2xl">
+      Get Creator — $29/mo →
+    </a>
+    <a data-gumroad-action="buy" data-gumroad-option="Creator" data-gumroad-recurrence="yearly"
+       class="cursor-pointer text-[#fbbf24] font-bold underline underline-offset-4 hover:text-white transition-colors text-sm">
+      $23/mo billed annually — save 20%
+    </a>
+  </div>
+
+  <div class="animate-fade-up flex flex-wrap justify-center gap-5 mt-12 text-sm text-gray-500" style="animation-delay:.26s">
+    <span>⚡ 30 videos/month</span>
+    <span>✂️ AI Clipper (10 clips)</span>
+    <span>🏭 Production Studio</span>
+    <span>✅ 7-day guarantee</span>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="py-3 overflow-hidden border-y border-white/5">
+  <div class="tick-inner text-xs font-semibold tracking-widest text-gray-600 uppercase select-none">
+    <span class="px-6">AI Clipper</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">30 Videos</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">Batch Creation</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">Production Studio</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">8 Platforms</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">Auto-Publish</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">Scheduling</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">Viral Clips</span><span class="px-3 text-[#fbbf24]">✦</span>
+    <span class="px-6">AI Clipper</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">30 Videos</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">Batch Creation</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">Production Studio</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">8 Platforms</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">Auto-Publish</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">Scheduling</span><span class="px-3 text-[#fbbf24]">✦</span><span class="px-6">Viral Clips</span><span class="px-3 text-[#fbbf24]">✦</span>
+  </div>
+</div>
+
+<!-- CLIPPER SPOTLIGHT -->
+<section class="py-24 px-6 max-w-5xl mx-auto">
+  <div class="text-center mb-14 reveal">
+    <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color:#fbbf24">Creator exclusive</p>
+    <h2 class="text-4xl md:text-5xl font-black">The AI Clipper changes everything.</h2>
+    <p class="text-gray-400 mt-4 max-w-xl mx-auto">Most creators waste hours manually clipping highlights. The AI Clipper does it in seconds — and it's smarter than you'd expect.</p>
+  </div>
+  <div class="grid md:grid-cols-3 gap-5">
+    <div class="reveal glass rounded-2xl p-6 text-center">
+      <div class="text-4xl mb-4 animate-float">🔍</div>
+      <div class="font-bold text-lg mb-2">Finds the hooks</div>
+      <div class="text-gray-400 text-sm">AI scans your video for the moments with the highest engagement potential — emotional peaks, surprising facts, punchy one-liners.</div>
+    </div>
+    <div class="reveal d1 glass rounded-2xl p-6 text-center">
+      <div class="text-4xl mb-4 animate-float" style="animation-delay:.5s">✂️</div>
+      <div class="font-bold text-lg mb-2">Cuts & reframes</div>
+      <div class="text-gray-400 text-sm">Exported at the right aspect ratio for each platform — 9:16 for Shorts and Reels, captions burned in, hook text overlaid.</div>
+    </div>
+    <div class="reveal d2 glass rounded-2xl p-6 text-center">
+      <div class="text-4xl mb-4 animate-float" style="animation-delay:1s">📈</div>
+      <div class="font-bold text-lg mb-2">10 clips per month</div>
+      <div class="text-gray-400 text-sm">One podcast episode or interview becomes a full week of short-form content without you lifting a finger.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ALL FEATURES -->
+<section class="py-16 px-6 bg-white/[.02] border-y border-white/5">
+  <div class="max-w-4xl mx-auto">
+    <div class="text-center mb-12 reveal"><h2 class="text-3xl font-black">Everything in Creator</h2></div>
+    <div class="grid sm:grid-cols-2 gap-5">
+      <div class="reveal glass rounded-2xl p-6 flex gap-4"><div class="feat-icon">✂️</div><div><div class="font-bold mb-1">AI Clipper — 10 clips/mo</div><div class="text-gray-400 text-sm">Finds viral moments, cuts clips, burns captions, reframes for each platform.</div></div></div>
+      <div class="reveal d1 glass rounded-2xl p-6 flex gap-4"><div class="feat-icon">📦</div><div><div class="font-bold mb-1">Batch Creation</div><div class="text-gray-400 text-sm">Queue up multiple topics and let the pipeline run — wake up to a week of content ready to post.</div></div></div>
+      <div class="reveal d2 glass rounded-2xl p-6 flex gap-4"><div class="feat-icon">🏭</div><div><div class="font-bold mb-1">Production Studio</div><div class="text-gray-400 text-sm">5-agent AI pipeline for maximum-quality output: Trend Architect → Narrative Designer → Asset Curator → Cost Engineer → Growth Engineer.</div></div></div>
+      <div class="reveal d3 glass rounded-2xl p-6 flex gap-4"><div class="feat-icon">📡</div><div><div class="font-bold mb-1">8-Platform Publishing</div><div class="text-gray-400 text-sm">YouTube, TikTok, Instagram, and more. Schedule ahead. Post everywhere automatically.</div></div></div>
+      <div class="reveal glass rounded-2xl p-6 md:col-span-2">
+        <div class="text-sm font-bold uppercase tracking-widest mb-4 text-gray-500">Also included from Starter</div>
+        <div class="grid sm:grid-cols-3 gap-3 text-sm text-gray-300">
+          <div class="check">30 videos/month</div><div class="check">AI Script Writer</div><div class="check">AI Voiceover</div>
+          <div class="check">Auto Stock Media</div><div class="check">Branded Thumbnails</div><div class="check">No watermark</div>
+          <div class="check">All formats</div><div class="check">Scheduling</div><div class="check">Trend Research</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="py-24 px-6 max-w-md mx-auto">
+  <div class="text-center mb-10 reveal"><h2 class="text-4xl font-black">$29<span class="text-xl font-normal text-gray-400">/month</span></h2><p class="text-gray-400 mt-2">Less than one freelance video edit.</p></div>
+  <div class="reveal creator-border p-[1px] mb-5">
+    <div class="rounded-[23px] dark:bg-[#120900] bg-white p-8" style="box-shadow:0 0 40px rgba(245,158,11,.15)">
+      <ul class="space-y-3 text-sm text-gray-300 mb-8">
+        <li class="check">30 videos/month</li>
+        <li class="check">AI Clipper (10 clips/month)</li>
+        <li class="check">Batch creation</li>
+        <li class="check">Production Studio (5-agent pipeline)</li>
+        <li class="check">8-platform publishing + scheduling</li>
+        <li class="check">All formats — Shorts, Reels, Long, Podcast</li>
+        <li class="check">No watermark · Cancel anytime</li>
+      </ul>
+      <a data-gumroad-action="buy" data-gumroad-option="Creator" data-gumroad-recurrence="monthly"
+         class="btn-creator cursor-pointer block text-center text-white font-black text-lg py-4 rounded-xl mb-4">
+        Get Creator — $29/month
+      </a>
+      <a data-gumroad-action="buy" data-gumroad-option="Creator" data-gumroad-recurrence="yearly"
+         class="cursor-pointer block text-center py-3 rounded-xl text-sm font-bold" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fbbf24">
+        Annual — $23/mo · Save 20%
+      </a>
+      <p class="text-center text-xs text-gray-600 mt-4">7-day money-back guarantee</p>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="py-28 px-6 text-center relative overflow-hidden">
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(245,158,11,.07),transparent)"></div>
+  <div class="relative max-w-2xl mx-auto reveal">
+    <h2 class="text-5xl md:text-6xl font-black mb-6 leading-tight">One video.<br><span class="gradient-creator">Ten pieces of content.</span></h2>
+    <p class="text-gray-400 text-lg mb-10">30 videos plus the AI Clipper. $29/month. The math is easy.</p>
+    <a data-gumroad-action="buy" data-gumroad-option="Creator" data-gumroad-recurrence="monthly"
+       class="btn-creator cursor-pointer inline-flex items-center gap-3 text-white font-black text-xl px-14 py-5 rounded-2xl">
+      Get Creator — $29/month →
+    </a>
+    <div class="mt-5 text-sm text-gray-600">7-day guarantee · Cancel anytime</div>
+  </div>
+</section>
+
+<footer class="py-8 text-center text-xs text-gray-700 border-t border-white/5">Social Optimize Creator · Built for Full-Time Creators</footer>
+
+<script>
+(function(){var h=document.documentElement,b=document.getElementById('thm'),dark=!localStorage.theme||localStorage.theme==='dark';function apply(d){d?h.classList.add('dark'):h.classList.remove('dark');b.textContent=d?'☀️':'🌙';}apply(dark);b.onclick=function(){dark=!dark;localStorage.theme=dark?'dark':'light';apply(dark);};})();
+(function(){var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target);}});},{threshold:.12});document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});})();
+</script>
+</body>
+</html>

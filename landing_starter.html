@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Social Optimize Starter</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: { brand: { 400:'#4ade80', 500:'#22c55e', 600:'#16a34a' } },
+        animation: { 'fade-up':'fadeUp .55s ease both','pulse-slow':'pulse 3s ease-in-out infinite','float':'float 4s ease-in-out infinite','shimmer':'shimmer 3s linear infinite' },
+        keyframes: {
+          fadeUp:{ '0%':{opacity:'0',transform:'translateY(20px)'},'100%':{opacity:'1',transform:'none'} },
+          float:{ '0%,100%':{transform:'translateY(0)'},'50%':{transform:'translateY(-8px)'} },
+          shimmer:{ '0%':{backgroundPosition:'200% center'},'100%':{backgroundPosition:'-200% center'} },
+        }
+      }
+    }
+  }
+</script>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html{font-family:Inter,system-ui,sans-serif}
+  .gradient-green{background:linear-gradient(135deg,#4ade80,#22d3ee,#4ade80);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 3s linear infinite}
+  .btn-starter{background:linear-gradient(135deg,#22c55e,#06b6d4);background-size:200% auto;transition:background-position .4s,transform .15s,box-shadow .15s;box-shadow:0 0 40px rgba(34,197,94,.3),0 0 80px rgba(6,182,212,.1)}
+  .btn-starter:hover{background-position:right center;transform:translateY(-2px);box-shadow:0 0 60px rgba(34,197,94,.5)}
+  .btn-starter:active{transform:scale(.97)}
+  .glass{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .55s ease,transform .55s ease}
+  .reveal.in{opacity:1;transform:none}
+  .d1{transition-delay:.08s}.d2{transition-delay:.16s}.d3{transition-delay:.24s}
+  .check::before{content:'✓';color:#4ade80;margin-right:10px;font-weight:800}
+  .feat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:linear-gradient(135deg,rgba(34,197,94,.15),rgba(6,182,212,.15));border:1px solid rgba(34,197,94,.25)}
+  @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .tick-inner{display:flex;animation:tick 26s linear infinite;white-space:nowrap}
+  html:not(.dark) body{background:#f0fdf4;color:#111}
+  html:not(.dark) .glass{background:rgba(255,255,255,.85);border-color:rgba(0,0,0,.08)}
+  html:not(.dark) .hero-bg{background:linear-gradient(160deg,#f0fdf4,#ecfeff,#fff)}
+</style>
+</head>
+<body class="dark bg-[#080f0a] text-white antialiased overflow-x-hidden">
+
+<button id="thm" class="fixed top-4 right-4 z-50 w-10 h-10 rounded-full glass flex items-center justify-center text-lg hover:scale-110 transition-transform">🌙</button>
+
+<!-- HERO -->
+<section class="hero-bg relative min-h-screen flex flex-col items-center justify-center text-center px-5 py-28 overflow-hidden">
+  <div class="absolute top-1/3 left-1/3 w-[500px] h-[500px] rounded-full blur-[120px] opacity-[.1] animate-pulse-slow pointer-events-none" style="background:radial-gradient(circle,#22c55e,transparent)"></div>
+  <div class="absolute bottom-1/4 right-1/4 w-[350px] h-[350px] rounded-full blur-[100px] opacity-[.08] animate-pulse-slow pointer-events-none" style="background:radial-gradient(circle,#06b6d4,transparent);animation-delay:2s"></div>
+
+  <div class="animate-fade-up inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-8 text-xs font-bold tracking-widest uppercase" style="color:#4ade80;border-color:rgba(34,197,94,.3)">
+    <span class="w-2 h-2 rounded-full bg-[#4ade80] animate-pulse"></span>
+    Starter Plan · Social Optimize
+  </div>
+
+  <h1 class="animate-fade-up text-5xl md:text-7xl font-black leading-[1.05] mb-6 max-w-4xl" style="animation-delay:.05s">
+    Your first step to<br><span class="gradient-green">posting on autopilot.</span>
+  </h1>
+
+  <p class="animate-fade-up text-lg md:text-xl text-gray-400 max-w-xl mb-10 leading-relaxed" style="animation-delay:.1s">
+    10 publish-ready videos a month — AI script, voiceover, visuals, thumbnail, and auto-publish to 8 platforms. No editing skills. No watermark. Just results.
+  </p>
+
+  <div class="animate-fade-up flex flex-col sm:flex-row items-center gap-5" style="animation-delay:.18s">
+    <a data-gumroad-action="buy" data-gumroad-option="Starter" data-gumroad-recurrence="monthly"
+       class="btn-starter cursor-pointer inline-flex items-center gap-3 text-white font-black text-xl px-12 py-5 rounded-2xl">
+      Get Starter — $9.99/mo →
+    </a>
+    <a data-gumroad-action="buy" data-gumroad-option="Starter" data-gumroad-recurrence="yearly"
+       class="cursor-pointer text-[#4ade80] font-bold underline underline-offset-4 hover:text-white transition-colors text-sm">
+      $7.99/mo billed annually — save 20%
+    </a>
+  </div>
+
+  <div class="animate-fade-up flex flex-wrap justify-center gap-5 mt-12 text-sm text-gray-500" style="animation-delay:.26s">
+    <span>🌱 10 videos/month</span>
+    <span>✅ No watermark</span>
+    <span>📡 8 platforms</span>
+    <span>✅ 7-day guarantee</span>
+  </div>
+</section>
+
+<!-- TICKER -->
+<div class="py-3 overflow-hidden border-y border-white/5">
+  <div class="tick-inner text-xs font-semibold tracking-widest text-gray-600 uppercase select-none">
+    <span class="px-6">AI Script</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">AI Voiceover</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">Auto Thumbnail</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">YouTube</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">TikTok</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">Instagram</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">No Watermark</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">Scheduling</span><span class="px-3 text-[#4ade80]">✦</span>
+    <span class="px-6">AI Script</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">AI Voiceover</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">Auto Thumbnail</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">YouTube</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">TikTok</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">Instagram</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">No Watermark</span><span class="px-3 text-[#4ade80]">✦</span><span class="px-6">Scheduling</span><span class="px-3 text-[#4ade80]">✦</span>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="py-24 px-6 max-w-3xl mx-auto">
+  <div class="text-center mb-14 reveal">
+    <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color:#4ade80">Dead simple</p>
+    <h2 class="text-4xl font-black">Three steps. Done.</h2>
+  </div>
+  <div class="space-y-4">
+    <div class="reveal glass rounded-2xl p-6 flex gap-5 items-start">
+      <div class="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center font-black text-lg" style="background:linear-gradient(135deg,#22c55e,#06b6d4)">1</div>
+      <div><div class="font-bold text-lg mb-1">Type your topic</div><div class="text-gray-400 text-sm leading-relaxed">Any subject works — "Top 10 AI tools", "How to save money", "Roman Empire facts". One line is all it takes.</div></div>
+    </div>
+    <div class="reveal d1 glass rounded-2xl p-6 flex gap-5 items-start">
+      <div class="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center font-black text-lg" style="background:linear-gradient(135deg,#22c55e,#06b6d4)">2</div>
+      <div><div class="font-bold text-lg mb-1">AI builds your video</div><div class="text-gray-400 text-sm leading-relaxed">Claude writes the script. AI narrates it. Stock visuals are sourced and cut. Thumbnail generated. MP4 assembled — automatically.</div></div>
+    </div>
+    <div class="reveal d2 glass rounded-2xl p-6 flex gap-5 items-start">
+      <div class="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center font-black text-lg" style="background:linear-gradient(135deg,#22c55e,#06b6d4)">3</div>
+      <div><div class="font-bold text-lg mb-1">Published everywhere</div><div class="text-gray-400 text-sm leading-relaxed">YouTube, TikTok, Instagram — all posted in one click. Or schedule it for the perfect time.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="py-16 px-6 bg-white/[.02] border-y border-white/5">
+  <div class="max-w-4xl mx-auto">
+    <div class="text-center mb-12 reveal"><h2 class="text-3xl font-black">Everything in Starter</h2></div>
+    <div class="grid sm:grid-cols-2 gap-5">
+      <div class="reveal glass rounded-2xl p-6 flex gap-4"><div class="feat-icon">🤖</div><div><div class="font-bold mb-1">AI Script Writer</div><div class="text-gray-400 text-sm">Full narration, title, description, hashtags — written by Claude, optimised for your platform.</div></div></div>
+      <div class="reveal d1 glass rounded-2xl p-6 flex gap-4"><div class="feat-icon">🎙️</div><div><div class="font-bold mb-1">AI Voiceover</div><div class="text-gray-400 text-sm">Natural-sounding narration in dozens of voices. No mic, no studio, no recording.</div></div></div>
+      <div class="reveal d2 glass rounded-2xl p-6 flex gap-4"><div class="feat-icon">🎬</div><div><div class="font-bold mb-1">Auto Stock Media</div><div class="text-gray-400 text-sm">Relevant clips and images sourced and cut to match your script automatically.</div></div></div>
+      <div class="reveal d3 glass rounded-2xl p-6 flex gap-4"><div class="feat-icon">🖼️</div><div><div class="font-bold mb-1">Branded Thumbnails</div><div class="text-gray-400 text-sm">Click-worthy thumbnails generated for every video. Multiple styles to choose from.</div></div></div>
+      <div class="reveal glass rounded-2xl p-6 flex gap-4"><div class="feat-icon">📡</div><div><div class="font-bold mb-1">8-Platform Publishing</div><div class="text-gray-400 text-sm">YouTube, TikTok, Instagram, and more — all published in one click with scheduling built in.</div></div></div>
+      <div class="reveal d1 glass rounded-2xl p-6 flex gap-4"><div class="feat-icon">📱</div><div><div class="font-bold mb-1">All Formats</div><div class="text-gray-400 text-sm">Shorts (9:16), Reels (9:16), Long-form (16:9), Podcast (16:9) — pick your format per video.</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="py-24 px-6 max-w-md mx-auto">
+  <div class="text-center mb-10 reveal"><h2 class="text-4xl font-black">$9.99<span class="text-xl font-normal text-gray-400">/month</span></h2><p class="text-gray-400 mt-2">Less than a Netflix subscription.</p></div>
+  <div class="reveal glass rounded-3xl p-8 border" style="border-color:rgba(34,197,94,.35);box-shadow:0 0 40px rgba(34,197,94,.15)">
+    <ul class="space-y-3 text-sm text-gray-300 mb-8">
+      <li class="check">10 videos/month</li>
+      <li class="check">No watermark</li>
+      <li class="check">8-platform publishing</li>
+      <li class="check">Post scheduling</li>
+      <li class="check">All formats (Shorts, Reels, Long, Podcast)</li>
+      <li class="check">AI Script + Voiceover + Thumbnail</li>
+      <li class="check">Cancel anytime</li>
+    </ul>
+    <a data-gumroad-action="buy" data-gumroad-option="Starter" data-gumroad-recurrence="monthly"
+       class="btn-starter cursor-pointer block text-center text-white font-black text-lg py-4 rounded-xl mb-4">
+      Get Starter — $9.99/month
+    </a>
+    <a data-gumroad-action="buy" data-gumroad-option="Starter" data-gumroad-recurrence="yearly"
+       class="cursor-pointer block text-center py-3 rounded-xl text-sm font-bold" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#4ade80">
+      Annual — $7.99/mo · Save 20%
+    </a>
+    <p class="text-center text-xs text-gray-600 mt-4">7-day money-back guarantee</p>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="py-28 px-6 text-center relative overflow-hidden">
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(34,197,94,.07),transparent)"></div>
+  <div class="relative max-w-2xl mx-auto reveal">
+    <h2 class="text-5xl md:text-6xl font-black mb-6 leading-tight">Start posting.<br><span class="gradient-green">Stop procrastinating.</span></h2>
+    <p class="text-gray-400 text-lg mb-10">10 videos a month. 8 platforms. $9.99. No excuses left.</p>
+    <a data-gumroad-action="buy" data-gumroad-option="Starter" data-gumroad-recurrence="monthly"
+       class="btn-starter cursor-pointer inline-flex items-center gap-3 text-white font-black text-xl px-14 py-5 rounded-2xl">
+      Get Starter — $9.99/month →
+    </a>
+    <div class="mt-5 text-sm text-gray-600">7-day guarantee · Cancel anytime</div>
+  </div>
+</section>
+
+<footer class="py-8 text-center text-xs text-gray-700 border-t border-white/5">Social Optimize Starter · AI Content Creation Made Simple</footer>
+
+<script>
+(function(){var h=document.documentElement,b=document.getElementById('thm'),dark=!localStorage.theme||localStorage.theme==='dark';function apply(d){d?h.classList.add('dark'):h.classList.remove('dark');b.textContent=d?'☀️':'🌙';}apply(dark);b.onclick=function(){dark=!dark;localStorage.theme=dark?'dark':'light';apply(dark);};})();
+(function(){var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target);}});},{threshold:.12});document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});})();
+</script>
+</body>
+</html>
