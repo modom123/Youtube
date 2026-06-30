@@ -74,6 +74,8 @@ app.register_blueprint(monetizer_bp)
 app.register_blueprint(sales_bp)
 app.register_blueprint(hermes_bp)
 
+db.init_db()
+
 from admin import load_env_from_db
 load_env_from_db()
 
@@ -5673,7 +5675,6 @@ def api_rate_job(job_id):
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 
-db.init_db()
 init_monetizer_tables()
 from generators.studio_intelligence import init_intelligence_tables
 init_intelligence_tables()
