@@ -6279,6 +6279,24 @@ _start_julian()
 from agents.sterling_business import start as _start_sterling  # noqa: E402
 _start_sterling()
 
+# ── Public landing pages ──────────────────────────────────────────────────────
+@app.route("/starter")
+def landing_starter():
+    return render_template("landing_starter.html")
+
+@app.route("/creator")
+def landing_creator():
+    return render_template("landing_creator.html")
+
+@app.route("/pro")
+def landing_pro():
+    return render_template("landing_pro.html")
+
+@app.route("/agency")
+def landing_agency():
+    return render_template("landing_agency.html")
+
+
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")
     print("  Open → http://localhost:5000\n")

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Social Optimize Agency</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        animation: { 'fade-up':'fadeUp .55s ease both','pulse-slow':'pulse 3s ease-in-out infinite','float':'float 4s ease-in-out infinite','shimmer':'shimmer 3s linear infinite' },
+        keyframes: {
+          fadeUp:{ '0%':{opacity:'0',transform:'translateY(20px)'},'100%':{opacity:'1',transform:'none'} },
+          float:{ '0%,100%':{transform:'translateY(0)'},'50%':{transform:'translateY(-8px)'} },
+          shimmer:{ '0%':{backgroundPosition:'200% center'},'100%':{backgroundPosition:'-200% center'} },
+        }
+      }
+    }
+  }
+</script>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  html{font-family:Inter,system-ui,sans-serif}
+  .gradient-agency{background:linear-gradient(135deg,#38bdf8,#818cf8,#38bdf8);background-size:300% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 3s linear infinite}
+  .btn-agency{background:linear-gradient(135deg,#0ea5e9,#6366f1);background-size:200% auto;transition:background-position .4s,transform .15s,box-shadow .15s;box-shadow:0 0 40px rgba(14,165,233,.35),0 0 80px rgba(99,102,241,.15)}
+  .btn-agency:hover{background-position:right center;transform:translateY(-2px);box-shadow:0 0 60px rgba(14,165,233,.5)}
+  .btn-agency:active{transform:scale(.97)}
+  .glass{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(12px)}
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .55s ease,transform .55s ease}
+  .reveal.in{opacity:1;transform:none}
+  .d1{transition-delay:.08s}.d2{transition-delay:.16s}.d3{transition-delay:.24s}
+  .check::before{content:'✓';color:#38bdf8;margin-right:10px;font-weight:800}
+  .feat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:linear-gradient(135deg,rgba(14,165,233,.15),rgba(99,102,241,.15));border:1px solid rgba(14,165,233,.25)}
+  @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .tick-inner{display:flex;animation:tick 26s linear infinite;white-space:nowrap}
+  .agency-border{position:relative;border-radius:24px}
+  .agency-border::before{content:'';position:absolute;inset:-1px;border-radius:25px;background:linear-gradient(135deg,#0ea5e9,#6366f1,#0ea5e9);background-size:300% auto;animation:shimmer 3s linear infinite;z-index:-1}
+  .stat-num{font-size:clamp(2rem,5vw,3.5rem);font-weight:900;line-height:1}
+  .stat-lbl{font-size:.75rem;color:#9ca3af;margin-top:4px;text-transform:uppercase;letter-spacing:.08em}
+  html:not(.dark) body{background:#f0f9ff;color:#111}
+  html:not(.dark) .glass{background:rgba(255,255,255,.85);border-color:rgba(0,0,0,.08)}
+  html:not(.dark) .hero-bg{background:linear-gradient(160deg,#f0f9ff,#eef2ff,#fff)}
+</style>
+</head>
+<body class="dark bg-[#040810] text-white antialiased overflow-x-hidden">
+
+<button id="thm" class="fixed top-4 right-4 z-50 w-10 h-10 rounded-full glass flex items-center justify-center text-lg hover:scale-110 transition-transform">🌙</button>
+
+<!-- HERO -->
+<section class="hero-bg relative min-h-screen flex flex-col items-center justify-center text-center px-5 py-28 overflow-hidden">
+  <div class="absolute top-1/3 left-1/4 w-[500px] h-[500px] rounded-full blur-[120px] opacity-[.1] animate-pulse-slow pointer-events-none" style="background:radial-gradient(circle,#0ea5e9,transparent)"></div>
+  <div class="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full blur-[100px] opacity-[.08] animate-pulse-slow pointer-events-none" style="background:radial-gradient(circle,#6366f1,transparent);animation-delay:2s"></div>
+
+  <div class="animate-fade-up inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-8 text-xs font-bold tracking-widest uppercase" style="color:#38bdf8;border-color:rgba(14,165,233,.35)">
+    <span class="w-2 h-2 rounded-full bg-[#38bdf8] animate-pulse"></span>
+    Agency Plan · Social Optimize
+  </div>
+
+  <h1 class="animate-fade-up text-5xl md:text-7xl font-black leading-[1.05] mb-6 max-w-4xl" style="animation-delay:.05s">
+    Run content for<br><span class="gradient-agency">every client. At scale.</span>
+  </h1>
+
+  <p class="animate-fade-up text-lg md:text-xl text-gray-400 max-w-xl mb-10 leading-relaxed" style="animation-delay:.1s">
+    200 videos/month. White-label output. API access. 10 seats. CRM built in. Everything an agency or brand needs to produce content at scale — under one flat monthly price.
+  </p>
+
+  <div class="animate-fade-up flex flex-col sm:flex-row items-center gap-5" style="animation-delay:.18s">
+    <a data-gumroad-action="buy" data-gumroad-option="Agency" data-gumroad-recurrence="monthly"
+       class="btn-agency cursor-pointer inline-flex items-center gap-3 text-white font-black text-xl px-12 py-5 rounded-2xl">
+      Get Agency — $199/mo →
+    </a>
+    <a data-gumroad-action="buy" data-gumroad-option="Agency" data-gumroad-recurrence="yearly"
+       class="cursor-pointer text-[#38bdf8] font-bold underline underline-offset-4 hover:text-white transition-colors text-sm">
+      $159/mo billed annually — save 20%
+    </a>
+  </div>
+
+  <div class="animate-fade-up flex flex-wrap justify-center gap-5 mt-12 text-sm text-gray-500" style="animation-delay:.26s">
+    <span>🏢 200 videos/month</span>
+    <span>🏷️ White-label output</span>
+    <span>🔌 API access</span>
+    <span>👥 10 seats + CRM</span>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="py-14 border-y border-white/5 bg-white/[.02]">
+  <div class="max-w-4xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+    <div class="reveal"><div class="stat-num gradient-agency">200</div><div class="stat-lbl">Videos / month</div></div>
+    <div class="reveal d1"><div class="stat-num gradient-agency">10</div><div class="stat-lbl">Team seats</div></div>
+    <div class="reveal d2"><div class="stat-num gradient-agency">∞</div><div class="stat-lbl">AI Clips</div></div>
+    <div class="reveal d3"><div class="stat-num gradient-agency">8</div><div class="stat-lbl">Platforms</div></div>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="py-3 overflow-hidden border-b border-white/5">
+  <div class="tick-inner text-xs font-semibold tracking-widest text-gray-600 uppercase select-none">
+    <span class="px-6">White-Label</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">200 Videos</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">API Access</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">10 Seats</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">CRM</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">Unlimited Clipper</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">Hollywood AI</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">8 Platforms</span><span class="px-3 text-[#38bdf8]">✦</span>
+    <span class="px-6">White-Label</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">200 Videos</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">API Access</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">10 Seats</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">CRM</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">Unlimited Clipper</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">Hollywood AI</span><span class="px-3 text-[#38bdf8]">✦</span><span class="px-6">8 Platforms</span><span class="px-3 text-[#38bdf8]">✦</span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="py-24 px-6 max-w-5xl mx-auto">
+  <div class="text-center mb-14 reveal">
+    <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color:#38bdf8">What you get</p>
+    <h2 class="text-4xl md:text-5xl font-black">The full stack. Your brand.</h2>
+  </div>
+  <div class="grid md:grid-cols-2 gap-5">
+    <div class="reveal glass rounded-2xl p-6 flex gap-4">
+      <div class="feat-icon">🏷️</div>
+      <div><div class="font-bold text-lg mb-1">White-Label Output</div><div class="text-gray-400 text-sm leading-relaxed">No Social Optimize branding anywhere. Videos, thumbnails, and exports all look like they came from your agency. Your clients see your brand.</div></div>
+    </div>
+    <div class="reveal d1 glass rounded-2xl p-6 flex gap-4">
+      <div class="feat-icon">🔌</div>
+      <div><div class="font-bold text-lg mb-1">Full API Access</div><div class="text-gray-400 text-sm leading-relaxed">Integrate into your own tools, dashboards, or client portals. Automate video creation programmatically. Build your own workflows on top of the platform.</div></div>
+    </div>
+    <div class="reveal d2 glass rounded-2xl p-6 flex gap-4">
+      <div class="feat-icon">👥</div>
+      <div><div class="font-bold text-lg mb-1">10 Team Seats + CRM</div><div class="text-gray-400 text-sm leading-relaxed">Your whole team in one account. Built-in CRM to manage client accounts, track deliverables, and stay organised across multiple brands.</div></div>
+    </div>
+    <div class="reveal d3 glass rounded-2xl p-6 flex gap-4">
+      <div class="feat-icon">🎬</div>
+      <div><div class="font-bold text-lg mb-1">200 Videos / Month</div><div class="text-gray-400 text-sm leading-relaxed">Enough to post daily for multiple clients simultaneously. 200 videos is over 6 videos every single day.</div></div>
+    </div>
+    <div class="reveal glass rounded-2xl p-6 flex gap-4">
+      <div class="feat-icon">✂️</div>
+      <div><div class="font-bold text-lg mb-1">Unlimited AI Clipper</div><div class="text-gray-400 text-sm leading-relaxed">No cap on clips. Every long-form video becomes a library of short-form content for every client and every platform.</div></div>
+    </div>
+    <div class="reveal d1 glass rounded-2xl p-6 flex gap-4">
+      <div class="feat-icon">🎭</div>
+      <div><div class="font-bold text-lg mb-1">Hollywood AI + Studio</div><div class="text-gray-400 text-sm leading-relaxed">The most advanced production pipeline in the platform. Higher-fidelity output that matches the quality your agency clients expect.</div></div>
+    </div>
+    <div class="reveal d2 glass rounded-2xl p-6 md:col-span-2">
+      <div class="text-sm font-bold uppercase tracking-widest mb-4 text-gray-500">Everything from Starter, Creator + Pro also included</div>
+      <div class="grid sm:grid-cols-4 gap-3 text-sm text-gray-300">
+        <div class="check">AI Script Writer</div><div class="check">AI Voiceover</div><div class="check">Auto Stock Media</div><div class="check">Branded Thumbnails</div>
+        <div class="check">Batch Creation</div><div class="check">Production Studio</div><div class="check">Post Scheduling</div><div class="check">8 Platforms</div>
+        <div class="check">All Formats</div><div class="check">No Watermark</div><div class="check">Trend Research</div><div class="check">Hollywood AI</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHO IT'S FOR -->
+<section class="py-16 px-6 bg-white/[.02] border-y border-white/5">
+  <div class="max-w-4xl mx-auto">
+    <div class="text-center mb-12 reveal"><h2 class="text-3xl font-black">Agency is right for you if…</h2></div>
+    <div class="grid sm:grid-cols-3 gap-5">
+      <div class="reveal glass rounded-2xl p-6 text-center">
+        <div class="text-4xl mb-4 animate-float">🏢</div>
+        <div class="font-bold text-lg mb-2">You manage multiple clients</div>
+        <div class="text-gray-400 text-sm">Run content for 5, 10, or 20 clients from one account. CRM keeps it organised.</div>
+      </div>
+      <div class="reveal d1 glass rounded-2xl p-6 text-center">
+        <div class="text-4xl mb-4 animate-float" style="animation-delay:.5s">🏷️</div>
+        <div class="font-bold text-lg mb-2">You need white-label output</div>
+        <div class="text-gray-400 text-sm">Your clients see your brand, not ours. Every deliverable looks like it came from your team.</div>
+      </div>
+      <div class="reveal d2 glass rounded-2xl p-6 text-center">
+        <div class="text-4xl mb-4 animate-float" style="animation-delay:1s">🔌</div>
+        <div class="font-bold text-lg mb-2">You want to build on top</div>
+        <div class="text-gray-400 text-sm">API access means you can integrate into your own tools, automate client workflows, or resell the capability.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="py-24 px-6 max-w-md mx-auto">
+  <div class="text-center mb-10 reveal"><h2 class="text-4xl font-black">$199<span class="text-xl font-normal text-gray-400">/month</span></h2><p class="text-gray-400 mt-2">Less than one freelance video per client.</p></div>
+  <div class="reveal agency-border p-[1px] mb-5">
+    <div class="rounded-[23px] dark:bg-[#04080f] bg-white p-8" style="box-shadow:0 0 40px rgba(14,165,233,.15)">
+      <ul class="space-y-3 text-sm text-gray-300 mb-8">
+        <li class="check">200 videos/month</li>
+        <li class="check">White-label output — no Social Optimize branding</li>
+        <li class="check">Full API access for custom integrations</li>
+        <li class="check">10 team seats</li>
+        <li class="check">Built-in CRM for client management</li>
+        <li class="check">Unlimited AI Clipper</li>
+        <li class="check">Hollywood AI + Production Studio</li>
+        <li class="check">8-platform publishing + scheduling</li>
+        <li class="check">Cancel anytime</li>
+      </ul>
+      <a data-gumroad-action="buy" data-gumroad-option="Agency" data-gumroad-recurrence="monthly"
+         class="btn-agency cursor-pointer block text-center text-white font-black text-lg py-4 rounded-xl mb-4">
+        Get Agency — $199/month
+      </a>
+      <a data-gumroad-action="buy" data-gumroad-option="Agency" data-gumroad-recurrence="yearly"
+         class="cursor-pointer block text-center py-3 rounded-xl text-sm font-bold" style="background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.3);color:#38bdf8">
+        Annual — $159/mo · Save 20%
+      </a>
+      <p class="text-center text-xs text-gray-600 mt-4">7-day money-back guarantee</p>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="py-28 px-6 text-center relative overflow-hidden">
+  <div class="absolute inset-0 pointer-events-none" style="background:radial-gradient(ellipse 50% 50% at 50% 50%,rgba(14,165,233,.07),transparent)"></div>
+  <div class="relative max-w-2xl mx-auto reveal">
+    <h2 class="text-5xl md:text-6xl font-black mb-6 leading-tight">Your clients deserve<br><span class="gradient-agency">daily content.</span></h2>
+    <p class="text-gray-400 text-lg mb-10">200 videos. White-label. API. 10 seats. One price.</p>
+    <a data-gumroad-action="buy" data-gumroad-option="Agency" data-gumroad-recurrence="monthly"
+       class="btn-agency cursor-pointer inline-flex items-center gap-3 text-white font-black text-xl px-14 py-5 rounded-2xl">
+      Get Agency — $199/month →
+    </a>
+    <div class="mt-5 text-sm text-gray-600">7-day guarantee · Cancel anytime</div>
+  </div>
+</section>
+
+<footer class="py-8 text-center text-xs text-gray-700 border-t border-white/5">Social Optimize Agency · Content at Scale, Under Your Brand</footer>
+
+<script>
+(function(){var h=document.documentElement,b=document.getElementById('thm'),dark=!localStorage.theme||localStorage.theme==='dark';function apply(d){d?h.classList.add('dark'):h.classList.remove('dark');b.textContent=d?'☀️':'🌙';}apply(dark);b.onclick=function(){dark=!dark;localStorage.theme=dark?'dark':'light';apply(dark);};})();
+(function(){var io=new IntersectionObserver(function(e){e.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target);}});},{threshold:.12});document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});})();
+</script>
+</body>
+</html>
