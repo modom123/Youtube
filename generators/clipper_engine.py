@@ -834,9 +834,7 @@ def run_clipper(clip_job_id: str, clip_config: dict, progress_callback: Progress
                 thumb_time = (moment["end_sec"] - moment["start_sec"]) / 3  # 1/3 in for interesting frame
                 _generate_thumbnail(clip_path, thumb_time, thumb_path)
 
-                # Build download URL
-                relative_path = f"clips/{clip_job_id}/{clip_filename}"
-                download_url = f"/output/{relative_path}"
+                download_url = f"/api/clipper/{clip_job_id}/clips/{i}/video"
 
                 output_clips.append({
                     "title": moment.get("title", f"Clip {clip_num}"),

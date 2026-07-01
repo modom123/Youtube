@@ -4513,12 +4513,24 @@ def clipper_page():
     return render_template("clipper.html", completed_jobs=completed_jobs)
 
 
+CLIPPER_UPLOADS = Path(config.DATA_DIR) / "clipper_uploads"
+CLIPPER_UPLOADS.mkdir(parents=True, exist_ok=True)
+
+
 @app.route("/api/clipper/create", methods=["POST"])
 @login_required
 def api_clipper_create():
-    data = request.json
-    source = data.get("source", "url")
+    is_upload = bool(request.files)
+    data = request.form if is_upload else (request.json or {})
+    source = data.get("source", "upload" if is_upload else "url")
     clip_job_id = str(uuid.uuid4())[:8]
+
+    def _truthy(v, default=True):
+        if v is None:
+            return default
+        if isinstance(v, bool):
+            return v
+        return str(v).lower() not in ("false", "0", "")
 
     clip_config = {
         "source": source,
@@ -4528,20 +4540,27 @@ def api_clipper_create():
         "clip_length": int(data.get("clip_length", 30)),
         "ratio": data.get("ratio", "9:16"),
         "style": data.get("style", "viral"),
-        "captions": data.get("captions", True),
-        "hook_overlay": data.get("hook_overlay", True),
+        "captions": _truthy(data.get("captions")),
+        "hook_overlay": _truthy(data.get("hook_overlay")),
         "user_id": current_user.id,
     }
 
-    # If source is a completed job, get the video path
-    if source == "job" and data.get("job_id"):
+    if source == "upload":
+        f = request.files.get("file")
+        if not f or not f.filename:
+            return jsonify({"error": "No video file provided"}), 400
+        ext = Path(secure_filename(f.filename)).suffix or ".mp4"
+        upload_path = CLIPPER_UPLOADS / f"{clip_job_id}{ext}"
+        f.save(str(upload_path))
+        clip_config["video_path"] = str(upload_path)
+    elif source == "job" and data.get("job_id"):
         job = db.get_job(int(data["job_id"]), user_id=current_user.id)
         if not job or not job.get("video_path"):
             return jsonify({"error": "Job not found or has no video"}), 400
         clip_config["video_path"] = job["video_path"]
 
     with _clip_lock:
-        _clip_jobs[clip_job_id] = {"status": "processing", "config": clip_config, "clips": []}
+        _clip_jobs[clip_job_id] = {"status": "processing", "progress": 0, "config": clip_config, "clips": []}
 
     t = threading.Thread(target=_run_clipper_thread, args=(clip_job_id, clip_config), daemon=True)
     t.start()
@@ -4559,53 +4578,41 @@ def api_clipper_status(clip_job_id):
     return jsonify(job)
 
 
+_CLIPPER_STEP_MAP = {
+    "downloading": "downloading",
+    "analyzing": "analyzing",
+    "clipping": "cutting",
+    "captioning": "captions",
+    "hook": "captions",
+    "finalizing": "finalizing",
+    "done": "finalizing",
+}
+
+
 def _run_clipper_thread(clip_job_id: str, clip_config: dict):
-    import random
-    time.sleep(3)
+    from generators.clipper_engine import run_clipper
 
-    clip_count = clip_config["clip_count"]
-    clip_length = clip_config["clip_length"]
-    style = clip_config["style"]
+    def on_progress(status: str, progress: int, step_label: str):
+        with _clip_lock:
+            job = _clip_jobs.get(clip_job_id)
+            if job is None:
+                return
+            job.update({
+                "status": "processing",
+                "progress": progress,
+                "step": _CLIPPER_STEP_MAP.get(status, status),
+                "step_label": step_label,
+            })
 
-    hook_templates = {
-        "viral": ["Wait for it...", "Nobody talks about this", "This changes everything",
-                   "You won't believe this", "Here's what they don't tell you"],
-        "highlights": ["Key takeaway", "The main point", "Critical insight",
-                       "Don't miss this", "Here's the bottom line"],
-        "quotes": ["Best quote", "Mic drop moment", "This hit different",
-                   "Words to live by", "Pure gold"],
-        "tutorial": ["Step by step", "Here's how", "Watch closely",
-                     "Pro tip", "The secret trick"],
-    }
-    hooks = hook_templates.get(style, hook_templates["viral"])
-
-    clips = []
-    total_duration = clip_count * clip_length * 3
-    for i in range(clip_count):
-        start_sec = random.randint(0, max(1, total_duration - clip_length))
-        start_min = start_sec // 60
-        start_s = start_sec % 60
-        end_sec = start_sec + clip_length
-        end_min = end_sec // 60
-        end_s = end_sec % 60
-        virality = random.randint(65, 98)
-
-        clips.append({
-            "title": f"Clip {i+1} — {random.choice(hooks)}",
-            "start_time": f"{start_min}:{start_s:02d}",
-            "end_time": f"{end_min}:{end_s:02d}",
-            "virality_score": virality,
-            "hook": random.choice(hooks),
-            "download_url": None,
-        })
-        time.sleep(1)
-
-    clips.sort(key=lambda c: c["virality_score"], reverse=True)
+    result = run_clipper(clip_job_id, clip_config, progress_callback=on_progress)
 
     with _clip_lock:
         _clip_jobs[clip_job_id] = {
-            "status": "done",
-            "clips": clips,
+            "status": result["status"],
+            "error": result.get("error", ""),
+            "clips": result.get("clips", []),
+            "source_duration": result.get("source_duration", 0),
+            "transcript_preview": result.get("transcript_preview", ""),
             "config": clip_config,
         }
 
@@ -4625,12 +4632,12 @@ def api_clipper_clip_publish(clip_job_id, clip_idx):
     platform = data.get("platform", "youtube")
     caption  = data.get("caption", "")
 
-    video_path = job.get("config", {}).get("video_path")
+    clip = clips[clip_idx]
+    video_path = clip.get("file_path")
     if not video_path or not Path(video_path).exists():
-        return jsonify({"error": "No source video available for this clip job. Download the clip and upload manually."}), 400
+        return jsonify({"error": "Clip file not available. It may have been cleaned up — re-run the clipper."}), 400
 
     import social_optimize as _so
-    clip = clips[clip_idx]
     title = (clip.get("title") or f"Clip {clip_idx+1}")[:100]
     try:
         results = _so.publish_to_platforms(
@@ -4645,6 +4652,62 @@ def api_clipper_clip_publish(clip_job_id, clip_idx):
         return jsonify({"ok": True, "result": results.get(platform, {})})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/video")
+@login_required
+def api_clipper_clip_video(clip_job_id, clip_idx):
+    with _clip_lock:
+        job = _clip_jobs.get(clip_job_id)
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Clip job not ready"}), 400
+    clips = job.get("clips", [])
+    if clip_idx >= len(clips):
+        return jsonify({"error": "Clip index out of range"}), 400
+    file_path = clips[clip_idx].get("file_path")
+    if not file_path or not Path(file_path).is_file():
+        return jsonify({"error": "Clip file not found"}), 404
+    return send_file(file_path, mimetype="video/mp4", as_attachment=True,
+                      download_name=f"clip-{clip_idx+1}.mp4")
+
+
+@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/thumbnail")
+@login_required
+def api_clipper_clip_thumbnail(clip_job_id, clip_idx):
+    with _clip_lock:
+        job = _clip_jobs.get(clip_job_id)
+    if not job:
+        return jsonify({"error": "Clip job not found"}), 404
+    clips = job.get("clips", [])
+    if clip_idx >= len(clips):
+        return jsonify({"error": "Clip index out of range"}), 400
+    thumb_path = clips[clip_idx].get("thumbnail_path")
+    if not thumb_path or not Path(thumb_path).is_file():
+        return jsonify({"error": "Thumbnail not available"}), 404
+    return send_file(thumb_path, mimetype="image/jpeg", conditional=True)
+
+
+@app.route("/api/clipper/<clip_job_id>/download-all")
+@login_required
+def api_clipper_download_all(clip_job_id):
+    import zipfile
+    with _clip_lock:
+        job = _clip_jobs.get(clip_job_id)
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Clip job not ready"}), 400
+    clips = job.get("clips", [])
+    if not clips:
+        return jsonify({"error": "No clips available"}), 404
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for i, clip in enumerate(clips):
+            file_path = clip.get("file_path")
+            if file_path and Path(file_path).is_file():
+                zf.write(file_path, arcname=f"clip-{i+1}.mp4")
+    buf.seek(0)
+    return send_file(buf, mimetype="application/zip", as_attachment=True,
+                      download_name=f"clips-{clip_job_id}.zip")
 
 
 @app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/trim", methods=["POST"])
