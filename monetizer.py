@@ -1245,26 +1245,50 @@ EXEC_PERSONAS = {
     "marcus_vance": {
         "name": "Marcus Vance", "title": "Chief Growth Officer",
         "role": "Product-Led Growth, Virality Loops, Acquisition Engineering",
-        "avatar": "M", "color": "#7c3aed",
+        "avatar": "M", "color": "#3b82f6",
         "status": "active", "interval": "14 hrs"
     },
     "elena_rostova": {
         "name": "Elena Rostova", "title": "VP of Enterprise Development",
         "role": "B2B Sales Automation, Enterprise Lead Scraping, Intent Detection",
-        "avatar": "E", "color": "#2563eb",
+        "avatar": "E", "color": "#8b5cf6",
         "status": "active", "interval": "14 hrs"
     },
     "julian_vance": {
         "name": "Dr. Julian Vance", "title": "Director of Retention & LTV",
         "role": "Churn Mitigation, Predictive Analytics, User Engagement",
-        "avatar": "J", "color": "#059669",
+        "avatar": "J", "color": "#10b981",
         "status": "active", "interval": "14 hrs"
     },
     "sterling_croft": {
         "name": "Sterling Croft", "title": "Chief Business Officer",
         "role": "Unit Economics, Strategic Partnerships, Pricing Models",
-        "avatar": "S", "color": "#d97706",
+        "avatar": "S", "color": "#f59e0b",
         "status": "active", "interval": "14 hrs"
+    },
+    "vivian_cross": {
+        "name": "Vivian Cross", "title": "Chief Financial Officer",
+        "role": "IEBC Efficiency Accounting, Credit Monitoring, Subscription Renewals",
+        "avatar": "V", "color": "#10b981",
+        "status": "active", "interval": "6 hrs"
+    },
+    "nova_chen": {
+        "name": "Nova Chen", "title": "Chief Product Officer",
+        "role": "Studio Usage, Feature Adoption, Activation Rate, Product Health",
+        "avatar": "N", "color": "#8b5cf6",
+        "status": "active", "interval": "12 hrs"
+    },
+    "rex_dawson": {
+        "name": "Rex Dawson", "title": "Director of Revenue Operations",
+        "role": "Stripe Reconciliation, Failed Payments, Dunning, MRR Accuracy",
+        "avatar": "R", "color": "#f59e0b",
+        "status": "active", "interval": "4 hrs"
+    },
+    "aria_singh": {
+        "name": "Aria Singh", "title": "Director of Customer Success",
+        "role": "Activation Monitoring, Onboarding, First-Milestone Tracking, Plan Cohorts",
+        "avatar": "A", "color": "#ec4899",
+        "status": "active", "interval": "6 hrs"
     },
 }
 
@@ -1344,6 +1368,22 @@ def api_executives_trigger():
         from agents.sterling_business import _compute_unit_economics
         economics = _compute_unit_economics()
         return jsonify({"ok": True, "economics": economics})
+    elif agent == "vivian_cross":
+        from agents.vivian_finance import _run_cycle
+        _run_cycle()
+        return jsonify({"ok": True})
+    elif agent == "nova_chen":
+        from agents.nova_product import _run_cycle
+        _run_cycle()
+        return jsonify({"ok": True})
+    elif agent == "rex_dawson":
+        from agents.rex_revops import _run_cycle
+        _run_cycle()
+        return jsonify({"ok": True})
+    elif agent == "aria_singh":
+        from agents.aria_success import _run_cycle
+        _run_cycle()
+        return jsonify({"ok": True})
     return jsonify({"error": "Unknown agent"}), 400
 
 

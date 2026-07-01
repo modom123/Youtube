@@ -1092,9 +1092,6 @@ def init_db():
 
 
 def _seed_agents(conn):
-    count = conn.execute("SELECT COUNT(*) FROM agents").fetchone()[0]
-    if count > 0:
-        return
     agents = [
         ("showrunner", "The Showrunner", "Chief Orchestrator", "command_center", "Orchestrates all content pipelines end-to-end", "pipeline orchestration, scheduling, resource allocation", '{"icon":"crown"}'),
         ("ledger", "Cost Engineer", "Financial Optimizer", "command_center", "Routes tasks to cheapest viable AI provider", "cost optimization, provider routing, budget tracking", '{"icon":"calculator"}'),
@@ -1107,10 +1104,20 @@ def _seed_agents(conn):
         ("courier", "The Courier", "Notification Engine", "mobile", "Delivers push notifications and alerts", "push delivery, notification scheduling, engagement tracking", '{"icon":"bell-ring"}'),
         ("growth_engine", "The Growth Engine", "Platform Optimizer", "social_optimize", "Optimizes content for each social platform", "platform optimization, hashtag strategy, posting schedule", '{"icon":"trending-up"}'),
         ("editor", "The Editor", "Post-Production", "client_pipeline", "Handles video editing, transitions, and effects", "video editing, audio mixing, subtitle generation", '{"icon":"film"}'),
+        # IEBC C-Suite live agents
+        ("marcus_vance", "Marcus Vance", "Chief Growth Officer", "iebc_csuite", "Engineers PLG funnels, upgrade nudges, and referral loops toward $10M ARR", "PLG, viral coefficients, conversion optimization, referral mechanics", '{"icon":"trending-up","color":"#3b82f6"}'),
+        ("julian_vance", "Dr. Julian Vance", "Director of Retention & LTV", "iebc_csuite", "Detects churn risk, fires re-engagement sequences, protects LTV", "churn prediction, re-engagement, LTV optimization, cohort analysis", '{"icon":"heart","color":"#10b981"}'),
+        ("elena_rostova", "Elena Rostova", "VP of Enterprise Development", "iebc_csuite", "Identifies enterprise prospects and manages outbound pipeline", "enterprise sales, outbound prospecting, ACV optimization", '{"icon":"building","color":"#8b5cf6"}'),
+        ("sterling_croft", "Sterling Croft", "Chief Business Officer", "iebc_csuite", "Protects gross margin, monitors unit economics, aligns ops to business plan", "unit economics, margin protection, business plan execution", '{"icon":"briefcase","color":"#f59e0b"}'),
+        ("vivian_cross", "Vivian Cross", "Chief Financial Officer", "iebc_csuite", "IEBC efficiency accounting — tracks every dollar in and out", "IEBC accounting, subscription costs, credit monitoring, renewal alerts", '{"icon":"dollar-sign","color":"#10b981"}'),
+        ("nova_chen", "Nova Chen", "Chief Product Officer", "iebc_csuite", "Monitors studio usage, feature adoption, activation rate, and product health", "product analytics, feature adoption, activation, studio usage", '{"icon":"brain","color":"#8b5cf6"}'),
+        ("rex_dawson", "Rex Dawson", "Director of Revenue Operations", "iebc_csuite", "Stripe reconciliation, failed payments, dunning, MRR accuracy", "RevOps, payment reconciliation, dunning, MRR integrity", '{"icon":"credit-card","color":"#f59e0b"}'),
+        ("aria_singh", "Aria Singh", "Director of Customer Success", "iebc_csuite", "Activation monitoring, onboarding, first-milestone tracking, plan cohort targets", "customer success, activation, onboarding, cohort tracking", '{"icon":"star","color":"#ec4899"}'),
     ]
     for a in agents:
         conn.execute(
-            "INSERT INTO agents (id, codename, title, team, role_description, expertise, config) VALUES (%s,%s,%s,%s,%s,%s,%s)", a
+            """INSERT INTO agents (id, codename, title, team, role_description, expertise, config)
+               VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO NOTHING""", a
         )
 
 

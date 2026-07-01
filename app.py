@@ -8635,6 +8635,12 @@ from agents.sterling_business import start as _start_sterling  # noqa: E402
 _start_sterling()
 from agents.vivian_finance import start as _start_vivian  # noqa: E402
 _start_vivian()
+from agents.nova_product import start as _start_nova  # noqa: E402
+_start_nova()
+from agents.rex_revops import start as _start_rex  # noqa: E402
+_start_rex()
+from agents.aria_success import start as _start_aria  # noqa: E402
+_start_aria()
 
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")
