@@ -34,21 +34,55 @@ PERSONA = {
     ],
 }
 
-COST_PER_VIDEO = {
-    "anthropic_sonnet": 0.08,
-    "anthropic_haiku": 0.005,
-    "higgsfield_avg": 0.15,
-    "tts": 0.01,
-    "total_paid": 0.24,
-    "total_free": 0.02,
-}
+# Real, sourced per-video cost estimate — derived from config.py's cost-basis
+# constants (which cite vendor pricing pages) plus actual observed Higgsfield
+# transaction data (avg ~13 credits/video across Kling 3.0 Turbo / Wan 2.6 /
+# Cinematic Studio Video generations). Assumes ~1-2 Claude calls per video
+# (script + hook/caption) at ~600 input / 1000 output tokens combined — this
+# token estimate is NOT measured from real usage yet; instrument real token
+# counts per pipeline run to replace it.
+HIGGSFIELD_CREDITS_PER_VIDEO_AVG = 13
+_ANTHROPIC_TOKENS_PER_VIDEO = {"input": 600, "output": 1000}
 
+
+def _anthropic_cost_per_video(model: str) -> float:
+    rates = config.ANTHROPIC_COST_PER_M_TOKENS[model]
+    return (
+        _ANTHROPIC_TOKENS_PER_VIDEO["input"] * rates["input"]
+        + _ANTHROPIC_TOKENS_PER_VIDEO["output"] * rates["output"]
+    ) / 1_000_000
+
+
+def _higgsfield_cost_per_video() -> float:
+    return HIGGSFIELD_CREDITS_PER_VIDEO_AVG * config.HIGGSFIELD_COST_PER_CREDIT_BASE
+
+
+def _tts_cost_per_video(chars: int = 750) -> float:
+    return chars / 1000 * config.ELEVENLABS_COST_PER_1K_CHARS
+
+
+COST_PER_VIDEO = {
+    "anthropic_sonnet": round(_anthropic_cost_per_video("sonnet"), 4),
+    "anthropic_haiku": round(_anthropic_cost_per_video("haiku"), 4),
+    "higgsfield_avg": round(_higgsfield_cost_per_video(), 4),
+    "tts": round(_tts_cost_per_video(), 4),
+}
+COST_PER_VIDEO["total_paid"] = round(
+    COST_PER_VIDEO["anthropic_sonnet"] + COST_PER_VIDEO["higgsfield_avg"] + COST_PER_VIDEO["tts"], 4
+)
+COST_PER_VIDEO["total_free"] = round(
+    COST_PER_VIDEO["anthropic_haiku"] + COST_PER_VIDEO["higgsfield_avg"] + COST_PER_VIDEO["tts"], 4
+)
+
+# Tier pricing/video-allocation — derived from config.TIERS (single source of
+# truth) rather than a second hardcoded copy.
 TIER_PRICING = {
-    "free": {"monthly": 0, "videos": 3, "model": "haiku"},
-    "starter": {"monthly": 9.99, "videos": 7, "model": "haiku"},
-    "creator": {"monthly": 29.99, "videos": 15, "model": "sonnet"},
-    "pro": {"monthly": 79.99, "videos": 50, "model": "sonnet"},
-    "agency": {"monthly": 199.99, "videos": 125, "model": "sonnet"},
+    tier: {
+        "monthly": data["price_monthly"],
+        "videos": data["videos_per_month"],
+        "model": "sonnet" if config.TIER_CLAUDE_MODEL.get(tier, "").startswith("claude-sonnet") else "haiku",
+    }
+    for tier, data in config.TIERS.items()
 }
 
 
@@ -59,26 +93,36 @@ def _compute_unit_economics():
         for tier in ("free", "starter", "creator", "pro", "agency"):
             if tier == "free":
                 count = conn.execute(
-                    "SELECT COUNT(*) FROM users WHERE subscription_tier IS NULL OR subscription_tier='' OR subscription_tier='free'"
+                    "SELECT COUNT(*) FROM users WHERE (subscription_tier IS NULL OR subscription_tier='' OR subscription_tier='free') "
+                    "AND COALESCE(is_admin,0)=0"
                 ).fetchone()[0]
             else:
                 count = conn.execute(
-                    "SELECT COUNT(*) FROM users WHERE subscription_tier=?", (tier,)).fetchone()[0]
+                    "SELECT COUNT(*) FROM users WHERE subscription_tier=? AND COALESCE(is_admin,0)=0",
+                    (tier,)).fetchone()[0]
             tier_counts[tier] = count
 
-        total_videos = conn.execute(
-            "SELECT COUNT(*) FROM jobs WHERE status='done' AND created_at >= ?",
-            ((datetime.now(timezone.utc) - timedelta(days=30)).isoformat(),)).fetchone()[0]
+        # Real videos generated per tier in the last 30 days — not a guessed
+        # utilization multiplier — so cost tracks actual usage.
+        since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        videos_by_tier = {t: 0 for t in TIER_PRICING}
+        for row in conn.execute("""
+            SELECT COALESCE(u.subscription_tier, 'free') AS tier, COUNT(j.id) AS cnt
+            FROM jobs j JOIN users u ON j.user_id = u.id
+            WHERE j.status='done' AND j.created_at >= ? AND COALESCE(u.is_admin,0)=0
+            GROUP BY tier
+        """, (since,)).fetchall():
+            t = row["tier"] if row["tier"] in videos_by_tier else "free"
+            videos_by_tier[t] += row["cnt"]
+
+        total_videos = sum(videos_by_tier.values())
 
     total_revenue = sum(tier_counts.get(t, 0) * TIER_PRICING[t]["monthly"] for t in TIER_PRICING)
-    total_cost_estimate = (
-        tier_counts.get("free", 0) * 2 * COST_PER_VIDEO["total_free"] +
-        tier_counts.get("starter", 0) * 4 * COST_PER_VIDEO["total_paid"] +
-        tier_counts.get("creator", 0) * 8 * COST_PER_VIDEO["total_paid"] +
-        tier_counts.get("pro", 0) * 25 * COST_PER_VIDEO["total_paid"] +
-        tier_counts.get("agency", 0) * 60 * COST_PER_VIDEO["total_paid"]
+    total_cost_estimate = sum(
+        videos_by_tier[t] * (COST_PER_VIDEO["total_free"] if t == "free" else COST_PER_VIDEO["total_paid"])
+        for t in TIER_PRICING
     )
-    infra_cost = 25  # Render base
+    infra_cost = config.RENDER_MONTHLY_COST + config.SUPABASE_MONTHLY_COST
 
     total_cost = total_cost_estimate + infra_cost
     gross_profit = total_revenue - total_cost
@@ -170,13 +214,35 @@ def _check_free_tier_surge():
 
 
 def _audit_cost_centers():
-    """Update cost center actuals based on current usage."""
+    """Update cost center actuals based on real usage and real vendor rates."""
+    since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    with db.get_conn() as conn:
+        total_videos = conn.execute(
+            "SELECT COUNT(*) FROM jobs j JOIN users u ON j.user_id=u.id "
+            "WHERE j.status='done' AND j.created_at >= ? AND COALESCE(u.is_admin,0)=0",
+            (since,)).fetchone()[0]
+
+        # One Stripe charge ~ one paying subscriber per month (recurring billing).
+        revenue_by_tier = conn.execute(
+            "SELECT subscription_tier, COUNT(*) AS cnt FROM users "
+            "WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL "
+            "AND COALESCE(is_admin,0)=0 GROUP BY subscription_tier"
+        ).fetchall()
+
+    stripe_fees = sum(
+        row["cnt"] * (TIER_PRICING.get(row["subscription_tier"], {}).get("monthly", 0) * config.STRIPE_PCT_FEE
+                       + config.STRIPE_FLAT_FEE)
+        for row in revenue_by_tier
+    )
+
     costs = [
-        ("Anthropic API", "api", COST_PER_VIDEO["anthropic_sonnet"] * 1000),  # estimate
-        ("Higgsfield", "api", COST_PER_VIDEO["higgsfield_avg"] * 500),
-        ("Render Hosting", "infrastructure", 25),
-        ("Stripe Fees", "payment", 0),  # calculated from revenue
-        ("TTS/Audio", "api", COST_PER_VIDEO["tts"] * 1000),
+        ("Anthropic API", "api", COST_PER_VIDEO["anthropic_sonnet"] * total_videos),
+        ("Higgsfield", "api", COST_PER_VIDEO["higgsfield_avg"] * total_videos),
+        ("TTS/Audio", "api", COST_PER_VIDEO["tts"] * total_videos),
+        ("Google APIs", "api", config.GOOGLE_VISION_COST_PER_IMAGE * total_videos),  # ~1 vision call/video (thumbnail scoring)
+        ("Render Hosting", "infrastructure", config.RENDER_MONTHLY_COST),
+        ("Supabase Hosting", "infrastructure", config.SUPABASE_MONTHLY_COST),
+        ("Stripe Fees", "payment", round(stripe_fees, 2)),
     ]
     for name, category, estimate in costs:
         try:

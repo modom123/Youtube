@@ -242,6 +242,47 @@ TIER_CLAUDE_MODEL = {
     "agency":  "claude-sonnet-4-6",
 }
 
+# ── Real vendor cost basis (for unit economics / credit pricing) ────────────
+# Sourced from public vendor pricing pages, checked 2026-07. These feed
+# agents/sterling_business.py's cost-center audit and the credit-pricing
+# formula — update here if vendor pricing or your plan tier changes.
+
+# Anthropic Claude API — $ per million tokens (input, output).
+# Source: https://platform.claude.com/docs/en/about-claude/pricing
+ANTHROPIC_COST_PER_M_TOKENS = {
+    "haiku":  {"input": 1.0, "output": 5.0},   # claude-haiku-4-5
+    "sonnet": {"input": 3.0, "output": 15.0},  # claude-sonnet-4-6
+}
+
+# Higgsfield credits — real account data (checked via balance/transactions):
+# Starter plan grants 270 credits for $15/mo -> $0.0556/credit base rate.
+# Overage top-ups run $0.10-0.15/credit per https://higgsfield.ai/pricing —
+# using the midpoint. Update HIGGSFIELD_COST_PER_CREDIT_BASE if you change
+# Higgsfield plans.
+HIGGSFIELD_COST_PER_CREDIT_BASE  = float(os.getenv("HIGGSFIELD_COST_PER_CREDIT_BASE", "0.0556"))
+HIGGSFIELD_COST_PER_CREDIT_TOPUP = float(os.getenv("HIGGSFIELD_COST_PER_CREDIT_TOPUP", "0.125"))
+HIGGSFIELD_MONTHLY_BASE_CREDITS  = float(os.getenv("HIGGSFIELD_MONTHLY_BASE_CREDITS", "270"))
+
+# ElevenLabs TTS — $ per 1,000 characters. Flash/Turbo models (cheaper, used
+# for short-form narration) run ~$0.05/1k chars vs $0.10 for Multilingual v2.
+# Source: https://elevenlabs.io/pricing/api
+ELEVENLABS_COST_PER_1K_CHARS = float(os.getenv("ELEVENLABS_COST_PER_1K_CHARS", "0.05"))
+
+# Google Cloud APIs — checked 2026-07 via cloud.google.com/{vision,translate,natural-language}/pricing
+GOOGLE_VISION_COST_PER_IMAGE      = 0.0015   # label detection, after 1,000/mo free tier
+GOOGLE_TRANSLATE_COST_PER_1K_CHARS = 0.02    # Basic/Advanced NMT, $20/M chars, after 500k/mo free
+GOOGLE_NLP_COST_PER_1K_UNITS      = 0.001    # entity/sentiment analysis, after 5,000/mo free
+
+# Infrastructure — actual billed plan cost per month.
+# Source: https://render.com/pricing (Standard tier) / https://supabase.com/pricing (Pro tier)
+RENDER_MONTHLY_COST   = float(os.getenv("RENDER_MONTHLY_COST", "25"))
+SUPABASE_MONTHLY_COST = float(os.getenv("SUPABASE_MONTHLY_COST", "25"))
+
+# Stripe processing fees — standard US online card rate.
+# Source: https://stripe.com/pricing
+STRIPE_PCT_FEE  = 0.029
+STRIPE_FLAT_FEE = 0.30
+
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 DEEPSEEK_API_KEY  = os.getenv("DEEPSEEK_API_KEY", "")
 QWEN_API_KEY      = os.getenv("QWEN_API_KEY", "")       # Alibaba DashScope

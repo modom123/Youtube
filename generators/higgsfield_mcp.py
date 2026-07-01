@@ -274,3 +274,32 @@ def generate_image_via_mcp(
     except Exception as e:
         print(f"[higgsfield_mcp] Image gen error: {e}")
     return None
+
+
+# ── Billing / balance ──────────────────────────────────────────────────────────
+
+def get_balance() -> Optional[dict]:
+    """Return {'credits': float, 'subscription_plan_type': str} or None on failure."""
+    session = _MCPSession()
+    try:
+        session.initialize()
+        result = session.call("balance", {})
+        text = _text(result)
+        return json.loads(text)
+    except Exception as e:
+        print(f"[higgsfield_mcp] Balance check failed: {e}")
+        return None
+
+
+def get_transactions(size: int = 50) -> Optional[list]:
+    """Return recent Higgsfield credit transactions (newest first), or None on failure."""
+    session = _MCPSession()
+    try:
+        session.initialize()
+        result = session.call("transactions", {"size": size})
+        text = _text(result)
+        data = json.loads(text)
+        return data.get("items", [])
+    except Exception as e:
+        print(f"[higgsfield_mcp] Transactions fetch failed: {e}")
+        return None

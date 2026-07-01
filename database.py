@@ -1088,15 +1088,34 @@ def init_db():
             active      BOOLEAN DEFAULT TRUE,
             created_at  TIMESTAMP DEFAULT NOW()
         )""")
-        # Seed default packages
+        # De-duplicate rows accumulated from past runs (no unique constraint
+        # existed before, and this INSERT ran on every app start via
+        # ON CONFLICT DO NOTHING with no real conflict target — it always
+        # inserted fresh duplicates instead of updating).
+        conn.execute("""
+            DELETE FROM so_credit_packages a USING so_credit_packages b
+            WHERE a.id < b.id AND a.name = b.name
+        """)
+        try:
+            conn.execute(
+                "ALTER TABLE so_credit_packages ADD CONSTRAINT so_credit_packages_name_key UNIQUE (name)"
+            )
+        except Exception:
+            pass  # already exists
+        # Seed/update default packages — credit amounts sized so $/credit
+        # protects a 75% gross margin against real Higgsfield cost
+        # ($0.0556/credit base rate, see config.HIGGSFIELD_COST_PER_CREDIT_BASE).
+        # Same price points as before; credit amounts corrected from an
+        # unpriced guess (500-15,000cr) to real cost-covering amounts.
         conn.execute("""
         INSERT INTO so_credit_packages (name, credits, price_usd, bonus_pct)
         VALUES
-            ('Starter Pack',  500,   4.99, 0),
-            ('Growth Pack',  2000,  14.99, 0),
-            ('Pro Pack',     5000,  29.99, 10),
-            ('Agency Pack', 15000,  79.99, 20)
-        ON CONFLICT DO NOTHING
+            ('Starter Pack',  22,   4.99, 0),
+            ('Growth Pack',   67,  14.99, 0),
+            ('Pro Pack',     123,  29.99, 10),
+            ('Agency Pack',  300,  79.99, 20)
+        ON CONFLICT (name) DO UPDATE SET
+            credits=EXCLUDED.credits, price_usd=EXCLUDED.price_usd, bonus_pct=EXCLUDED.bonus_pct
         """)
 
         _seed_agents(conn)
@@ -1134,9 +1153,17 @@ def _seed_agents(conn):
 
 # ── Social Optimize Credits helpers ──────────────────────────────────────────
 
-# How many credits each action costs
+# How many credits each action costs. At $0.2224/credit (so_credit_packages'
+# rate, sized to protect 75% margin against real Higgsfield cost — see
+# config.HIGGSFIELD_COST_PER_CREDIT_BASE), video_generate and image_generate
+# below are corrected to match REAL observed costs: video_generate averages
+# ~13 real Higgsfield credits + Claude + TTS ~= $0.78 (see
+# agents/sterling_business.py COST_PER_VIDEO); image_generate is a confirmed
+# real 2 Higgsfield credits (Nano Banana Pro) ~= $0.11. The rest below are
+# NOT yet backed by measured real costs — still rough estimates pending
+# verification against actual Suno/TTS/Claude usage per action.
 SO_CREDIT_COSTS = {
-    "video_generate":   10,
+    "video_generate":   14,
     "audio_generate":   3,
     "image_generate":   2,
     "podcast_generate": 8,
@@ -1155,7 +1182,7 @@ def get_user_credits(user_id: int) -> dict:
         ).fetchone()
         if row is None:
             # Lazy init for existing users
-            monthly = _TIER_MONTHLY_CREDITS.get("free", 100)
+            monthly = _tier_monthly_credits("free")
             conn.execute(
                 """INSERT INTO so_credits (user_id, balance, rollover_balance, monthly_allocation, lifetime_earned)
                    VALUES (%s,%s,0,%s,%s) ON CONFLICT (user_id) DO NOTHING""",
@@ -1232,7 +1259,7 @@ def rollover_credits(user_id: int) -> dict:
     with get_conn() as conn:
         user_row = conn.execute("SELECT subscription_tier FROM users WHERE id=%s", (user_id,)).fetchone()
         tier = (user_row["subscription_tier"] if user_row else "free") or "free"
-        monthly = _TIER_MONTHLY_CREDITS.get(tier, 100)
+        monthly = _tier_monthly_credits(tier)
         old_balance = float(wallet.get("balance", 0))
         # Add unused balance into rollover, set new monthly balance
         conn.execute(
@@ -1294,13 +1321,11 @@ def row_to_dict(row):
 
 # ── Users ─────────────────────────────────────────────────────────────────────
 
-_TIER_MONTHLY_CREDITS = {
-    "free": 100,
-    "starter": 500,
-    "growth": 2000,
-    "pro": 5000,
-    "agency": 15000,
-}
+def _tier_monthly_credits(tier: str) -> float:
+    """Single source of truth for tier -> monthly credit grant: config.TIERS."""
+    import config
+    return config.TIERS.get(tier, config.TIERS["free"]).get("higgsfield_credits", 10)
+
 
 def create_user(email: str, password_hash: str, name: str = "", tier: str = "free") -> int:
     with get_conn() as conn:
@@ -1309,7 +1334,7 @@ def create_user(email: str, password_hash: str, name: str = "", tier: str = "fre
             (email.lower().strip(), password_hash, name),
         )
         user_id = cur.fetchone()["id"]
-        monthly = _TIER_MONTHLY_CREDITS.get(tier, 100)
+        monthly = _tier_monthly_credits(tier)
         conn.execute(
             """INSERT INTO so_credits (user_id, balance, rollover_balance, monthly_allocation, lifetime_earned)
                VALUES (%s,%s,0,%s,%s)

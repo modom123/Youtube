@@ -243,6 +243,7 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
         if user_id:
             try:
                 db.increment_user_usage(user_id, videos=1)
+                db.deduct_credits(user_id, "video_generate", "Create Content video")
             except Exception as _ue:
                 print(f"[job #{job_id}] increment_user_usage failed (non-fatal): {_ue}")
         job_title = manifest.get("title")
@@ -2966,6 +2967,13 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
         result_dict = result.model_dump()
         job_title = result.seo.title_final if result.seo else niche
 
+        if user_id:
+            try:
+                db.increment_user_usage(user_id, videos=1)
+                db.deduct_credits(user_id, "video_generate", "The Forge video")
+            except Exception as _ue:
+                print(f"[studio #{db_job_id}] usage/credit tracking failed (non-fatal): {_ue}")
+
         # Save completed output to the DB job
         db.update_job(
             db_job_id, status="done", progress=100, current_step="Complete!",
@@ -3160,6 +3168,13 @@ def _run_hw_thread(hw_job_id: str, params: dict, user_id: int = None):
         )
         result_dict = result.model_dump()
         job_title = result.seo.title_final if result.seo else topic
+
+        if user_id:
+            try:
+                db.increment_user_usage(user_id, videos=1)
+                db.deduct_credits(user_id, "video_generate", "Cinema House video")
+            except Exception as _ue:
+                print(f"[hollywood #{db_job_id}] usage/credit tracking failed (non-fatal): {_ue}")
 
         db.update_job(
             db_job_id, status="done", progress=100, current_step="Complete!",
@@ -3372,6 +3387,12 @@ def _run_music_thread(job_id: str, params: dict, user_id: int = None):
             "user_id": user_id,
         }
         db.set_setting(f"music_track:{job_id}", json.dumps(track_record))
+
+        if user_id:
+            try:
+                db.deduct_credits(user_id, "audio_generate", "Hit Factory track")
+            except Exception as _ue:
+                print(f"[music #{job_id}] credit tracking failed (non-fatal): {_ue}")
 
         with _music_lock:
             _music_jobs[job_id].update({"status": "done", "progress": 100, "result": result, "audio_url": audio_url})
@@ -3917,6 +3938,10 @@ def _run_batch_thread(batch_id: str, topics: list, common_config: dict, user_id:
                 privacy=common_config.get("privacy", "private"), user_id=user_id,
             )
             db.increment_user_usage(user_id, videos=1)
+            try:
+                db.deduct_credits(user_id, "video_generate", f"Batch video: {topic}")
+            except Exception as _ue:
+                print(f"[batch] credit tracking failed (non-fatal): {_ue}")
             params = {
                 "topic": topic, "format": common_config.get("format", "short"),
                 "platforms": common_config.get("platforms", []),
@@ -5046,6 +5071,10 @@ SCRIPT_SECTIONS:
         step("Commercial ready!", 100)
 
         db.increment_videos_used(user_id)
+        try:
+            db.deduct_credits(user_id, "video_generate", f"Ad Lab commercial: {brand}")
+        except Exception as _ue:
+            print(f"[commercial] credit tracking failed (non-fatal): {_ue}")
 
         db.update_job(db_job_id, status="done", progress=100, current_step="Commercial ready!",
                       title=brand, video_path=final_video, audio_path=audio_path,
@@ -7930,6 +7959,13 @@ def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
             description=description,
         )
 
+        if user_id:
+            try:
+                db.increment_user_usage(user_id, videos=1)
+                db.deduct_credits(user_id, "podcast_generate", f"Podcast episode: {title}")
+            except Exception as _ue:
+                print(f"[podcast #{pod_job_id}] usage/credit tracking failed (non-fatal): {_ue}")
+
         _push({
             "status": "done",
             "progress": 100,
@@ -8193,6 +8229,10 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
 
         if user_id:
             db.increment_user_usage(user_id, videos=1)
+            try:
+                db.deduct_credits(user_id, "remix_generate", "The Cut edit")
+            except Exception as _ue:
+                print(f"[editing #{editing_job_id}] credit tracking failed (non-fatal): {_ue}")
 
         with _editing_lock:
             _editing_jobs[editing_job_id].update({

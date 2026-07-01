@@ -96,6 +96,41 @@ def _total_monthly_revenue():
 
 # ── Analysis cycles ───────────────────────────────────────────────────────────
 
+def _sync_higgsfield_balance():
+    """Pull the real Higgsfield credit balance and upsert it into
+    finance_provider_credits, so _check_credits() alerts on real data
+    instead of a manually-typed-in number."""
+    try:
+        from generators import higgsfield_mcp
+        bal = higgsfield_mcp.get_balance()
+    except Exception as exc:
+        bus.log_msg(AGENT_NAME, f"Higgsfield balance check failed: {exc}", "warning")
+        return
+
+    if not bal:
+        return
+
+    credits = float(bal.get("credits", 0))
+    cap = config.HIGGSFIELD_MONTHLY_BASE_CREDITS
+    with db.get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM finance_provider_credits WHERE provider=?", ("Higgsfield",)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE finance_provider_credits SET balance=?, credit_cap=?, unit=?, "
+                "last_updated=NOW() WHERE provider=?",
+                (credits, cap, "credits", "Higgsfield"),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO finance_provider_credits (provider, balance, credit_cap, unit, notes) "
+                "VALUES (?,?,?,?,?)",
+                ("Higgsfield", credits, cap, "credits",
+                 f"Auto-synced from Higgsfield API ({bal.get('subscription_plan_type', '')} plan)"),
+            )
+
+
 def _check_credits():
     """Alert when any provider credit balance is < 20% of its cap."""
     credits = _get_provider_credits()
@@ -205,6 +240,7 @@ def _run_cycle():
     bus.log_msg(AGENT_NAME, "Vivian Cross (CFO) — running IEBC efficiency audit")
     try:
         _efficiency_report()
+        _sync_higgsfield_balance()
         _check_credits()
         _check_renewals()
         _check_inactive_subscriptions()
