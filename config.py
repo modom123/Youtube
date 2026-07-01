@@ -315,6 +315,13 @@ HIGGSFIELD_MCP_TOKEN = (
 )
 HIGGSFIELD_MCP_URL = os.getenv("HIGGSFIELD_MCP_URL", "https://mcp.higgsfield.ai/mcp")
 
+# Gamma — slide-deck generation for ranking/listicle-style videos and other
+# presentation output. Real REST API, not the MCP tool (that's only
+# available to this chat session, not the deployed server).
+# Source: https://developers.gamma.app/ — base https://public-api.gamma.app/v1.0
+GAMMA_API_KEY = os.getenv("GAMMA_API_KEY", "")
+GAMMA_API_BASE = "https://public-api.gamma.app/v1.0"
+
 # YouTube
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID", "")
 YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET", "")

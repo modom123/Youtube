@@ -8161,6 +8161,106 @@ def api_podcast_publish(pod_job_id):
         return jsonify({"error": str(exc)}), 500
 
 
+# ── Ranking Studio (Top N / listicle videos via Gamma slide decks) ───────────
+
+_ranking_jobs: dict = {}
+_ranking_lock = threading.Lock()
+
+
+@app.route("/ranking-studio")
+@login_required
+def ranking_studio_page():
+    return render_template("ranking_studio.html", voices=config.VOICE_CATALOG,
+                           active_page="ranking")
+
+
+@app.route("/api/ranking/create", methods=["POST"])
+@login_required
+def api_ranking_create():
+    allowed, err = check_usage_gate(current_user.id)
+    if not allowed:
+        return jsonify({"error": err, "upgrade": True}), 403
+
+    data = request.json or {}
+    topic = (data.get("topic") or "").strip()
+    if not topic:
+        return jsonify({"error": "Topic is required"}), 400
+
+    job_id = str(uuid.uuid4())[:8]
+    job_config = {
+        "topic": topic,
+        "count": int(data.get("count", 10)),
+        "voice": data.get("voice") or config.DEFAULT_VOICE,
+        "ratio": data.get("ratio", "9:16"),
+        "theme": data.get("theme"),
+        "user_id": current_user.id,
+    }
+
+    with _ranking_lock:
+        _ranking_jobs[job_id] = {"status": "processing", "progress": 0, "config": job_config}
+
+    t = threading.Thread(target=_run_ranking_thread, args=(job_id, job_config), daemon=True)
+    t.start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/api/ranking/<job_id>/status")
+@login_required
+def api_ranking_status(job_id):
+    with _ranking_lock:
+        job = _ranking_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Ranking job not found"}), 404
+    return jsonify(job)
+
+
+@app.route("/api/ranking/<job_id>/video")
+@login_required
+def api_ranking_video(job_id):
+    with _ranking_lock:
+        job = _ranking_jobs.get(job_id)
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Ranking job not ready"}), 400
+    video_path = job.get("video_path")
+    if not video_path or not Path(video_path).is_file():
+        return jsonify({"error": "Video file not found"}), 404
+    return send_file(video_path, mimetype="video/mp4", conditional=True)
+
+
+def _run_ranking_thread(job_id: str, job_config: dict):
+    from generators.ranking_video import generate_ranking_video
+
+    user_id = job_config.get("user_id")
+
+    def on_progress(status: str, progress: int, step_label: str):
+        with _ranking_lock:
+            job = _ranking_jobs.get(job_id)
+            if job is None:
+                return
+            job.update({"status": "processing", "progress": progress,
+                       "step": status, "step_label": step_label})
+
+    result = generate_ranking_video(job_id, job_config, progress_callback=on_progress)
+
+    if result["status"] == "done" and user_id:
+        try:
+            db.increment_user_usage(user_id, videos=1)
+            db.deduct_credits(user_id, "video_generate", f"Ranking video: {result.get('topic', '')}")
+        except Exception as exc:
+            print(f"[ranking #{job_id}] usage/credit tracking failed (non-fatal): {exc}")
+
+    with _ranking_lock:
+        _ranking_jobs[job_id] = {
+            "status": result["status"],
+            "error": result.get("error", ""),
+            "video_path": result.get("video_path", ""),
+            "thumbnail_path": result.get("thumbnail_path", ""),
+            "items": result.get("items", []),
+            "topic": result.get("topic", job_config.get("topic", "")),
+            "config": job_config,
+        }
+
+
 # ── The Cut ───────────────────────────────────────────────────────────────────
 
 _editing_jobs: dict = {}
