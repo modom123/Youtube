@@ -5648,6 +5648,8 @@ def start_background_threads():
     t4.start()
     t5 = threading.Thread(target=_engagement_automation_thread, daemon=True, name="engagement_automation")
     t5.start()
+    t6 = threading.Thread(target=_autopilot_thread, daemon=True, name="autopilot")
+    t6.start()
 
 
 # ── RSS Feeds ────────────────────────────────────────────────────────────────
@@ -8333,6 +8335,232 @@ def _run_landing_page_thread(page_id: int, prompt: str):
                                gamma_generation_id=result["generation_id"], status="done")
     except Exception as e:
         db.update_landing_page(page_id, status="error", error=str(e))
+
+
+# ── Autopilot: fully automated recurring content generation + posting ───────
+# Pro & Agency feature. User describes a niche once; a background thread wakes
+# every 5 minutes, finds configs due for their next run, has Claude pick a
+# fresh non-repeating topic, runs it through the exact same pipeline as
+# manual /api/create, and — once the video is done — queues it into the
+# existing scheduled_posts system (the same one manual "schedule for later"
+# posts use) so it goes out across every connected platform at the configured
+# time. No further human input required after setup.
+
+_AUTOPILOT_DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _require_autopilot_tier():
+    if current_user.is_admin:
+        return None
+    if current_user.subscription_tier not in ("pro", "agency"):
+        return jsonify({"error": "Autopilot — fully automated content generation and posting — "
+                        "is a Pro & Agency feature. Upgrade to unlock it.",
+                        "upgrade": True}), 403
+    return None
+
+
+@app.route("/autopilot")
+@login_required
+def autopilot_page():
+    gate = _require_autopilot_tier()
+    if gate:
+        return redirect(url_for("billing.billing_page"))
+    configs = db.get_autopilot_configs(current_user.id)
+    accounts = db.get_accounts(user_id=current_user.id)
+    connected = sorted({a["platform"] for a in accounts if a.get("is_active")})
+    for c in configs:
+        c["platforms"] = json.loads(c.get("platforms") or "[]")
+        c["days_of_week"] = json.loads(c.get("days_of_week") or "[]")
+    return render_template("autopilot.html", configs=configs, connected_platforms=connected,
+                           day_names=_AUTOPILOT_DAY_NAMES, active_page="autopilot")
+
+
+@app.route("/api/autopilot", methods=["POST"])
+@login_required
+def api_autopilot_create():
+    gate = _require_autopilot_tier()
+    if gate:
+        return gate
+
+    data = request.json or {}
+    name = (data.get("name") or "").strip()
+    niche = (data.get("niche") or "").strip()
+    platforms = data.get("platforms") or []
+    days_of_week = [int(d) for d in (data.get("days_of_week") or [])]
+    post_time = (data.get("post_time") or "09:00").strip()
+    format = data.get("format") or "short"
+
+    if not name or not niche:
+        return jsonify({"error": "Name and niche/topic description are required"}), 400
+    if not platforms:
+        return jsonify({"error": "Select at least one platform to auto-post to"}), 400
+    if not days_of_week:
+        return jsonify({"error": "Select at least one day of the week"}), 400
+    try:
+        hour, minute = (int(p) for p in post_time.split(":"))
+        assert 0 <= hour <= 23 and 0 <= minute <= 59
+    except Exception:
+        return jsonify({"error": "post_time must be in HH:MM (24h, UTC) format"}), 400
+
+    from generators.autopilot_engine import compute_next_run_at
+    lead_minutes = 45
+    next_run = compute_next_run_at(days_of_week, post_time, lead_minutes)
+
+    config_id = db.create_autopilot_config(
+        user_id=current_user.id, name=name, niche=niche, format=format,
+        audience=data.get("audience") or "general public",
+        voice=data.get("voice") or config.DEFAULT_VOICE,
+        style=data.get("style") or "fire",
+        platforms=platforms, days_of_week=days_of_week, post_time=post_time,
+        lead_minutes=lead_minutes, next_run_at=next_run.isoformat(),
+    )
+    return jsonify({"config_id": config_id, "next_run_at": next_run.isoformat()})
+
+
+@app.route("/api/autopilot/<int:config_id>/toggle", methods=["POST"])
+@login_required
+def api_autopilot_toggle(config_id):
+    cfg = db.get_autopilot_config(config_id, user_id=current_user.id)
+    if not cfg:
+        return jsonify({"error": "Not found"}), 404
+    new_active = not cfg.get("active", True)
+    updates = {"active": new_active, "last_error": None}
+    if new_active:
+        from generators.autopilot_engine import compute_next_run_at
+        next_run = compute_next_run_at(
+            json.loads(cfg.get("days_of_week") or "[]"), cfg.get("post_time", "09:00"),
+            cfg.get("lead_minutes", 45),
+        )
+        updates["next_run_at"] = next_run.isoformat()
+    db.update_autopilot_config(config_id, **updates)
+    return jsonify({"ok": True, "active": new_active})
+
+
+@app.route("/api/autopilot/<int:config_id>", methods=["DELETE"])
+@login_required
+def api_autopilot_delete(config_id):
+    db.delete_autopilot_config(config_id, user_id=current_user.id)
+    return jsonify({"ok": True})
+
+
+def _autopilot_thread():
+    """Check for due Autopilot configs every 5 minutes and run them."""
+    while True:
+        try:
+            for cfg in db.get_due_autopilot_configs():
+                try:
+                    _process_autopilot_config(cfg)
+                except Exception as e:
+                    print(f"[autopilot] config #{cfg['id']} failed: {e}")
+                    try:
+                        db.update_autopilot_config(cfg["id"], last_error=str(e))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        time.sleep(300)
+
+
+def _process_autopilot_config(cfg: dict):
+    from generators.autopilot_engine import compute_next_run_at, generate_topic
+
+    user_id = cfg["user_id"]
+    user = db.get_user_by_id(user_id)
+    if not user:
+        db.update_autopilot_config(cfg["id"], active=False, last_error="User not found")
+        return
+
+    tier = user.get("subscription_tier", "free")
+    days_of_week = json.loads(cfg.get("days_of_week") or "[]")
+    post_time = cfg.get("post_time", "09:00")
+    lead_minutes = cfg.get("lead_minutes", 45)
+
+    # This run's target post time is this config's stored next_run_at (the
+    # generation kickoff time) plus its own lead time — NOT "now", so late
+    # sweeps don't drift the schedule the user actually configured.
+    run_at = datetime.fromisoformat(cfg["next_run_at"])
+    post_at = run_at + timedelta(minutes=lead_minutes)
+    # Advance the schedule immediately, independent of how long generation
+    # takes, so a slow render never delays the next cycle's due-check.
+    next_run = compute_next_run_at(days_of_week, post_time, lead_minutes, now=run_at)
+
+    if not user.get("is_admin") and tier not in ("pro", "agency"):
+        db.update_autopilot_config(cfg["id"], active=False,
+                                   last_error="Paused: Autopilot requires Pro or Agency.")
+        try:
+            send_notification(user_id, "autopilot_paused", {
+                "name": cfg.get("name"),
+                "reason": "Your plan no longer includes Autopilot (Pro or Agency required).",
+            })
+        except Exception:
+            pass
+        return
+
+    allowed, err = check_usage_gate(user_id)
+    if not allowed:
+        db.update_autopilot_config(cfg["id"], last_error=err, next_run_at=next_run.isoformat())
+        return
+
+    credits = db.get_user_credits(user_id)
+    cost = db.SO_CREDIT_COSTS.get("video_generate", 14)
+    balance = float(credits.get("balance", 0)) + float(credits.get("rollover_balance", 0))
+    if balance < cost:
+        db.update_autopilot_config(cfg["id"], last_error="Skipped this run: insufficient Social Optimize Credits.",
+                                   next_run_at=next_run.isoformat())
+        try:
+            send_notification(user_id, "autopilot_low_credits", {
+                "name": cfg.get("name"), "balance": balance, "needed": cost,
+            })
+        except Exception:
+            pass
+        return
+
+    recent_topics = json.loads(cfg.get("recent_topics") or "[]")
+    topic = generate_topic(cfg["niche"], recent_topics, tier)
+    recent_topics = (recent_topics + [topic])[-20:]
+
+    platforms = json.loads(cfg.get("platforms") or "[]")
+    job_id = db.create_job(
+        topic=topic, format=cfg.get("format", "short"), platforms=platforms,
+        audience=cfg.get("audience", "general public"),
+        voice=cfg.get("voice") or config.DEFAULT_VOICE,
+        style=cfg.get("style", "fire"), privacy="private", skip_research=False, user_id=user_id,
+    )
+    params = {
+        "topic": topic, "format": cfg.get("format", "short"), "platforms": platforms,
+        "audience": cfg.get("audience", "general public"),
+        "voice": cfg.get("voice") or config.DEFAULT_VOICE,
+        "thumbnail_style": cfg.get("style", "fire"), "privacy": "private",
+        "skip_research": False, "ai_model": "auto", "subscription_tier": tier,
+    }
+
+    db.update_autopilot_config(cfg["id"], last_run_at=datetime.utcnow().isoformat(),
+                               next_run_at=next_run.isoformat(), recent_topics=recent_topics,
+                               last_error=None)
+
+    t = threading.Thread(
+        target=_run_autopilot_job_and_schedule,
+        args=(cfg["id"], job_id, params, user_id, platforms, post_at.isoformat()),
+        daemon=True,
+    )
+    t.start()
+
+
+def _run_autopilot_job_and_schedule(config_id: int, job_id: int, params: dict, user_id: int,
+                                     platforms: list, post_at_iso: str):
+    """Run the generation job to completion, then — if it succeeded — queue a
+    scheduled_posts row per platform so the existing scheduler thread
+    publishes it at the configured time."""
+    _run_job_thread(job_id, params, user_id)
+    job = db.get_job(job_id)
+    if job and job.get("status") == "done" and job.get("video_path"):
+        for platform in platforms:
+            db.create_scheduled_post(user_id=user_id, job_id=job_id, platform=platform,
+                                     scheduled_at=post_at_iso)
+        db.update_autopilot_config(config_id, last_job_id=job_id)
+    else:
+        error = (job or {}).get("error_msg") or "Generation failed"
+        db.update_autopilot_config(config_id, last_error=f"Job #{job_id} failed: {error}")
 
 
 # ── The Cut ───────────────────────────────────────────────────────────────────

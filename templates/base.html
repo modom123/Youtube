@@ -88,6 +88,11 @@
       <a href="/ranking-studio" class="nav-item {% if active_page=='ranking' %}active{% endif %}" title="Ranking Studio — Top N / listicle videos via Gamma slide decks">
         <span class="icon">🏆</span> Ranking Studio
       </a>
+      {% if current_user.is_authenticated and (current_user.is_admin or current_user.subscription_tier in ('pro','agency')) %}
+      <a href="/autopilot" class="nav-item {% if active_page=='autopilot' %}active{% endif %}" title="Autopilot — Pro &amp; Agency: fully automated recurring content generation and posting">
+        <span class="icon">🤖</span> Autopilot
+      </a>
+      {% endif %}
       <a href="/templates-library" class="nav-item {% if active_page=='templates' %}active{% endif %}">
         <span class="icon">📁</span> Templates
       </a>

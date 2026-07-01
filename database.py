@@ -391,6 +391,29 @@ def init_db():
         )
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS autopilot_configs (
+            id              SERIAL PRIMARY KEY,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name            TEXT NOT NULL,
+            niche           TEXT NOT NULL,
+            format          TEXT DEFAULT 'short',
+            audience        TEXT DEFAULT 'general public',
+            voice           TEXT,
+            style           TEXT DEFAULT 'fire',
+            platforms       TEXT DEFAULT '[]',
+            days_of_week    TEXT DEFAULT '[]',
+            post_time       TEXT DEFAULT '09:00',
+            lead_minutes    INTEGER DEFAULT 45,
+            active          BOOLEAN DEFAULT TRUE,
+            next_run_at     TEXT,
+            last_run_at     TEXT,
+            last_job_id     INTEGER,
+            last_error      TEXT,
+            recent_topics   TEXT DEFAULT '[]',
+            created_at      TIMESTAMP DEFAULT NOW()
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS batch_jobs (
             id              TEXT PRIMARY KEY,
             user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -1977,6 +2000,68 @@ def get_due_scheduled_posts():
             LEFT JOIN jobs j ON j.id = sp.job_id
             WHERE sp.status = 'pending' AND sp.scheduled_at <= %s
         """, (now,)).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+# ── Autopilot: fully automated recurring content generation + posting ───────
+
+def create_autopilot_config(user_id: int, name: str, niche: str, format: str, audience: str,
+                             voice: str, style: str, platforms: list, days_of_week: list,
+                             post_time: str, lead_minutes: int, next_run_at: str) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO autopilot_configs
+                (user_id, name, niche, format, audience, voice, style, platforms,
+                 days_of_week, post_time, lead_minutes, next_run_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (user_id, name, niche, format, audience, voice, style, json.dumps(platforms),
+              json.dumps(days_of_week), post_time, lead_minutes, next_run_at))
+        return cur.fetchone()["id"]
+
+
+def get_autopilot_configs(user_id: int) -> list:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM autopilot_configs WHERE user_id=%s ORDER BY created_at DESC", (user_id,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_autopilot_config(config_id: int, user_id: int = None) -> dict:
+    with get_conn() as conn:
+        if user_id is not None:
+            row = conn.execute(
+                "SELECT * FROM autopilot_configs WHERE id=%s AND user_id=%s", (config_id, user_id)
+            ).fetchone()
+        else:
+            row = conn.execute("SELECT * FROM autopilot_configs WHERE id=%s", (config_id,)).fetchone()
+    return row_to_dict(row)
+
+
+def update_autopilot_config(config_id: int, **kwargs):
+    if not kwargs:
+        return
+    for k in ("platforms", "days_of_week", "recent_topics"):
+        if k in kwargs and isinstance(kwargs[k], (list, dict)):
+            kwargs[k] = json.dumps(kwargs[k])
+    cols = ", ".join(f"{k}=%s" for k in kwargs)
+    vals = list(kwargs.values()) + [config_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE autopilot_configs SET {cols} WHERE id=%s", vals)
+
+
+def delete_autopilot_config(config_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM autopilot_configs WHERE id=%s AND user_id=%s", (config_id, user_id))
+
+
+def get_due_autopilot_configs() -> list:
+    """Active autopilot configs whose next generation run is due now."""
+    now = datetime.utcnow().isoformat()
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM autopilot_configs WHERE active=TRUE AND next_run_at <= %s", (now,)
+        ).fetchall()
     return [row_to_dict(r) for r in rows]
 
 
