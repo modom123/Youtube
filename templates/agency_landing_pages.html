@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% set active_page = "landing_pages" %}
+
+{% block title %}Landing Pages — Social Optimize{% endblock %}
+{% block topbar_title %}🌐 Landing Pages{% endblock %}
+{% block topbar_sub %}Agency tier — auto-generate a real published website via Gamma for any client or campaign{% endblock %}
+
+{% block content %}
+<style>
+.lp-wrap { max-width: 780px; margin: 0 auto; padding: 24px; }
+.lp-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 20px; }
+.lp-field { margin-bottom: 16px; }
+.lp-field label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.lp-field input, .lp-field textarea, .lp-field select {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; color: var(--text); font-size: 14px; font-family: inherit;
+}
+.lp-field textarea { min-height: 90px; resize: vertical; }
+.lp-submit {
+  background: var(--accent, #d4a017); color: #000; border: none; border-radius: 8px;
+  padding: 12px 24px; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%;
+}
+.lp-submit:disabled { opacity: .6; cursor: not-allowed; }
+.lp-error { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
+.lp-list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.lp-list-item:last-child { border-bottom: none; }
+.lp-list-title { font-weight: 600; color: var(--text); }
+.lp-list-meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.lp-status { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.lp-status.done { background: rgba(34,197,94,.15); color: #22c55e; }
+.lp-status.processing { background: rgba(245,158,11,.15); color: #f59e0b; }
+.lp-status.error { background: rgba(239,68,68,.15); color: #ef4444; }
+.lp-visit { color: var(--accent, #d4a017); text-decoration: none; font-size: 13px; font-weight: 600; }
+</style>
+
+<div class="lp-wrap">
+  <div class="lp-card">
+    <div class="lp-field">
+      <label>Business / Product Name</label>
+      <input type="text" id="lp-name" placeholder="e.g. Acme Fitness Coaching">
+    </div>
+    <div class="lp-field">
+      <label>What do they do?</label>
+      <textarea id="lp-desc" placeholder="Describe the business, product, or campaign this landing page is for..."></textarea>
+    </div>
+    <div class="lp-field">
+      <label>Target Audience</label>
+      <input type="text" id="lp-audience" placeholder="e.g. busy professionals aged 25-45">
+    </div>
+    <div class="lp-field">
+      <label>Call to Action</label>
+      <input type="text" id="lp-cta" value="Get Started" placeholder="e.g. Book a Free Consult">
+    </div>
+    {% if clients %}
+    <div class="lp-field">
+      <label>Client (optional)</label>
+      <select id="lp-client">
+        <option value="">— None —</option>
+        {% for c in clients %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <button class="lp-submit" id="lp-submit" onclick="createLandingPage()">Generate Landing Page</button>
+    <div class="lp-error" id="lp-error"></div>
+  </div>
+
+  <div class="lp-card">
+    <h3 style="margin-top:0;">Your Landing Pages</h3>
+    <div id="lp-list">
+      {% for p in pages %}
+      <div class="lp-list-item" data-page-id="{{ p.id }}">
+        <div>
+          <div class="lp-list-title">{{ p.title }}{% if p.client_name %} <span style="color:var(--muted);font-weight:400;">— {{ p.client_name }}</span>{% endif %}</div>
+          <div class="lp-list-meta">{{ p.created_at|datefmt }}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          {% if p.status == 'done' and p.url %}
+          <a class="lp-visit" href="{{ p.url }}" target="_blank" rel="noopener">Visit site →</a>
+          {% endif %}
+          <span class="lp-status {{ p.status }}">{{ p.status }}</span>
+        </div>
+      </div>
+      {% else %}
+      <div style="color:var(--muted);padding:12px 0;">No landing pages yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+async function createLandingPage() {
+  const business_name = document.getElementById('lp-name').value.trim();
+  const description = document.getElementById('lp-desc').value.trim();
+  if (!business_name || !description) { showLpError('Business name and description are required.'); return; }
+
+  const btn = document.getElementById('lp-submit');
+  btn.disabled = true;
+  btn.textContent = 'Generating (this can take a minute)...';
+  document.getElementById('lp-error').style.display = 'none';
+
+  const clientEl = document.getElementById('lp-client');
+  const payload = {
+    business_name, description,
+    audience: document.getElementById('lp-audience').value.trim(),
+    cta: document.getElementById('lp-cta').value.trim(),
+    client_id: clientEl ? (clientEl.value || null) : null,
+  };
+
+  try {
+    const resp = await fetch('/api/agency/landing-pages', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload),
+    });
+    const result = await resp.json();
+    if (!resp.ok) { showLpError(result.error || 'Failed to start.'); resetLpBtn(); return; }
+    pollLandingPage(result.page_id);
+  } catch (e) {
+    showLpError('Network error: ' + e.message);
+    resetLpBtn();
+  }
+}
+
+async function pollLandingPage(pageId) {
+  try {
+    const resp = await fetch(`/api/agency/landing-pages/${pageId}/status`);
+    const page = await resp.json();
+    if (page.status === 'done' || page.status === 'error') {
+      resetLpBtn();
+      location.reload();
+      return;
+    }
+    setTimeout(() => pollLandingPage(pageId), 4000);
+  } catch (e) {
+    setTimeout(() => pollLandingPage(pageId), 6000);
+  }
+}
+
+function showLpError(msg) {
+  const el = document.getElementById('lp-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function resetLpBtn() {
+  const btn = document.getElementById('lp-submit');
+  btn.disabled = false;
+  btn.textContent = 'Generate Landing Page';
+}
+</script>
+{% endblock %}

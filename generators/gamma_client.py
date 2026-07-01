@@ -130,3 +130,71 @@ def generate_slide_deck(
     generation_id = create_generation(input_text, num_cards=num_cards, theme=theme)
     result = poll_generation(generation_id, max_wait=max_wait)
     return download_slide_images(result, output_dir)
+
+
+def create_website_generation(
+    input_text: str,
+    num_cards: int = 5,
+    theme: Optional[str] = None,
+) -> str:
+    """Start a Gamma website generation (format=webpage). Returns the
+    generationId. Unlike presentations, a webpage isn't exported as
+    images — it publishes to a live gamma.site URL (or custom domain)."""
+    payload = {
+        "inputText": input_text,
+        "numCards": num_cards,
+        "format": "webpage",
+        "textMode": "generate",
+        "cardSplit": "auto",
+    }
+    if theme:
+        payload["themeName"] = theme
+
+    resp = requests.post(
+        f"{config.GAMMA_API_BASE}/generations",
+        headers=_headers(),
+        json=payload,
+        timeout=60,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    generation_id = data.get("generationId")
+    if not generation_id:
+        raise RuntimeError(f"Gamma website generation did not return a generationId: {data}")
+    return generation_id
+
+
+def extract_published_url(result: dict) -> Optional[str]:
+    """Pull the live published URL out of a completed webpage generation
+    result. Field name isn't confirmed against real docs (blocked from
+    fetching them) — tries the plausible candidates and falls back to
+    the generic Gamma editor URL if only a gammaId/gammaUrl is present."""
+    for key in ("siteUrl", "publishedUrl", "url", "gammaUrl"):
+        val = result.get(key)
+        if val:
+            return val
+    nested = result.get("site") or result.get("publish") or {}
+    for key in ("url", "siteUrl", "publishedUrl"):
+        val = nested.get(key)
+        if val:
+            return val
+    gamma_id = result.get("gammaId") or result.get("id")
+    if gamma_id:
+        return f"https://gamma.app/docs/{gamma_id}"
+    return None
+
+
+def generate_website(
+    input_text: str,
+    num_cards: int = 5,
+    theme: Optional[str] = None,
+    max_wait: int = 300,
+) -> dict:
+    """End-to-end: create a Gamma website generation, wait for it, return
+    {generation_id, url, raw_result}."""
+    generation_id = create_website_generation(input_text, num_cards=num_cards, theme=theme)
+    result = poll_generation(generation_id, max_wait=max_wait)
+    url = extract_published_url(result)
+    if not url:
+        raise RuntimeError(f"Could not find a published URL in Gamma's response: {result}")
+    return {"generation_id": generation_id, "url": url, "raw_result": result}

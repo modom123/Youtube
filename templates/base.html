@@ -100,6 +100,11 @@
       <a href="/agency" class="nav-item {% if active_page=='agency' %}active{% endif %}" title="Agency Command Center — Clients, Deals, Projects, Revenue">
         <span class="icon">🏢</span> Agency
       </a>
+      {% if current_user.is_authenticated and (current_user.is_admin or current_user.subscription_tier=='agency') %}
+      <a href="/agency/landing-pages" class="nav-item {% if active_page=='landing_pages' %}active{% endif %}" title="Landing Pages — Agency-tier: generate a real published website via Gamma">
+        <span class="icon">🌐</span> Landing Pages
+      </a>
+      {% endif %}
       <a href="/crm" class="nav-item {% if active_page=='crm' %}active{% endif %}" title="CRM — Pipeline, Contacts, Companies, Activities, Tasks">
         <span class="icon">🗂️</span> CRM
       </a>

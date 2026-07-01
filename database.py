@@ -702,6 +702,20 @@ def init_db():
         )
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS agency_landing_pages (
+            id                SERIAL PRIMARY KEY,
+            user_id           INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            client_id         INTEGER REFERENCES agency_clients(id),
+            title             TEXT NOT NULL,
+            prompt            TEXT DEFAULT '',
+            url               TEXT DEFAULT '',
+            gamma_generation_id TEXT DEFAULT '',
+            status            TEXT DEFAULT 'processing',
+            error             TEXT DEFAULT '',
+            created_at        TIMESTAMP DEFAULT NOW()
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS agency_followups (
             id           SERIAL PRIMARY KEY,
             user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -3030,6 +3044,49 @@ def update_agency_asset(user_id, asset_id, data):
 def link_job_to_client(job_id, client_id, project_id=None):
     with get_conn() as conn:
         conn.execute("UPDATE jobs SET client_id=%s, project_id=%s WHERE id=%s", (client_id, project_id, job_id))
+
+
+# ── Agency Landing Pages (Gamma-generated) ────────────────────────────────────
+
+def create_landing_page(user_id, title, prompt, client_id=None):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO agency_landing_pages (user_id, client_id, title, prompt, status) "
+            "VALUES (%s,%s,%s,%s,'processing') RETURNING id",
+            (user_id, client_id, title, prompt),
+        )
+        return cur.fetchone()["id"]
+
+
+def update_landing_page(page_id, **fields):
+    allowed = {"url", "gamma_generation_id", "status", "error"}
+    keys = [k for k in fields if k in allowed]
+    if not keys:
+        return
+    sets = ", ".join(f"{k}=%s" for k in keys)
+    vals = [fields[k] for k in keys] + [page_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE agency_landing_pages SET {sets} WHERE id=%s", vals)
+
+
+def get_landing_pages(user_id, client_id=None):
+    with get_conn() as conn:
+        q = ("SELECT lp.*, c.name as client_name FROM agency_landing_pages lp "
+             "LEFT JOIN agency_clients c ON lp.client_id=c.id WHERE lp.user_id=%s")
+        params = [user_id]
+        if client_id:
+            q += " AND lp.client_id=%s"
+            params.append(client_id)
+        q += " ORDER BY lp.created_at DESC"
+        return [row_to_dict(r) for r in conn.execute(q, params).fetchall()]
+
+
+def get_landing_page(user_id, page_id):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM agency_landing_pages WHERE user_id=%s AND id=%s", (user_id, page_id)
+        ).fetchone()
+        return row_to_dict(row) if row else None
 
 
 # ── Agency Follow-ups ────────────────────────────────────────────────────────

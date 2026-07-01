@@ -8261,6 +8261,80 @@ def _run_ranking_thread(job_id: str, job_config: dict):
         }
 
 
+# ── Agency Landing Pages (Gamma-generated, Agency tier) ──────────────────────
+
+def _require_agency_tier():
+    if current_user.is_admin:
+        return None
+    if current_user.subscription_tier != "agency":
+        return jsonify({"error": "Landing pages are an Agency-tier feature. Upgrade to unlock.",
+                        "upgrade": True}), 403
+    return None
+
+
+@app.route("/agency/landing-pages")
+@login_required
+def agency_landing_pages_page():
+    gate = _require_agency_tier()
+    if gate:
+        return redirect(url_for("billing.billing_page"))
+    pages = db.get_landing_pages(current_user.id)
+    clients = db.get_agency_clients(current_user.id)
+    return render_template("agency_landing_pages.html", pages=pages, clients=clients, active_page="landing_pages")
+
+
+@app.route("/api/agency/landing-pages", methods=["POST"])
+@login_required
+def api_agency_landing_page_create():
+    gate = _require_agency_tier()
+    if gate:
+        return gate
+
+    data = request.json or {}
+    business_name = (data.get("business_name") or "").strip()
+    description = (data.get("description") or "").strip()
+    audience = (data.get("audience") or "general audience").strip()
+    cta = (data.get("cta") or "Get Started").strip()
+    client_id = data.get("client_id") or None
+
+    if not business_name or not description:
+        return jsonify({"error": "Business name and description are required"}), 400
+
+    prompt = (
+        f"Create a high-converting landing page for {business_name}.\n\n"
+        f"What they do: {description}\n"
+        f"Target audience: {audience}\n"
+        f"Primary call-to-action: {cta}\n\n"
+        f"Include a strong hero section, key benefits/features, social proof section, "
+        f"and a clear CTA. Professional, modern design."
+    )
+
+    page_id = db.create_landing_page(current_user.id, business_name, prompt, client_id=client_id)
+
+    t = threading.Thread(target=_run_landing_page_thread, args=(page_id, prompt), daemon=True)
+    t.start()
+    return jsonify({"page_id": page_id})
+
+
+@app.route("/api/agency/landing-pages/<int:page_id>/status")
+@login_required
+def api_agency_landing_page_status(page_id):
+    page = db.get_landing_page(current_user.id, page_id)
+    if not page:
+        return jsonify({"error": "Landing page not found"}), 404
+    return jsonify(page)
+
+
+def _run_landing_page_thread(page_id: int, prompt: str):
+    from generators import gamma_client
+    try:
+        result = gamma_client.generate_website(prompt, num_cards=5)
+        db.update_landing_page(page_id, url=result["url"],
+                               gamma_generation_id=result["generation_id"], status="done")
+    except Exception as e:
+        db.update_landing_page(page_id, status="error", error=str(e))
+
+
 # ── The Cut ───────────────────────────────────────────────────────────────────
 
 _editing_jobs: dict = {}
