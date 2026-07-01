@@ -5928,6 +5928,301 @@ def api_engagement_campaign_execute(campaign_id):
     return jsonify({"ok": True, "executed": executed})
 
 
+# ── Podcast Studio ────────────────────────────────────────────────────────────
+
+_podcast_jobs: dict = {}
+_podcast_lock = threading.Lock()
+
+
+@app.route("/podcast-studio")
+@login_required
+def podcast_studio():
+    return render_template("podcast_studio.html", voices=config.VOICE_CATALOG,
+                           active_page="podcast")
+
+
+def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
+    import uuid as _uuid
+    from generators import script_generator, audio_generator
+
+    def _push(data):
+        with _podcast_lock:
+            if pod_job_id in _podcast_jobs:
+                _podcast_jobs[pod_job_id].update(data)
+
+    try:
+        _push({"status": "running", "progress": 5, "step": "Writing script…"})
+
+        # ── 1. Script ──────────────────────────────────────────────────────
+        topic       = params.get("topic", "")
+        show_name   = params.get("show_name", "My Podcast")
+        episode_num = params.get("episode_number", 1)
+        guest       = params.get("guest_name", "")
+        duration    = int(params.get("duration_minutes", 15))
+        style       = params.get("style", "Educational")
+        audience    = params.get("audience", "general public")
+        voice_id    = params.get("voice_id", "")
+        context     = params.get("context", "")
+
+        script_result = script_generator.generate_script(
+            topic=topic,
+            format="podcast",
+            audience=audience,
+            podcast_name=show_name,
+            episode_number=episode_num,
+            guest_name=guest,
+            podcast_duration=duration,
+            style=style,
+            context=context,
+        )
+        script_text = script_result.get("script", "") if isinstance(script_result, dict) else str(script_result)
+        title       = script_result.get("title", topic) if isinstance(script_result, dict) else topic
+        description = script_result.get("description", "") if isinstance(script_result, dict) else ""
+        show_notes  = script_result.get("show_notes", description) if isinstance(script_result, dict) else description
+        chapters    = script_result.get("chapters", []) if isinstance(script_result, dict) else []
+
+        _push({"progress": 35, "step": "Generating audio…", "title": title})
+
+        # ── 2. Audio ───────────────────────────────────────────────────────
+        out_dir  = os.path.join("static", "outputs", "podcasts", pod_job_id)
+        os.makedirs(out_dir, exist_ok=True)
+        audio_path = os.path.join(out_dir, "episode.mp3")
+
+        audio_generator.generate_audio(
+            script=script_text,
+            output_path=audio_path,
+            voice_id=voice_id or None,
+        )
+        _push({"progress": 65, "step": "Creating audiogram video…"})
+
+        # ── 3. Audiogram video ─────────────────────────────────────────────
+        video_path = None
+        try:
+            from generators.video_generator import create_podcast_video
+            video_out  = os.path.join(out_dir, "audiogram.mp4")
+            create_podcast_video(
+                audio_path=audio_path,
+                script=script_text,
+                podcast_name=show_name,
+                episode_number=episode_num,
+                output_path=video_out,
+            )
+            if os.path.exists(video_out):
+                video_path = video_out
+        except Exception as ve:
+            app.logger.warning("Audiogram generation skipped: %s", ve)
+
+        _push({"progress": 90, "step": "Finalising…"})
+
+        # ── 4. Persist job ─────────────────────────────────────────────────
+        db_job_id = db.create_job(
+            user_id=user_id,
+            topic=topic,
+            format="podcast",
+            status="done",
+            title=title,
+        )
+        db.update_job(
+            db_job_id,
+            video_path=video_path or audio_path,
+            status="done",
+            description=description,
+        )
+
+        _push({
+            "status": "done",
+            "progress": 100,
+            "step": "Done!",
+            "title": title,
+            "description": description,
+            "show_notes": show_notes,
+            "chapters": chapters,
+            "audio_path": audio_path,
+            "video_path": video_path,
+            "db_job_id": db_job_id,
+        })
+
+    except Exception as exc:
+        app.logger.exception("Podcast job %s failed", pod_job_id)
+        with _podcast_lock:
+            if pod_job_id in _podcast_jobs:
+                _podcast_jobs[pod_job_id].update({"status": "error", "step": str(exc)})
+
+
+def _run_podcast_upload_thread(pod_job_id: str, params: dict, audio_path: str, user_id: int):
+    from generators import audio_generator
+
+    def _push(data):
+        with _podcast_lock:
+            if pod_job_id in _podcast_jobs:
+                _podcast_jobs[pod_job_id].update(data)
+
+    try:
+        topic     = params.get("topic", os.path.basename(audio_path))
+        show_name = params.get("show_name", "My Podcast")
+        ep_num    = params.get("episode_number", 1)
+
+        _push({"status": "running", "progress": 20, "step": "Analysing audio…"})
+
+        # generate show notes from transcript via AI
+        try:
+            transcript = audio_generator.transcribe_audio(audio_path)
+        except Exception:
+            transcript = ""
+
+        show_notes = transcript[:2000] if transcript else "(Transcript unavailable)"
+        _push({"progress": 60, "step": "Creating audiogram…"})
+
+        video_path = None
+        try:
+            from generators.video_generator import create_podcast_video
+            out_dir   = os.path.dirname(audio_path)
+            video_out = os.path.join(out_dir, "audiogram.mp4")
+            create_podcast_video(
+                audio_path=audio_path,
+                script=transcript,
+                podcast_name=show_name,
+                episode_number=ep_num,
+                output_path=video_out,
+            )
+            if os.path.exists(video_out):
+                video_path = video_out
+        except Exception as ve:
+            app.logger.warning("Audiogram skipped: %s", ve)
+
+        _push({"progress": 90, "step": "Saving…"})
+
+        db_job_id = db.create_job(user_id=user_id, topic=topic, format="podcast", status="done", title=topic)
+        db.update_job(db_job_id, video_path=video_path or audio_path, status="done")
+
+        _push({
+            "status": "done", "progress": 100, "step": "Done!",
+            "title": topic, "show_notes": show_notes, "chapters": [],
+            "audio_path": audio_path, "video_path": video_path, "db_job_id": db_job_id,
+        })
+    except Exception as exc:
+        app.logger.exception("Podcast upload job %s failed", pod_job_id)
+        with _podcast_lock:
+            if pod_job_id in _podcast_jobs:
+                _podcast_jobs[pod_job_id].update({"status": "error", "step": str(exc)})
+
+
+@app.route("/api/podcast/generate", methods=["POST"])
+@login_required
+def api_podcast_generate():
+    import uuid as _uuid
+    data = request.json or {}
+    pod_job_id = str(_uuid.uuid4())
+    with _podcast_lock:
+        _podcast_jobs[pod_job_id] = {"status": "running", "progress": 0, "step": "Queued…"}
+    threading.Thread(
+        target=_run_podcast_thread,
+        args=(pod_job_id, data, current_user.id),
+        daemon=True,
+    ).start()
+    return jsonify({"job_id": pod_job_id})
+
+
+@app.route("/api/podcast/upload", methods=["POST"])
+@login_required
+def api_podcast_upload():
+    import uuid as _uuid
+    f = request.files.get("audio")
+    if not f:
+        return jsonify({"error": "No audio file"}), 400
+    pod_job_id = str(_uuid.uuid4())
+    out_dir    = os.path.join("static", "outputs", "podcasts", pod_job_id)
+    os.makedirs(out_dir, exist_ok=True)
+    safe_name  = "upload" + os.path.splitext(f.filename or ".mp3")[1]
+    audio_path = os.path.join(out_dir, safe_name)
+    f.save(audio_path)
+    params = {
+        "show_name":      request.form.get("show_name", "My Podcast"),
+        "topic":          request.form.get("title", os.path.splitext(f.filename or "")[0]),
+        "episode_number": request.form.get("episode_number", 1),
+    }
+    with _podcast_lock:
+        _podcast_jobs[pod_job_id] = {"status": "running", "progress": 0, "step": "Queued…"}
+    threading.Thread(
+        target=_run_podcast_upload_thread,
+        args=(pod_job_id, params, audio_path, current_user.id),
+        daemon=True,
+    ).start()
+    return jsonify({"job_id": pod_job_id})
+
+
+@app.route("/api/podcast/<pod_job_id>/status")
+@login_required
+def api_podcast_status(pod_job_id):
+    with _podcast_lock:
+        job = _podcast_jobs.get(pod_job_id)
+    if not job:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(job)
+
+
+@app.route("/api/podcast/<pod_job_id>/download/audio")
+@login_required
+def api_podcast_download_audio(pod_job_id):
+    with _podcast_lock:
+        job = _podcast_jobs.get(pod_job_id, {})
+    path = job.get("audio_path")
+    if not path or not os.path.exists(path):
+        return jsonify({"error": "not found"}), 404
+    return send_file(path, as_attachment=True,
+                     download_name=os.path.basename(path))
+
+
+@app.route("/api/podcast/<pod_job_id>/download/video")
+@login_required
+def api_podcast_download_video(pod_job_id):
+    with _podcast_lock:
+        job = _podcast_jobs.get(pod_job_id, {})
+    path = job.get("video_path")
+    if not path or not os.path.exists(path):
+        return jsonify({"error": "not found"}), 404
+    return send_file(path, as_attachment=True,
+                     download_name=os.path.basename(path))
+
+
+@app.route("/api/podcast/<pod_job_id>/publish", methods=["POST"])
+@login_required
+def api_podcast_publish(pod_job_id):
+    import social_optimize as _so
+    with _podcast_lock:
+        job = _podcast_jobs.get(pod_job_id, {})
+    if job.get("status") != "done":
+        return jsonify({"error": "not ready"}), 400
+
+    data      = request.json or {}
+    platform  = data.get("platform", "")
+    caption   = data.get("caption", job.get("title", ""))
+    schedule  = data.get("schedule_at")
+    video_path = job.get("video_path") or job.get("audio_path")
+
+    if schedule:
+        stub_id  = db.create_job(user_id=current_user.id, topic=caption, format="podcast",
+                                 status="done", title=caption)
+        db.update_job(stub_id, video_path=video_path, status="done")
+        post_id  = db.create_scheduled_post(user_id=current_user.id, job_id=stub_id,
+                                            platform=platform, scheduled_at=schedule)
+        return jsonify({"ok": True, "scheduled": True, "post_id": post_id})
+
+    try:
+        results  = _so.publish_to_platforms(
+            video_path=video_path,
+            title=caption[:100],
+            description=caption,
+            hashtags=[],
+            keywords=[],
+            platforms=[platform],
+            privacy="public",
+        )
+        return jsonify({"ok": True, "posted": True, "result": results.get(platform, {})})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 # ── The Cut ───────────────────────────────────────────────────────────────────
 
 _editing_jobs: dict = {}

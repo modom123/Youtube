@@ -80,10 +80,10 @@
           <div class="format-desc">Deep-dive YouTube video · 8 minutes</div>
           <span class="format-badge badge-blue">16:9 Landscape</span>
         </div>
-        <div class="format-card" data-format="podcast" onclick="selectFormat(this,'podcast')">
-          <div class="format-name">Podcast Episode</div>
-          <div class="format-desc">Conversational audio+visual · 10 min</div>
-          <span class="format-badge badge-green">16:9 Landscape</span>
+        <div class="format-card" onclick="window.location.href='/podcast-studio'" style="border-color:#a855f755;">
+          <div class="format-name">🎙️ Podcast</div>
+          <div class="format-desc">Full podcast studio → dedicated tool</div>
+          <span class="format-badge" style="background:#a855f720;color:#a855f7;">Podcast Studio</span>
         </div>
         <div class="format-card" data-format="countdown" onclick="selectFormat(this,'countdown')" style="border-color:#22d3ee55;">
           <div class="format-name" style="color:#22d3ee;">🏆 Top N Countdown</div>
@@ -158,52 +158,6 @@
           </div>
           {% endfor %}
         </div>
-      </div>
-    </div>
-
-    <!-- Podcast Settings (shown only when podcast format selected) -->
-    <div class="card" id="podcastPanel" style="display:none;border-color:#a855f7;">
-      <div class="card-title mb-16">
-        <span class="accent" style="color:#a855f7;">🎙️</span> Podcast Settings
-      </div>
-      <div class="form-group">
-        <label>Show / Podcast Name</label>
-        <input type="text" id="podcast_name" placeholder="e.g. The Wealth Builder Podcast">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="form-group">
-          <label>Episode Number</label>
-          <input type="number" id="episode_number" value="1" min="1" max="9999" style="width:100%;">
-        </div>
-        <div class="form-group">
-          <label>Guest Name <span class="text-dim text-xs">(optional)</span></label>
-          <input type="text" id="guest_name" placeholder="e.g. John Smith">
-        </div>
-      </div>
-      <div class="form-group mt-8">
-        <label>Episode Length</label>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;" id="podcastDurationGrid">
-          <div class="format-card" data-pdur="900" onclick="selectPodcastDuration(this,900)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
-            <div style="font-size:15px;font-weight:800;">15 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Daily briefing</div>
-          </div>
-          <div class="format-card selected" data-pdur="1800" onclick="selectPodcastDuration(this,1800)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
-            <div style="font-size:15px;font-weight:800;">30 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Standard episode</div>
-          </div>
-          <div class="format-card" data-pdur="3600" onclick="selectPodcastDuration(this,3600)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
-            <div style="font-size:15px;font-weight:800;">60 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Full interview</div>
-          </div>
-          <div class="format-card" data-pdur="5400" onclick="selectPodcastDuration(this,5400)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
-            <div style="font-size:15px;font-weight:800;">90 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Deep dive</div>
-          </div>
-        </div>
-        <input type="hidden" id="podcast_duration" value="1800">
-      </div>
-      <div class="text-dim text-xs mt-8">
-        The podcast video will include an animated equalizer, chapter markers, and a progress bar.
       </div>
     </div>
 
@@ -495,7 +449,7 @@
     <!-- BLITZ Mode -->
     <div class="card" style="border-color:var(--red);background:var(--red-glow);">
       <div class="card-title mb-8"><span class="accent glow-red">🔥</span> BLITZ Mode</div>
-      <div class="text-dim text-sm mb-16">Create all 3 formats simultaneously (short + long + podcast) and publish everywhere at once.</div>
+      <div class="text-dim text-sm mb-16">Create all 3 formats simultaneously (short + long + reel) and publish everywhere at once.</div>
       <button class="btn btn-primary btn-block" onclick="startBlitz()">
         🔥 Launch BLITZ — All Formats
       </button>
@@ -560,7 +514,7 @@ const CONTENT_TEMPLATES = [
   { emoji:'💼', label:'Business Tips',   topic:'',    format:'long',      tone:'professional','audience':'entrepreneurs and professionals', instructions:'Data-driven. Include case studies and actionable takeaways.',              placeholder:'e.g. 7 habits of the most productive CEOs' },
   { emoji:'😂', label:'Comedy Short',    topic:'',    format:'short',     tone:'humorous',    audience:'general public',      instructions:'Subvert expectations. Timing is everything. End with a punchline.',                       placeholder:'e.g. Things that make no sense about modern life' },
   { emoji:'✨', label:'Motivational',    topic:'',    format:'reel',      tone:'inspirational','audience':'people wanting growth', instructions:'Personal story arc. Emotional build-up. Powerful CTA at end.',                    placeholder:'e.g. The mindset shift that changed everything for me' },
-  { emoji:'🎙️', label:'Podcast Ep',     topic:'',    format:'podcast',   tone:'casual',      audience:'general public',      instructions:'Conversational tone. Three key chapters. Strong listener CTA at end.',                   placeholder:'e.g. The untold story of how Nike almost went bankrupt' },
+  { emoji:'🎙️', label:'Podcast Ep',     topic:'',    format:'podcast',   tone:'casual',      audience:'general public',      instructions:'Conversational tone. Three key chapters. Strong listener CTA at end.',                   placeholder:'e.g. The untold story of how Nike almost went bankrupt', redirect:'/podcast-studio' },
   { emoji:'🛍️', label:'Product Review', topic:'',    format:'short',     tone:'casual',      audience:'buyers researching products', instructions:'Pros and cons. Personal experience. Would you buy it again?',                  placeholder:'e.g. Honest review: Tesla Model 3 after 2 years' },
   { emoji:'📊', label:'Finance/Stats',   topic:'',    format:'long',      tone:'educational', audience:'investors aged 25-45', instructions:'Use real data and charts. Be honest about risks.',                                   placeholder:'e.g. Why 90% of traders lose money' },
   { emoji:'🌍', label:'Documentary',     topic:'',    format:'long',      tone:'professional','audience':'curious adults',     instructions:'Storytelling structure. Build narrative arc. Use vivid scene descriptions.',           placeholder:'e.g. The rise and fall of Blockbuster Video' },
@@ -582,13 +536,12 @@ function renderTemplates() {
 
 function applyTemplate(idx) {
   const t = CONTENT_TEMPLATES[idx];
+  if (t.redirect) { window.location.href = t.redirect; return; }
   if (t.placeholder) document.getElementById('topic').placeholder = t.placeholder;
   if (t.audience) document.getElementById('audience').value = t.audience;
   if (t.instructions) document.getElementById('instructions').value = t.instructions;
-  // Select format
   const fmtEl = document.querySelector(`.format-card[data-format="${t.format}"]`);
   if (fmtEl) { selectFormat(fmtEl, t.format); }
-  // Select tone
   const toneEl = document.querySelector(`#tone-grid .format-card[data-tone="${t.tone}"]`);
   if (toneEl) { selectTone(toneEl, t.tone); }
   toast('info', t.emoji + ' ' + t.label, 'Template applied — add your topic and hit Generate!');
@@ -599,7 +552,6 @@ function selectFormat(el, fmt) {
   document.querySelectorAll('.format-card[data-format]').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   _format = fmt;
-  document.getElementById('podcastPanel').style.display = (fmt === 'podcast') ? '' : 'none';
   document.getElementById('commercialPanel').style.display = (fmt === 'commercial') ? '' : 'none';
   document.getElementById('documentaryPanel').style.display = (fmt === 'documentary') ? '' : 'none';
   document.getElementById('animationPanel').style.display = (fmt === 'animation') ? '' : 'none';
@@ -748,16 +700,13 @@ async function startCreate() {
     ai_model: _aiModelEl ? _aiModelEl.value : 'claude',
     ai_video_provider: document.getElementById('ai_video_provider').value,
     higgsfield_model: document.getElementById('higgsfield_model').value,
-    podcast_name: document.getElementById('podcast_name').value || topic,
-    episode_number: parseInt(document.getElementById('episode_number').value) || 1,
-    guest_name: document.getElementById('guest_name').value || '',
     target_duration: _format === 'commercial'
       ? parseInt(document.getElementById('ad_duration').value) || 30
       : _format === 'documentary'
       ? parseInt(document.getElementById('doc_duration').value) || 900
       : _format === 'animation'
       ? parseInt(document.getElementById('animation_duration').value) || 60
-      : parseInt(document.getElementById('podcast_duration').value) || 1800,
+      : 1800,
     // Commercial-specific fields
     ad_format: _format === 'commercial' ? document.getElementById('ad_format').value : null,
     ad_brand: document.getElementById('ad_brand').value || '',
@@ -779,7 +728,7 @@ async function startBlitz() {
   const topic = document.getElementById('topic').value.trim();
   if (!topic) { toast('error', 'Topic Required', 'Please enter a topic.'); return; }
   toast('info', 'BLITZ Mode', 'Creating all formats — this will take a few minutes...');
-  for (const fmt of ['short', 'long', 'podcast']) {
+  for (const fmt of ['short', 'long', 'reel']) {
     await launchJob({
       topic,
       format: fmt,
