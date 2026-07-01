@@ -1104,15 +1104,16 @@ def init_db():
             pass  # already exists
         # Seed/update default packages — credit amounts sized so $/credit
         # protects a 75% gross margin against real Higgsfield cost
-        # ($0.0556/credit base rate, see config.HIGGSFIELD_COST_PER_CREDIT_BASE).
-        # Same price points as before; credit amounts corrected from an
-        # unpriced guess (500-15,000cr) to real cost-covering amounts.
+        # ($0.0556/credit base rate, see config.HIGGSFIELD_COST_PER_CREDIT_BASE),
+        # rounded to clean numbers (72-75% margin band) rather than exact
+        # decimals. Same price points as before; credit amounts corrected
+        # from an unpriced guess (500-15,000cr) to real cost-covering amounts.
         conn.execute("""
         INSERT INTO so_credit_packages (name, credits, price_usd, bonus_pct)
         VALUES
-            ('Starter Pack',  22,   4.99, 0),
-            ('Growth Pack',   67,  14.99, 0),
-            ('Pro Pack',     123,  29.99, 10),
+            ('Starter Pack',  25,   4.99, 0),
+            ('Growth Pack',   70,  14.99, 0),
+            ('Pro Pack',     125,  29.99, 10),
             ('Agency Pack',  300,  79.99, 20)
         ON CONFLICT (name) DO UPDATE SET
             credits=EXCLUDED.credits, price_usd=EXCLUDED.price_usd, bonus_pct=EXCLUDED.bonus_pct
