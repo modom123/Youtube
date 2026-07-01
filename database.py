@@ -1102,19 +1102,19 @@ def init_db():
             )
         except Exception:
             pass  # already exists
-        # Seed/update default packages — credit amounts sized so $/credit
-        # protects a 75% gross margin against real Higgsfield cost
-        # ($0.0556/credit base rate, see config.HIGGSFIELD_COST_PER_CREDIT_BASE),
-        # rounded to clean numbers (72-75% margin band) rather than exact
-        # decimals. Same price points as before; credit amounts corrected
-        # from an unpriced guess (500-15,000cr) to real cost-covering amounts.
+        # Seed/update default packages — credit amounts sized to roughly
+        # protect gross margin against real Higgsfield cost ($0.0556/credit
+        # base rate, see config.HIGGSFIELD_COST_PER_CREDIT_BASE). Pro/Agency
+        # Pack sizes are a deliberate business call (69%/67% margin, below
+        # the 75% target but still solidly profitable) rather than the
+        # strict 75%-margin-derived amount. Same price points as before.
         conn.execute("""
         INSERT INTO so_credit_packages (name, credits, price_usd, bonus_pct)
         VALUES
             ('Starter Pack',  25,   4.99, 0),
             ('Growth Pack',   70,  14.99, 0),
-            ('Pro Pack',     125,  29.99, 10),
-            ('Agency Pack',  300,  79.99, 20)
+            ('Pro Pack',     150,  29.99, 10),
+            ('Agency Pack',  400,  79.99, 20)
         ON CONFLICT (name) DO UPDATE SET
             credits=EXCLUDED.credits, price_usd=EXCLUDED.price_usd, bonus_pct=EXCLUDED.bonus_pct
         """)
