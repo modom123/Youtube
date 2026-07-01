@@ -378,18 +378,99 @@ def quickpost_publish(job_id):
         return jsonify({"error": "Post not ready"}), 400
 
     media_path = result.get("media_path")
+
     if schedule:
-        post_id = db.schedule_post(
+        stub_job_id = db.create_job(
+            topic=caption[:120], format="quickpost",
+            platforms=[platform], audience="", voice="", style="", privacy="public",
             user_id=current_user.id,
+        )
+        db.update_job(stub_job_id, video_path=media_path, status="done", progress=100,
+                      title=caption[:120])
+        post_id = db.create_scheduled_post(
+            user_id=current_user.id,
+            job_id=stub_job_id,
             platform=platform,
-            caption=caption,
-            media_path=media_path,
             scheduled_at=schedule,
         )
         return jsonify({"ok": True, "scheduled": True, "post_id": post_id})
 
-    return jsonify({"ok": True, "queued": True,
-                    "message": f"Post queued for {platform}. Connect your account to publish."})
+    # Post now — call the actual publisher
+    import social_optimize as _so
+    ext = result.get("ext", "")
+    is_video = ext in {"mp4", "mov", "avi", "webm"}
+    try:
+        if is_video:
+            pub_results = _so.publish_to_platforms(
+                video_path=media_path,
+                title=caption[:100],
+                description=caption,
+                hashtags=[],
+                keywords=[],
+                platforms=[platform],
+                privacy="public",
+            )
+            pub_result = pub_results.get(platform, {})
+        else:
+            pub_result = _quickpost_publish_image(platform, media_path, caption, current_user.id)
+        return jsonify({"ok": True, "posted": True, "result": pub_result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def _quickpost_publish_image(platform: str, media_path: str, caption: str, user_id: int) -> dict:
+    """Post a static image to the given platform using stored account credentials."""
+    accounts = db.get_accounts(user_id=user_id)
+    account = next((a for a in accounts if a["platform"] == platform and a["is_active"]), None)
+    token = account["access_token"] if account else None
+
+    import mimetypes
+    mime = mimetypes.guess_type(media_path)[0] or "image/jpeg"
+
+    if platform == "twitter":
+        from publishers import twitter_publisher
+        import requests as _req
+        auth = twitter_publisher._get_auth()
+        with open(media_path, "rb") as fh:
+            img_bytes = fh.read()
+        upload_resp = _req.post(
+            "https://upload.twitter.com/1.1/media/upload.json",
+            files={"media": img_bytes},
+            auth=auth,
+            timeout=60,
+        )
+        upload_resp.raise_for_status()
+        media_id = upload_resp.json()["media_id_string"]
+        tweet_resp = _req.post(
+            "https://api.twitter.com/2/tweets",
+            json={"text": caption[:280], "media": {"media_ids": [media_id]}},
+            auth=auth,
+            headers={"Content-Type": "application/json"},
+            timeout=30,
+        )
+        tweet_resp.raise_for_status()
+        tweet_id = tweet_resp.json().get("data", {}).get("id")
+        return {"platform": "twitter", "tweet_id": tweet_id,
+                "url": f"https://twitter.com/i/web/status/{tweet_id}"}
+
+    if platform == "facebook" and token:
+        import requests as _req
+        resp = _req.post(
+            "https://graph.facebook.com/v19.0/me/photos",
+            data={"caption": caption, "access_token": token},
+            files={"source": (media_path, open(media_path, "rb"), mime)},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return {"platform": "facebook", "post_id": resp.json().get("id")}
+
+    # Platforms requiring CDN URL (Instagram, TikTok, Threads, etc.)
+    return {
+        "platform": platform,
+        "status": "manual_required",
+        "reason": f"{platform} image posts require a public URL. Caption is ready — copy it and upload manually.",
+        "caption": caption,
+    }
 
 
 def _run_quickpost_thread(job_id: str, params: dict, user_id: int):
