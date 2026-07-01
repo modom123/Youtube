@@ -950,11 +950,14 @@ async function loadHealth() {
     let alertHTML = '';
     if (!a.alerts.length) alertHTML = '<div class="mon-empty">No alerts</div>';
     a.alerts.forEach(al => {
+        const isResolved = al.status === 'resolved';
         alertHTML += `<div class="mon-alert-item ${al.severity}">
-            <div style="flex:1"><strong>${al.alert_type}</strong>: ${al.message}
+            <div style="flex:1">
+                <strong>${al.alert_type}</strong>${al.source_agent ? ` <span style="color:var(--mon-muted);font-size:11px;">(${al.source_agent})</span>` : ''}: ${al.message}
+                ${al.suggested_action ? `<div style="color:var(--mon-amber);font-size:12px;margin-top:4px;">&#8594; ${al.suggested_action}</div>` : ''}
                 <div style="color:var(--mon-muted);font-size:11px;margin-top:2px">${(al.created_at||'').slice(0,16)}</div>
             </div>
-            ${!al.acknowledged ? `<button class="mon-btn mon-btn-sm mon-btn-outline" onclick="ackAlert(${al.id})">Ack</button>` : '<span class="mon-badge green">Acked</span>'}
+            ${isResolved ? '<span class="mon-badge green">Resolved</span>' : `<button class="mon-btn mon-btn-sm mon-btn-outline" onclick="resolveAlert(${al.id})">Resolve</button>`}
         </div>`;
     });
     document.getElementById('alerts-list').innerHTML = alertHTML;
@@ -1081,6 +1084,7 @@ async function addChangelog() {
 }
 
 async function ackAlert(id) { await apiPost('/alerts/'+id+'/ack', {}); loadHealth(); }
+async function resolveAlert(id) { await apiPost('/alerts/'+id+'/resolve', {}); loadHealth(); }
 
 // ═══ PROFITABLE FORMULA ═══
 function updVal(id, pre, suf) {

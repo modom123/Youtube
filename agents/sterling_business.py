@@ -161,7 +161,8 @@ def _compute_unit_economics():
         bus.log_msg(AGENT_NAME, f"ALERT: Gross margin {gross_margin:.1f}% below 75% target", "warning")
         _create_monetizer_alert("margin_compression",
                                 f"Gross margin dropped to {gross_margin:.1f}% — below 75% target. Review API costs and tier pricing.",
-                                gross_margin, 75)
+                                gross_margin, 75,
+                                suggested_action="Check the Higgsfield/Anthropic cost breakdown and consider raising tier prices or credit pack rates.")
 
     return economics
 
@@ -210,7 +211,8 @@ def _check_free_tier_surge():
                     "warning")
         _create_monetizer_alert("free_tier_surge",
                                 f"{new_free} free signups this week but only {new_paying} converted. Consider tightening free tier limits.",
-                                new_free, 50)
+                                new_free, 50,
+                                suggested_action="Review free-tier video cap and onboarding funnel; consider a time-limited upgrade nudge.")
 
 
 def _audit_cost_centers():
@@ -261,12 +263,14 @@ def _audit_cost_centers():
             pass
 
 
-def _create_monetizer_alert(alert_type, message, value, threshold):
+def _create_monetizer_alert(alert_type, message, value, threshold, suggested_action=None):
     try:
         with db.get_conn() as conn:
             conn.execute(
-                "INSERT INTO monetizer_alerts (alert_type, severity, message, metric_value, threshold) VALUES (?,?,?,?,?)",
-                (alert_type, "warning", message, value, threshold))
+                "INSERT INTO monetizer_alerts "
+                "(alert_type, severity, message, metric_value, threshold, suggested_action, source_agent, status) "
+                "VALUES (?,?,?,?,?,?,?,'open')",
+                (alert_type, "warning", message, value, threshold, suggested_action, AGENT_NAME))
     except Exception:
         pass
 
@@ -291,6 +295,17 @@ def _run():
 
     while not _stop.wait(CHECK_INTERVAL):
         try:
+            try:
+                from monetizer import sync_milestone_progress
+                sync_result = sync_milestone_progress()
+                if sync_result["completed"] or sync_result["still_behind"]:
+                    bus.log_msg(AGENT_NAME,
+                        f"Milestone sync (week {sync_result['current_week']}): "
+                        f"{sync_result['completed']} completed, {sync_result['still_behind']} behind target "
+                        f"({sync_result['paying']} paying, ${sync_result['mrr']:,.0f} MRR)")
+            except Exception as sync_exc:
+                bus.log_msg(AGENT_NAME, f"Milestone sync failed: {sync_exc}", "warning")
+
             plan = bus.get_plan_targets()
             if plan:
                 bus.log_msg(AGENT_NAME,

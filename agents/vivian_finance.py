@@ -178,6 +178,16 @@ def _check_credits():
                 "cap":      cap,
                 "pct":      round(pct, 1),
             })
+            try:
+                from monetizer import create_alert
+                create_alert("provider_credit_low",
+                              f"{cr['provider']} credits at {pct:.0f}% ({bal:.0f}/{cap:.0f})",
+                              severity=severity, metric_name=f"{cr['provider']}_credit_pct",
+                              metric_value=round(pct, 1), threshold=20,
+                              suggested_action=f"Buy a {cr['provider']} credit top-up or special before it runs out.",
+                              source_agent=AGENT_NAME)
+            except Exception:
+                pass
 
 
 def _check_renewals():

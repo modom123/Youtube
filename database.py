@@ -1038,6 +1038,27 @@ def init_db():
             acknowledged BOOLEAN DEFAULT FALSE,
             created_at   TIMESTAMP DEFAULT NOW()
         )""")
+        # A second, wider CREATE TABLE IF NOT EXISTS for this same table used
+        # to live in monetizer.py's init — since this one runs first at
+        # startup, that one was always a no-op and metric_name/metric_value/
+        # threshold never actually existed, silently breaking every alert
+        # insert that included them. Add the missing columns directly, plus
+        # the columns needed to make this a real actionable task queue
+        # (status/suggested_action/source_agent/resolved_at) rather than
+        # just a message + acknowledged flag.
+        for col_def in [
+            "metric_name TEXT",
+            "metric_value NUMERIC(14,4)",
+            "threshold NUMERIC(14,4)",
+            "status TEXT DEFAULT 'open'",
+            "suggested_action TEXT",
+            "source_agent TEXT",
+            "resolved_at TIMESTAMP",
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE monetizer_alerts ADD COLUMN IF NOT EXISTS {col_def}")
+            except Exception:
+                pass
         conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_kpi_snapshots (
             id              SERIAL PRIMARY KEY,
