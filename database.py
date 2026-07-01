@@ -1117,12 +1117,20 @@ def init_db():
             DELETE FROM so_credit_packages a USING so_credit_packages b
             WHERE a.id < b.id AND a.name = b.name
         """)
-        try:
+        # Check existence first rather than try/except-around-DDL: Postgres
+        # aborts the whole transaction on a real error (e.g. "constraint
+        # already exists" on redeploy), and catching the Python exception
+        # does NOT un-poison that transaction — every statement after it in
+        # this same init_db() transaction would then fail with
+        # InFailedSqlTransaction. This is what took production down.
+        existing_constraint = conn.execute(
+            "SELECT 1 FROM information_schema.table_constraints "
+            "WHERE table_name='so_credit_packages' AND constraint_name='so_credit_packages_name_key'"
+        ).fetchone()
+        if not existing_constraint:
             conn.execute(
                 "ALTER TABLE so_credit_packages ADD CONSTRAINT so_credit_packages_name_key UNIQUE (name)"
             )
-        except Exception:
-            pass  # already exists
         # Seed/update default packages — credit amounts sized to roughly
         # protect gross margin against real Higgsfield cost ($0.0556/credit
         # base rate, see config.HIGGSFIELD_COST_PER_CREDIT_BASE). Pro/Agency
