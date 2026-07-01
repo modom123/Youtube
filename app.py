@@ -300,6 +300,7 @@ def pricing():
     if current_user.is_authenticated:
         return redirect(url_for("billing.billing_page"))
     whop_plans = {
+        "free": config.WHOP_PLAN_FREE,
         "starter": config.WHOP_PLAN_STARTER,
         "creator": config.WHOP_PLAN_CREATOR,
         "pro": config.WHOP_PLAN_PRO,

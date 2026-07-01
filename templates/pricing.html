@@ -211,7 +211,7 @@
       'starter': ('7-Day Free Trial', '#3b82f6', ''),
       'creator': ('Best for Small Business', '#30d158', 'color:#000;'),
       'pro': ('⭐ Most Popular', '', ''),
-      'agency': ('14-Day Free Trial', '#a855f7', ''),
+      'agency': ('7-Day Free Trial', '#a855f7', ''),
     } %}
     {% for tier_key, tier in tiers.items() %}
     <div class="pricing-card {% if tier_key == 'pro' %}featured{% endif %}">
@@ -384,7 +384,7 @@
         <div class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
       </button>
       <div class="faq-a">
-        <p>After 14 days, your subscription automatically activates and your card is charged at your plan's monthly rate. You can cancel anytime before the trial ends and you won't be charged a thing.</p>
+        <p>After 7 days, your subscription automatically activates and your card is charged at your plan's monthly rate. You can cancel anytime before the trial ends and you won't be charged a thing.</p>
       </div>
     </div>
     <div class="faq-item">
@@ -420,7 +420,7 @@
 <!-- FINAL CTA -->
 <section class="final-cta">
   <h2>Ready to create?</h2>
-  <p>Free plan needs no card. Paid plans start with a 14-day free trial — card required, cancel anytime before trial ends.</p>
+  <p>Free plan needs no card. Paid plans start with a 7-day free trial — card required, cancel anytime before trial ends.</p>
   <a href="{{ url_for('auth.register') }}" class="btn btn-primary">Start Free →</a>
 </section>
 

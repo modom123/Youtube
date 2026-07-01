@@ -45,6 +45,7 @@ STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 # ── Whop ─────────────────────────────────────────────────────────────────────
 WHOP_API_KEY          = os.getenv("WHOP_API_KEY", "")
 WHOP_WEBHOOK_SECRET   = os.getenv("WHOP_WEBHOOK_SECRET", "")
+WHOP_PLAN_FREE        = os.getenv("WHOP_PLAN_FREE", "")
 WHOP_PLAN_STARTER     = os.getenv("WHOP_PLAN_STARTER", "")
 WHOP_PLAN_CREATOR     = os.getenv("WHOP_PLAN_CREATOR", "")
 WHOP_PLAN_PRO         = os.getenv("WHOP_PLAN_PRO", "")
@@ -100,6 +101,7 @@ TIERS = {
         "videos_per_month": 3,
         "higgsfield_credits": 50,
         "stripe_price_id": None,
+        "whop_plan_id": WHOP_PLAN_FREE,
         "features": [
             "3 AI videos/month",
             "50 Social Optimize Credits",
@@ -140,15 +142,15 @@ TIERS = {
     },
     "creator": {
         "label": "Creator",
-        "description": "Built for entrepreneurs and small businesses. 14-day free trial, then $29.99/mo.",
+        "description": "Built for entrepreneurs and small businesses. 7-day free trial, then $29.99/mo.",
         "price_monthly": 29.99,
-        "trial_days": 14,
+        "trial_days": 7,
         "videos_per_month": 15,
         "higgsfield_credits": 210,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
         "whop_plan_id": WHOP_PLAN_CREATOR,
         "features": [
-            "14-day free trial",
+            "7-day free trial",
             "15 AI videos/month",
             "Publish to 8 platforms",
             "210 Social Optimize Credits/mo",
@@ -166,15 +168,15 @@ TIERS = {
     },
     "pro": {
         "label": "Pro",
-        "description": "The full creative suite for serious creators. 14-day free trial, then $79.99/mo.",
+        "description": "The full creative suite for serious creators. 7-day free trial, then $79.99/mo.",
         "price_monthly": 79.99,
-        "trial_days": 14,
+        "trial_days": 7,
         "videos_per_month": 50,
         "higgsfield_credits": 700,
         "stripe_price_id": STRIPE_PRICE_PRO,
         "whop_plan_id": WHOP_PLAN_PRO,
         "features": [
-            "14-day free trial",
+            "7-day free trial",
             "50 AI videos/month",
             "Publish to all 8 platforms",
             "700 Social Optimize Credits/mo",
@@ -194,15 +196,15 @@ TIERS = {
     },
     "agency": {
         "label": "Agency",
-        "description": "Scale your content operation. 14-day free trial, then $199.99/mo.",
+        "description": "Scale your content operation. 7-day free trial, then $199.99/mo.",
         "price_monthly": 199.99,
-        "trial_days": 14,
+        "trial_days": 7,
         "videos_per_month": 125,
         "higgsfield_credits": 1750,
         "stripe_price_id": STRIPE_PRICE_AGENCY,
         "whop_plan_id": WHOP_PLAN_AGENCY,
         "features": [
-            "14-day free trial",
+            "7-day free trial",
             "125 AI videos/month",
             "Publish to all 8 platforms",
             "1,750 Social Optimize Credits/mo",

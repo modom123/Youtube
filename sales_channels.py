@@ -24,6 +24,7 @@ TIER_ORDER = ["free", "starter", "creator", "pro", "agency"]
 def _product_to_tier(channel: str, product_id: str) -> str | None:
     mapping = {
         "whop": {
+            config.WHOP_PLAN_FREE: "free",
             config.WHOP_PLAN_STARTER: "starter",
             config.WHOP_PLAN_CREATOR: "creator",
             config.WHOP_PLAN_PRO: "pro",
@@ -455,7 +456,8 @@ def sales_channels_status():
         "whop": {
             "configured": bool(config.WHOP_WEBHOOK_SECRET),
             "webhook_url": f"{config.APP_BASE_URL}/whop/webhook",
-            "plans": {"starter": config.WHOP_PLAN_STARTER, "creator": config.WHOP_PLAN_CREATOR,
+            "plans": {"free": config.WHOP_PLAN_FREE, "starter": config.WHOP_PLAN_STARTER,
+                      "creator": config.WHOP_PLAN_CREATOR,
                       "pro": config.WHOP_PLAN_PRO, "agency": config.WHOP_PLAN_AGENCY},
         },
         "stripe": {
