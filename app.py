@@ -6373,6 +6373,376 @@ def api_crm_reports():
     })
 
 
+# ── FINANCE DEPARTMENT — IEBC Efficiency Accounting ──────────────────────────
+
+@app.route("/finance")
+@login_required
+def finance_page():
+    if not current_user.is_admin:
+        return redirect("/dashboard")
+    return render_template("finance.html", active_page="finance")
+
+
+# ── Finance: Clients ──────────────────────────────────────────────────────────
+
+@app.route("/api/finance/clients", methods=["GET"])
+@login_required
+def api_finance_clients():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT fc.*, COUNT(fi.id) AS invoice_count, COALESCE(SUM(CASE WHEN fi.status='paid' THEN fi.amount ELSE 0 END),0) AS total_paid "
+            "FROM finance_clients fc LEFT JOIN finance_invoices fi ON fi.client_id=fc.id "
+            "GROUP BY fc.id ORDER BY fc.monthly_value DESC"
+        ).fetchall()
+    return jsonify({"clients": [dict(r) for r in rows]})
+
+
+@app.route("/api/finance/clients", methods=["POST"])
+@login_required
+def api_finance_add_client():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    with db.get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO finance_clients
+              (name,contact_name,contact_email,contact_phone,monthly_value,billing_cycle,status,platform,start_date,notes)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (d.get("name",""), d.get("contact_name",""), d.get("contact_email",""),
+              d.get("contact_phone",""), float(d.get("monthly_value",0)),
+              d.get("billing_cycle","monthly"), d.get("status","active"),
+              d.get("platform",""), d.get("start_date") or None, d.get("notes","")))
+        new_id = cur.fetchone()["id"]
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.route("/api/finance/clients/<int:cid>", methods=["PATCH"])
+@login_required
+def api_finance_update_client(cid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    allowed = ["name","contact_name","contact_email","contact_phone","monthly_value",
+               "billing_cycle","status","platform","start_date","notes"]
+    updates = {k: v for k, v in d.items() if k in allowed}
+    if updates:
+        cols = ", ".join(f"{k}=%s" for k in updates)
+        vals = list(updates.values()) + [cid]
+        with db.get_conn() as conn:
+            conn.execute(f"UPDATE finance_clients SET {cols}, updated_at=NOW() WHERE id=%s", vals)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/finance/clients/<int:cid>", methods=["DELETE"])
+@login_required
+def api_finance_delete_client(cid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM finance_clients WHERE id=%s", (cid,))
+    return jsonify({"ok": True})
+
+
+# ── Finance: Subscriptions ────────────────────────────────────────────────────
+
+@app.route("/api/finance/subscriptions", methods=["GET"])
+@login_required
+def api_finance_subscriptions():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM finance_subscriptions ORDER BY monthly_cost DESC"
+        ).fetchall()
+    return jsonify({"subscriptions": [dict(r) for r in rows]})
+
+
+@app.route("/api/finance/subscriptions", methods=["POST"])
+@login_required
+def api_finance_add_subscription():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    with db.get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO finance_subscriptions
+              (name,category,vendor,monthly_cost,annual_cost,billing_cycle,status,renewal_date,url,notes)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (d.get("name",""), d.get("category","other"), d.get("vendor",""),
+              float(d.get("monthly_cost",0)), float(d.get("annual_cost",0)),
+              d.get("billing_cycle","monthly"), d.get("status","active"),
+              d.get("renewal_date") or None, d.get("url",""), d.get("notes","")))
+        new_id = cur.fetchone()["id"]
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.route("/api/finance/subscriptions/<int:sid>", methods=["PATCH"])
+@login_required
+def api_finance_update_subscription(sid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    allowed = ["name","category","vendor","monthly_cost","annual_cost","billing_cycle",
+               "status","renewal_date","url","notes","last_used_at"]
+    updates = {k: v for k, v in d.items() if k in allowed}
+    if updates:
+        cols = ", ".join(f"{k}=%s" for k in updates)
+        vals = list(updates.values()) + [sid]
+        with db.get_conn() as conn:
+            conn.execute(f"UPDATE finance_subscriptions SET {cols} WHERE id=%s", vals)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/finance/subscriptions/<int:sid>", methods=["DELETE"])
+@login_required
+def api_finance_delete_subscription(sid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM finance_subscriptions WHERE id=%s", (sid,))
+    return jsonify({"ok": True})
+
+
+# ── Finance: Platforms ────────────────────────────────────────────────────────
+
+@app.route("/api/finance/platforms", methods=["GET"])
+@login_required
+def api_finance_platforms():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM finance_platforms ORDER BY monthly_cost DESC"
+        ).fetchall()
+    return jsonify({"platforms": [dict(r) for r in rows]})
+
+
+@app.route("/api/finance/platforms", methods=["POST"])
+@login_required
+def api_finance_add_platform():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    with db.get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO finance_platforms (name,platform_type,monthly_cost,status,account_id,notes)
+            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (d.get("name",""), d.get("platform_type","social"),
+              float(d.get("monthly_cost",0)), d.get("status","active"),
+              d.get("account_id",""), d.get("notes","")))
+        new_id = cur.fetchone()["id"]
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.route("/api/finance/platforms/<int:pid>", methods=["DELETE"])
+@login_required
+def api_finance_delete_platform(pid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM finance_platforms WHERE id=%s", (pid,))
+    return jsonify({"ok": True})
+
+
+# ── Finance: Provider Credits ─────────────────────────────────────────────────
+
+@app.route("/api/finance/credits", methods=["GET"])
+@login_required
+def api_finance_credits():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        rows    = conn.execute("SELECT * FROM finance_provider_credits ORDER BY provider").fetchall()
+        txns    = conn.execute(
+            "SELECT * FROM finance_credit_txns ORDER BY created_at DESC LIMIT 50"
+        ).fetchall()
+    return jsonify({"credits": [dict(r) for r in rows], "transactions": [dict(t) for t in txns]})
+
+
+@app.route("/api/finance/credits", methods=["POST"])
+@login_required
+def api_finance_upsert_credit():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    provider = (d.get("provider") or "").strip()
+    if not provider:
+        return jsonify({"error": "provider required"}), 400
+    with db.get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM finance_provider_credits WHERE provider=%s", (provider,)
+        ).fetchone()
+        if existing:
+            conn.execute("""
+                UPDATE finance_provider_credits
+                SET balance=%s, credit_cap=%s, monthly_spend=%s, unit=%s, notes=%s, last_updated=NOW()
+                WHERE provider=%s
+            """, (float(d.get("balance",0)), float(d.get("credit_cap",0)),
+                  float(d.get("monthly_spend",0)), d.get("unit","USD"),
+                  d.get("notes",""), provider))
+        else:
+            conn.execute("""
+                INSERT INTO finance_provider_credits (provider,balance,credit_cap,monthly_spend,unit,notes)
+                VALUES (%s,%s,%s,%s,%s,%s)
+            """, (provider, float(d.get("balance",0)), float(d.get("credit_cap",0)),
+                  float(d.get("monthly_spend",0)), d.get("unit","USD"), d.get("notes","")))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/finance/credits/refill", methods=["POST"])
+@login_required
+def api_finance_credit_refill():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    provider = (d.get("provider") or "").strip()
+    amount   = float(d.get("amount", 0))
+    if not provider or amount <= 0:
+        return jsonify({"error": "provider and amount required"}), 400
+    with db.get_conn() as conn:
+        conn.execute("""
+            UPDATE finance_provider_credits
+            SET balance = balance + %s, last_refill_at=NOW(), last_updated=NOW()
+            WHERE provider=%s
+        """, (amount, provider))
+        conn.execute("""
+            INSERT INTO finance_credit_txns (provider, amount, direction, description)
+            VALUES (%s,%s,'credit',%s)
+        """, (provider, amount, d.get("description", "Manual refill")))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/finance/credits/spend", methods=["POST"])
+@login_required
+def api_finance_credit_spend():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    provider = (d.get("provider") or "").strip()
+    amount   = float(d.get("amount", 0))
+    if not provider or amount <= 0:
+        return jsonify({"error": "provider and amount required"}), 400
+    with db.get_conn() as conn:
+        conn.execute("""
+            UPDATE finance_provider_credits
+            SET balance = GREATEST(balance - %s, 0), last_updated=NOW()
+            WHERE provider=%s
+        """, (amount, provider))
+        conn.execute("""
+            INSERT INTO finance_credit_txns (provider, amount, direction, description)
+            VALUES (%s,%s,'debit',%s)
+        """, (provider, amount, d.get("description", "Usage")))
+    return jsonify({"ok": True})
+
+
+# ── Finance: Invoices ─────────────────────────────────────────────────────────
+
+@app.route("/api/finance/invoices", methods=["GET"])
+@login_required
+def api_finance_invoices():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        rows = conn.execute("""
+            SELECT fi.*, fc.name AS client_name
+            FROM finance_invoices fi
+            LEFT JOIN finance_clients fc ON fc.id=fi.client_id
+            ORDER BY fi.created_at DESC
+        """).fetchall()
+    return jsonify({"invoices": [dict(r) for r in rows]})
+
+
+@app.route("/api/finance/invoices", methods=["POST"])
+@login_required
+def api_finance_add_invoice():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    with db.get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO finance_invoices (client_id,amount,status,due_date,notes)
+            VALUES (%s,%s,%s,%s,%s) RETURNING id
+        """, (d.get("client_id") or None, float(d.get("amount",0)),
+              d.get("status","draft"), d.get("due_date") or None, d.get("notes","")))
+        new_id = cur.fetchone()["id"]
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.route("/api/finance/invoices/<int:iid>/pay", methods=["POST"])
+@login_required
+def api_finance_pay_invoice(iid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        conn.execute(
+            "UPDATE finance_invoices SET status='paid', paid_at=NOW() WHERE id=%s", (iid,)
+        )
+    return jsonify({"ok": True})
+
+
+# ── Finance: Overview ─────────────────────────────────────────────────────────
+
+@app.route("/api/finance/overview", methods=["GET"])
+@login_required
+def api_finance_overview():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        clients       = conn.execute("SELECT * FROM finance_clients").fetchall()
+        subs          = conn.execute("SELECT * FROM finance_subscriptions").fetchall()
+        platforms     = conn.execute("SELECT * FROM finance_platforms").fetchall()
+        credits       = conn.execute("SELECT * FROM finance_provider_credits").fetchall()
+        invoices_paid = conn.execute(
+            "SELECT COALESCE(SUM(amount),0) AS s FROM finance_invoices WHERE status='paid'"
+        ).fetchone()["s"]
+        invoices_due  = conn.execute(
+            "SELECT COALESCE(SUM(amount),0) AS s FROM finance_invoices WHERE status='sent'"
+        ).fetchone()["s"]
+
+    active_clients = [c for c in clients if c["status"] == "active"]
+    client_revenue = sum(float(c["monthly_value"]) for c in active_clients)
+    sub_cost       = sum(float(s["monthly_cost"]) for s in subs if s["status"] == "active")
+    plat_cost      = sum(float(p["monthly_cost"]) for p in platforms if p["status"] == "active")
+    total_cost     = sub_cost + plat_cost
+    gross_margin   = (client_revenue - total_cost) / client_revenue * 100 if client_revenue else 0
+
+    low_credits = [dict(c) for c in credits
+                   if c["credit_cap"] and float(c["credit_cap"]) > 0
+                   and float(c["balance"]) / float(c["credit_cap"]) < 0.2]
+
+    return jsonify({
+        "client_revenue":    round(client_revenue, 2),
+        "active_clients":    len(active_clients),
+        "total_clients":     len(clients),
+        "sub_cost":          round(sub_cost, 2),
+        "platform_cost":     round(plat_cost, 2),
+        "total_cost":        round(total_cost, 2),
+        "gross_margin":      round(gross_margin, 1),
+        "invoices_paid_total": float(invoices_paid),
+        "invoices_outstanding": float(invoices_due),
+        "low_credits":       low_credits,
+        "subscription_count": len([s for s in subs if s["status"] == "active"]),
+        "platform_count":    len([p for p in platforms if p["status"] == "active"]),
+    })
+
+
+# ── Finance: AI Agent Chat ────────────────────────────────────────────────────
+
+@app.route("/api/finance/chat", methods=["POST"])
+@login_required
+def api_finance_chat():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    from agents import vivian_finance
+    msg = (request.json or {}).get("message", "").strip()
+    if not msg:
+        return jsonify({"error": "message required"}), 400
+    reply = vivian_finance.chat(msg)
+    return jsonify({"reply": reply})
+
+
 # ── MONETIZER — Business Command Center ───────────────────────────────────────
 
 @app.route("/monetizer")
@@ -7961,6 +8331,8 @@ from agents.julian_retention import start as _start_julian  # noqa: E402
 _start_julian()
 from agents.sterling_business import start as _start_sterling  # noqa: E402
 _start_sterling()
+from agents.vivian_finance import start as _start_vivian  # noqa: E402
+_start_vivian()
 
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")

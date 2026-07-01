@@ -1,0 +1,787 @@
+{% extends "base.html" %}
+{% set active_page = "finance" %}
+{% block title %}Finance — IEBC Efficiency Accounting{% endblock %}
+{% block topbar_title %}💵 Finance — IEBC Efficiency Accounting{% endblock %}
+{% block topbar_sub %}Clients · Subscriptions · Platforms · Credits · AI CFO{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-secondary" onclick="runAudit()">🔍 Run Audit</button>
+<button class="btn btn-primary" onclick="showTab('chat',document.querySelector('[data-tab=chat]'))">💬 Ask Vivian</button>
+{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --fin-green: #10b981;
+  --fin-red: #ef4444;
+  --fin-blue: #3b82f6;
+  --fin-amber: #f59e0b;
+  --fin-purple: #8b5cf6;
+  --fin-card: var(--card);
+  --fin-border: var(--border);
+  --fin-muted: var(--muted);
+}
+
+.fin-tabs { display:flex; gap:4px; border-bottom:1px solid var(--fin-border); margin-bottom:20px; }
+.fin-tab { padding:10px 18px; font-size:13px; font-weight:600; color:var(--fin-muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .15s; }
+.fin-tab:hover { color:var(--text); }
+.fin-tab.active { color:var(--fin-green); border-bottom-color:var(--fin-green); }
+
+.fin-panel { display:none; }
+.fin-panel.active { display:block; }
+
+.fin-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:14px; margin-bottom:20px; }
+.fin-kpi { background:var(--fin-card); border:1px solid var(--fin-border); border-radius:10px; padding:16px; }
+.fin-kpi-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--fin-muted); margin-bottom:6px; }
+.fin-kpi-val { font-size:26px; font-weight:800; line-height:1; }
+.fin-kpi-sub { font-size:11px; color:var(--fin-muted); margin-top:4px; }
+
+.fin-section { background:var(--fin-card); border:1px solid var(--fin-border); border-radius:12px; padding:20px; margin-bottom:16px; }
+.fin-section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.fin-section-title { font-size:14px; font-weight:700; }
+
+.fin-table { width:100%; border-collapse:collapse; font-size:13px; }
+.fin-table th { text-align:left; color:var(--fin-muted); font-weight:600; padding:8px 12px; border-bottom:1px solid var(--fin-border); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+.fin-table td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+.fin-table tr:last-child td { border-bottom:none; }
+.fin-table tr:hover td { background:rgba(255,255,255,.02); }
+
+.badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+.badge-green { background:rgba(16,185,129,.15); color:var(--fin-green); }
+.badge-red { background:rgba(239,68,68,.15); color:var(--fin-red); }
+.badge-amber { background:rgba(245,158,11,.15); color:var(--fin-amber); }
+.badge-blue { background:rgba(59,130,246,.15); color:var(--fin-blue); }
+.badge-purple { background:rgba(139,92,246,.15); color:var(--fin-purple); }
+.badge-muted { background:rgba(255,255,255,.08); color:var(--fin-muted); }
+
+/* Credit bars */
+.credit-row { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.credit-row:last-child { border:none; }
+.credit-provider { font-weight:700; min-width:120px; font-size:13px; }
+.credit-bar-wrap { flex:1; }
+.credit-bar-track { height:8px; background:rgba(255,255,255,.08); border-radius:4px; overflow:hidden; }
+.credit-bar-fill { height:100%; border-radius:4px; transition:width .4s; }
+.credit-meta { min-width:140px; text-align:right; font-size:12px; color:var(--fin-muted); }
+.credit-actions { display:flex; gap:6px; }
+
+/* Modals */
+.fin-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000; align-items:center; justify-content:center; }
+.fin-modal.open { display:flex; }
+.fin-modal-box { background:var(--fin-card); border:1px solid var(--fin-border); border-radius:14px; padding:28px; width:min(520px,95vw); max-height:90vh; overflow-y:auto; }
+.fin-modal-title { font-size:15px; font-weight:700; margin-bottom:18px; display:flex; justify-content:space-between; }
+.fin-modal-close { cursor:pointer; color:var(--fin-muted); }
+.form-row { margin-bottom:13px; }
+.form-row label { display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--fin-muted); margin-bottom:5px; }
+.form-row input,.form-row select,.form-row textarea {
+  width:100%; background:var(--bg); border:1px solid var(--fin-border); border-radius:8px;
+  padding:9px 12px; color:var(--text); font-size:13px; box-sizing:border-box;
+}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus { outline:none; border-color:var(--fin-green); }
+.form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:13px; }
+
+/* AI Chat */
+.chat-wrap { display:flex; flex-direction:column; height:520px; }
+.chat-messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:12px; }
+.chat-msg { max-width:85%; padding:10px 14px; border-radius:12px; font-size:13px; line-height:1.5; }
+.chat-msg.user { align-self:flex-end; background:var(--fin-green); color:#000; border-radius:12px 12px 2px 12px; }
+.chat-msg.agent { align-self:flex-start; background:rgba(255,255,255,.06); border:1px solid var(--fin-border); border-radius:12px 12px 12px 2px; white-space:pre-wrap; }
+.chat-msg.agent .agent-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--fin-green); margin-bottom:4px; }
+.chat-input-row { display:flex; gap:10px; padding:16px; border-top:1px solid var(--fin-border); }
+.chat-input { flex:1; background:var(--bg); border:1px solid var(--fin-border); border-radius:8px; padding:10px 14px; color:var(--text); font-size:13px; }
+.chat-input:focus { outline:none; border-color:var(--fin-green); }
+
+/* Margin gauge */
+.margin-gauge { width:100%; height:14px; background:rgba(255,255,255,.07); border-radius:7px; overflow:hidden; margin-top:8px; }
+.margin-fill { height:100%; border-radius:7px; transition:width .6s; }
+
+.empty-state { text-align:center; padding:40px; color:var(--fin-muted); font-size:13px; }
+</style>
+
+<!-- Tab Nav -->
+<div class="fin-tabs">
+  <div class="fin-tab active" data-tab="overview" onclick="showTab('overview',this)">📊 Overview</div>
+  <div class="fin-tab" data-tab="clients" onclick="showTab('clients',this)">🤝 Clients</div>
+  <div class="fin-tab" data-tab="subscriptions" onclick="showTab('subscriptions',this)">📋 Subscriptions</div>
+  <div class="fin-tab" data-tab="platforms" onclick="showTab('platforms',this)">🌐 Platforms</div>
+  <div class="fin-tab" data-tab="credits" onclick="showTab('credits',this)">🪙 Provider Credits</div>
+  <div class="fin-tab" data-tab="invoices" onclick="showTab('invoices',this)">🧾 Invoices</div>
+  <div class="fin-tab" data-tab="chat" onclick="showTab('chat',this)">💬 Vivian (CFO)</div>
+</div>
+
+<!-- ═══ OVERVIEW ═══ -->
+<div id="tab-overview" class="fin-panel active">
+  <div class="fin-kpis" id="overviewKpis"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="fin-section">
+      <div class="fin-section-title" style="margin-bottom:12px">IEBC Efficiency Ratio</div>
+      <div id="efficiencyGauge"></div>
+    </div>
+    <div class="fin-section">
+      <div class="fin-section-title" style="margin-bottom:12px">⚠️ Low Credits</div>
+      <div id="lowCreditsAlert"></div>
+    </div>
+    <div class="fin-section">
+      <div class="fin-section-title" style="margin-bottom:12px">Monthly Costs Breakdown</div>
+      <div id="costsBreakdown"></div>
+    </div>
+    <div class="fin-section">
+      <div class="fin-section-title" style="margin-bottom:12px">Agent Log (Vivian)</div>
+      <div id="agentLogPreview" style="font-size:12px;font-family:monospace;max-height:200px;overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CLIENTS ═══ -->
+<div id="tab-clients" class="fin-panel">
+  <div class="fin-section">
+    <div class="fin-section-header">
+      <div class="fin-section-title">Active Clients</div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('newClientModal')">+ Add Client</button>
+    </div>
+    <div id="clientsTable"></div>
+  </div>
+</div>
+
+<!-- ═══ SUBSCRIPTIONS ═══ -->
+<div id="tab-subscriptions" class="fin-panel">
+  <div class="fin-section">
+    <div class="fin-section-header">
+      <div class="fin-section-title">3rd-Party Subscriptions</div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('newSubModal')">+ Add Subscription</button>
+    </div>
+    <div id="subsTable"></div>
+  </div>
+</div>
+
+<!-- ═══ PLATFORMS ═══ -->
+<div id="tab-platforms" class="fin-panel">
+  <div class="fin-section">
+    <div class="fin-section-header">
+      <div class="fin-section-title">Publishing & Sales Platforms</div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('newPlatModal')">+ Add Platform</button>
+    </div>
+    <div id="platsTable"></div>
+  </div>
+</div>
+
+<!-- ═══ CREDITS ═══ -->
+<div id="tab-credits" class="fin-panel">
+  <div class="fin-section">
+    <div class="fin-section-header">
+      <div class="fin-section-title">Provider Credits & API Balances</div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('newCreditModal')">+ Add / Update Provider</button>
+    </div>
+    <div id="creditsDisplay"></div>
+  </div>
+  <div class="fin-section">
+    <div class="fin-section-title" style="margin-bottom:12px">Recent Transactions</div>
+    <div id="creditTxns"></div>
+  </div>
+</div>
+
+<!-- ═══ INVOICES ═══ -->
+<div id="tab-invoices" class="fin-panel">
+  <div class="fin-section">
+    <div class="fin-section-header">
+      <div class="fin-section-title">Invoices</div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('newInvoiceModal')">+ New Invoice</button>
+    </div>
+    <div id="invoicesTable"></div>
+  </div>
+</div>
+
+<!-- ═══ AI CFO CHAT ═══ -->
+<div id="tab-chat" class="fin-panel">
+  <div class="fin-section" style="padding:0;overflow:hidden;">
+    <div style="padding:16px 20px;border-bottom:1px solid var(--fin-border);display:flex;align-items:center;gap:12px;">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--fin-green);display:flex;align-items:center;justify-content:center;font-size:16px;">💵</div>
+      <div>
+        <div style="font-weight:700;font-size:14px;">Vivian Cross</div>
+        <div style="font-size:11px;color:var(--fin-muted);">CFO · IEBC Efficiency Accountant · <span style="color:var(--fin-green)">● Online</span></div>
+      </div>
+    </div>
+    <div class="chat-wrap">
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-msg agent">
+          <div class="agent-label">Vivian Cross — CFO</div>
+          Hello. I'm Vivian Cross, your Chief Financial Officer and IEBC Efficiency Accountant. I have live access to all client revenue, subscriptions, platform costs, and provider credits.<br><br>
+          Ask me anything: <em>"What's our burn rate?", "Which subscriptions are we wasting?", "What's the gross margin?", "Are any credits about to run out?"</em>
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chatInput" placeholder="Ask Vivian anything about the business finances…" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="btn btn-primary" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- New Client -->
+<div id="newClientModal" class="fin-modal">
+  <div class="fin-modal-box">
+    <div class="fin-modal-title">Add Client <span class="fin-modal-close" onclick="closeModal('newClientModal')">✕</span></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Client Name *</label><input id="cl-name" placeholder="Acme Media Co."></div>
+      <div class="form-row"><label>Monthly Value ($)</label><input id="cl-value" type="number" placeholder="0.00" min="0" step="0.01"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Contact Name</label><input id="cl-cname" placeholder="Jane Smith"></div>
+      <div class="form-row"><label>Contact Email</label><input id="cl-cemail" type="email" placeholder="jane@acme.com"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Billing Cycle</label>
+        <select id="cl-cycle"><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="annual">Annual</option></select>
+      </div>
+      <div class="form-row"><label>Platform / Channel</label><input id="cl-platform" placeholder="YouTube, Whop, Direct…"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Status</label>
+        <select id="cl-status"><option value="active">Active</option><option value="paused">Paused</option><option value="churned">Churned</option></select>
+      </div>
+      <div class="form-row"><label>Start Date</label><input id="cl-start" type="date"></div>
+    </div>
+    <div class="form-row"><label>Notes</label><textarea id="cl-notes" rows="2"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveClient()">Save Client</button>
+  </div>
+</div>
+
+<!-- New Subscription -->
+<div id="newSubModal" class="fin-modal">
+  <div class="fin-modal-box">
+    <div class="fin-modal-title">Add Subscription <span class="fin-modal-close" onclick="closeModal('newSubModal')">✕</span></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Service Name *</label><input id="sub-name" placeholder="OpenAI, Render, ElevenLabs…"></div>
+      <div class="form-row"><label>Category</label>
+        <select id="sub-cat">
+          <option value="ai_api">AI / API</option>
+          <option value="hosting">Hosting / Infra</option>
+          <option value="video">Video Tools</option>
+          <option value="audio">Audio Tools</option>
+          <option value="marketing">Marketing</option>
+          <option value="crm">CRM / Sales</option>
+          <option value="design">Design</option>
+          <option value="analytics">Analytics</option>
+          <option value="storage">Storage</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Vendor</label><input id="sub-vendor" placeholder="Anthropic, AWS…"></div>
+      <div class="form-row"><label>Monthly Cost ($)</label><input id="sub-cost" type="number" step="0.01" min="0" placeholder="0.00"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Billing Cycle</label>
+        <select id="sub-cycle"><option value="monthly">Monthly</option><option value="annual">Annual</option><option value="usage">Usage-Based</option></select>
+      </div>
+      <div class="form-row"><label>Renewal Date</label><input id="sub-renewal" type="date"></div>
+    </div>
+    <div class="form-row"><label>URL</label><input id="sub-url" placeholder="https://"></div>
+    <div class="form-row"><label>Notes</label><textarea id="sub-notes" rows="2"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveSubscription()">Save Subscription</button>
+  </div>
+</div>
+
+<!-- New Platform -->
+<div id="newPlatModal" class="fin-modal">
+  <div class="fin-modal-box">
+    <div class="fin-modal-title">Add Platform <span class="fin-modal-close" onclick="closeModal('newPlatModal')">✕</span></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Platform Name *</label><input id="plat-name" placeholder="Whop, Gumroad, YouTube…"></div>
+      <div class="form-row"><label>Type</label>
+        <select id="plat-type">
+          <option value="social">Social Media</option>
+          <option value="sales">Sales / Marketplace</option>
+          <option value="email">Email Marketing</option>
+          <option value="ads">Ads Platform</option>
+          <option value="distribution">Distribution</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Monthly Cost ($)</label><input id="plat-cost" type="number" step="0.01" min="0" placeholder="0.00"></div>
+      <div class="form-row"><label>Account ID / Handle</label><input id="plat-acct" placeholder="@handle or account ID"></div>
+    </div>
+    <div class="form-row"><label>Notes</label><textarea id="plat-notes" rows="2"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="savePlatform()">Save Platform</button>
+  </div>
+</div>
+
+<!-- New / Update Credit Provider -->
+<div id="newCreditModal" class="fin-modal">
+  <div class="fin-modal-box">
+    <div class="fin-modal-title">Provider Credits <span class="fin-modal-close" onclick="closeModal('newCreditModal')">✕</span></div>
+    <div class="form-row"><label>Provider *</label><input id="cr-provider" placeholder="OpenAI, Anthropic, ElevenLabs, Higgsfield…"></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Current Balance</label><input id="cr-balance" type="number" step="0.01" placeholder="0.00"></div>
+      <div class="form-row"><label>Credit Cap (budget)</label><input id="cr-cap" type="number" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Monthly Spend (avg)</label><input id="cr-spend" type="number" step="0.01" placeholder="0.00"></div>
+      <div class="form-row"><label>Unit</label>
+        <select id="cr-unit"><option value="USD">USD ($)</option><option value="tokens">Tokens</option><option value="characters">Characters</option><option value="credits">Credits</option><option value="minutes">Minutes</option></select>
+      </div>
+    </div>
+    <div class="form-row"><label>Notes</label><textarea id="cr-notes" rows="2"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveCredit()">Save Provider</button>
+  </div>
+</div>
+
+<!-- New Invoice -->
+<div id="newInvoiceModal" class="fin-modal">
+  <div class="fin-modal-box">
+    <div class="fin-modal-title">New Invoice <span class="fin-modal-close" onclick="closeModal('newInvoiceModal')">✕</span></div>
+    <div class="form-row"><label>Client</label>
+      <select id="inv-client"><option value="">— Select Client —</option></select>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Amount ($) *</label><input id="inv-amount" type="number" step="0.01" min="0" placeholder="0.00"></div>
+      <div class="form-row"><label>Due Date</label><input id="inv-due" type="date"></div>
+    </div>
+    <div class="form-row"><label>Status</label>
+      <select id="inv-status"><option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option></select>
+    </div>
+    <div class="form-row"><label>Notes</label><textarea id="inv-notes" rows="2"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveInvoice()">Save Invoice</button>
+  </div>
+</div>
+
+<!-- Refill Modal -->
+<div id="refillModal" class="fin-modal">
+  <div class="fin-modal-box" style="max-width:380px">
+    <div class="fin-modal-title">Refill Credits <span class="fin-modal-close" onclick="closeModal('refillModal')">✕</span></div>
+    <input type="hidden" id="refill-provider">
+    <div class="form-row"><label>Provider</label><input id="refill-provider-label" readonly style="opacity:.6"></div>
+    <div class="form-row"><label>Amount to Add</label><input id="refill-amount" type="number" step="0.01" min="0" placeholder="0.00"></div>
+    <div class="form-row"><label>Description</label><input id="refill-desc" placeholder="e.g. Monthly top-up"></div>
+    <button class="btn btn-primary btn-block" onclick="doRefill()">Add Credits</button>
+  </div>
+</div>
+
+<script>
+const API = '/api/finance';
+let _clients = [];
+
+function showTab(name, el) {
+  document.querySelectorAll('.fin-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.fin-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+  const loaders = { overview: loadOverview, clients: loadClients, subscriptions: loadSubs,
+    platforms: loadPlats, credits: loadCredits, invoices: loadInvoices };
+  if (loaders[name]) loaders[name]();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') document.querySelectorAll('.fin-modal.open').forEach(m=>m.classList.remove('open')); });
+document.querySelectorAll('.fin-modal').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+
+async function api(path, opts={}) { const r = await fetch(API+path, opts); return r.json(); }
+async function post(path, body) { return api(path, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); }
+async function del(path) { return api(path, {method:'DELETE'}); }
+async function patch(path, body) { return api(path, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); }
+
+function fmt$(n) { return '$' + Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── OVERVIEW ──────────────────────────────────────────────────────────────────
+async function loadOverview() {
+  const d = await api('/overview');
+
+  const marginColor = d.gross_margin >= 70 ? 'var(--fin-green)' : d.gross_margin >= 50 ? 'var(--fin-amber)' : 'var(--fin-red)';
+
+  document.getElementById('overviewKpis').innerHTML = [
+    `<div class="fin-kpi"><div class="fin-kpi-label">Client Revenue</div><div class="fin-kpi-val" style="color:var(--fin-green)">${fmt$(d.client_revenue)}</div><div class="fin-kpi-sub">${d.active_clients} active / ${d.total_clients} total</div></div>`,
+    `<div class="fin-kpi"><div class="fin-kpi-label">Subscriptions</div><div class="fin-kpi-val" style="color:var(--fin-red)">${fmt$(d.sub_cost)}</div><div class="fin-kpi-sub">${d.subscription_count} active services</div></div>`,
+    `<div class="fin-kpi"><div class="fin-kpi-label">Platform Costs</div><div class="fin-kpi-val" style="color:var(--fin-red)">${fmt$(d.platform_cost)}</div><div class="fin-kpi-sub">${d.platform_count} platforms</div></div>`,
+    `<div class="fin-kpi"><div class="fin-kpi-label">Total OpEx</div><div class="fin-kpi-val" style="color:var(--fin-amber)">${fmt$(d.total_cost)}</div><div class="fin-kpi-sub">per month</div></div>`,
+    `<div class="fin-kpi"><div class="fin-kpi-label">Net Margin</div><div class="fin-kpi-val" style="color:${marginColor}">${d.gross_margin.toFixed(1)}%</div><div class="fin-kpi-sub">efficiency ratio</div></div>`,
+    `<div class="fin-kpi"><div class="fin-kpi-label">Outstanding</div><div class="fin-kpi-val" style="color:var(--fin-purple)">${fmt$(d.invoices_outstanding)}</div><div class="fin-kpi-sub">invoices unpaid</div></div>`,
+  ].join('');
+
+  // Efficiency gauge
+  const pct = Math.min(Math.max(d.gross_margin, 0), 100);
+  document.getElementById('efficiencyGauge').innerHTML = `
+    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--fin-muted);margin-bottom:6px;">
+      <span>Gross Margin / IEBC Efficiency</span><span style="font-weight:700;color:${marginColor}">${d.gross_margin.toFixed(1)}%</span>
+    </div>
+    <div class="margin-gauge"><div class="margin-fill" style="width:${pct}%;background:${marginColor}"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--fin-muted);">
+      <span>0%</span><span style="color:var(--fin-red)">50% danger</span><span style="color:var(--fin-amber)">70% target</span><span>100%</span>
+    </div>
+    <div style="margin-top:14px;font-size:12px;color:var(--fin-muted)">
+      Revenue: <strong>${fmt$(d.client_revenue)}</strong> &nbsp;·&nbsp; Costs: <strong>${fmt$(d.total_cost)}</strong>
+    </div>`;
+
+  // Low credits alert
+  if (!d.low_credits.length) {
+    document.getElementById('lowCreditsAlert').innerHTML = '<div style="color:var(--fin-green);font-size:13px;padding:16px 0">✓ All provider credits are healthy</div>';
+  } else {
+    document.getElementById('lowCreditsAlert').innerHTML = d.low_credits.map(c => {
+      const pct = c.credit_cap > 0 ? (c.balance / c.credit_cap * 100).toFixed(0) : 0;
+      return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+          <span style="font-weight:600">${esc(c.provider)}</span>
+          <span style="color:var(--fin-red);font-weight:700">${pct}% remaining</span>
+        </div>
+        <div class="credit-bar-track"><div class="credit-bar-fill" style="width:${pct}%;background:var(--fin-red)"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  // Costs breakdown
+  document.getElementById('costsBreakdown').innerHTML = `
+    <div style="font-size:13px">
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span>Subscriptions</span><span style="color:var(--fin-red)">${fmt$(d.sub_cost)}/mo</span></div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)"><span>Platforms</span><span style="color:var(--fin-red)">${fmt$(d.platform_cost)}/mo</span></div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-weight:700"><span>Total OpEx</span><span style="color:var(--fin-amber)">${fmt$(d.total_cost)}/mo</span></div>
+    </div>`;
+
+  // Agent log
+  try {
+    const logs = await fetch('/api/agent-log?agent=vivian_cross&limit=10').then(r=>r.json()).catch(()=>({log:[]}));
+    const entries = logs.log || [];
+    document.getElementById('agentLogPreview').innerHTML = entries.length
+      ? entries.map(l => `<div style="padding:3px 0;color:${l.severity==='error'?'var(--fin-red)':l.severity==='warning'?'var(--fin-amber)':'var(--fin-muted)'}">
+          <span style="color:rgba(255,255,255,.3)">${String(l.created_at||'').slice(0,16)}</span> ${esc(l.message)}
+        </div>`).join('')
+      : '<div style="color:var(--fin-muted)">Vivian hasn\'t logged yet — she runs every 6 hours.</div>';
+  } catch(e) {
+    document.getElementById('agentLogPreview').innerHTML = '<div style="color:var(--fin-muted)">Log unavailable</div>';
+  }
+}
+
+// ── CLIENTS ───────────────────────────────────────────────────────────────────
+async function loadClients() {
+  const d = await api('/clients');
+  _clients = d.clients || [];
+  populateClientSelect();
+  if (!_clients.length) { document.getElementById('clientsTable').innerHTML = '<div class="empty-state">No clients yet. Add your first client.</div>'; return; }
+
+  let html = `<table class="fin-table"><thead><tr>
+    <th>Client</th><th>Contact</th><th>Platform</th><th>Monthly Value</th><th>Billing</th><th>Status</th><th>Start</th><th>Paid Total</th><th></th>
+  </tr></thead><tbody>`;
+  _clients.forEach(c => {
+    const statusClass = {active:'badge-green',paused:'badge-amber',churned:'badge-red'}[c.status]||'badge-muted';
+    html += `<tr>
+      <td><div style="font-weight:600">${esc(c.name)}</div></td>
+      <td><div style="font-size:12px">${esc(c.contact_name||'—')}</div><div style="font-size:11px;color:var(--fin-muted)">${esc(c.contact_email||'')}</div></td>
+      <td><span class="badge badge-blue">${esc(c.platform||'—')}</span></td>
+      <td style="color:var(--fin-green);font-weight:700">${fmt$(c.monthly_value)}</td>
+      <td style="color:var(--fin-muted);font-size:12px">${c.billing_cycle}</td>
+      <td><span class="badge ${statusClass}">${c.status}</span></td>
+      <td style="color:var(--fin-muted);font-size:12px">${fmtDate(c.start_date)}</td>
+      <td style="color:var(--fin-purple);font-weight:600">${fmt$(c.total_paid||0)}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="toggleClientStatus(${c.id},'${c.status==='active'?'paused':'active'}')">${c.status==='active'?'Pause':'Activate'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteClient(${c.id})">Del</button>
+      </td>
+    </tr>`;
+  });
+  html += `</tbody><tfoot><tr><td colspan="3" style="font-weight:700;padding:10px 12px">Total MRR</td>
+    <td style="color:var(--fin-green);font-weight:800;font-size:15px;padding:10px 12px">${fmt$(_clients.filter(c=>c.status==='active').reduce((s,c)=>s+Number(c.monthly_value||0),0))}</td>
+    <td colspan="5"></td></tr></tfoot></table>`;
+  document.getElementById('clientsTable').innerHTML = html;
+}
+
+async function toggleClientStatus(id, newStatus) {
+  await patch('/clients/' + id, { status: newStatus });
+  loadClients();
+}
+async function deleteClient(id) {
+  if (!confirm('Delete this client?')) return;
+  await del('/clients/' + id);
+  loadClients();
+}
+
+// ── SUBSCRIPTIONS ─────────────────────────────────────────────────────────────
+async function loadSubs() {
+  const d = await api('/subscriptions');
+  const subs = d.subscriptions || [];
+  if (!subs.length) { document.getElementById('subsTable').innerHTML = '<div class="empty-state">No subscriptions tracked yet.</div>'; return; }
+
+  const catColors = {ai_api:'badge-purple',hosting:'badge-blue',video:'badge-amber',audio:'badge-amber',marketing:'badge-green',crm:'badge-blue',design:'badge-purple',analytics:'badge-blue',storage:'badge-muted',other:'badge-muted'};
+
+  let html = `<table class="fin-table"><thead><tr>
+    <th>Service</th><th>Category</th><th>Vendor</th><th>Monthly Cost</th><th>Billing</th><th>Renewal</th><th>Status</th><th></th>
+  </tr></thead><tbody>`;
+  subs.forEach(s => {
+    const statusClass = s.status==='active' ? 'badge-green' : 'badge-red';
+    const renewal = s.renewal_date ? fmtDate(s.renewal_date) : '—';
+    const renewSoon = s.renewal_date && (new Date(s.renewal_date) - new Date()) < 7*86400*1000;
+    html += `<tr>
+      <td style="font-weight:600">${esc(s.name)}${s.url?` <a href="${esc(s.url)}" target="_blank" style="color:var(--fin-blue);font-size:10px">🔗</a>`:''}</td>
+      <td><span class="badge ${catColors[s.category]||'badge-muted'}">${s.category||'—'}</span></td>
+      <td style="color:var(--fin-muted)">${esc(s.vendor||'—')}</td>
+      <td style="color:var(--fin-red);font-weight:600">${fmt$(s.monthly_cost)}</td>
+      <td style="font-size:12px;color:var(--fin-muted)">${s.billing_cycle}</td>
+      <td style="font-size:12px;color:${renewSoon?'var(--fin-amber)':'var(--fin-muted)'}">${renewal}</td>
+      <td><span class="badge ${statusClass}">${s.status}</span></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="toggleSub(${s.id},'${s.status==='active'?'cancelled':'active'}')">${s.status==='active'?'Cancel':'Reactivate'}</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSub(${s.id})">Del</button>
+      </td>
+    </tr>`;
+  });
+  const total = subs.filter(s=>s.status==='active').reduce((sum,s)=>sum+Number(s.monthly_cost||0),0);
+  html += `</tbody><tfoot><tr><td colspan="3" style="font-weight:700;padding:10px 12px">Total</td>
+    <td style="color:var(--fin-red);font-weight:800;font-size:15px;padding:10px 12px">${fmt$(total)}/mo</td>
+    <td colspan="4"></td></tr></tfoot></table>`;
+  document.getElementById('subsTable').innerHTML = html;
+}
+
+async function toggleSub(id, status) {
+  await patch('/subscriptions/' + id, { status });
+  loadSubs();
+}
+async function deleteSub(id) {
+  if (!confirm('Delete this subscription?')) return;
+  await del('/subscriptions/' + id);
+  loadSubs();
+}
+
+// ── PLATFORMS ─────────────────────────────────────────────────────────────────
+async function loadPlats() {
+  const d = await api('/platforms');
+  const plats = d.platforms || [];
+  if (!plats.length) { document.getElementById('platsTable').innerHTML = '<div class="empty-state">No platforms tracked yet.</div>'; return; }
+
+  const typeColors = {social:'badge-blue',sales:'badge-green',email:'badge-amber',ads:'badge-red',distribution:'badge-purple',other:'badge-muted'};
+  let html = `<table class="fin-table"><thead><tr>
+    <th>Platform</th><th>Type</th><th>Account</th><th>Monthly Cost</th><th>Status</th><th></th>
+  </tr></thead><tbody>`;
+  plats.forEach(p => {
+    html += `<tr>
+      <td style="font-weight:600">${esc(p.name)}</td>
+      <td><span class="badge ${typeColors[p.platform_type]||'badge-muted'}">${p.platform_type}</span></td>
+      <td style="font-size:12px;color:var(--fin-muted)">${esc(p.account_id||'—')}</td>
+      <td style="color:${Number(p.monthly_cost)>0?'var(--fin-red)':'var(--fin-green)'};font-weight:600">${Number(p.monthly_cost)>0?fmt$(p.monthly_cost):'Free'}</td>
+      <td><span class="badge ${p.status==='active'?'badge-green':'badge-red'}">${p.status}</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deletePlat(${p.id})">Del</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('platsTable').innerHTML = html;
+}
+async function deletePlat(id) {
+  if (!confirm('Delete this platform?')) return;
+  await del('/platforms/' + id);
+  loadPlats();
+}
+
+// ── CREDITS ───────────────────────────────────────────────────────────────────
+async function loadCredits() {
+  const d = await api('/credits');
+  const credits = d.credits || [];
+  const txns    = d.transactions || [];
+
+  if (!credits.length) {
+    document.getElementById('creditsDisplay').innerHTML = '<div class="empty-state">No provider credits tracked. Add your first provider.</div>';
+  } else {
+    document.getElementById('creditsDisplay').innerHTML = credits.map(c => {
+      const cap = Number(c.credit_cap) || 0;
+      const bal = Number(c.balance)    || 0;
+      const pct = cap > 0 ? Math.min(bal / cap * 100, 100) : 100;
+      const color = pct < 10 ? 'var(--fin-red)' : pct < 20 ? 'var(--fin-amber)' : 'var(--fin-green)';
+      return `<div class="credit-row">
+        <div class="credit-provider">${esc(c.provider)}</div>
+        <div class="credit-bar-wrap">
+          <div class="credit-bar-track"><div class="credit-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+          <div style="font-size:10px;color:var(--fin-muted);margin-top:2px">${Number(bal).toFixed(2)} / ${Number(cap).toFixed(2)} ${esc(c.unit||'USD')}</div>
+        </div>
+        <div class="credit-meta">~${Number(c.monthly_spend||0).toFixed(2)}/mo avg</div>
+        <div class="credit-actions">
+          <button class="btn btn-primary btn-sm" onclick="openRefill('${esc(c.provider)}')">+ Refill</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  if (!txns.length) {
+    document.getElementById('creditTxns').innerHTML = '<div class="empty-state">No transactions yet.</div>';
+  } else {
+    let html = `<table class="fin-table"><thead><tr><th>Provider</th><th>Amount</th><th>Type</th><th>Description</th><th>Date</th></tr></thead><tbody>`;
+    txns.forEach(t => {
+      html += `<tr>
+        <td style="font-weight:600">${esc(t.provider)}</td>
+        <td style="color:${t.direction==='credit'?'var(--fin-green)':'var(--fin-red)'};font-weight:600">${t.direction==='credit'?'+':'−'}${Number(t.amount).toFixed(2)}</td>
+        <td><span class="badge ${t.direction==='credit'?'badge-green':'badge-red'}">${t.direction}</span></td>
+        <td style="color:var(--fin-muted)">${esc(t.description||'—')}</td>
+        <td style="color:var(--fin-muted);font-size:12px">${fmtDate(t.created_at)}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    document.getElementById('creditTxns').innerHTML = html;
+  }
+}
+
+function openRefill(provider) {
+  document.getElementById('refill-provider').value = provider;
+  document.getElementById('refill-provider-label').value = provider;
+  document.getElementById('refill-amount').value = '';
+  document.getElementById('refill-desc').value = '';
+  openModal('refillModal');
+}
+
+async function doRefill() {
+  const provider = document.getElementById('refill-provider').value;
+  const amount   = +document.getElementById('refill-amount').value;
+  if (!provider || !amount) return alert('Provider and amount required');
+  await post('/credits/refill', { provider, amount, description: document.getElementById('refill-desc').value || 'Manual refill' });
+  closeModal('refillModal');
+  loadCredits();
+}
+
+// ── INVOICES ──────────────────────────────────────────────────────────────────
+async function loadInvoices() {
+  const d = await api('/invoices');
+  const invs = d.invoices || [];
+  if (!invs.length) { document.getElementById('invoicesTable').innerHTML = '<div class="empty-state">No invoices yet.</div>'; return; }
+
+  const statusColors = {draft:'badge-muted',sent:'badge-blue',paid:'badge-green',overdue:'badge-red'};
+  let html = `<table class="fin-table"><thead><tr>
+    <th>Client</th><th>Amount</th><th>Status</th><th>Due</th><th>Paid At</th><th>Notes</th><th></th>
+  </tr></thead><tbody>`;
+  invs.forEach(inv => {
+    const overdue = inv.status==='sent' && inv.due_date && new Date(inv.due_date) < new Date();
+    const status  = overdue ? 'overdue' : inv.status;
+    html += `<tr>
+      <td style="font-weight:600">${esc(inv.client_name||'—')}</td>
+      <td style="font-weight:700;color:var(--fin-green)">${fmt$(inv.amount)}</td>
+      <td><span class="badge ${statusColors[status]||'badge-muted'}">${status}</span></td>
+      <td style="color:${overdue?'var(--fin-red)':'var(--fin-muted)'};font-size:12px">${fmtDate(inv.due_date)}</td>
+      <td style="color:var(--fin-muted);font-size:12px">${inv.paid_at ? fmtDate(inv.paid_at) : '—'}</td>
+      <td style="color:var(--fin-muted);font-size:12px">${esc(inv.notes||'')}</td>
+      <td>${inv.status!=='paid'?`<button class="btn btn-primary btn-sm" onclick="payInvoice(${inv.id})">Mark Paid</button>`:'<span style="color:var(--fin-green);font-size:12px">✓ Paid</span>'}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('invoicesTable').innerHTML = html;
+}
+
+async function payInvoice(id) {
+  await post('/invoices/' + id + '/pay', {});
+  loadInvoices();
+}
+
+function populateClientSelect() {
+  const sel = document.getElementById('inv-client');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Select Client —</option>' + _clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+}
+
+// ── SAVE actions ──────────────────────────────────────────────────────────────
+async function saveClient() {
+  const name = document.getElementById('cl-name').value.trim();
+  if (!name) return alert('Client name required');
+  await post('/clients', {
+    name, contact_name: document.getElementById('cl-cname').value,
+    contact_email: document.getElementById('cl-cemail').value,
+    monthly_value: +document.getElementById('cl-value').value||0,
+    billing_cycle: document.getElementById('cl-cycle').value,
+    platform: document.getElementById('cl-platform').value,
+    status: document.getElementById('cl-status').value,
+    start_date: document.getElementById('cl-start').value||null,
+    notes: document.getElementById('cl-notes').value,
+  });
+  closeModal('newClientModal');
+  loadClients();
+}
+
+async function saveSubscription() {
+  const name = document.getElementById('sub-name').value.trim();
+  if (!name) return alert('Service name required');
+  await post('/subscriptions', {
+    name, category: document.getElementById('sub-cat').value,
+    vendor: document.getElementById('sub-vendor').value,
+    monthly_cost: +document.getElementById('sub-cost').value||0,
+    billing_cycle: document.getElementById('sub-cycle').value,
+    renewal_date: document.getElementById('sub-renewal').value||null,
+    url: document.getElementById('sub-url').value,
+    notes: document.getElementById('sub-notes').value,
+  });
+  closeModal('newSubModal');
+  loadSubs();
+}
+
+async function savePlatform() {
+  const name = document.getElementById('plat-name').value.trim();
+  if (!name) return alert('Platform name required');
+  await post('/platforms', {
+    name, platform_type: document.getElementById('plat-type').value,
+    monthly_cost: +document.getElementById('plat-cost').value||0,
+    account_id: document.getElementById('plat-acct').value,
+    notes: document.getElementById('plat-notes').value,
+  });
+  closeModal('newPlatModal');
+  loadPlats();
+}
+
+async function saveCredit() {
+  const provider = document.getElementById('cr-provider').value.trim();
+  if (!provider) return alert('Provider required');
+  await post('/credits', {
+    provider, balance: +document.getElementById('cr-balance').value||0,
+    credit_cap: +document.getElementById('cr-cap').value||0,
+    monthly_spend: +document.getElementById('cr-spend').value||0,
+    unit: document.getElementById('cr-unit').value,
+    notes: document.getElementById('cr-notes').value,
+  });
+  closeModal('newCreditModal');
+  loadCredits();
+}
+
+async function saveInvoice() {
+  const amount = +document.getElementById('inv-amount').value;
+  if (!amount) return alert('Amount required');
+  await post('/invoices', {
+    client_id: document.getElementById('inv-client').value||null,
+    amount, status: document.getElementById('inv-status').value,
+    due_date: document.getElementById('inv-due').value||null,
+    notes: document.getElementById('inv-notes').value,
+  });
+  closeModal('newInvoiceModal');
+  loadInvoices();
+}
+
+// ── AI CFO CHAT ───────────────────────────────────────────────────────────────
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg   = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  const msgs = document.getElementById('chatMessages');
+  msgs.innerHTML += `<div class="chat-msg user">${esc(msg)}</div>`;
+  msgs.innerHTML += `<div class="chat-msg agent" id="chatThinking"><div class="agent-label">Vivian Cross — CFO</div><span style="color:var(--fin-muted)">Analysing…</span></div>`;
+  msgs.scrollTop = msgs.scrollHeight;
+
+  try {
+    const d = await post('/chat', { message: msg });
+    document.getElementById('chatThinking').innerHTML =
+      `<div class="agent-label">Vivian Cross — CFO</div>${esc(d.reply||'No response')}`;
+    document.getElementById('chatThinking').removeAttribute('id');
+  } catch(e) {
+    document.getElementById('chatThinking').innerHTML = `<div class="agent-label">Vivian Cross — CFO</div><span style="color:var(--fin-red)">Error reaching Vivian.</span>`;
+    document.getElementById('chatThinking').removeAttribute('id');
+  }
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function runAudit() {
+  const d = await post('/chat', { message: "Run a full IEBC efficiency audit. Cover: gross margin, subscription waste, credit risks, renewals due soon, and client revenue vs costs. Give me the full picture with specific numbers." });
+  showTab('chat', document.querySelector('[data-tab=chat]'));
+  setTimeout(() => {
+    const msgs = document.getElementById('chatMessages');
+    msgs.innerHTML += `<div class="chat-msg agent"><div class="agent-label">Vivian Cross — CFO (Audit)</div>${esc(d.reply||'')}</div>`;
+    msgs.scrollTop = msgs.scrollHeight;
+  }, 100);
+}
+
+document.addEventListener('DOMContentLoaded', () => loadOverview());
+</script>
+{% endblock %}

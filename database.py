@@ -869,6 +869,83 @@ def init_db():
             created_at  TIMESTAMP DEFAULT NOW()
         )""")
 
+        # ── Finance / IEBC tables ────────────────────────────────────────
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS finance_clients (
+            id             SERIAL PRIMARY KEY,
+            name           TEXT NOT NULL,
+            contact_name   TEXT DEFAULT '',
+            contact_email  TEXT DEFAULT '',
+            contact_phone  TEXT DEFAULT '',
+            monthly_value  NUMERIC(14,2) DEFAULT 0,
+            billing_cycle  TEXT DEFAULT 'monthly',
+            status         TEXT DEFAULT 'active',
+            platform       TEXT DEFAULT '',
+            start_date     DATE,
+            notes          TEXT DEFAULT '',
+            created_at     TIMESTAMP DEFAULT NOW(),
+            updated_at     TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS finance_subscriptions (
+            id             SERIAL PRIMARY KEY,
+            name           TEXT NOT NULL,
+            category       TEXT DEFAULT 'other',
+            vendor         TEXT DEFAULT '',
+            monthly_cost   NUMERIC(12,2) DEFAULT 0,
+            annual_cost    NUMERIC(12,2) DEFAULT 0,
+            billing_cycle  TEXT DEFAULT 'monthly',
+            status         TEXT DEFAULT 'active',
+            renewal_date   DATE,
+            last_used_at   TIMESTAMP,
+            url            TEXT DEFAULT '',
+            notes          TEXT DEFAULT '',
+            created_at     TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS finance_platforms (
+            id             SERIAL PRIMARY KEY,
+            name           TEXT NOT NULL,
+            platform_type  TEXT DEFAULT 'social',
+            monthly_cost   NUMERIC(12,2) DEFAULT 0,
+            status         TEXT DEFAULT 'active',
+            account_id     TEXT DEFAULT '',
+            notes          TEXT DEFAULT '',
+            created_at     TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS finance_provider_credits (
+            id             SERIAL PRIMARY KEY,
+            provider       TEXT NOT NULL UNIQUE,
+            balance        NUMERIC(16,4) DEFAULT 0,
+            credit_cap     NUMERIC(16,4) DEFAULT 0,
+            monthly_spend  NUMERIC(12,4) DEFAULT 0,
+            unit           TEXT DEFAULT 'USD',
+            last_refill_at TIMESTAMP,
+            last_updated   TIMESTAMP DEFAULT NOW(),
+            notes          TEXT DEFAULT ''
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS finance_credit_txns (
+            id          SERIAL PRIMARY KEY,
+            provider    TEXT NOT NULL,
+            amount      NUMERIC(16,4) NOT NULL,
+            direction   TEXT DEFAULT 'debit',
+            description TEXT DEFAULT '',
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS finance_invoices (
+            id           SERIAL PRIMARY KEY,
+            client_id    INTEGER REFERENCES finance_clients(id) ON DELETE SET NULL,
+            amount       NUMERIC(14,2) NOT NULL,
+            status       TEXT DEFAULT 'draft',
+            due_date     DATE,
+            paid_at      TIMESTAMP,
+            notes        TEXT DEFAULT '',
+            created_at   TIMESTAMP DEFAULT NOW()
+        )""")
+
         # ── Monetizer tables ─────────────────────────────────────────────
         conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_expenses (
