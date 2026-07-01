@@ -97,7 +97,7 @@ TIERS = {
         "description": "Get started for free — no credit card, no commitment. 3 AI videos per month with 10 credits.",
         "price_monthly": 0,
         "trial_days": 0,
-        "videos_per_month": -1,
+        "videos_per_month": 3,
         "higgsfield_credits": 10,
         "stripe_price_id": None,
         "features": [
