@@ -5928,6 +5928,451 @@ def api_engagement_campaign_execute(campaign_id):
     return jsonify({"ok": True, "executed": executed})
 
 
+# ── CRM ───────────────────────────────────────────────────────────────────────
+
+@app.route("/crm")
+@login_required
+def crm_page():
+    return render_template("crm.html", active_page="crm")
+
+
+def _crm_auto_populate(user_id: int):
+    """Pull existing users, contacts, social accounts, and outreach leads into the CRM."""
+    with db.get_conn() as conn:
+        # ── 1. App users → CRM contacts (paying customers) ─────────────────
+        existing_emails = {r["email"] for r in conn.execute(
+            "SELECT email FROM crm_contacts WHERE user_id=%s AND email!=''", (user_id,)
+        ).fetchall()}
+
+        users = conn.execute(
+            "SELECT id, email, name, subscription_tier, created_at FROM users WHERE email IS NOT NULL AND email!=''"
+        ).fetchall()
+        for u in users:
+            if u["email"] in existing_emails:
+                continue
+            stage = "customer" if u["subscription_tier"] not in ("free", "cancelled", None) else "lead"
+            source = "platform_signup"
+            conn.execute("""
+                INSERT INTO crm_contacts (user_id, name, email, stage, source, tags, created_at)
+                VALUES (%s,%s,%s,%s,%s,%s,%s)
+                ON CONFLICT DO NOTHING
+            """, (user_id, u["name"] or u["email"].split("@")[0],
+                  u["email"], stage, source,
+                  '["platform_user"]', u["created_at"]))
+
+        # ── 2. Existing contacts table → CRM contacts ──────────────────────
+        old_contacts = conn.execute(
+            "SELECT name, email, platform, handle, notes, imported_at FROM contacts WHERE user_id=%s",
+            (user_id,)
+        ).fetchall()
+        existing_emails_after = {r["email"] for r in conn.execute(
+            "SELECT email FROM crm_contacts WHERE user_id=%s AND email!=''", (user_id,)
+        ).fetchall()}
+        for c in old_contacts:
+            if c["email"] and c["email"] in existing_emails_after:
+                continue
+            tags = json.dumps([c["platform"]] if c["platform"] else ["imported"])
+            conn.execute("""
+                INSERT INTO crm_contacts (user_id, name, email, stage, source, tags, notes, created_at)
+                VALUES (%s,%s,%s,'lead','import',%s,%s,%s)
+            """, (user_id, c["name"] or c["handle"] or "Unknown",
+                  c["email"] or "", tags, c["notes"] or "", c["imported_at"]))
+
+        # ── 3. Outreach campaign sends → CRM contacts (prospects) ──────────
+        sent_emails = conn.execute("""
+            SELECT DISTINCT s.email, s.name, oc.name AS campaign_name
+            FROM outreach_sends s
+            JOIN outreach_campaigns oc ON oc.id = s.campaign_id
+            WHERE oc.user_id=%s AND s.email IS NOT NULL AND s.email != ''
+        """, (user_id,)).fetchall()
+        existing_now = {r["email"] for r in conn.execute(
+            "SELECT email FROM crm_contacts WHERE user_id=%s AND email!=''", (user_id,)
+        ).fetchall()}
+        for s in sent_emails:
+            if s["email"] in existing_now:
+                continue
+            conn.execute("""
+                INSERT INTO crm_contacts (user_id, name, email, stage, source, tags)
+                VALUES (%s,%s,%s,'lead','outreach_campaign',%s)
+            """, (user_id, s["name"] or s["email"].split("@")[0], s["email"],
+                  json.dumps(["outreach", s["campaign_name"] or ""])))
+
+        # ── 4. Social accounts → CRM contacts (own platforms as reference) ─
+        social_accs = conn.execute(
+            "SELECT platform, username, display_name, followers FROM social_accounts WHERE user_id=%s",
+            (user_id,)
+        ).fetchall()
+        for sa in social_accs:
+            handle = f"@{sa['username']}"
+            existing_handle = conn.execute(
+                "SELECT id FROM crm_contacts WHERE user_id=%s AND notes LIKE %s LIMIT 1",
+                (user_id, f"%{handle}%")
+            ).fetchone()
+            if existing_handle:
+                continue
+            conn.execute("""
+                INSERT INTO crm_contacts (user_id, name, stage, source, tags, notes)
+                VALUES (%s,%s,'customer','social_account',%s,%s)
+            """, (user_id,
+                  sa["display_name"] or sa["username"],
+                  json.dumps([sa["platform"], "own_account"]),
+                  f"{sa['platform']} {handle} · {sa['followers']:,} followers"))
+
+
+@app.route("/api/crm/sync", methods=["POST"])
+@login_required
+def api_crm_sync():
+    _crm_auto_populate(current_user.id)
+    return jsonify({"ok": True})
+
+
+# ── CRM Companies ─────────────────────────────────────────────────────────────
+
+@app.route("/api/crm/companies", methods=["GET"])
+@login_required
+def api_crm_companies():
+    with db.get_conn() as conn:
+        rows = conn.execute("""
+            SELECT co.*, COUNT(DISTINCT cc.id) AS contact_count,
+                   COUNT(DISTINCT cd.id) AS deal_count
+            FROM crm_companies co
+            LEFT JOIN crm_contacts cc ON cc.company_id=co.id
+            LEFT JOIN crm_deals cd ON cd.company_id=co.id
+            WHERE co.user_id=%s
+            GROUP BY co.id ORDER BY co.name
+        """, (current_user.id,)).fetchall()
+    return jsonify({"companies": [dict(r) for r in rows]})
+
+
+@app.route("/api/crm/companies", methods=["POST"])
+@login_required
+def api_crm_add_company():
+    d = request.json or {}
+    name = (d.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    with db.get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO crm_companies (user_id,name,industry,website,phone,annual_revenue,employees,notes)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (current_user.id, name, d.get("industry",""), d.get("website",""),
+              d.get("phone",""), d.get("annual_revenue") or None,
+              d.get("employees") or None, d.get("notes","")))
+        new_id = cur.fetchone()["id"]
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.route("/api/crm/companies/<int:cid>", methods=["DELETE"])
+@login_required
+def api_crm_delete_company(cid):
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM crm_companies WHERE id=%s AND user_id=%s", (cid, current_user.id))
+    return jsonify({"ok": True})
+
+
+# ── CRM Contacts ──────────────────────────────────────────────────────────────
+
+@app.route("/api/crm/contacts", methods=["GET"])
+@login_required
+def api_crm_contacts():
+    with db.get_conn() as conn:
+        rows = conn.execute("""
+            SELECT cc.*, co.name AS company_name,
+                   COUNT(DISTINCT cd.id) AS deal_count,
+                   MAX(ca.created_at) AS last_activity
+            FROM crm_contacts cc
+            LEFT JOIN crm_companies co ON co.id=cc.company_id
+            LEFT JOIN crm_deals cd ON cd.contact_id=cc.id
+            LEFT JOIN crm_activities ca ON ca.contact_id=cc.id
+            WHERE cc.user_id=%s
+            GROUP BY cc.id, co.name
+            ORDER BY cc.created_at DESC
+        """, (current_user.id,)).fetchall()
+    return jsonify({"contacts": [dict(r) for r in rows]})
+
+
+@app.route("/api/crm/contacts/<int:cid>", methods=["GET"])
+@login_required
+def api_crm_contact_detail(cid):
+    with db.get_conn() as conn:
+        contact = conn.execute("""
+            SELECT cc.*, co.name AS company_name
+            FROM crm_contacts cc
+            LEFT JOIN crm_companies co ON co.id=cc.company_id
+            WHERE cc.id=%s AND cc.user_id=%s
+        """, (cid, current_user.id)).fetchone()
+        if not contact:
+            return jsonify({"error": "not found"}), 404
+        activities = conn.execute("""
+            SELECT * FROM crm_activities WHERE contact_id=%s AND user_id=%s
+            ORDER BY created_at DESC LIMIT 20
+        """, (cid, current_user.id)).fetchall()
+        deals = conn.execute("""
+            SELECT cd.*, co.name AS company_name
+            FROM crm_deals cd
+            LEFT JOIN crm_companies co ON co.id=cd.company_id
+            WHERE cd.contact_id=%s AND cd.user_id=%s
+            ORDER BY cd.created_at DESC
+        """, (cid, current_user.id)).fetchall()
+    return jsonify({
+        "contact":    dict(contact),
+        "activities": [dict(a) for a in activities],
+        "deals":      [dict(d) for d in deals],
+    })
+
+
+@app.route("/api/crm/contacts", methods=["POST"])
+@login_required
+def api_crm_add_contact():
+    d = request.json or {}
+    name = (d.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    with db.get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO crm_contacts
+              (user_id,company_id,name,email,phone,title,stage,source,tags,notes)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (current_user.id,
+              d.get("company_id") or None, name, d.get("email",""),
+              d.get("phone",""), d.get("title",""), d.get("stage","lead"),
+              d.get("source",""), d.get("tags","[]"), d.get("notes","")))
+        new_id = cur.fetchone()["id"]
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.route("/api/crm/contacts/<int:cid>", methods=["DELETE"])
+@login_required
+def api_crm_delete_contact(cid):
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM crm_contacts WHERE id=%s AND user_id=%s", (cid, current_user.id))
+    return jsonify({"ok": True})
+
+
+# ── CRM Deals ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/crm/deals", methods=["GET"])
+@login_required
+def api_crm_deals():
+    with db.get_conn() as conn:
+        rows = conn.execute("""
+            SELECT cd.*, cc.name AS contact_name, co.name AS company_name
+            FROM crm_deals cd
+            LEFT JOIN crm_contacts cc ON cc.id=cd.contact_id
+            LEFT JOIN crm_companies co ON co.id=cd.company_id
+            WHERE cd.user_id=%s ORDER BY cd.created_at DESC
+        """, (current_user.id,)).fetchall()
+    return jsonify({"deals": [dict(r) for r in rows]})
+
+
+@app.route("/api/crm/deals/<int:did>", methods=["GET"])
+@login_required
+def api_crm_deal_detail(did):
+    with db.get_conn() as conn:
+        deal = conn.execute("""
+            SELECT cd.*, cc.name AS contact_name, co.name AS company_name
+            FROM crm_deals cd
+            LEFT JOIN crm_contacts cc ON cc.id=cd.contact_id
+            LEFT JOIN crm_companies co ON co.id=cd.company_id
+            WHERE cd.id=%s AND cd.user_id=%s
+        """, (did, current_user.id)).fetchone()
+    if not deal:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"deal": dict(deal)})
+
+
+@app.route("/api/crm/deals", methods=["POST"])
+@login_required
+def api_crm_add_deal():
+    d = request.json or {}
+    name = (d.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    with db.get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO crm_deals
+              (user_id,contact_id,company_id,name,value,stage,close_date,notes)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (current_user.id,
+              d.get("contact_id") or None, d.get("company_id") or None,
+              name, float(d.get("value",0)), d.get("stage","lead"),
+              d.get("close_date") or None, d.get("notes","")))
+        new_id = cur.fetchone()["id"]
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.route("/api/crm/deals/<int:did>", methods=["PATCH"])
+@login_required
+def api_crm_update_deal(did):
+    d = request.json or {}
+    allowed = ["stage", "value", "name", "close_date", "notes"]
+    updates = {k: v for k, v in d.items() if k in allowed}
+    if not updates:
+        return jsonify({"ok": True})
+    cols = ", ".join(f"{k}=%s" for k in updates)
+    vals = list(updates.values()) + [did, current_user.id]
+    with db.get_conn() as conn:
+        conn.execute(f"UPDATE crm_deals SET {cols}, updated_at=NOW() WHERE id=%s AND user_id=%s", vals)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/crm/deals/<int:did>", methods=["DELETE"])
+@login_required
+def api_crm_delete_deal(did):
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM crm_deals WHERE id=%s AND user_id=%s", (did, current_user.id))
+    return jsonify({"ok": True})
+
+
+# ── CRM Activities ────────────────────────────────────────────────────────────
+
+@app.route("/api/crm/activities", methods=["GET"])
+@login_required
+def api_crm_activities():
+    with db.get_conn() as conn:
+        rows = conn.execute("""
+            SELECT ca.*, cc.name AS contact_name
+            FROM crm_activities ca
+            LEFT JOIN crm_contacts cc ON cc.id=ca.contact_id
+            WHERE ca.user_id=%s ORDER BY ca.created_at DESC LIMIT 100
+        """, (current_user.id,)).fetchall()
+    return jsonify({"activities": [dict(r) for r in rows]})
+
+
+@app.route("/api/crm/activities", methods=["POST"])
+@login_required
+def api_crm_add_activity():
+    d = request.json or {}
+    summary = (d.get("summary") or "").strip()
+    if not summary:
+        return jsonify({"error": "summary required"}), 400
+    contact_id = d.get("contact_id") or None
+    with db.get_conn() as conn:
+        conn.execute("""
+            INSERT INTO crm_activities (user_id,contact_id,activity_type,summary,notes)
+            VALUES (%s,%s,%s,%s,%s)
+        """, (current_user.id, contact_id,
+              d.get("activity_type","note"), summary, d.get("notes","")))
+        if contact_id:
+            conn.execute(
+                "UPDATE crm_contacts SET last_activity=NOW() WHERE id=%s AND user_id=%s",
+                (contact_id, current_user.id)
+            )
+    return jsonify({"ok": True})
+
+
+@app.route("/api/crm/activities/<int:aid>", methods=["DELETE"])
+@login_required
+def api_crm_delete_activity(aid):
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM crm_activities WHERE id=%s AND user_id=%s", (aid, current_user.id))
+    return jsonify({"ok": True})
+
+
+# ── CRM Tasks ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/crm/tasks", methods=["GET"])
+@login_required
+def api_crm_tasks():
+    with db.get_conn() as conn:
+        rows = conn.execute("""
+            SELECT ct.*, cc.name AS contact_name
+            FROM crm_tasks ct
+            LEFT JOIN crm_contacts cc ON cc.id=ct.contact_id
+            WHERE ct.user_id=%s ORDER BY ct.due_date ASC NULLS LAST, ct.created_at DESC
+        """, (current_user.id,)).fetchall()
+    return jsonify({"tasks": [dict(r) for r in rows]})
+
+
+@app.route("/api/crm/tasks", methods=["POST"])
+@login_required
+def api_crm_add_task():
+    d = request.json or {}
+    title = (d.get("title") or "").strip()
+    if not title:
+        return jsonify({"error": "title required"}), 400
+    with db.get_conn() as conn:
+        conn.execute("""
+            INSERT INTO crm_tasks (user_id,contact_id,title,notes,priority,due_date)
+            VALUES (%s,%s,%s,%s,%s,%s)
+        """, (current_user.id, d.get("contact_id") or None,
+              title, d.get("notes",""), d.get("priority","normal"),
+              d.get("due_date") or None))
+    return jsonify({"ok": True})
+
+
+@app.route("/api/crm/tasks/<int:tid>", methods=["PATCH"])
+@login_required
+def api_crm_update_task(tid):
+    d = request.json or {}
+    with db.get_conn() as conn:
+        if "status" in d:
+            conn.execute(
+                "UPDATE crm_tasks SET status=%s WHERE id=%s AND user_id=%s",
+                (d["status"], tid, current_user.id)
+            )
+    return jsonify({"ok": True})
+
+
+# ── CRM Reports ───────────────────────────────────────────────────────────────
+
+@app.route("/api/crm/reports", methods=["GET"])
+@login_required
+def api_crm_reports():
+    uid = current_user.id
+    with db.get_conn() as conn:
+        total_contacts = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM crm_contacts WHERE user_id=%s", (uid,)
+        ).fetchone()["cnt"]
+        total_companies = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM crm_companies WHERE user_id=%s", (uid,)
+        ).fetchone()["cnt"]
+        open_pipeline = conn.execute("""
+            SELECT COALESCE(SUM(value),0) AS v FROM crm_deals
+            WHERE user_id=%s AND stage NOT IN ('won','lost')
+        """, (uid,)).fetchone()["v"]
+        acts_30d = conn.execute("""
+            SELECT COUNT(*) AS cnt FROM crm_activities
+            WHERE user_id=%s AND created_at >= NOW()-INTERVAL '30 days'
+        """, (uid,)).fetchone()["cnt"]
+        open_tasks = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM crm_tasks WHERE user_id=%s AND status='open'", (uid,)
+        ).fetchone()["cnt"]
+        by_stage = conn.execute("""
+            SELECT stage, COUNT(*) AS count, COALESCE(SUM(value),0) AS total_value
+            FROM crm_deals WHERE user_id=%s
+            GROUP BY stage ORDER BY total_value DESC
+        """, (uid,)).fetchall()
+        won_recently = conn.execute("""
+            SELECT name, value FROM crm_deals
+            WHERE user_id=%s AND stage='won' AND updated_at >= NOW()-INTERVAL '30 days'
+            ORDER BY value DESC LIMIT 10
+        """, (uid,)).fetchall()
+        top_contacts = conn.execute("""
+            SELECT cc.name, COALESCE(SUM(cd.value),0) AS total_deal_value
+            FROM crm_contacts cc
+            LEFT JOIN crm_deals cd ON cd.contact_id=cc.id
+            WHERE cc.user_id=%s
+            GROUP BY cc.id, cc.name
+            ORDER BY total_deal_value DESC LIMIT 10
+        """, (uid,)).fetchall()
+        act_by_type = conn.execute("""
+            SELECT activity_type, COUNT(*) AS count FROM crm_activities
+            WHERE user_id=%s GROUP BY activity_type ORDER BY count DESC
+        """, (uid,)).fetchall()
+    return jsonify({
+        "total_contacts":      int(total_contacts),
+        "total_companies":     int(total_companies),
+        "open_pipeline_value": float(open_pipeline),
+        "activities_30d":      int(acts_30d),
+        "open_tasks":          int(open_tasks),
+        "by_stage":            [dict(r) for r in by_stage],
+        "won_recently":        [dict(r) for r in won_recently],
+        "top_contacts":        [dict(r) for r in top_contacts],
+        "activity_by_type":    [dict(r) for r in act_by_type],
+    })
+
+
 # ── MONETIZER — Business Command Center ───────────────────────────────────────
 
 @app.route("/monetizer")

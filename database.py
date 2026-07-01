@@ -802,6 +802,73 @@ def init_db():
         )
         """)
 
+        # ── CRM tables ───────────────────────────────────────────────────
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS crm_companies (
+            id             SERIAL PRIMARY KEY,
+            user_id        INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name           TEXT NOT NULL,
+            industry       TEXT DEFAULT '',
+            website        TEXT DEFAULT '',
+            phone          TEXT DEFAULT '',
+            annual_revenue NUMERIC(14,2),
+            employees      INTEGER,
+            notes          TEXT DEFAULT '',
+            created_at     TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS crm_contacts (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            company_id  INTEGER REFERENCES crm_companies(id) ON DELETE SET NULL,
+            name        TEXT NOT NULL,
+            email       TEXT DEFAULT '',
+            phone       TEXT DEFAULT '',
+            title       TEXT DEFAULT '',
+            stage       TEXT DEFAULT 'lead',
+            source      TEXT DEFAULT '',
+            tags        TEXT DEFAULT '[]',
+            notes       TEXT DEFAULT '',
+            last_activity TIMESTAMP,
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS crm_deals (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            contact_id  INTEGER REFERENCES crm_contacts(id) ON DELETE SET NULL,
+            company_id  INTEGER REFERENCES crm_companies(id) ON DELETE SET NULL,
+            name        TEXT NOT NULL,
+            value       NUMERIC(14,2) DEFAULT 0,
+            stage       TEXT DEFAULT 'lead',
+            close_date  DATE,
+            notes       TEXT DEFAULT '',
+            created_at  TIMESTAMP DEFAULT NOW(),
+            updated_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS crm_activities (
+            id            SERIAL PRIMARY KEY,
+            user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            contact_id    INTEGER REFERENCES crm_contacts(id) ON DELETE SET NULL,
+            activity_type TEXT DEFAULT 'note',
+            summary       TEXT NOT NULL,
+            notes         TEXT DEFAULT '',
+            created_at    TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS crm_tasks (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            contact_id  INTEGER REFERENCES crm_contacts(id) ON DELETE SET NULL,
+            title       TEXT NOT NULL,
+            notes       TEXT DEFAULT '',
+            priority    TEXT DEFAULT 'normal',
+            status      TEXT DEFAULT 'open',
+            due_date    DATE,
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+
         # ── Monetizer tables ─────────────────────────────────────────────
         conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_expenses (
