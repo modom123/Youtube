@@ -37,7 +37,7 @@ def _get_duration(path: Path) -> float:
     try:
         from moviepy import AudioFileClip
         clip = AudioFileClip(str(path))
-        duration = clip.duration
+        duration = float(clip.duration)
         clip.close()
     except Exception:
         pass
