@@ -22,7 +22,6 @@
   .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline:none; border-color:var(--accent); }
   .form-row textarea { resize:vertical; min-height:60px; }
 
-  /* Upload */
   .upload-zone {
     border:2px dashed var(--border); border-radius:12px; padding:36px 16px;
     text-align:center; cursor:pointer; transition:all .2s; background:var(--bg);
@@ -38,7 +37,6 @@
   .preview-wrap img, .preview-wrap video { width:100%; height:100%; object-fit:cover; display:block; max-height:220px; }
   .preview-clear { position:absolute; top:8px; right:8px; background:rgba(0,0,0,.7); border:none; color:#fff; width:26px; height:26px; border-radius:50%; cursor:pointer; font-size:13px; }
 
-  /* Platform chips */
   .platform-chips { display:flex; flex-wrap:wrap; gap:7px; }
   .platform-chip { display:flex; align-items:center; gap:5px; border:1px solid var(--border); border-radius:20px; padding:4px 11px; cursor:pointer; font-size:12px; font-weight:500; background:var(--bg); transition:all .15s; user-select:none; }
   .platform-chip.active { border-color:var(--accent); background:rgba(255,59,48,.1); color:var(--accent); }
@@ -47,7 +45,6 @@
   .btn-generate:disabled { opacity:.4; cursor:not-allowed; }
   .btn-generate:hover:not(:disabled) { opacity:.88; }
 
-  /* Results */
   .empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
   .empty-state .es-icon { font-size:48px; margin-bottom:14px; }
   .empty-state h3 { font-size:17px; font-weight:600; color:var(--text); margin-bottom:8px; }
@@ -57,7 +54,6 @@
   @keyframes spin { to { transform:rotate(360deg); } }
   .spinner p { color:var(--muted); font-size:14px; margin-top:12px; }
 
-  /* Caption cards */
   .platform-tabs { display:flex; gap:4px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:20px; }
   .ptab { padding:7px 14px; font-size:12px; font-weight:600; border:none; background:none; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .15s; border-radius:6px 6px 0 0; }
   .ptab.active { color:var(--accent); border-bottom-color:var(--accent); background:rgba(255,59,48,.05); }
@@ -118,12 +114,12 @@
       <div class="form-row">
         <label>Caption Tone</label>
         <select id="tone">
-          <option value="engaging">Engaging & Relatable</option>
-          <option value="professional">Professional & Authoritative</option>
-          <option value="funny">Funny & Viral</option>
-          <option value="inspirational">Inspirational & Motivating</option>
-          <option value="promotional">Promotional & Sales-focused</option>
-          <option value="educational">Educational & Informative</option>
+          <option value="engaging">Engaging &amp; Relatable</option>
+          <option value="professional">Professional &amp; Authoritative</option>
+          <option value="funny">Funny &amp; Viral</option>
+          <option value="inspirational">Inspirational &amp; Motivating</option>
+          <option value="promotional">Promotional &amp; Sales-focused</option>
+          <option value="educational">Educational &amp; Informative</option>
         </select>
       </div>
 
@@ -170,22 +166,18 @@
 
     <div id="resultState" style="display:none">
 
-      <!-- Media preview -->
       <div class="media-preview-result" id="resultMediaWrap" style="display:none"></div>
 
-      <!-- Vision analysis -->
       <div class="vision-card" id="visionCard" style="display:none">
         <strong>🔍 AI saw this in your media</strong>
         <span id="visionText"></span>
       </div>
 
-      <!-- Caption tabs -->
       <div class="qp-card" style="margin-bottom:16px;">
         <div class="platform-tabs" id="platformTabs"></div>
         <div id="captionPanels"></div>
       </div>
 
-      <!-- Hashtags -->
       <div class="qp-card" style="margin-bottom:16px;">
         <h2>Suggested Hashtags</h2>
         <div class="hashtag-cloud" id="hashtagCloud"></div>
@@ -194,7 +186,6 @@
         </div>
       </div>
 
-      <!-- Meta -->
       <div class="meta-grid">
         <div class="meta-box">
           <h4>⏰ Best Time to Post</h4>
@@ -215,7 +206,6 @@ let currentJobId = null;
 let pollInterval = null;
 let generatedData = null;
 
-// ── Upload preview ────────────────────────────────────────────────────────────
 function previewMedia(input) {
   const file = input.files[0];
   if (!file) return;
@@ -237,7 +227,6 @@ function clearMedia() {
   document.getElementById('uploadZone').style.display = 'block';
 }
 
-// Drag-and-drop
 const zone = document.getElementById('uploadZone');
 zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
 zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
@@ -247,7 +236,6 @@ zone.addEventListener('drop', e => {
   if (f) { const dt = new DataTransfer(); dt.items.add(f); document.getElementById('mediaFile').files = dt.files; previewMedia(document.getElementById('mediaFile')); }
 });
 
-// ── Generate ──────────────────────────────────────────────────────────────────
 async function generatePost() {
   const fi = document.getElementById('mediaFile');
   if (!fi.files[0]) { alert('Upload a photo or video first.'); return; }
@@ -303,7 +291,6 @@ async function pollStatus() {
 function showResults(d) {
   showState('result');
 
-  // Media preview
   const fi = document.getElementById('mediaFile');
   if (fi.files[0]) {
     const wrap = document.getElementById('resultMediaWrap');
@@ -314,13 +301,11 @@ function showResults(d) {
     wrap.style.display = 'block';
   }
 
-  // Vision
   if (d.media_description) {
     document.getElementById('visionText').textContent = d.media_description;
     document.getElementById('visionCard').style.display = 'block';
   }
 
-  // Caption tabs
   const captions  = d.captions || {};
   const tabsEl    = document.getElementById('platformTabs');
   const panelsEl  = document.getElementById('captionPanels');
@@ -338,22 +323,21 @@ function showResults(d) {
         <div class="caption-box" id="box-${platform}" contenteditable="true">${caption}</div>
         <div class="caption-actions">
           <button class="btn-sm" onclick="copyCaption('${platform}')">📋 Copy</button>
-          <button class="btn-sm primary" onclick="openPublish('${platform}')">🚀 Publish to ${names[platform]||platform}</button>
+          <button class="btn-sm primary" onclick="postNow('${platform}', this)">🚀 Post Now</button>
+          <button class="btn-sm" onclick="openSchedule('${platform}')">📅 Schedule</button>
         </div>
         <div class="schedule-row" id="schedule-${platform}" style="display:none">
           <input type="datetime-local" id="schedtime-${platform}">
-          <button class="btn-sm primary" onclick="schedulePost('${platform}')">📅 Schedule</button>
+          <button class="btn-sm primary" onclick="schedulePost('${platform}')">📅 Confirm Schedule</button>
           <button class="btn-sm" onclick="document.getElementById('schedule-${platform}').style.display='none'">Cancel</button>
         </div>
       </div>`;
     first = false;
   }
 
-  // Hashtags
   const tags = d.suggested_tags || [];
   document.getElementById('hashtagCloud').innerHTML = tags.map(t => `<span class="hashtag-pill" onclick="copyTag(this, '#${t}')">#${t}</span>`).join('');
 
-  // Meta
   document.getElementById('bestTime').textContent = d.best_time || '—';
   document.getElementById('altText').textContent  = d.alt_text  || '—';
 }
@@ -385,8 +369,43 @@ function copyAllHashtags() {
   navigator.clipboard.writeText(tags).then(() => alert('All hashtags copied!'));
 }
 
-function openPublish(platform) {
+function openSchedule(platform) {
   document.getElementById('schedule-' + platform).style.display = 'flex';
+}
+
+async function postNow(platform, btn) {
+  const caption = document.getElementById('box-' + platform).innerText;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Posting...';
+  try {
+    const resp = await fetch(`/api/quickpost/${currentJobId}/publish`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ platform, caption })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      if (data.result && data.result.status === 'manual_required') {
+        btn.disabled = false;
+        btn.textContent = orig;
+        alert('📋 ' + data.result.reason + '\n\nCaption copied to clipboard!');
+        navigator.clipboard.writeText(caption).catch(() => {});
+      } else {
+        btn.textContent = '✅ Posted!';
+        btn.style.background = '#30d158';
+        btn.style.borderColor = '#30d158';
+      }
+    } else {
+      btn.disabled = false;
+      btn.textContent = orig;
+      alert('Error: ' + (data.error || 'unknown'));
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = orig;
+    alert('Error: ' + e.message);
+  }
 }
 
 async function schedulePost(platform) {
