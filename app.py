@@ -6743,6 +6743,141 @@ def api_finance_chat():
     return jsonify({"reply": reply})
 
 
+# ── Social Optimize Credits ───────────────────────────────────────────────────
+
+@app.route("/credits")
+@login_required
+def credits_page():
+    wallet = db.get_user_credits(current_user.id)
+    packages = db.get_credit_packages()
+    txns = db.get_credit_txns(current_user.id, limit=30)
+    return render_template("credits.html", wallet=wallet, packages=packages, txns=txns,
+                           costs=db.SO_CREDIT_COSTS, active_page="credits")
+
+
+@app.route("/api/credits/balance", methods=["GET"])
+@login_required
+def api_credits_balance():
+    w = db.get_user_credits(current_user.id)
+    return jsonify({"balance": float(w.get("balance", 0)),
+                    "rollover": float(w.get("rollover_balance", 0)),
+                    "total": float(w.get("balance", 0)) + float(w.get("rollover_balance", 0)),
+                    "monthly_allocation": float(w.get("monthly_allocation", 0))})
+
+
+@app.route("/api/credits/transactions", methods=["GET"])
+@login_required
+def api_credits_transactions():
+    txns = db.get_credit_txns(current_user.id, limit=int(request.args.get("limit", 50)))
+    return jsonify({"transactions": txns})
+
+
+@app.route("/api/credits/topup", methods=["POST"])
+@login_required
+def api_credits_topup():
+    """Admin grants credits to a user."""
+    if not current_user.is_admin:
+        return jsonify({"error": "Admin only"}), 403
+    data = request.json or {}
+    uid = data.get("user_id", current_user.id)
+    amount = float(data.get("amount", 0))
+    if amount <= 0:
+        return jsonify({"error": "Amount must be positive"}), 400
+    desc = data.get("description", "Admin top-up")
+    result = db.add_credits(int(uid), amount, "topup", desc)
+    return jsonify(result)
+
+
+@app.route("/api/credits/purchase", methods=["POST"])
+@login_required
+def api_credits_purchase():
+    """User purchases a credit package (payment handled externally; this just grants credits)."""
+    data = request.json or {}
+    pkg_id = data.get("package_id")
+    if not pkg_id:
+        return jsonify({"error": "package_id required"}), 400
+    packages = {str(p["id"]): p for p in db.get_credit_packages()}
+    pkg = packages.get(str(pkg_id))
+    if not pkg:
+        return jsonify({"error": "Invalid package"}), 404
+    credits = float(pkg["credits"])
+    bonus = credits * float(pkg.get("bonus_pct", 0)) / 100
+    total = credits + bonus
+    result = db.add_credits(current_user.id, total, "purchase",
+                            f"Purchased {pkg['name']} ({total:.0f} credits)")
+    return jsonify({**result, "package": pkg["name"], "credits": total})
+
+
+@app.route("/api/credits/deduct", methods=["POST"])
+@login_required
+def api_credits_deduct():
+    """Internal endpoint to deduct credits for an action."""
+    data = request.json or {}
+    action = data.get("action_type", "")
+    if action not in db.SO_CREDIT_COSTS:
+        return jsonify({"error": "Unknown action type"}), 400
+    result = db.deduct_credits(current_user.id, action,
+                               data.get("description", ""),
+                               data.get("ref_id", ""))
+    return jsonify(result)
+
+
+@app.route("/api/credits/packages", methods=["GET"])
+@login_required
+def api_credits_packages():
+    return jsonify({"packages": db.get_credit_packages()})
+
+
+@app.route("/api/credits/rollover", methods=["POST"])
+@login_required
+def api_credits_rollover():
+    """Admin-only: trigger monthly rollover for a user."""
+    if not current_user.is_admin:
+        return jsonify({"error": "Admin only"}), 403
+    uid = (request.json or {}).get("user_id", current_user.id)
+    result = db.rollover_credits(int(uid))
+    return jsonify(result)
+
+
+@app.route("/api/credits/rollover/all", methods=["POST"])
+@login_required
+def api_credits_rollover_all():
+    """Admin-only: trigger monthly rollover for all users."""
+    if not current_user.is_admin:
+        return jsonify({"error": "Admin only"}), 403
+    with db.get_conn() as conn:
+        user_ids = [r["id"] for r in conn.execute("SELECT id FROM users").fetchall()]
+    results = [db.rollover_credits(uid) for uid in user_ids]
+    ok = sum(1 for r in results if r.get("ok"))
+    return jsonify({"ok": True, "processed": len(user_ids), "success": ok})
+
+
+# ── Monetizer: Credit profiles ────────────────────────────────────────────────
+
+@app.route("/api/monetizer/client-credits/<int:uid>", methods=["GET"])
+@login_required
+def api_monetizer_client_credits(uid):
+    if not current_user.is_admin:
+        return jsonify({"error": "Admin only"}), 403
+    wallet = db.get_user_credits(uid)
+    txns = db.get_credit_txns(uid, limit=20)
+    return jsonify({"wallet": wallet, "transactions": txns})
+
+
+@app.route("/api/monetizer/client-credits/<int:uid>/topup", methods=["POST"])
+@login_required
+def api_monetizer_client_credits_topup(uid):
+    if not current_user.is_admin:
+        return jsonify({"error": "Admin only"}), 403
+    data = request.json or {}
+    amount = float(data.get("amount", 0))
+    if amount <= 0:
+        return jsonify({"error": "Amount must be positive"}), 400
+    result = db.add_credits(uid, amount, "admin_topup",
+                            data.get("description", f"Admin top-up by {current_user.email}"))
+    return jsonify(result)
+
+
 # ── MONETIZER — Business Command Center ───────────────────────────────────────
 
 @app.route("/monetizer")

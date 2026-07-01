@@ -1042,6 +1042,52 @@ def init_db():
             created_at      TIMESTAMP DEFAULT NOW()
         )""")
 
+        # ── Social Optimize Credits ──────────────────────────────────────
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS so_credits (
+            id                  SERIAL PRIMARY KEY,
+            user_id             INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+            balance             NUMERIC(14,2) DEFAULT 0,
+            rollover_balance    NUMERIC(14,2) DEFAULT 0,
+            monthly_allocation  NUMERIC(14,2) DEFAULT 0,
+            lifetime_earned     NUMERIC(14,2) DEFAULT 0,
+            lifetime_spent      NUMERIC(14,2) DEFAULT 0,
+            last_rollover_at    TIMESTAMP,
+            updated_at          TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS so_credit_txns (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            amount      NUMERIC(14,2) NOT NULL,
+            direction   TEXT NOT NULL DEFAULT 'debit',
+            action_type TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            ref_id      TEXT DEFAULT '',
+            balance_after NUMERIC(14,2),
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS so_credit_packages (
+            id          SERIAL PRIMARY KEY,
+            name        TEXT NOT NULL,
+            credits     NUMERIC(14,2) NOT NULL,
+            price_usd   NUMERIC(10,2) NOT NULL,
+            bonus_pct   NUMERIC(5,2) DEFAULT 0,
+            active      BOOLEAN DEFAULT TRUE,
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        # Seed default packages
+        conn.execute("""
+        INSERT INTO so_credit_packages (name, credits, price_usd, bonus_pct)
+        VALUES
+            ('Starter Pack',  500,   4.99, 0),
+            ('Growth Pack',  2000,  14.99, 0),
+            ('Pro Pack',     5000,  29.99, 10),
+            ('Agency Pack', 15000,  79.99, 20)
+        ON CONFLICT DO NOTHING
+        """)
+
         _seed_agents(conn)
 
 
@@ -1068,6 +1114,143 @@ def _seed_agents(conn):
         )
 
 
+# ── Social Optimize Credits helpers ──────────────────────────────────────────
+
+# How many credits each action costs
+SO_CREDIT_COSTS = {
+    "video_generate":   10,
+    "audio_generate":   3,
+    "image_generate":   2,
+    "podcast_generate": 8,
+    "caption_generate": 1,
+    "script_generate":  2,
+    "remix_generate":   5,
+    "publish":          1,
+    "ai_chat":          1,
+}
+
+
+def get_user_credits(user_id: int) -> dict:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM so_credits WHERE user_id=%s", (user_id,)
+        ).fetchone()
+        if row is None:
+            # Lazy init for existing users
+            monthly = _TIER_MONTHLY_CREDITS.get("free", 100)
+            conn.execute(
+                """INSERT INTO so_credits (user_id, balance, rollover_balance, monthly_allocation, lifetime_earned)
+                   VALUES (%s,%s,0,%s,%s) ON CONFLICT (user_id) DO NOTHING""",
+                (user_id, monthly, monthly, monthly),
+            )
+            row = conn.execute("SELECT * FROM so_credits WHERE user_id=%s", (user_id,)).fetchone()
+        return dict(row) if row else {}
+
+
+def deduct_credits(user_id: int, action_type: str, description: str = "", ref_id: str = "") -> dict:
+    """Deduct credits for an action. Returns {'ok': bool, 'balance': float, 'cost': int}."""
+    cost = SO_CREDIT_COSTS.get(action_type, 1)
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT balance, rollover_balance FROM so_credits WHERE user_id=%s FOR UPDATE",
+            (user_id,)
+        ).fetchone()
+        if row is None:
+            return {"ok": False, "balance": 0, "cost": cost, "error": "No credit wallet"}
+        total = float(row["balance"]) + float(row["rollover_balance"])
+        if total < cost:
+            return {"ok": False, "balance": total, "cost": cost, "error": "Insufficient credits"}
+        # Deduct from rollover first, then main balance
+        rollover = float(row["rollover_balance"])
+        main = float(row["balance"])
+        if rollover >= cost:
+            rollover -= cost
+            main_new, roll_new = main, rollover
+        else:
+            remainder = cost - rollover
+            roll_new = 0
+            main_new = main - remainder
+        conn.execute(
+            """UPDATE so_credits SET balance=%s, rollover_balance=%s,
+               lifetime_spent=lifetime_spent+%s, updated_at=NOW()
+               WHERE user_id=%s""",
+            (main_new, roll_new, cost, user_id),
+        )
+        balance_after = main_new + roll_new
+        conn.execute(
+            """INSERT INTO so_credit_txns (user_id, amount, direction, action_type, description, ref_id, balance_after)
+               VALUES (%s,%s,'debit',%s,%s,%s,%s)""",
+            (user_id, cost, action_type, description or action_type, ref_id, balance_after),
+        )
+        return {"ok": True, "balance": balance_after, "cost": cost}
+
+
+def add_credits(user_id: int, amount: float, action_type: str = "topup", description: str = "") -> dict:
+    """Add credits to a user's wallet."""
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO so_credits (user_id, balance, rollover_balance, monthly_allocation, lifetime_earned)
+               VALUES (%s,%s,0,0,%s)
+               ON CONFLICT (user_id) DO UPDATE
+               SET balance=so_credits.balance+%s, lifetime_earned=so_credits.lifetime_earned+%s, updated_at=NOW()""",
+            (user_id, amount, amount, amount, amount),
+        )
+        row = conn.execute("SELECT balance+rollover_balance AS total FROM so_credits WHERE user_id=%s", (user_id,)).fetchone()
+        balance_after = float(row["total"]) if row else amount
+        conn.execute(
+            """INSERT INTO so_credit_txns (user_id, amount, direction, action_type, description, balance_after)
+               VALUES (%s,%s,'credit',%s,%s,%s)""",
+            (user_id, amount, action_type, description or f"Credit top-up: {amount}", balance_after),
+        )
+        return {"ok": True, "balance": balance_after}
+
+
+def rollover_credits(user_id: int) -> dict:
+    """Carry unused main balance into rollover, then set new monthly allocation."""
+    wallet = get_user_credits(user_id)
+    if not wallet:
+        return {"ok": False}
+    # Get user tier for new monthly allocation
+    with get_conn() as conn:
+        user_row = conn.execute("SELECT subscription_tier FROM users WHERE id=%s", (user_id,)).fetchone()
+        tier = (user_row["subscription_tier"] if user_row else "free") or "free"
+        monthly = _TIER_MONTHLY_CREDITS.get(tier, 100)
+        old_balance = float(wallet.get("balance", 0))
+        # Add unused balance into rollover, set new monthly balance
+        conn.execute(
+            """UPDATE so_credits
+               SET rollover_balance=rollover_balance+%s,
+                   balance=%s,
+                   monthly_allocation=%s,
+                   lifetime_earned=lifetime_earned+%s,
+                   last_rollover_at=NOW(),
+                   updated_at=NOW()
+               WHERE user_id=%s""",
+            (old_balance, monthly, monthly, monthly, user_id),
+        )
+        conn.execute(
+            """INSERT INTO so_credit_txns (user_id, amount, direction, action_type, description, balance_after)
+               VALUES (%s,%s,'credit','monthly_rollover','Monthly credit rollover',%s)""",
+            (user_id, monthly, monthly + float(wallet.get("rollover_balance", 0)) + old_balance),
+        )
+        return {"ok": True, "new_balance": monthly, "rollover": float(wallet.get("rollover_balance", 0)) + old_balance}
+
+
+def get_credit_txns(user_id: int, limit: int = 50) -> list:
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM so_credit_txns WHERE user_id=%s ORDER BY created_at DESC LIMIT %s",
+            (user_id, limit),
+        ).fetchall()]
+
+
+def get_credit_packages() -> list:
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM so_credit_packages WHERE active=TRUE ORDER BY price_usd"
+        ).fetchall()]
+
+
 def row_to_dict(row):
     if row is None:
         return None
@@ -1083,13 +1266,34 @@ def row_to_dict(row):
 
 # ── Users ─────────────────────────────────────────────────────────────────────
 
-def create_user(email: str, password_hash: str, name: str = "") -> int:
+_TIER_MONTHLY_CREDITS = {
+    "free": 100,
+    "starter": 500,
+    "growth": 2000,
+    "pro": 5000,
+    "agency": 15000,
+}
+
+def create_user(email: str, password_hash: str, name: str = "", tier: str = "free") -> int:
     with get_conn() as conn:
         cur = conn.execute(
             "INSERT INTO users (email, password_hash, name) VALUES (%s,%s,%s) RETURNING id",
             (email.lower().strip(), password_hash, name),
         )
-        return cur.fetchone()["id"]
+        user_id = cur.fetchone()["id"]
+        monthly = _TIER_MONTHLY_CREDITS.get(tier, 100)
+        conn.execute(
+            """INSERT INTO so_credits (user_id, balance, rollover_balance, monthly_allocation, lifetime_earned)
+               VALUES (%s,%s,0,%s,%s)
+               ON CONFLICT (user_id) DO NOTHING""",
+            (user_id, monthly, monthly, monthly),
+        )
+        conn.execute(
+            """INSERT INTO so_credit_txns (user_id, amount, direction, action_type, description, balance_after)
+               VALUES (%s,%s,'credit','account_creation','Welcome credits on account creation',%s)""",
+            (user_id, monthly, monthly),
+        )
+        return user_id
 
 
 def get_user_by_id(user_id: int):

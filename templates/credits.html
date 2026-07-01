@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}SO Credits{% endblock %}
+{% block content %}
+<style>
+:root{--so-gold:#f59e0b;--so-green:#10b981;--so-red:#ef4444;--so-blue:#3b82f6;}
+.credits-hero{background:linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#1e1b4b 100%);border-radius:1.5rem;padding:2.5rem;margin-bottom:2rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;align-items:center;}
+.credits-hero .main-bal{text-align:center;}
+.main-bal .big-num{font-size:4rem;font-weight:800;color:var(--so-gold);line-height:1;text-shadow:0 0 30px rgba(245,158,11,.4);}
+.main-bal .label{color:#a5b4fc;font-size:.9rem;margin-top:.25rem;}
+.bal-card{background:rgba(255,255,255,.06);border-radius:1rem;padding:1.25rem;text-align:center;border:1px solid rgba(255,255,255,.1);}
+.bal-card .num{font-size:2rem;font-weight:700;color:#fff;}
+.bal-card .sub{color:#94a3b8;font-size:.8rem;margin-top:.25rem;}
+.section-card{background:#1e293b;border-radius:1rem;border:1px solid #334155;overflow:hidden;margin-bottom:1.5rem;}
+.section-header{padding:1rem 1.5rem;background:#0f172a;border-bottom:1px solid #334155;display:flex;align-items:center;justify-content:space-between;}
+.section-header h3{margin:0;font-size:1rem;font-weight:600;color:#e2e8f0;}
+.pkg-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;padding:1.5rem;}
+.pkg-card{background:#0f172a;border:2px solid #334155;border-radius:1rem;padding:1.5rem;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+.pkg-card:hover{border-color:var(--so-gold);transform:translateY(-2px);box-shadow:0 8px 24px rgba(245,158,11,.2);}
+.pkg-card .pkg-name{font-weight:700;color:#e2e8f0;margin-bottom:.5rem;}
+.pkg-card .pkg-credits{font-size:2rem;font-weight:800;color:var(--so-gold);}
+.pkg-card .pkg-price{color:#94a3b8;font-size:.9rem;margin:.25rem 0;}
+.pkg-card .pkg-bonus{position:absolute;top:-.5rem;right:-.5rem;background:var(--so-green);color:#fff;font-size:.7rem;font-weight:700;padding:.25rem .5rem;border-radius:.5rem;}
+.buy-btn{margin-top:1rem;background:var(--so-gold);color:#000;border:none;padding:.6rem 1.5rem;border-radius:.5rem;font-weight:700;cursor:pointer;width:100%;transition:opacity .2s;}
+.buy-btn:hover{opacity:.85;}
+.costs-table{width:100%;border-collapse:collapse;}
+.costs-table th{background:#0f172a;color:#94a3b8;font-size:.75rem;text-transform:uppercase;padding:.75rem 1rem;text-align:left;}
+.costs-table td{padding:.75rem 1rem;border-bottom:1px solid #334155;color:#e2e8f0;}
+.costs-table tr:last-child td{border-bottom:none;}
+.credit-pill{display:inline-block;background:rgba(245,158,11,.15);color:var(--so-gold);padding:.2rem .6rem;border-radius:999px;font-weight:700;font-size:.85rem;}
+.txn-list{padding:0;}
+.txn-item{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.5rem;border-bottom:1px solid #334155;}
+.txn-item:last-child{border-bottom:none;}
+.txn-desc{color:#e2e8f0;font-size:.9rem;}
+.txn-date{color:#64748b;font-size:.75rem;margin-top:.2rem;}
+.txn-amount{font-weight:700;font-size:1rem;}
+.txn-amount.credit{color:var(--so-green);}
+.txn-amount.debit{color:var(--so-red);}
+.admin-topup{padding:1.5rem;}
+.topup-form{display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;}
+.topup-form input{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:.6rem .875rem;border-radius:.5rem;font-size:.9rem;}
+.topup-form input::placeholder{color:#475569;}
+.topup-btn{background:var(--so-green);color:#fff;border:none;padding:.6rem 1.25rem;border-radius:.5rem;font-weight:600;cursor:pointer;}
+.topup-btn:hover{opacity:.85;}
+.progress-bar-wrap{background:#0f172a;border-radius:999px;height:8px;overflow:hidden;margin-top:.5rem;}
+.progress-bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--so-gold),var(--so-green));transition:width .6s;}
+.wallet-meta{padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.meta-item label{color:#64748b;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;}
+.meta-item .val{color:#e2e8f0;font-size:1.1rem;font-weight:600;margin-top:.25rem;}
+</style>
+
+<div class="page-header">
+  <h1>🪙 Social Optimize Credits</h1>
+  <p class="subtitle">Your credit balance, usage history, and top-up options</p>
+</div>
+
+{% set total = (wallet.balance or 0)|float + (wallet.rollover_balance or 0)|float %}
+{% set monthly = (wallet.monthly_allocation or 0)|float %}
+{% set pct = [((total / monthly * 100) if monthly > 0 else 100), 100]|min %}
+
+<div class="credits-hero">
+  <div class="bal-card">
+    <div class="num">{{ (wallet.rollover_balance or 0)|int }}</div>
+    <div class="sub">Rollover Credits<br><small>carries forward monthly</small></div>
+  </div>
+  <div class="main-bal">
+    <div class="big-num">{{ total|int }}</div>
+    <div class="label">Total Available Credits</div>
+    <div style="margin-top:.75rem;">
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" style="width:{{ pct }}%"></div>
+      </div>
+      <div style="color:#a5b4fc;font-size:.75rem;margin-top:.35rem;">{{ (wallet.balance or 0)|int }} / {{ monthly|int }} monthly</div>
+    </div>
+  </div>
+  <div class="bal-card">
+    <div class="num">{{ (wallet.lifetime_spent or 0)|int }}</div>
+    <div class="sub">Lifetime Spent<br><small>all-time total</small></div>
+  </div>
+</div>
+
+<!-- Wallet details -->
+<div class="section-card">
+  <div class="section-header">
+    <h3>Wallet Details</h3>
+    <span style="color:#64748b;font-size:.8rem;">Updated in real-time</span>
+  </div>
+  <div class="wallet-meta">
+    <div class="meta-item"><label>Monthly Allocation</label><div class="val">{{ monthly|int }} credits/mo</div></div>
+    <div class="meta-item"><label>Main Balance</label><div class="val">{{ (wallet.balance or 0)|int }} credits</div></div>
+    <div class="meta-item"><label>Rollover Balance</label><div class="val">{{ (wallet.rollover_balance or 0)|int }} credits</div></div>
+    <div class="meta-item"><label>Lifetime Earned</label><div class="val">{{ (wallet.lifetime_earned or 0)|int }} credits</div></div>
+  </div>
+</div>
+
+<!-- Top-up packages -->
+<div class="section-card">
+  <div class="section-header">
+    <h3>Top-Up Packages</h3>
+    <span style="color:#64748b;font-size:.8rem;">Credits never expire — roll over monthly</span>
+  </div>
+  <div class="pkg-grid">
+    {% for pkg in packages %}
+    <div class="pkg-card" onclick="purchasePkg({{ pkg.id }}, '{{ pkg.name }}', {{ pkg.price_usd }})">
+      {% if pkg.bonus_pct and pkg.bonus_pct > 0 %}
+      <div class="pkg-bonus">+{{ pkg.bonus_pct|int }}% BONUS</div>
+      {% endif %}
+      <div class="pkg-name">{{ pkg.name }}</div>
+      <div class="pkg-credits">{{ pkg.credits|int }}</div>
+      <div style="color:#64748b;font-size:.75rem;">credits</div>
+      <div class="pkg-price">${{ "%.2f"|format(pkg.price_usd) }}</div>
+      {% if pkg.bonus_pct and pkg.bonus_pct > 0 %}
+      <div style="color:var(--so-green);font-size:.75rem;margin-top:.25rem;">
+        You get {{ (pkg.credits * (1 + pkg.bonus_pct/100))|int }} total credits
+      </div>
+      {% endif %}
+      <button class="buy-btn">Buy Now</button>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Credit costs reference -->
+<div class="section-card">
+  <div class="section-header">
+    <h3>Credit Costs Per Action</h3>
+  </div>
+  <table class="costs-table">
+    <thead><tr><th>Action</th><th>Credits Used</th></tr></thead>
+    <tbody>
+      {% for action, cost in costs.items() %}
+      <tr>
+        <td>{{ action.replace('_', ' ').title() }}</td>
+        <td><span class="credit-pill">{{ cost }} cr</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Admin top-up -->
+{% if current_user.is_admin %}
+<div class="section-card">
+  <div class="section-header"><h3>Admin: Grant Credits to User</h3></div>
+  <div class="admin-topup">
+    <div class="topup-form">
+      <input type="number" id="topup-uid" placeholder="User ID" style="width:120px">
+      <input type="number" id="topup-amount" placeholder="Credits" style="width:140px">
+      <input type="text" id="topup-desc" placeholder="Reason / note" style="width:220px">
+      <button class="topup-btn" onclick="adminTopup()">Grant Credits</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Transaction history -->
+<div class="section-card">
+  <div class="section-header">
+    <h3>Transaction History</h3>
+    <button onclick="loadMoreTxns()" style="background:none;border:1px solid #334155;color:#94a3b8;padding:.35rem .875rem;border-radius:.5rem;cursor:pointer;font-size:.8rem;">Load More</button>
+  </div>
+  <div class="txn-list" id="txn-list">
+    {% for t in txns %}
+    <div class="txn-item">
+      <div>
+        <div class="txn-desc">{{ t.description or t.action_type }}</div>
+        <div class="txn-date">{{ t.created_at|datefmt }}</div>
+      </div>
+      <div class="txn-amount {{ t.direction }}">
+        {{ '+' if t.direction == 'credit' else '-' }}{{ t.amount|int }} cr
+      </div>
+    </div>
+    {% else %}
+    <div style="padding:2rem;text-align:center;color:#475569;">No transactions yet.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+async function purchasePkg(pkgId, name, price) {
+  if (!confirm(`Purchase "${name}" for $${price.toFixed(2)}?`)) return;
+  const r = await fetch('/api/credits/purchase', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({package_id: pkgId})
+  });
+  const d = await r.json();
+  if (d.ok) {
+    alert(`Success! ${d.credits|0} credits added. New balance: ${Math.round(d.balance)} cr`);
+    location.reload();
+  } else {
+    alert('Error: ' + (d.error || 'Unknown error'));
+  }
+}
+
+async function adminTopup() {
+  const uid = document.getElementById('topup-uid').value;
+  const amount = document.getElementById('topup-amount').value;
+  const desc = document.getElementById('topup-desc').value;
+  if (!uid || !amount) return alert('User ID and amount required.');
+  const r = await fetch('/api/credits/topup', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({user_id: parseInt(uid), amount: parseFloat(amount), description: desc})
+  });
+  const d = await r.json();
+  if (d.ok) { alert(`Granted! New balance for user ${uid}: ${Math.round(d.balance)} cr`); }
+  else { alert('Error: ' + (d.error || 'Unknown')); }
+}
+
+let txnOffset = {{ txns|length }};
+async function loadMoreTxns() {
+  const r = await fetch(`/api/credits/transactions?limit=50&offset=${txnOffset}`);
+  const d = await r.json();
+  // simple append - full feature would paginate properly
+  alert('Loaded ' + (d.transactions?.length || 0) + ' more transactions.');
+}
+</script>
+{% endblock %}
