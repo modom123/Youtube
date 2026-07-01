@@ -113,19 +113,39 @@ def whop_webhook():
         return jsonify({"error": "invalid signature"}), 401
 
     data = request.get_json(silent=True) or {}
-    event = data.get("event", "")
-    membership = data.get("data", {})
-    email = membership.get("email", "") or membership.get("user", {}).get("email", "")
-    plan_id = membership.get("plan_id", "") or membership.get("product_id", "")
-    membership_id = membership.get("id", "")
+    event = data.get("event", "") or data.get("type", "") or data.get("action", "")
+    obj = data.get("data", {})
+    email = obj.get("email", "") or obj.get("user", {}).get("email", "") or obj.get("member", {}).get("email", "")
+    plan_id = obj.get("plan_id", "") or obj.get("product_id", "")
+    membership_id = obj.get("membership_id", "") or obj.get("id", "")
 
-    if event in ("membership.went_valid", "membership.created"):
+    if event in ("membership.went_valid", "membership_went_valid", "membership.created", "membership_created"):
         tier = _product_to_tier("whop", plan_id) or "starter"
         _activate_subscription(email, tier, "whop", membership_id)
-    elif event in ("membership.went_invalid", "membership.cancelled"):
+    elif event in ("membership.went_invalid", "membership_went_invalid",
+                    "membership.cancelled", "membership_cancelled"):
         _cancel_subscription(email=email, external_id=membership_id, channel="whop")
+    elif event in ("payment.succeeded", "payment_succeeded"):
+        user = db.get_user_by_email(email) if email else None
+        if not user and membership_id:
+            user = _find_user_by_external_id(membership_id, "whop")
+        if user:
+            db.reset_monthly_usage(user["id"])
+            db.update_user(user["id"], subscription_status="active")
+            log.info(f"[whop] Payment succeeded for {user['email']} — usage reset")
+        else:
+            log.warning(f"[whop] payment.succeeded but no user matched (email={email}, membership={membership_id})")
+    elif event in ("payment.failed", "payment_failed"):
+        user = db.get_user_by_email(email) if email else None
+        if not user and membership_id:
+            user = _find_user_by_external_id(membership_id, "whop")
+        if user:
+            db.update_user(user["id"], subscription_status="past_due")
+            log.info(f"[whop] Payment failed for {user['email']} — marked past_due")
+        else:
+            log.warning(f"[whop] payment.failed but no user matched (email={email}, membership={membership_id})")
     else:
-        log.info(f"[whop] Unhandled event: {event}")
+        log.info(f"[whop] Unhandled event: {event} | payload: {data}")
 
     return jsonify({"ok": True})
 
