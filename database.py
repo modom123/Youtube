@@ -802,6 +802,102 @@ def init_db():
         )
         """)
 
+        # ── Monetizer tables ─────────────────────────────────────────────
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS monetizer_expenses (
+            id          SERIAL PRIMARY KEY,
+            category    TEXT NOT NULL,
+            vendor      TEXT DEFAULT '',
+            description TEXT DEFAULT '',
+            amount      NUMERIC(12,2) NOT NULL DEFAULT 0,
+            recurring   BOOLEAN DEFAULT FALSE,
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS monetizer_cost_centers (
+            id             SERIAL PRIMARY KEY,
+            name           TEXT NOT NULL,
+            category       TEXT DEFAULT '',
+            monthly_budget NUMERIC(12,2) DEFAULT 0,
+            actual_spend   NUMERIC(12,2) DEFAULT 0,
+            created_at     TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS monetizer_campaigns (
+            id          SERIAL PRIMARY KEY,
+            name        TEXT NOT NULL,
+            channel     TEXT DEFAULT '',
+            budget      NUMERIC(12,2) DEFAULT 0,
+            spent       NUMERIC(12,2) DEFAULT 0,
+            signups     INTEGER DEFAULT 0,
+            conversions INTEGER DEFAULT 0,
+            status      TEXT DEFAULT 'active',
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS monetizer_features (
+            id          SERIAL PRIMARY KEY,
+            name        TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            tier_min    TEXT DEFAULT 'free',
+            rollout_pct INTEGER DEFAULT 100,
+            enabled     BOOLEAN DEFAULT TRUE,
+            created_at  TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS monetizer_tickets (
+            id          SERIAL PRIMARY KEY,
+            subject     TEXT NOT NULL,
+            body        TEXT DEFAULT '',
+            priority    TEXT DEFAULT 'normal',
+            status      TEXT DEFAULT 'open',
+            user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+            created_at  TIMESTAMP DEFAULT NOW(),
+            resolved_at TIMESTAMP
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS monetizer_goals (
+            id            SERIAL PRIMARY KEY,
+            metric        TEXT NOT NULL,
+            target_value  NUMERIC(20,2) DEFAULT 0,
+            current_value NUMERIC(20,2) DEFAULT 0,
+            deadline      DATE,
+            created_at    TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS monetizer_changelog (
+            id         SERIAL PRIMARY KEY,
+            version    TEXT DEFAULT '',
+            title      TEXT NOT NULL,
+            body       TEXT DEFAULT '',
+            category   TEXT DEFAULT 'feature',
+            published  BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS monetizer_alerts (
+            id           SERIAL PRIMARY KEY,
+            alert_type   TEXT NOT NULL,
+            message      TEXT NOT NULL,
+            severity     TEXT DEFAULT 'info',
+            acknowledged BOOLEAN DEFAULT FALSE,
+            created_at   TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS monetizer_kpi_snapshots (
+            id              SERIAL PRIMARY KEY,
+            snapshot_date   DATE DEFAULT CURRENT_DATE,
+            mrr             NUMERIC(12,2) DEFAULT 0,
+            arr             NUMERIC(12,2) DEFAULT 0,
+            total_users     INTEGER DEFAULT 0,
+            paying_users    INTEGER DEFAULT 0,
+            free_users      INTEGER DEFAULT 0,
+            arpu            NUMERIC(12,2) DEFAULT 0,
+            conversion_rate NUMERIC(6,2)  DEFAULT 0,
+            total_videos    INTEGER DEFAULT 0,
+            created_at      TIMESTAMP DEFAULT NOW()
+        )""")
+
         _seed_agents(conn)
 
 

@@ -5928,6 +5928,698 @@ def api_engagement_campaign_execute(campaign_id):
     return jsonify({"ok": True, "executed": executed})
 
 
+# ── MONETIZER — Business Command Center ───────────────────────────────────────
+
+@app.route("/monetizer")
+@login_required
+def monetizer_page():
+    if not current_user.is_admin:
+        return redirect("/dashboard")
+    return render_template("monetizer.html", active_page="monetizer")
+
+
+@app.route("/monetizer/executives")
+@login_required
+def monetizer_executives():
+    if not current_user.is_admin:
+        return redirect("/dashboard")
+    return render_template("monetizer_executives.html", active_page="executives")
+
+
+@app.route("/monetizer/plan")
+@login_required
+def monetizer_plan():
+    if not current_user.is_admin:
+        return redirect("/dashboard")
+    return render_template("monetizer_plan.html", active_page="plan")
+
+
+# helpers
+def _mon_tier_prices():
+    return {k: v.get("price_monthly", 0) for k, v in config.TIERS.items()}
+
+
+def _mon_user_counts():
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT subscription_tier, COUNT(*) AS cnt FROM users GROUP BY subscription_tier"
+        ).fetchall()
+    counts = {r["subscription_tier"]: int(r["cnt"]) for r in rows}
+    return counts
+
+
+# ── Revenue ──────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/revenue/overview")
+@login_required
+def mon_revenue_overview():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    counts = _mon_user_counts()
+    prices = _mon_tier_prices()
+    total_users = sum(counts.values())
+    free_users  = counts.get("free", 0)
+    paying_users = total_users - free_users
+
+    mrr = sum(counts.get(t, 0) * prices.get(t, 0)
+              for t in prices if t != "free")
+    arr  = mrr * 12
+    arpu = mrr / paying_users if paying_users else 0
+    conv = paying_users / total_users * 100 if total_users else 0
+
+    tier_breakdown = {}
+    for t, price in prices.items():
+        c = counts.get(t, 0)
+        tier_breakdown[t] = {
+            "total":   c,
+            "active":  c,
+            "revenue": round(c * price, 2),
+        }
+
+    with db.get_conn() as conn:
+        events = conn.execute("""
+            SELECT u.email, al.event_type, al.details, al.created_at
+            FROM audit_log al
+            LEFT JOIN users u ON al.user_id = u.id
+            WHERE al.event_type IN ('upgrade','downgrade','cancel','new_subscription','payment_received')
+            ORDER BY al.created_at DESC LIMIT 50
+        """).fetchall()
+
+    recent_events = []
+    for e in events:
+        details = {}
+        try:
+            import json as _json
+            details = _json.loads(e["details"] or "{}")
+        except Exception:
+            pass
+        recent_events.append({
+            "created_at": str(e["created_at"]),
+            "email":      e["email"],
+            "event_type": e["event_type"],
+            "amount":     details.get("amount", 0),
+            "tier":       details.get("tier", ""),
+        })
+
+    return jsonify({
+        "mrr": round(mrr, 2), "arr": round(arr, 2), "arpu": round(arpu, 2),
+        "total_users": total_users, "paying_users": paying_users, "free_users": free_users,
+        "conversion_rate": round(conv, 2),
+        "tier_breakdown": tier_breakdown,
+        "recent_events": recent_events,
+    })
+
+
+# ── Users ─────────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/users/cohorts")
+@login_required
+def mon_users_cohorts():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        cohorts = conn.execute("""
+            SELECT TO_CHAR(created_at,'YYYY-MM') AS cohort_month,
+                   COUNT(*) AS signups,
+                   SUM(CASE WHEN subscription_tier != 'free' THEN 1 ELSE 0 END) AS converted,
+                   SUM(CASE WHEN subscription_tier = 'cancelled' THEN 1 ELSE 0 END) AS churned
+            FROM users
+            GROUP BY cohort_month
+            ORDER BY cohort_month DESC
+            LIMIT 12
+        """).fetchall()
+        power = conn.execute("""
+            SELECT id, email, name, subscription_tier, total_jobs, videos_used, credits_used
+            FROM users ORDER BY total_jobs DESC LIMIT 20
+        """).fetchall()
+        at_risk = conn.execute("""
+            SELECT id, email, name, subscription_tier, last_login AS last_activity
+            FROM users
+            WHERE subscription_tier != 'free'
+              AND (last_login IS NULL OR last_login < NOW() - INTERVAL '14 days')
+            ORDER BY last_login ASC NULLS FIRST
+            LIMIT 20
+        """).fetchall()
+    return jsonify({
+        "cohorts":      [dict(r) for r in cohorts],
+        "power_users":  [dict(r) for r in power],
+        "at_risk_users": [dict(r) for r in at_risk],
+    })
+
+
+# ── Costs ─────────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/costs/overview")
+@login_required
+def mon_costs_overview():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        expenses = conn.execute(
+            "SELECT * FROM monetizer_expenses ORDER BY created_at DESC"
+        ).fetchall()
+        centers = conn.execute(
+            "SELECT * FROM monetizer_cost_centers ORDER BY name"
+        ).fetchall()
+        vid_count = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM jobs WHERE status='done'"
+        ).fetchone()["cnt"]
+
+    total_spend   = sum(float(e["amount"]) for e in expenses)
+    recurring     = sum(float(e["amount"]) for e in expenses if e["recurring"])
+    total_budget  = sum(float(c["monthly_budget"]) for c in centers)
+    cost_per_vid  = total_spend / int(vid_count) if vid_count else 0
+
+    return jsonify({
+        "expenses":        [dict(e) for e in expenses],
+        "cost_centers":    [dict(c) for c in centers],
+        "total_spend":     round(total_spend, 2),
+        "monthly_recurring": round(recurring, 2),
+        "total_budget":    round(total_budget, 2),
+        "total_videos_produced": int(vid_count),
+        "cost_per_video":  round(cost_per_vid, 4),
+    })
+
+
+@app.route("/monetizer/api/costs/expense", methods=["POST"])
+@login_required
+def mon_add_expense():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    with db.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO monetizer_expenses (category,vendor,description,amount,recurring) VALUES (%s,%s,%s,%s,%s)",
+            (d.get("category",""), d.get("vendor",""), d.get("description",""),
+             float(d.get("amount", 0)), bool(d.get("recurring", False)))
+        )
+    return jsonify({"ok": True})
+
+
+@app.route("/monetizer/api/costs/expense/<int:eid>", methods=["DELETE"])
+@login_required
+def mon_delete_expense(eid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM monetizer_expenses WHERE id=%s", (eid,))
+    return jsonify({"ok": True})
+
+
+@app.route("/monetizer/api/costs/center", methods=["POST"])
+@login_required
+def mon_add_cost_center():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    with db.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO monetizer_cost_centers (name,category,monthly_budget) VALUES (%s,%s,%s)",
+            (d.get("name",""), d.get("category",""), float(d.get("monthly_budget", 0)))
+        )
+    return jsonify({"ok": True})
+
+
+# ── Growth ────────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/growth/overview")
+@login_required
+def mon_growth_overview():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    counts = _mon_user_counts()
+    total  = sum(counts.values())
+    with db.get_conn() as conn:
+        signups_raw = conn.execute("""
+            SELECT TO_CHAR(created_at,'MM-DD') AS day, COUNT(*) AS signups
+            FROM users
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+            GROUP BY day ORDER BY day
+        """).fetchall()
+        campaigns = conn.execute(
+            "SELECT * FROM monetizer_campaigns ORDER BY created_at DESC"
+        ).fetchall()
+        churned = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM users WHERE subscription_tier='cancelled'"
+        ).fetchone()["cnt"]
+
+    return jsonify({
+        "funnel": {
+            "total_users": total,
+            "free":    counts.get("free", 0),
+            "starter": counts.get("starter", 0),
+            "creator": counts.get("creator", 0),
+            "pro":     counts.get("pro", 0),
+            "agency":  counts.get("agency", 0),
+            "churned": int(churned),
+        },
+        "daily_signups": [dict(r) for r in signups_raw],
+        "campaigns":     [dict(c) for c in campaigns],
+    })
+
+
+@app.route("/monetizer/api/growth/campaign", methods=["POST"])
+@login_required
+def mon_add_campaign():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    with db.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO monetizer_campaigns (name,channel,budget) VALUES (%s,%s,%s)",
+            (d.get("name",""), d.get("channel",""), float(d.get("budget", 0)))
+        )
+    return jsonify({"ok": True})
+
+
+@app.route("/monetizer/api/growth/campaign/<int:cid>", methods=["DELETE"])
+@login_required
+def mon_delete_campaign(cid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM monetizer_campaigns WHERE id=%s", (cid,))
+    return jsonify({"ok": True})
+
+
+# ── Content ───────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/content/stats")
+@login_required
+def mon_content_stats():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        total_vids = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM jobs WHERE status='done'"
+        ).fetchone()["cnt"]
+        total_credits = conn.execute(
+            "SELECT COALESCE(SUM(credits_used),0) AS s FROM users"
+        ).fetchone()["s"]
+        by_type = conn.execute("""
+            SELECT format AS content_type, COUNT(*) AS count,
+                   SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) AS completed,
+                   SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) AS failed
+            FROM jobs GROUP BY format ORDER BY count DESC
+        """).fetchall()
+        plat_stats = conn.execute("""
+            SELECT platform, COUNT(*) AS published,
+                   SUM(CASE WHEN status IN ('done','published') THEN 1 ELSE 0 END) AS successful
+            FROM published_videos GROUP BY platform ORDER BY published DESC
+        """).fetchall()
+        top_content = conn.execute("""
+            SELECT j.topic, j.format AS content_type,
+                   COALESCE(pv.views,0) AS views,
+                   COALESCE(pv.likes,0) AS likes,
+                   NULL AS ctr
+            FROM jobs j
+            LEFT JOIN published_videos pv ON pv.job_id = j.id
+            WHERE j.status='done'
+            ORDER BY views DESC NULLS LAST LIMIT 10
+        """).fetchall()
+
+    return jsonify({
+        "total_videos_produced": int(total_vids),
+        "total_credits_used":    int(total_credits),
+        "by_type":               [dict(r) for r in by_type],
+        "platform_stats":        [dict(r) for r in plat_stats],
+        "top_content":           [dict(r) for r in top_content],
+    })
+
+
+# ── Features ──────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/features")
+@login_required
+def mon_features_list():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        flags = conn.execute(
+            "SELECT * FROM monetizer_features ORDER BY name"
+        ).fetchall()
+    return jsonify({"flags": [dict(f) for f in flags]})
+
+
+@app.route("/monetizer/api/features", methods=["POST"])
+@login_required
+def mon_add_feature():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    with db.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO monetizer_features (name,description,tier_min,rollout_pct,enabled) VALUES (%s,%s,%s,%s,%s)",
+            (d.get("name",""), d.get("description",""), d.get("tier_min","free"),
+             int(d.get("rollout_pct", 100)), bool(d.get("enabled", True)))
+        )
+    return jsonify({"ok": True})
+
+
+@app.route("/monetizer/api/features/<int:fid>/toggle", methods=["POST"])
+@login_required
+def mon_toggle_feature(fid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        conn.execute(
+            "UPDATE monetizer_features SET enabled = NOT enabled WHERE id=%s", (fid,)
+        )
+    return jsonify({"ok": True})
+
+
+# ── Support ───────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/support/tickets")
+@login_required
+def mon_tickets_list():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        tickets = conn.execute("""
+            SELECT t.*, u.email FROM monetizer_tickets t
+            LEFT JOIN users u ON u.id = t.user_id
+            ORDER BY t.created_at DESC
+        """).fetchall()
+    return jsonify({"tickets": [dict(t) for t in tickets]})
+
+
+@app.route("/monetizer/api/support/ticket", methods=["POST"])
+@login_required
+def mon_add_ticket():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    if d.get("id") and d.get("status"):
+        # resolve/update existing
+        with db.get_conn() as conn:
+            conn.execute(
+                "UPDATE monetizer_tickets SET status=%s, resolved_at=NOW() WHERE id=%s",
+                (d["status"], int(d["id"]))
+            )
+        return jsonify({"ok": True})
+    uid = int(d["user_id"]) if d.get("user_id") else None
+    with db.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO monetizer_tickets (subject,body,priority,user_id) VALUES (%s,%s,%s,%s)",
+            (d.get("subject",""), d.get("body",""), d.get("priority","normal"), uid)
+        )
+    return jsonify({"ok": True})
+
+
+# ── Goals ─────────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/goals")
+@login_required
+def mon_goals_list():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        goals = conn.execute(
+            "SELECT * FROM monetizer_goals ORDER BY created_at DESC"
+        ).fetchall()
+    return jsonify({"goals": [dict(g) for g in goals]})
+
+
+@app.route("/monetizer/api/goals", methods=["POST"])
+@login_required
+def mon_add_goal():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    deadline = d.get("deadline") or None
+    with db.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO monetizer_goals (metric,target_value,current_value,deadline) VALUES (%s,%s,%s,%s)",
+            (d.get("metric",""), float(d.get("target_value",0)),
+             float(d.get("current_value",0)), deadline)
+        )
+    return jsonify({"ok": True})
+
+
+@app.route("/monetizer/api/goals/<int:gid>", methods=["DELETE"])
+@login_required
+def mon_delete_goal(gid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM monetizer_goals WHERE id=%s", (gid,))
+    return jsonify({"ok": True})
+
+
+# ── Changelog ─────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/changelog")
+@login_required
+def mon_changelog_list():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        entries = conn.execute(
+            "SELECT * FROM monetizer_changelog ORDER BY created_at DESC"
+        ).fetchall()
+    return jsonify({"entries": [dict(e) for e in entries]})
+
+
+@app.route("/monetizer/api/changelog", methods=["POST"])
+@login_required
+def mon_add_changelog():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    d = request.json or {}
+    with db.get_conn() as conn:
+        conn.execute(
+            "INSERT INTO monetizer_changelog (version,title,body,category,published) VALUES (%s,%s,%s,%s,%s)",
+            (d.get("version",""), d.get("title",""), d.get("body",""),
+             d.get("category","feature"), bool(d.get("published", True)))
+        )
+    return jsonify({"ok": True})
+
+
+# ── System Health ─────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/system/health")
+@login_required
+def mon_system_health():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    import shutil as _shutil
+    disk  = _shutil.disk_usage("/")
+    disk_pct  = (disk.used / disk.total * 100) if disk.total else 0
+    disk_free = round(disk.free / (1024**3), 2)
+
+    with db.get_conn() as conn:
+        db_size = conn.execute(
+            "SELECT pg_database_size(current_database())/1024/1024 AS mb"
+        ).fetchone()["mb"]
+        stuck = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM jobs WHERE status='running' AND updated_at < NOW()-INTERVAL '2 hours'"
+        ).fetchone()["cnt"]
+        err24 = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM jobs WHERE status='error' AND created_at >= NOW()-INTERVAL '24 hours'"
+        ).fetchone()["cnt"]
+        tot24 = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM jobs WHERE created_at >= NOW()-INTERVAL '24 hours'"
+        ).fetchone()["cnt"]
+
+    out_path   = os.path.join("static", "outputs")
+    out_size   = 0
+    if os.path.exists(out_path):
+        for root, dirs, files in os.walk(out_path):
+            for f in files:
+                try:
+                    out_size += os.path.getsize(os.path.join(root, f))
+                except OSError:
+                    pass
+
+    api_keys = {
+        "openai":    bool(os.getenv("OPENAI_API_KEY")),
+        "anthropic": bool(os.getenv("ANTHROPIC_API_KEY")),
+        "elevenlabs": bool(os.getenv("ELEVENLABS_API_KEY")),
+        "stripe":    bool(os.getenv("STRIPE_SECRET_KEY")),
+        "youtube":   bool(os.getenv("YOUTUBE_CLIENT_ID")),
+        "tiktok":    bool(os.getenv("TIKTOK_CLIENT_KEY")),
+    }
+
+    return jsonify({
+        "database_size_mb":  int(db_size or 0),
+        "output_size_mb":    round(out_size / (1024**2), 1),
+        "disk_usage_pct":    round(disk_pct, 1),
+        "disk_free_gb":      disk_free,
+        "stuck_jobs":        int(stuck),
+        "error_jobs_24h":    int(err24),
+        "total_jobs_24h":    int(tot24),
+        "error_rate_24h":    round(int(err24) / int(tot24) * 100, 1) if tot24 else 0,
+        "api_keys":          api_keys,
+    })
+
+
+# ── Alerts ────────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/alerts")
+@login_required
+def mon_alerts_list():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        alerts = conn.execute(
+            "SELECT * FROM monetizer_alerts ORDER BY created_at DESC LIMIT 50"
+        ).fetchall()
+    return jsonify({"alerts": [dict(a) for a in alerts]})
+
+
+@app.route("/monetizer/api/alerts/<int:aid>/ack", methods=["POST"])
+@login_required
+def mon_ack_alert(aid):
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        conn.execute(
+            "UPDATE monetizer_alerts SET acknowledged=TRUE WHERE id=%s", (aid,)
+        )
+    return jsonify({"ok": True})
+
+
+# ── KPI Snapshot ──────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/kpi/snapshot", methods=["POST"])
+@login_required
+def mon_kpi_snapshot():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    counts = _mon_user_counts()
+    prices = _mon_tier_prices()
+    total  = sum(counts.values())
+    free   = counts.get("free", 0)
+    paying = total - free
+    mrr    = sum(counts.get(t, 0) * prices.get(t, 0) for t in prices if t != "free")
+    arpu   = mrr / paying if paying else 0
+    conv   = paying / total * 100 if total else 0
+    with db.get_conn() as conn:
+        tot_vids = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM jobs WHERE status='done'"
+        ).fetchone()["cnt"]
+        conn.execute("""
+            INSERT INTO monetizer_kpi_snapshots
+              (mrr, arr, total_users, paying_users, free_users, arpu, conversion_rate, total_videos)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (round(mrr,2), round(mrr*12,2), total, paying, free,
+              round(arpu,2), round(conv,2), int(tot_vids)))
+    return jsonify({"ok": True})
+
+
+# ── Pricing Lab ───────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/pricing/simulate", methods=["POST"])
+@login_required
+def mon_pricing_simulate():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    counts   = _mon_user_counts()
+    scenarios = (request.json or {}).get("scenarios", [])
+    results  = []
+    for sc in scenarios:
+        prices  = sc.get("prices", {})
+        mrr     = 0
+        breakdown = {}
+        for tier, price in prices.items():
+            users   = counts.get(tier, 0)
+            rev     = users * float(price)
+            mrr    += rev
+            breakdown[tier] = {"users": users, "price": float(price), "revenue": round(rev, 2)}
+        results.append({
+            "name":      sc.get("name", "Scenario"),
+            "mrr":       round(mrr, 2),
+            "arr":       round(mrr * 12, 2),
+            "breakdown": breakdown,
+        })
+    return jsonify({"results": results})
+
+
+# ── Exports ───────────────────────────────────────────────────────────────────
+
+@app.route("/monetizer/api/export/users")
+@login_required
+def mon_export_users():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    import csv, io
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, email, name, subscription_tier, videos_used, credits_used, created_at, last_login FROM users ORDER BY created_at DESC"
+        ).fetchall()
+    buf = io.StringIO()
+    w   = csv.DictWriter(buf, fieldnames=["id","email","name","subscription_tier","videos_used","credits_used","created_at","last_login"])
+    w.writeheader()
+    for r in rows:
+        w.writerow({k: r[k] for k in ["id","email","name","subscription_tier","videos_used","credits_used","created_at","last_login"]})
+    return app.response_class(buf.getvalue(), mimetype="text/csv",
+                              headers={"Content-Disposition": "attachment;filename=users.csv"})
+
+
+@app.route("/monetizer/api/export/revenue")
+@login_required
+def mon_export_revenue():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    import csv, io
+    with db.get_conn() as conn:
+        rows = conn.execute("""
+            SELECT u.email, al.event_type, al.details, al.created_at
+            FROM audit_log al LEFT JOIN users u ON al.user_id=u.id
+            WHERE al.event_type IN ('upgrade','downgrade','cancel','payment_received')
+            ORDER BY al.created_at DESC
+        """).fetchall()
+    buf = io.StringIO()
+    w   = csv.writer(buf)
+    w.writerow(["email","event","details","date"])
+    for r in rows:
+        w.writerow([r["email"], r["event_type"], r["details"], r["created_at"]])
+    return app.response_class(buf.getvalue(), mimetype="text/csv",
+                              headers={"Content-Disposition": "attachment;filename=revenue.csv"})
+
+
+@app.route("/monetizer/api/export/kpi")
+@login_required
+def mon_export_kpi():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    import csv, io
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM monetizer_kpi_snapshots ORDER BY created_at DESC"
+        ).fetchall()
+    fields = ["id","snapshot_date","mrr","arr","total_users","paying_users","free_users","arpu","conversion_rate","total_videos","created_at"]
+    buf = io.StringIO()
+    w   = csv.DictWriter(buf, fieldnames=fields)
+    w.writeheader()
+    for r in rows:
+        w.writerow({f: r.get(f,"") for f in fields})
+    return app.response_class(buf.getvalue(), mimetype="text/csv",
+                              headers={"Content-Disposition": "attachment;filename=kpi_history.csv"})
+
+
+@app.route("/monetizer/api/export/jobs")
+@login_required
+def mon_export_jobs():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    import csv, io
+    with db.get_conn() as conn:
+        rows = conn.execute("""
+            SELECT j.id, u.email, j.topic, j.format, j.status, j.created_at
+            FROM jobs j LEFT JOIN users u ON u.id = j.user_id
+            ORDER BY j.created_at DESC LIMIT 5000
+        """).fetchall()
+    buf = io.StringIO()
+    w   = csv.writer(buf)
+    w.writerow(["id","email","topic","format","status","created_at"])
+    for r in rows:
+        w.writerow([r["id"],r["email"],r["topic"],r["format"],r["status"],r["created_at"]])
+    return app.response_class(buf.getvalue(), mimetype="text/csv",
+                              headers={"Content-Disposition": "attachment;filename=jobs.csv"})
+
+
 # ── Podcast Studio ────────────────────────────────────────────────────────────
 
 _podcast_jobs: dict = {}
