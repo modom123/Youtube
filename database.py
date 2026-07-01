@@ -2285,7 +2285,7 @@ def get_admin_stats():
     """Return MRR, tier counts, and status counts for the admin dashboard."""
     tier_prices = {"starter": 9.99, "creator": 29.99, "pro": 79.99, "agency": 199.99}
     with get_conn() as conn:
-        rows = conn.execute("SELECT subscription_tier, subscription_status FROM users").fetchall()
+        rows = conn.execute("SELECT subscription_tier, subscription_status, is_admin FROM users").fetchall()
     total = len(rows)
     tier_counts = {"free": 0, "starter": 0, "creator": 0, "pro": 0, "agency": 0}
     status_counts = {"active": 0, "canceled": 0, "past_due": 0, "suspended": 0}
@@ -2295,7 +2295,7 @@ def get_admin_stats():
         status = r["subscription_status"] or "active"
         tier_counts[tier] = tier_counts.get(tier, 0) + 1
         status_counts[status] = status_counts.get(status, 0) + 1
-        if status == "active" and tier in tier_prices:
+        if status == "active" and tier in tier_prices and not r["is_admin"]:
             mrr += tier_prices[tier]
     return {
         "total_users": total,

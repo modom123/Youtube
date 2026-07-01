@@ -6912,7 +6912,8 @@ def _mon_tier_prices():
 def _mon_user_counts():
     with db.get_conn() as conn:
         rows = conn.execute(
-            "SELECT subscription_tier, COUNT(*) AS cnt FROM users GROUP BY subscription_tier"
+            "SELECT subscription_tier, COUNT(*) AS cnt FROM users "
+            "WHERE COALESCE(is_admin,0)=0 GROUP BY subscription_tier"
         ).fetchall()
     counts = {r["subscription_tier"]: int(r["cnt"]) for r in rows}
     return counts
