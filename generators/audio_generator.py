@@ -1,4 +1,16 @@
-"""Text-to-speech audio generation — Google Cloud TTS Neural2 primary, edge-tts secondary, pyttsx3/espeak-ng fallback."""
+"""Text-to-speech audio generation — ElevenLabs primary, Google Cloud TTS
+Neural2 secondary, edge-tts tertiary, pyttsx3/espeak-ng last-resort fallback.
+
+ElevenLabs goes first because it's the highest quality of the four AND the
+most reliable to actually reach from a cloud server: edge-tts calls
+Microsoft's consumer endpoint, which frequently blocks datacenter/cloud IP
+ranges (Render, AWS, GCP, ...) with 403s — so on a server, edge-tts can fail
+silently far more often than it does on a home connection, and Google Cloud
+TTS requires the API key to have the Cloud Text-to-Speech API specifically
+enabled (a separate scope from Vision/Translate/NLP, easy to miss). When
+both of those fail, this used to fall all the way to espeak-ng/pyttsx3 —
+robotic, 1990s-sounding synthesis — for real customer-facing videos.
+"""
 import asyncio
 import base64
 import re
@@ -68,6 +80,107 @@ def _split_into_chunks(text: str, max_bytes: int = _GOOGLE_TTS_CHUNK_SIZE) -> li
     if current:
         chunks.append(current)
     return chunks
+
+
+_elevenlabs_voices_cache: Optional[list] = None
+
+
+def _get_elevenlabs_voices(api_key: str) -> list:
+    """Fetch and cache the account's actual available ElevenLabs voices.
+
+    Deliberately does NOT hardcode voice ids — ElevenLabs' premade voice
+    library has changed over time and isn't guaranteed identical across
+    accounts/plans, so guessing ids risks silently 404ing on every call for
+    whichever guesses are wrong. Querying the real list once per process and
+    matching by gender is slower on first use but never wrong.
+    """
+    global _elevenlabs_voices_cache
+    if _elevenlabs_voices_cache is not None:
+        return _elevenlabs_voices_cache
+    import requests as req
+    resp = req.get(
+        "https://api.elevenlabs.io/v1/voices",
+        headers={"xi-api-key": api_key},
+        timeout=15,
+    )
+    resp.raise_for_status()
+    _elevenlabs_voices_cache = resp.json().get("voices", [])
+    return _elevenlabs_voices_cache
+
+
+def _resolve_elevenlabs_voice(voice: str, api_key: str) -> str:
+    """Map a Social Optimize voice-catalog id to a real ElevenLabs voice id,
+    matched by gender against the account's actual voice list so a user
+    picking a female catalog voice doesn't end up with a male ElevenLabs
+    voice (or vice versa) if this is the first fallback layer to fire."""
+    catalog_entry = next(
+        (v for v in config.VOICE_CATALOG if v["id"] == voice or v.get("edge") == voice), None
+    )
+    gender = (catalog_entry or {}).get("gender", "").lower()
+
+    try:
+        voices = _get_elevenlabs_voices(api_key)
+    except Exception:
+        voices = []
+
+    if voices:
+        same_gender = [
+            v for v in voices if (v.get("labels") or {}).get("gender", "").lower() == gender
+        ] if gender else []
+        pool = same_gender or voices
+        # Deterministic pick so a given catalog voice always maps to the same
+        # ElevenLabs voice, rather than rotating randomly between calls.
+        idx = hash(voice) % len(pool)
+        return pool[idx]["voice_id"]
+
+    return config.ELEVENLABS_VOICE_ID
+
+
+def _elevenlabs_tts_chunk(text: str, voice_id: str, api_key: str) -> bytes:
+    """Call the ElevenLabs text-to-speech API for a single chunk, return MP3 bytes."""
+    import requests as req
+    resp = req.post(
+        f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+        headers={"xi-api-key": api_key, "Content-Type": "application/json", "Accept": "audio/mpeg"},
+        json={
+            "text": text,
+            "model_id": "eleven_turbo_v2_5",
+            "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+        },
+        timeout=60,
+    )
+    resp.raise_for_status()
+    return resp.content
+
+
+def _generate_elevenlabs_tts(text: str, output_path: Path, voice: str) -> bool:
+    """
+    Generate TTS using ElevenLabs. Returns True on success, False if
+    ELEVENLABS_API_KEY is not set or on any error (caller falls through to
+    Google Cloud TTS next).
+    """
+    api_key = getattr(config, "ELEVENLABS_API_KEY", "")
+    if not api_key:
+        return False
+
+    try:
+        voice_id = _resolve_elevenlabs_voice(voice, api_key)
+        chunks = _split_into_chunks(text, max_bytes=4500)
+        mp3_chunks = []
+        for chunk in chunks:
+            if not chunk.strip():
+                continue
+            mp3_chunks.append(_elevenlabs_tts_chunk(chunk, voice_id, api_key))
+
+        if not mp3_chunks:
+            return False
+
+        _stitch_mp3_chunks(mp3_chunks, output_path)
+        print(f"[audio] ElevenLabs TTS ({voice_id}) — {len(chunks)} chunk(s)")
+        return True
+    except Exception as e:
+        print(f"[audio] ElevenLabs TTS failed ({e}) — falling back to Google Cloud TTS")
+        return False
 
 
 def _resolve_google_voice(voice: str) -> str:
@@ -233,22 +346,30 @@ def generate_audio(
     """Convert text to speech and save as MP3.
 
     Priority:
-    1. Google Cloud TTS Neural2 (if GOOGLE_API_KEY set)
-    2. edge-tts
-    3. espeak-ng / pyttsx3 fallback
+    1. ElevenLabs (if ELEVENLABS_API_KEY set) — highest quality, most
+       reliable to reach from a cloud server
+    2. Google Cloud TTS Neural2 (if GOOGLE_API_KEY set)
+    3. edge-tts
+    4. espeak-ng / pyttsx3 fallback
     """
     voice = voice or config.DEFAULT_VOICE
     clean_text = clean_narration(text)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. Try Google Cloud TTS Neural2
+    # 1. Try ElevenLabs
+    if getattr(config, "ELEVENLABS_API_KEY", ""):
+        if _generate_elevenlabs_tts(clean_text, output_path, voice):
+            if output_path.exists():
+                return output_path
+
+    # 2. Try Google Cloud TTS Neural2
     if getattr(config, "GOOGLE_API_KEY", ""):
         if _generate_google_tts(clean_text, output_path, voice):
             if output_path.exists():
                 return output_path
 
-    # 2. Try edge-tts
+    # 3. Try edge-tts
     try:
         asyncio.run(_generate_speech(clean_text, output_path, voice, rate, pitch))
     except Exception as e:
