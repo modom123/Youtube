@@ -298,6 +298,16 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # "Adam" — deep male narrator
 
+# Anthropic Admin API — a SEPARATE key from ANTHROPIC_API_KEY, generated in
+# the Anthropic Console under Settings > Admin API Keys (requires an org
+# admin role). The regular API key used for actual Claude calls has no way
+# to check its own spend — only the Admin API's cost report can. Anthropic
+# is pay-as-you-go with no fixed monthly credit cap, so monitoring needs a
+# budget number you set yourself; leave ANTHROPIC_MONTHLY_BUDGET at 0 to
+# keep this disabled until you've set both.
+ANTHROPIC_ADMIN_KEY = os.getenv("ANTHROPIC_ADMIN_KEY", "")
+ANTHROPIC_MONTHLY_BUDGET = float(os.getenv("ANTHROPIC_MONTHLY_BUDGET", "0"))
+
 # Hit Factory providers
 SUNO_COOKIE = os.getenv("SUNO_COOKIE", "")
 REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")

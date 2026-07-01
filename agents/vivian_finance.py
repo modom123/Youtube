@@ -157,6 +157,82 @@ def _sync_higgsfield_balance():
             )
 
 
+def _sync_elevenlabs_balance():
+    """Pull the real ElevenLabs remaining-character quota and upsert it into
+    finance_provider_credits, same pattern as Higgsfield — so _check_credits()
+    alerts before narration silently degrades to a fallback voice."""
+    if not config.ELEVENLABS_API_KEY:
+        return
+    try:
+        from generators import elevenlabs_client
+        info = elevenlabs_client.get_subscription_info()
+    except Exception as exc:
+        bus.log_msg(AGENT_NAME, f"ElevenLabs subscription check failed: {exc}", "warning")
+        return
+
+    limit = float(info.get("character_limit", 0))
+    used = float(info.get("character_count", 0))
+    if limit <= 0:
+        return
+    remaining = max(0.0, limit - used)
+    with db.get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM finance_provider_credits WHERE provider=?", ("ElevenLabs",)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE finance_provider_credits SET balance=?, credit_cap=?, unit=?, "
+                "last_updated=NOW() WHERE provider=?",
+                (remaining, limit, "characters", "ElevenLabs"),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO finance_provider_credits (provider, balance, credit_cap, unit, notes) "
+                "VALUES (?,?,?,?,?)",
+                ("ElevenLabs", remaining, limit, "characters",
+                 f"Auto-synced from ElevenLabs API ({info.get('tier', '')} plan)"),
+            )
+
+
+def _sync_anthropic_budget():
+    """Track Anthropic spend against a user-configured monthly budget.
+    Unlike Higgsfield/ElevenLabs, Anthropic has no fixed monthly credit cap
+    (pay-as-you-go), so there's nothing real to sync unless the user has set
+    BOTH ANTHROPIC_ADMIN_KEY (a separate key from the one Claude calls use)
+    and a real ANTHROPIC_MONTHLY_BUDGET — otherwise this is a no-op rather
+    than a fabricated number."""
+    if not config.ANTHROPIC_ADMIN_KEY or config.ANTHROPIC_MONTHLY_BUDGET <= 0:
+        return
+    try:
+        from generators import anthropic_admin
+        spent = anthropic_admin.get_month_to_date_cost_usd()
+    except Exception as exc:
+        bus.log_msg(AGENT_NAME, f"Anthropic cost report check failed: {exc}", "warning")
+        return
+
+    budget = config.ANTHROPIC_MONTHLY_BUDGET
+    remaining = max(0.0, budget - spent)
+    with db.get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM finance_provider_credits WHERE provider=?", ("Anthropic",)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE finance_provider_credits SET balance=?, credit_cap=?, unit=?, "
+                "monthly_spend=?, last_updated=NOW() WHERE provider=?",
+                (remaining, budget, "USD", spent, "Anthropic"),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO finance_provider_credits "
+                "(provider, balance, credit_cap, unit, monthly_spend, notes) "
+                "VALUES (?,?,?,?,?,?)",
+                ("Anthropic", remaining, budget, "USD", spent,
+                 "Auto-synced from the Anthropic Admin API cost report against "
+                 "ANTHROPIC_MONTHLY_BUDGET — the system's own spend cap, not a real Anthropic limit."),
+            )
+
+
 def _check_credits():
     """Alert when any provider credit balance is < 20% of its cap."""
     credits = _get_provider_credits()
@@ -278,6 +354,8 @@ def _run_cycle():
         _efficiency_report()
         _process_credit_rollovers()
         _sync_higgsfield_balance()
+        _sync_elevenlabs_balance()
+        _sync_anthropic_budget()
         _check_credits()
         _check_renewals()
         _check_inactive_subscriptions()
