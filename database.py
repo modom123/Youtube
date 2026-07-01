@@ -784,6 +784,24 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_deals_user ON agency_deals(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_logs_agent ON agent_logs(agent_id)")
 
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS personas (
+            id               SERIAL PRIMARY KEY,
+            user_id          INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name             TEXT NOT NULL,
+            gender           TEXT DEFAULT '',
+            age_range        TEXT DEFAULT '',
+            appearance_desc  TEXT DEFAULT '',
+            niche            TEXT DEFAULT '',
+            avatar_style     TEXT DEFAULT '',
+            voice_id         TEXT DEFAULT '',
+            personality      TEXT DEFAULT '',
+            speaking_style   TEXT DEFAULT '',
+            model_preference TEXT DEFAULT '',
+            created_at       TIMESTAMP DEFAULT NOW()
+        )
+        """)
+
         _seed_agents(conn)
 
 
@@ -2548,3 +2566,41 @@ def get_agent_stats():
             "total_agents": total, "online": online, "offline": total - online,
             "tasks_completed": done, "tasks_failed": failed,
         }
+
+
+# ── Personas ──────────────────────────────────────────────────────────────────
+
+def get_personas(user_id: int):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM personas WHERE user_id=%s ORDER BY created_at DESC", (user_id,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def create_persona(user_id: int, name: str, gender: str = "", age_range: str = "",
+                   appearance_desc: str = "", niche: str = "", avatar_style: str = "",
+                   voice_id: str = "", personality: str = "", speaking_style: str = "",
+                   model_preference: str = "") -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO personas (user_id, name, gender, age_range, appearance_desc, niche,
+                                  avatar_style, voice_id, personality, speaking_style, model_preference)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (user_id, name, gender, age_range, appearance_desc, niche,
+              avatar_style, voice_id, personality, speaking_style, model_preference))
+        return cur.fetchone()["id"]
+
+
+def update_persona(persona_id: int, user_id: int, **kwargs):
+    if not kwargs:
+        return
+    cols = ", ".join(f"{k}=%s" for k in kwargs)
+    vals = list(kwargs.values()) + [persona_id, user_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE personas SET {cols} WHERE id=%s AND user_id=%s", vals)
+
+
+def delete_persona(persona_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM personas WHERE id=%s AND user_id=%s", (persona_id, user_id))

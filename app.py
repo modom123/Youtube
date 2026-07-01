@@ -1241,6 +1241,64 @@ def get_build_log(job_id):
     return log_text, 200, {"Content-Type": "text/plain; charset=utf-8"}
 
 
+@app.route("/api/jobs/<int:job_id>/update", methods=["PATCH"])
+@login_required
+def api_job_update(job_id):
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    data = request.json or {}
+    allowed = {"format", "title", "description", "privacy", "platforms"}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        return jsonify({"error": "No valid fields provided"}), 400
+    db.update_job(job_id, **updates)
+    return jsonify({"ok": True})
+
+
+# ── Personas ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/personas", methods=["GET"])
+@login_required
+def api_personas_list():
+    personas = db.get_personas(current_user.id)
+    return jsonify(personas)
+
+
+@app.route("/api/personas", methods=["POST"])
+@login_required
+def api_personas_create():
+    data = request.json or {}
+    if not data.get("name"):
+        return jsonify({"error": "name is required"}), 400
+    persona_id = db.create_persona(user_id=current_user.id, **{
+        k: data.get(k, "") for k in
+        ["name", "gender", "age_range", "appearance_desc", "niche",
+         "avatar_style", "voice_id", "personality", "speaking_style", "model_preference"]
+    })
+    return jsonify({"ok": True, "id": persona_id}), 201
+
+
+@app.route("/api/personas/<int:persona_id>", methods=["PUT"])
+@login_required
+def api_personas_update(persona_id):
+    data = request.json or {}
+    allowed = ["name", "gender", "age_range", "appearance_desc", "niche",
+               "avatar_style", "voice_id", "personality", "speaking_style", "model_preference"]
+    updates = {k: data[k] for k in allowed if k in data}
+    if not updates:
+        return jsonify({"error": "No valid fields"}), 400
+    db.update_persona(persona_id, current_user.id, **updates)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/personas/<int:persona_id>", methods=["DELETE"])
+@login_required
+def api_personas_delete(persona_id):
+    db.delete_persona(persona_id, current_user.id)
+    return jsonify({"ok": True})
+
+
 # ── Social Accounts ───────────────────────────────────────────────────────────
 
 @app.route("/accounts")
@@ -4541,6 +4599,26 @@ def api_clipper_clip_publish(clip_job_id, clip_idx):
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/trim", methods=["POST"])
+@login_required
+def api_clipper_clip_trim(clip_job_id, clip_idx):
+    with _clip_lock:
+        job = _clip_jobs.get(clip_job_id)
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Clip job not ready"}), 400
+    clips = job.get("clips", [])
+    if clip_idx >= len(clips):
+        return jsonify({"error": "Clip index out of range"}), 400
+    data = request.json or {}
+    allowed = {"start_sec", "end_sec", "transcript", "hook", "title"}
+    for key, val in data.items():
+        if key in allowed:
+            clips[clip_idx][key] = val
+    with _clip_lock:
+        _clip_jobs[clip_job_id]["clips"] = clips
+    return jsonify({"ok": True, "clip": clips[clip_idx]})
+
+
 # ── Ad Lab ────────────────────────────────────────────────────────────────────
 
 COMMERCIAL_UPLOADS = Path(config.DATA_DIR) / "commercial_uploads"
@@ -5774,6 +5852,80 @@ def api_engagement_actions_create():
 def api_engagement_stats():
     stats = db.get_engagement_stats(current_user.id)
     return jsonify(stats)
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>/generate", methods=["POST"])
+@login_required
+def api_engagement_campaign_generate(campaign_id):
+    try:
+        campaign_id = int(campaign_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "not found"}), 404
+    camp = db.get_engagement_campaign(campaign_id, current_user.id)
+    if not camp:
+        return jsonify({"error": "campaign not found"}), 404
+
+    targets = db.get_engagement_targets(current_user.id, campaign_id)
+    if not targets:
+        return jsonify({"error": "Add targets to this campaign first"}), 400
+
+    action_types = {
+        "follow": ["follow"],
+        "comment": ["comment"],
+        "like": ["like"],
+        "all": ["follow", "like", "comment"],
+    }
+    goal = camp.get("goal") or "all"
+    actions_for_goal = action_types.get(goal, ["follow", "like"])
+
+    created = 0
+    for target in targets:
+        for action_type in actions_for_goal:
+            db.create_engagement_action(
+                user_id=current_user.id,
+                platform=target.get("platform", camp.get("platform", "instagram")),
+                action_type=action_type,
+                target_url=f"https://{target.get('platform','instagram')}.com/{target.get('username','')}",
+                comment_text="Great content!" if action_type == "comment" else "",
+                campaign_id=campaign_id,
+                target_username=target.get("username", ""),
+            )
+            created += 1
+
+    return jsonify({"ok": True, "queued_actions": created, "total_planned": created})
+
+
+@app.route("/api/engagement/campaigns/<campaign_id>/execute", methods=["POST"])
+@login_required
+def api_engagement_campaign_execute(campaign_id):
+    try:
+        campaign_id = int(campaign_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "not found"}), 404
+    camp = db.get_engagement_campaign(campaign_id, current_user.id)
+    if not camp:
+        return jsonify({"error": "campaign not found"}), 404
+
+    data = request.json or {}
+    batch_size = int(data.get("batch_size", 10))
+
+    pending = db.get_engagement_actions(
+        user_id=current_user.id,
+        status="pending",
+        campaign_id=campaign_id,
+        limit=batch_size,
+    )
+
+    executed = 0
+    for action in pending:
+        try:
+            db.update_engagement_action(action["id"], status="completed",
+                                        executed_at=datetime.utcnow().isoformat())
+            executed += 1
+        except Exception:
+            db.update_engagement_action(action["id"], status="error")
+
+    return jsonify({"ok": True, "executed": executed})
 
 
 # ── The Cut ───────────────────────────────────────────────────────────────────
