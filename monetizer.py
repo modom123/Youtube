@@ -1290,6 +1290,18 @@ EXEC_PERSONAS = {
         "avatar": "A", "color": "#ec4899",
         "status": "active", "interval": "6 hrs"
     },
+    "isabella_cruz": {
+        "name": "Isabella Cruz", "title": "Director of Email Automation",
+        "role": "Lifecycle Emails, Win-Back Sequences, Activation Nudges, Payment Recovery Emails",
+        "avatar": "I", "color": "#f43f5e",
+        "status": "active", "interval": "2 hrs"
+    },
+    "sterling_pierce": {
+        "name": "Sterling Pierce", "title": "Chief Revenue Recovery Officer",
+        "role": "Stripe Retry, Dunning Automation, Failed Payment Recovery, Involuntary Churn Prevention",
+        "avatar": "SP", "color": "#0ea5e9",
+        "status": "active", "interval": "8 hrs"
+    },
 }
 
 
@@ -1382,6 +1394,14 @@ def api_executives_trigger():
         return jsonify({"ok": True})
     elif agent == "aria_singh":
         from agents.aria_success import _run_cycle
+        _run_cycle()
+        return jsonify({"ok": True})
+    elif agent == "isabella_cruz":
+        from agents.isabella_email import _run_cycle
+        _run_cycle()
+        return jsonify({"ok": True})
+    elif agent == "sterling_pierce":
+        from agents.sterling_pierce import _run_cycle
         _run_cycle()
         return jsonify({"ok": True})
     return jsonify({"error": "Unknown agent"}), 400

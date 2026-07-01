@@ -60,9 +60,13 @@
     <span class="ex-flow-arrow">→</span>
     <div class="ex-flow-node" style="background:#7c3aed;">Marcus → Growth</div>
     <span class="ex-flow-arrow">→</span>
-    <div class="ex-flow-node" style="background:#059669;">Julian → Retention</div>
+    <div class="ex-flow-node" style="background:#059669;">Julian → Churn</div>
     <span class="ex-flow-arrow">→</span>
-    <div class="ex-flow-node" style="background:#d97706;">Sterling → Margins</div>
+    <div class="ex-flow-node" style="background:#ec4899;">Aria → CS</div>
+    <span class="ex-flow-arrow">→</span>
+    <div class="ex-flow-node" style="background:#f43f5e;">Isabella → Email ✉️</div>
+    <span class="ex-flow-arrow">↔</span>
+    <div class="ex-flow-node" style="background:#0ea5e9;">S.Pierce → Recovery 💳</div>
   </div>
 
   <!-- Agent Cards -->
@@ -102,8 +106,8 @@
 </div>
 
 <script>
-const agentColors = {marcus_vance:'#3b82f6', elena_rostova:'#8b5cf6', julian_vance:'#10b981', sterling_croft:'#f59e0b', vivian_cross:'#10b981', nova_chen:'#8b5cf6', rex_dawson:'#f59e0b', aria_singh:'#ec4899'};
-const agentNames = {marcus_vance:'Marcus', elena_rostova:'Elena', julian_vance:'Julian', sterling_croft:'Sterling', vivian_cross:'Vivian', nova_chen:'Nova', rex_dawson:'Rex', aria_singh:'Aria'};
+const agentColors = {marcus_vance:'#3b82f6', elena_rostova:'#8b5cf6', julian_vance:'#10b981', sterling_croft:'#f59e0b', vivian_cross:'#10b981', nova_chen:'#8b5cf6', rex_dawson:'#f59e0b', aria_singh:'#ec4899', isabella_cruz:'#f43f5e', sterling_pierce:'#0ea5e9'};
+const agentNames = {marcus_vance:'Marcus', elena_rostova:'Elena', julian_vance:'Julian', sterling_croft:'Sterling', vivian_cross:'Vivian', nova_chen:'Nova', rex_dawson:'Rex', aria_singh:'Aria', isabella_cruz:'Isabella', sterling_pierce:'S.Pierce'};
 
 function switchTab(name) {
   document.querySelectorAll('.ex-tab').forEach(t => t.classList.remove('active'));

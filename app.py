@@ -8641,6 +8641,10 @@ from agents.rex_revops import start as _start_rex  # noqa: E402
 _start_rex()
 from agents.aria_success import start as _start_aria  # noqa: E402
 _start_aria()
+from agents.isabella_email import start as _start_isabella  # noqa: E402
+_start_isabella()
+from agents.sterling_pierce import start as _start_sterling_pierce  # noqa: E402
+_start_sterling_pierce()
 
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")
