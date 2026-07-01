@@ -1,0 +1,125 @@
+<!-- Media Picker Modal — include once per page, call openMediaPicker(type, callback) -->
+<div id="media-picker-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1100;overflow-y:auto;">
+  <div style="max-width:720px;margin:40px auto;padding:24px;background:var(--bg-card);border-radius:12px;border:1px solid var(--border);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;" id="picker-title">Select from Library</h3>
+      <button onclick="closeMediaPicker()" style="background:none;border:none;color:var(--text);font-size:20px;cursor:pointer;">&times;</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <input id="picker-search" class="input" placeholder="Search..." style="flex:1;" oninput="pickerDebounce()">
+      <select id="picker-category" class="input" style="width:auto;" onchange="loadPickerMedia()">
+        <option value="">All Categories</option>
+        <option value="b-roll">B-Roll</option>
+        <option value="thumbnail">Thumbnails</option>
+        <option value="music">Background Music</option>
+        <option value="sfx">Sound Effects</option>
+        <option value="intro-outro">Intro/Outro</option>
+        <option value="overlay">Overlays</option>
+        <option value="brand">Brand Assets</option>
+        <option value="generated-video">Generated Videos</option>
+        <option value="generated-thumbnail">Generated Thumbnails</option>
+        <option value="generated-audio">Generated Audio</option>
+      </select>
+    </div>
+    <div id="picker-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;max-height:400px;overflow-y:auto;"></div>
+    <div id="picker-empty" style="display:none;text-align:center;padding:40px;">
+      <p class="dim">No matching files. <a href="/media" style="color:var(--gold);">Upload media first.</a></p>
+    </div>
+    <div id="picker-selected" style="display:none;margin-top:16px;padding:12px;background:var(--bg-secondary);border-radius:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span id="picker-selected-name" style="font-size:13px;font-weight:600;"></span>
+        <button class="btn btn-primary" style="padding:6px 16px;font-size:13px;" onclick="confirmPickerSelection()">Use This</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const TYPE_ICONS = {image:'🖼️',video:'🎬',audio:'🎵',document:'📄'};
+  let _pickerType = null;
+  let _pickerCallback = null;
+  let _pickerSelected = null;
+  let _pickerTimer = null;
+
+  window.openMediaPicker = function(type, callback) {
+    _pickerType = type;
+    _pickerCallback = callback;
+    _pickerSelected = null;
+    document.getElementById('picker-selected').style.display = 'none';
+    document.getElementById('picker-search').value = '';
+    document.getElementById('picker-category').value = '';
+    const titles = {image:'Select Image',video:'Select Video',audio:'Select Audio',document:'Select Document'};
+    document.getElementById('picker-title').textContent = titles[type] || 'Select from Library';
+    document.getElementById('media-picker-modal').style.display = 'block';
+    loadPickerMedia();
+  };
+
+  window.closeMediaPicker = function() {
+    document.getElementById('media-picker-modal').style.display = 'none';
+    _pickerCallback = null;
+  };
+
+  window.pickerDebounce = function() {
+    clearTimeout(_pickerTimer);
+    _pickerTimer = setTimeout(loadPickerMedia, 300);
+  };
+
+  window.loadPickerMedia = async function() {
+    const params = new URLSearchParams();
+    if (_pickerType) params.set('type', _pickerType);
+    const cat = document.getElementById('picker-category').value;
+    const search = document.getElementById('picker-search').value;
+    if (cat) params.set('category', cat);
+    if (search) params.set('search', search);
+
+    const resp = await fetch('/api/media/picker?' + params);
+    const data = await resp.json();
+    const grid = document.getElementById('picker-grid');
+    grid.innerHTML = '';
+
+    const allItems = [];
+    for (const items of Object.values(data.media)) allItems.push(...items);
+
+    if (!allItems.length) {
+      document.getElementById('picker-empty').style.display = 'block';
+      grid.style.display = 'none';
+      return;
+    }
+    document.getElementById('picker-empty').style.display = 'none';
+    grid.style.display = 'grid';
+
+    allItems.forEach(item => {
+      const el = document.createElement('div');
+      el.style.cssText = 'background:var(--bg-secondary);border:2px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:all .2s;text-align:center;';
+      el.onmouseenter = () => { if (_pickerSelected?.id !== item.id) el.style.borderColor = 'var(--gold)'; };
+      el.onmouseleave = () => { if (_pickerSelected?.id !== item.id) el.style.borderColor = 'var(--border)'; };
+      el.onclick = () => {
+        _pickerSelected = item;
+        grid.querySelectorAll('div').forEach(d => d.style.borderColor = 'var(--border)');
+        el.style.borderColor = 'var(--gold)';
+        el.style.background = 'rgba(212,175,55,.08)';
+        document.getElementById('picker-selected').style.display = 'block';
+        document.getElementById('picker-selected-name').textContent = item.name;
+      };
+
+      const icon = TYPE_ICONS[_pickerType] || '📎';
+      el.innerHTML = '<div style="font-size:32px;margin-bottom:8px;">' + icon + '</div>' +
+        '<div style="font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+item.name+'">'+item.name+'</div>' +
+        (item.category !== 'uncategorized' ? '<div style="margin-top:4px;"><span style="font-size:9px;padding:1px 5px;background:var(--gold);color:#000;border-radius:3px;">'+item.category+'</span></div>' : '');
+      grid.appendChild(el);
+    });
+  };
+
+  window.confirmPickerSelection = function() {
+    if (_pickerSelected && _pickerCallback) {
+      _pickerCallback(_pickerSelected);
+    }
+    closeMediaPicker();
+  };
+
+  document.getElementById('media-picker-modal').addEventListener('click', function(e) {
+    if (e.target.id === 'media-picker-modal') closeMediaPicker();
+  });
+})();
+</script>

@@ -38,8 +38,8 @@ class ScriptSection(BaseModel):
 class FullScript(BaseModel):
     title: str
     description: str = Field(description="YouTube description (first 125 chars are above fold)")
-    hashtags: list[str] = Field(min_length=3, max_length=15)
-    sections: list[ScriptSection] = Field(min_length=3)
+    hashtags: list[str] = Field(min_length=1, max_length=15)
+    sections: list[ScriptSection] = Field(min_length=1)
     total_duration_seconds: int
     narration_full: str = Field(description="Complete narration joined for TTS")
     thumbnail_prompt: str = Field(description="Detailed image-gen prompt for thumbnail")
@@ -48,18 +48,21 @@ class FullScript(BaseModel):
 
 # ── Agent 3: Asset Curator output ───────────────────────────────────────────
 
-AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pexels_api", "free_stock_internal"]
+AssetSource = Literal["higgsfield_cinematic", "higgsfield_ugc", "free_pixabay_api", "free_stock_internal", "chinese_open_source_api", "real_person_wikimedia"]
 
 class AssetSpec(BaseModel):
     section_id: int
     asset_type: Literal["video_clip", "image", "animation"]
     source: AssetSource
-    prompt: str = Field(description="Generation prompt or Pexels search query")
+    prompt: str = Field(description="Generation prompt or Pexels search query (also used as fallback search if entity_name yields no real photo)")
+    entity_name: Optional[str] = Field(None, description="Full proper name of the real, named person this section is about (e.g. 'Patrick Ewing'), set ONLY when source=real_person_wikimedia. Never an acronym or slang term like 'GOAT' or 'MVP'.")
     model_key: Optional[str] = Field(None, description="Higgsfield model key if source=higgsfield_*")
     duration_seconds: Optional[int] = None
     aspect_ratio: Literal["16:9", "9:16", "1:1"] = "16:9"
     credit_cost: int = Field(ge=0, description="Estimated Higgsfield credits (0 for free sources)")
+    dollar_cost: float = Field(default=0.0, description="Dollar cost for Chinese open-source models")
     priority: int = Field(ge=1, le=3, description="1=must-have, 2=nice-to-have, 3=optional")
+    visual_complexity: str = Field(default="low", description="low, medium_custom, or high_agentic_physics")
 
 
 class AssetPlan(BaseModel):
@@ -77,8 +80,10 @@ BudgetState = Literal["healthy", "warning", "critical_save"]
 class OptimizedAssetPlan(BaseModel):
     assets: list[AssetSpec]
     total_credit_cost: int
+    total_dollar_cost: float = 0.0
     budget_state: BudgetState
     credits_remaining_after: int
+    dollars_remaining_after: float = 0.0
     swaps_made: list[str] = Field(description="Human-readable list of cost substitutions")
     quality_impact: str = Field(description="Assessment of quality after optimisations")
 
@@ -99,6 +104,81 @@ class SEOPackage(BaseModel):
 
 # ── Pipeline result ──────────────────────────────────────────────────────────
 
+# ── Community Engineer output ──────────────────────────────────────────────
+
+class EngagementAction(BaseModel):
+    platform: str
+    action_type: str
+    target_description: str = ""
+    target_username: str = ""
+    comment_text: str = ""
+    timing: str = ""
+    priority: int = Field(ge=1, le=5, default=3)
+    strategy_tier: str = ""
+    rationale: str = ""
+
+
+class EngagementPlan(BaseModel):
+    daily_actions: list[EngagementAction] = Field(default_factory=list)
+    total_actions: int = 0
+    platform_breakdown: dict[str, int] = Field(default_factory=dict)
+    estimated_reach: int = 0
+    key_focus: str = ""
+    notes: str = ""
+
+
+# ── Ad Copywriter output ─────────────────────────────────────────────────
+
+class AdCopyVariant(BaseModel):
+    framework: Literal["AIDA", "PAS", "BAB", "4U", "FAB"]
+    headline: str = Field(description="Ad headline, max 40 chars")
+    body: str = Field(description="Primary ad copy text")
+    cta: str = Field(description="Call to action")
+
+
+class AdCopyPackage(BaseModel):
+    variants: list[AdCopyVariant] = Field(min_length=3, max_length=5)
+    hashtags: list[str] = Field(min_length=3, max_length=15)
+    video_hooks: list[str] = Field(min_length=2, max_length=5, description="Video ad opening hooks")
+    email_subjects: list[str] = Field(min_length=2, max_length=5)
+    social_captions: list[str] = Field(min_length=1, max_length=3)
+
+
+# ── Market Strategist output ──────────────────────────────────────────────
+
+class MarketStrategy(BaseModel):
+    product_category: str = Field(description="Product category (e.g. SaaS, fashion, food)")
+    unique_selling_point: str = Field(description="Single strongest USP in one sentence")
+    target_persona: str = Field(description="Ideal customer persona in 2-3 sentences")
+    pain_points: list[str] = Field(min_length=2, max_length=5, description="Customer pain points this solves")
+    emotional_triggers: list[str] = Field(min_length=2, max_length=4, description="Emotions to leverage in the ad")
+    ad_angle: Literal["pain_solution", "aspirational", "social_proof", "urgency", "storytelling", "demonstration"]
+    tone: Literal["authoritative", "conversational", "dramatic", "inspiring", "urgent", "playful"]
+    hook_suggestions: list[str] = Field(min_length=3, max_length=5, description="3-5 scroll-stopping hook lines")
+    cta_suggestions: list[str] = Field(min_length=2, max_length=3, description="Strong call-to-action options")
+    competitive_edge: str = Field(description="What sets this apart from competitors")
+
+
+# ── Commercial Script output ─────────────────────────────────────────────
+
+class CommercialSection(BaseModel):
+    label: str = Field(description="Section label: Hook, Problem, Solution, CTA")
+    narration: str = Field(description="Voiceover text for this section")
+    visual_direction: str = Field(description="What should appear on screen")
+    duration_seconds: int = Field(ge=1, le=30)
+
+
+class CommercialScript(BaseModel):
+    headline: str = Field(description="Ad headline / title")
+    sections: list[CommercialSection] = Field(min_length=3, max_length=6)
+    voiceover_full: str = Field(description="Complete voiceover narration joined")
+    video_prompt: str = Field(description="Detailed cinematic AI video generation prompt")
+    tagline_final: str = Field(description="Final tagline for end card")
+    total_duration_seconds: int
+
+
+# ── Pipeline result ──────────────────────────────────────────────────────────
+
 class ProductionResult(BaseModel):
     niche: str
     blueprint: VideoBlueprint
@@ -108,3 +188,7 @@ class ProductionResult(BaseModel):
     pipeline_cost_credits: int
     status: Literal["success", "partial", "failed"]
     errors: list[str] = Field(default_factory=list)
+    video_path: str = ""
+    audio_path: str = ""
+    thumbnail_path: str = ""
+    manifest_path: str = ""

@@ -1,0 +1,901 @@
+{% extends "base.html" %}
+{% set active_page = "crm" %}
+{% block title %}CRM — Social Optimize{% endblock %}
+{% block topbar_title %}CRM{% endblock %}
+{% block topbar_sub %}Pipeline · Contacts · Companies · Activities · Tasks{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-primary" onclick="openModal('newDealModal')">+ New Deal</button>
+<button class="btn btn-secondary" onclick="openModal('newContactModal')">+ Contact</button>
+{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --crm-bg: var(--bg);
+  --crm-card: var(--card);
+  --crm-border: var(--border);
+  --crm-text: var(--text);
+  --crm-muted: var(--muted);
+  --crm-green: #30d158;
+  --crm-blue: #0a84ff;
+  --crm-red: #ff453a;
+  --crm-amber: #ff9f0a;
+  --crm-purple: #bf5af2;
+  --crm-cyan: #5ac8fa;
+}
+
+/* Tab nav */
+.crm-tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:1px solid var(--crm-border); }
+.crm-tab { padding:10px 18px; font-size:13px; font-weight:600; color:var(--crm-muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .15s; }
+.crm-tab:hover { color:var(--crm-text); }
+.crm-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+/* Panels */
+.crm-panel { display:none; }
+.crm-panel.active { display:block; }
+
+/* KPI row */
+.crm-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:20px; }
+.crm-kpi { background:var(--crm-card); border:1px solid var(--crm-border); border-radius:10px; padding:16px; }
+.crm-kpi-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--crm-muted); margin-bottom:6px; }
+.crm-kpi-val { font-size:26px; font-weight:800; }
+.crm-kpi-sub { font-size:11px; color:var(--crm-muted); margin-top:3px; }
+
+/* Pipeline kanban */
+.pipeline-board { display:flex; gap:14px; overflow-x:auto; padding-bottom:12px; min-height:500px; }
+.pipeline-col { min-width:230px; flex:0 0 230px; }
+.pipeline-col-header { padding:10px 14px; border-radius:8px 8px 0 0; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center; justify-content:space-between; }
+.pipeline-col-body { background:rgba(255,255,255,.03); border:1px solid var(--crm-border); border-top:none; border-radius:0 0 8px 8px; padding:10px; min-height:300px; }
+.deal-card { background:var(--crm-card); border:1px solid var(--crm-border); border-radius:8px; padding:12px; margin-bottom:8px; cursor:pointer; transition:border-color .15s; }
+.deal-card:hover { border-color:var(--accent); }
+.deal-card-title { font-size:13px; font-weight:600; margin-bottom:4px; }
+.deal-card-company { font-size:11px; color:var(--crm-muted); margin-bottom:6px; }
+.deal-card-meta { display:flex; justify-content:space-between; align-items:center; }
+.deal-value { font-size:13px; font-weight:700; color:var(--crm-green); }
+.deal-date { font-size:10px; color:var(--crm-muted); }
+.deal-owner { width:22px; height:22px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; }
+
+/* Tables */
+.crm-table { width:100%; border-collapse:collapse; font-size:13px; }
+.crm-table th { text-align:left; color:var(--crm-muted); font-weight:600; padding:8px 12px; border-bottom:1px solid var(--crm-border); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+.crm-table td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.04); vertical-align:middle; }
+.crm-table tr:hover td { background:rgba(255,255,255,.02); cursor:pointer; }
+.crm-table tr:last-child td { border-bottom:none; }
+
+/* Badges */
+.badge { display:inline-flex; align-items:center; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:600; }
+.badge-green { background:rgba(48,209,88,.15); color:var(--crm-green); }
+.badge-blue { background:rgba(10,132,255,.15); color:var(--crm-blue); }
+.badge-amber { background:rgba(255,159,10,.15); color:var(--crm-amber); }
+.badge-red { background:rgba(255,69,58,.15); color:var(--crm-red); }
+.badge-purple { background:rgba(191,90,242,.15); color:var(--crm-purple); }
+.badge-muted { background:rgba(255,255,255,.08); color:var(--crm-muted); }
+
+/* Activity feed */
+.activity-item { display:flex; gap:12px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.activity-icon { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+.activity-body { flex:1; }
+.activity-text { font-size:13px; }
+.activity-meta { font-size:11px; color:var(--crm-muted); margin-top:2px; }
+
+/* Task items */
+.task-item { display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--crm-card); border:1px solid var(--crm-border); border-radius:8px; margin-bottom:8px; }
+.task-item.overdue { border-left:3px solid var(--crm-red); }
+.task-item.today { border-left:3px solid var(--crm-amber); }
+.task-cb { width:18px; height:18px; border-radius:4px; border:2px solid var(--crm-border); cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.task-cb.done { background:var(--crm-green); border-color:var(--crm-green); }
+.task-title { flex:1; font-size:13px; font-weight:500; }
+.task-due { font-size:11px; color:var(--crm-muted); }
+.task-due.overdue { color:var(--crm-red); }
+.task-due.today { color:var(--crm-amber); }
+
+/* Modals */
+.crm-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000; align-items:center; justify-content:center; }
+.crm-modal.open { display:flex; }
+.crm-modal-box { background:var(--crm-card); border:1px solid var(--crm-border); border-radius:14px; padding:28px; width:min(560px,95vw); max-height:90vh; overflow-y:auto; }
+.crm-modal-title { font-size:16px; font-weight:700; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; }
+.crm-modal-close { cursor:pointer; color:var(--crm-muted); font-size:18px; }
+.form-row { margin-bottom:14px; }
+.form-row label { display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--crm-muted); margin-bottom:5px; }
+.form-row input, .form-row select, .form-row textarea {
+  width:100%; background:var(--bg); border:1px solid var(--crm-border); border-radius:8px;
+  padding:9px 12px; color:var(--crm-text); font-size:13px; box-sizing:border-box;
+}
+.form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline:none; border-color:var(--accent); }
+.form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+/* Contact detail sidebar */
+.contact-detail { display:none; position:fixed; right:0; top:0; bottom:0; width:420px; background:var(--crm-card); border-left:1px solid var(--crm-border); z-index:900; overflow-y:auto; padding:24px; box-shadow:-4px 0 24px rgba(0,0,0,.4); }
+.contact-detail.open { display:block; }
+.cd-avatar { width:56px; height:56px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; margin-bottom:14px; }
+.cd-name { font-size:20px; font-weight:700; }
+.cd-company { font-size:13px; color:var(--crm-muted); margin-bottom:16px; }
+.cd-field { display:flex; gap:10px; align-items:flex-start; margin-bottom:8px; font-size:13px; }
+.cd-field-label { color:var(--crm-muted); min-width:80px; font-size:11px; font-weight:600; text-transform:uppercase; padding-top:2px; }
+.section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--crm-muted); margin:20px 0 10px; }
+.cd-close { position:absolute; top:16px; right:16px; cursor:pointer; color:var(--crm-muted); font-size:20px; }
+
+/* Search bar */
+.crm-search { background:var(--bg); border:1px solid var(--crm-border); border-radius:8px; padding:8px 14px; color:var(--crm-text); font-size:13px; width:260px; }
+.crm-search:focus { outline:none; border-color:var(--accent); }
+
+.empty-state { text-align:center; padding:48px 20px; color:var(--crm-muted); }
+.section-card { background:var(--crm-card); border:1px solid var(--crm-border); border-radius:12px; padding:20px; margin-bottom:16px; }
+.section-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.section-card-title { font-size:14px; font-weight:700; }
+
+@media(max-width:768px){ .pipeline-board{flex-direction:column;} .pipeline-col{min-width:100%;} .contact-detail{width:100%;} }
+</style>
+
+<!-- CRM Tab Navigation -->
+<div class="crm-tabs">
+  <div class="crm-tab active" onclick="showTab('pipeline',this)">📊 Pipeline</div>
+  <div class="crm-tab" onclick="showTab('contacts',this)">👤 Contacts</div>
+  <div class="crm-tab" onclick="showTab('companies',this)">🏢 Companies</div>
+  <div class="crm-tab" onclick="showTab('activities',this)">📋 Activities</div>
+  <div class="crm-tab" onclick="showTab('tasks',this)">✅ Tasks</div>
+  <div class="crm-tab" onclick="showTab('reports',this)">📈 Reports</div>
+</div>
+
+<!-- ═══ PIPELINE ═══ -->
+<div id="tab-pipeline" class="crm-panel active">
+  <div class="crm-kpis" id="pipelineKpis"></div>
+  <div class="pipeline-board" id="pipelineBoard"></div>
+</div>
+
+<!-- ═══ CONTACTS ═══ -->
+<div id="tab-contacts" class="crm-panel">
+  <div class="section-card">
+    <div class="section-card-header">
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input class="crm-search" id="contactSearch" placeholder="Search contacts…" oninput="filterContacts(this.value)">
+        <select id="contactStageFilter" onchange="filterContacts()" style="background:var(--bg);border:1px solid var(--crm-border);border-radius:8px;padding:8px 12px;color:var(--crm-text);font-size:13px;">
+          <option value="">All Stages</option>
+          <option value="lead">Lead</option>
+          <option value="qualified">Qualified</option>
+          <option value="customer">Customer</option>
+          <option value="churned">Churned</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('newContactModal')">+ Contact</button>
+    </div>
+    <div id="contactsTable"><div class="empty-state">Loading…</div></div>
+  </div>
+</div>
+
+<!-- ═══ COMPANIES ═══ -->
+<div id="tab-companies" class="crm-panel">
+  <div class="section-card">
+    <div class="section-card-header">
+      <div style="display:flex;gap:10px;align-items:center;">
+        <input class="crm-search" id="companySearch" placeholder="Search companies…" oninput="filterCompanies(this.value)">
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openModal('newCompanyModal')">+ Company</button>
+    </div>
+    <div id="companiesTable"><div class="empty-state">Loading…</div></div>
+  </div>
+</div>
+
+<!-- ═══ ACTIVITIES ═══ -->
+<div id="tab-activities" class="crm-panel">
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;">
+    <div class="section-card">
+      <div class="section-card-header">
+        <div class="section-card-title">Activity Feed</div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('newActivityModal')">+ Log Activity</button>
+      </div>
+      <div id="activitiesFeed"></div>
+    </div>
+    <div>
+      <div class="section-card">
+        <div class="section-card-title" style="margin-bottom:14px;">By Type</div>
+        <div id="activityStats"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TASKS ═══ -->
+<div id="tab-tasks" class="crm-panel">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="section-card">
+      <div class="section-card-header">
+        <div class="section-card-title">📌 Due Today & Overdue</div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('newTaskModal')">+ Task</button>
+      </div>
+      <div id="tasksUrgent"></div>
+    </div>
+    <div class="section-card">
+      <div class="section-card-header">
+        <div class="section-card-title">Upcoming</div>
+      </div>
+      <div id="tasksUpcoming"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ REPORTS ═══ -->
+<div id="tab-reports" class="crm-panel">
+  <div class="crm-kpis" id="reportKpis"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="section-card">
+      <div class="section-card-title" style="margin-bottom:14px;">Pipeline by Stage</div>
+      <div id="reportByStage"></div>
+    </div>
+    <div class="section-card">
+      <div class="section-card-title" style="margin-bottom:14px;">Deals Won (30 days)</div>
+      <div id="reportWon"></div>
+    </div>
+    <div class="section-card">
+      <div class="section-card-title" style="margin-bottom:14px;">Top Contacts by Value</div>
+      <div id="reportTopContacts"></div>
+    </div>
+    <div class="section-card">
+      <div class="section-card-title" style="margin-bottom:14px;">Activity Leaderboard</div>
+      <div id="reportActivity"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CONTACT DETAIL PANEL ═══ -->
+<div id="contactDetail" class="contact-detail">
+  <span class="cd-close" onclick="closeDetail()">✕</span>
+  <div id="cdContent"></div>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- New Deal -->
+<div id="newDealModal" class="crm-modal">
+  <div class="crm-modal-box">
+    <div class="crm-modal-title">New Deal <span class="crm-modal-close" onclick="closeModal('newDealModal')">✕</span></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Deal Name *</label><input id="nd-name" placeholder="e.g. Acme Corp — Creator Plan"></div>
+      <div class="form-row"><label>Value ($)</label><input id="nd-value" type="number" placeholder="0.00" min="0"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Stage</label>
+        <select id="nd-stage">
+          <option value="lead">Lead</option>
+          <option value="qualified">Qualified</option>
+          <option value="proposal">Proposal</option>
+          <option value="negotiation">Negotiation</option>
+          <option value="won">Won</option>
+          <option value="lost">Lost</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Close Date</label><input id="nd-close" type="date"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Contact</label>
+        <select id="nd-contact"><option value="">— None —</option></select>
+      </div>
+      <div class="form-row"><label>Company</label>
+        <select id="nd-company"><option value="">— None —</option></select>
+      </div>
+    </div>
+    <div class="form-row"><label>Notes</label><textarea id="nd-notes" rows="3" placeholder="Deal details, context…"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveDeal()">Save Deal</button>
+  </div>
+</div>
+
+<!-- New Contact -->
+<div id="newContactModal" class="crm-modal">
+  <div class="crm-modal-box">
+    <div class="crm-modal-title">New Contact <span class="crm-modal-close" onclick="closeModal('newContactModal')">✕</span></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Full Name *</label><input id="nc-name" placeholder="Jane Smith"></div>
+      <div class="form-row"><label>Email</label><input id="nc-email" type="email" placeholder="jane@example.com"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Phone</label><input id="nc-phone" placeholder="+1 555 000 0000"></div>
+      <div class="form-row"><label>Job Title</label><input id="nc-title" placeholder="Marketing Director"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Company</label>
+        <select id="nc-company"><option value="">— None —</option></select>
+      </div>
+      <div class="form-row"><label>Stage</label>
+        <select id="nc-stage">
+          <option value="lead">Lead</option>
+          <option value="qualified">Qualified</option>
+          <option value="customer">Customer</option>
+          <option value="churned">Churned</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Source</label>
+        <select id="nc-source">
+          <option value="">Unknown</option>
+          <option value="organic">Organic</option>
+          <option value="referral">Referral</option>
+          <option value="ads">Ads</option>
+          <option value="social">Social</option>
+          <option value="cold_outreach">Cold Outreach</option>
+          <option value="event">Event</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Tags (comma separated)</label><input id="nc-tags" placeholder="vip, creator, podcast"></div>
+    </div>
+    <div class="form-row"><label>Notes</label><textarea id="nc-notes" rows="2" placeholder="Anything relevant…"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveContact()">Save Contact</button>
+  </div>
+</div>
+
+<!-- New Company -->
+<div id="newCompanyModal" class="crm-modal">
+  <div class="crm-modal-box">
+    <div class="crm-modal-title">New Company <span class="crm-modal-close" onclick="closeModal('newCompanyModal')">✕</span></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Company Name *</label><input id="nco-name" placeholder="Acme Corp"></div>
+      <div class="form-row"><label>Industry</label><input id="nco-industry" placeholder="e.g. Media, SaaS, Ecommerce"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Website</label><input id="nco-website" placeholder="https://"></div>
+      <div class="form-row"><label>Annual Revenue ($)</label><input id="nco-revenue" type="number" placeholder="0"></div>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Employees</label><input id="nco-employees" type="number" placeholder="0"></div>
+      <div class="form-row"><label>Phone</label><input id="nco-phone" placeholder="+1 555 000 0000"></div>
+    </div>
+    <div class="form-row"><label>Notes</label><textarea id="nco-notes" rows="2"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveCompany()">Save Company</button>
+  </div>
+</div>
+
+<!-- New Activity -->
+<div id="newActivityModal" class="crm-modal">
+  <div class="crm-modal-box">
+    <div class="crm-modal-title">Log Activity <span class="crm-modal-close" onclick="closeModal('newActivityModal')">✕</span></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Type</label>
+        <select id="na-type">
+          <option value="call">📞 Call</option>
+          <option value="email">📧 Email</option>
+          <option value="meeting">🤝 Meeting</option>
+          <option value="note">📝 Note</option>
+          <option value="demo">🖥 Demo</option>
+          <option value="proposal">📄 Proposal Sent</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Contact</label>
+        <select id="na-contact"><option value="">— None —</option></select>
+      </div>
+    </div>
+    <div class="form-row"><label>Summary *</label><input id="na-summary" placeholder="What happened?"></div>
+    <div class="form-row"><label>Notes</label><textarea id="na-notes" rows="3" placeholder="Detailed notes…"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveActivity()">Log Activity</button>
+  </div>
+</div>
+
+<!-- New Task -->
+<div id="newTaskModal" class="crm-modal">
+  <div class="crm-modal-box">
+    <div class="crm-modal-title">New Task <span class="crm-modal-close" onclick="closeModal('newTaskModal')">✕</span></div>
+    <div class="form-row"><label>Task *</label><input id="nt-title" placeholder="Follow up with Jane about pricing"></div>
+    <div class="form-grid-2">
+      <div class="form-row"><label>Due Date</label><input id="nt-due" type="date"></div>
+      <div class="form-row"><label>Priority</label>
+        <select id="nt-priority">
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row"><label>Contact</label>
+      <select id="nt-contact"><option value="">— None —</option></select>
+    </div>
+    <div class="form-row"><label>Notes</label><textarea id="nt-notes" rows="2"></textarea></div>
+    <button class="btn btn-primary btn-block" onclick="saveTask()">Save Task</button>
+  </div>
+</div>
+
+<script>
+const API = '/api/crm';
+let _contacts = [], _companies = [], _deals = [], _tasks = [];
+let _currentTab = 'pipeline';
+
+// ── Tab routing ───────────────────────────────────────────────────────────────
+function showTab(name, el) {
+  document.querySelectorAll('.crm-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.crm-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+  _currentTab = name;
+  const loaders = { pipeline: loadPipeline, contacts: loadContacts,
+    companies: loadCompanies, activities: loadActivities, tasks: loadTasks, reports: loadReports };
+  if (loaders[name]) loaders[name]();
+}
+
+// ── Modals ────────────────────────────────────────────────────────────────────
+function openModal(id) {
+  populateSelects();
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('keydown', e => { if(e.key==='Escape') { document.querySelectorAll('.crm-modal.open').forEach(m=>m.classList.remove('open')); closeDetail(); } });
+document.querySelectorAll('.crm-modal').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+
+async function populateSelects() {
+  const cs = _contacts.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const cos = _companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  ['nd-contact','na-contact','nt-contact'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">— None —</option>' + cs;
+  });
+  ['nd-company','nc-company'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">— None —</option>' + cos;
+  });
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function api(path, opts={}) {
+  const r = await fetch(API + path, opts);
+  return r.json();
+}
+async function post(path, body) {
+  return api(path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+}
+async function del(path) { return api(path, { method:'DELETE' }); }
+async function patch(path, body) {
+  return api(path, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+}
+
+function fmt$(n) { return '$' + Number(n||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'; }
+function initials(name) { return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
+
+const STAGE_COLORS = {
+  lead:'badge-muted', qualified:'badge-blue', proposal:'badge-purple',
+  negotiation:'badge-amber', won:'badge-green', lost:'badge-red',
+  customer:'badge-green', churned:'badge-red',
+};
+const STAGE_LABELS = {
+  lead:'Lead', qualified:'Qualified', proposal:'Proposal', negotiation:'Negotiation',
+  won:'Won', lost:'Lost', customer:'Customer', churned:'Churned',
+};
+const ACT_ICONS = { call:'📞', email:'📧', meeting:'🤝', note:'📝', demo:'🖥', proposal:'📄' };
+
+// ── PIPELINE ──────────────────────────────────────────────────────────────────
+async function loadPipeline() {
+  const d = await api('/deals');
+  _deals = d.deals || [];
+
+  const stages = ['lead','qualified','proposal','negotiation','won','lost'];
+  const stageColors = {lead:'#888',qualified:'#0a84ff',proposal:'#bf5af2',negotiation:'#ff9f0a',won:'#30d158',lost:'#ff453a'};
+
+  // KPIs
+  const open = _deals.filter(d => !['won','lost'].includes(d.stage));
+  const totalPipe = open.reduce((s,d) => s + Number(d.value||0), 0);
+  const wonDeals  = _deals.filter(d => d.stage==='won');
+  const wonVal    = wonDeals.reduce((s,d) => s + Number(d.value||0), 0);
+  document.getElementById('pipelineKpis').innerHTML = [
+    `<div class="crm-kpi"><div class="crm-kpi-label">Total Pipeline</div><div class="crm-kpi-val" style="color:var(--crm-blue)">${fmt$(totalPipe)}</div><div class="crm-kpi-sub">${open.length} open deals</div></div>`,
+    `<div class="crm-kpi"><div class="crm-kpi-label">Won</div><div class="crm-kpi-val" style="color:var(--crm-green)">${fmt$(wonVal)}</div><div class="crm-kpi-sub">${wonDeals.length} deals closed</div></div>`,
+    `<div class="crm-kpi"><div class="crm-kpi-label">Avg Deal Size</div><div class="crm-kpi-val">${open.length ? fmt$(totalPipe/open.length) : '$0'}</div></div>`,
+    `<div class="crm-kpi"><div class="crm-kpi-label">Win Rate</div><div class="crm-kpi-val" style="color:var(--crm-amber)">${_deals.length ? (wonDeals.length/_deals.length*100).toFixed(0) : 0}%</div></div>`,
+  ].join('');
+
+  // Board
+  let html = '';
+  stages.forEach(stage => {
+    const stagDeals = _deals.filter(d => d.stage===stage);
+    const stageVal  = stagDeals.reduce((s,d) => s + Number(d.value||0), 0);
+    html += `<div class="pipeline-col">
+      <div class="pipeline-col-header" style="background:${stageColors[stage]}20;color:${stageColors[stage]}">
+        <span>${STAGE_LABELS[stage]}</span>
+        <span>${stagDeals.length} · ${fmt$(stageVal)}</span>
+      </div>
+      <div class="pipeline-col-body">`;
+    stagDeals.forEach(deal => {
+      html += `<div class="deal-card" onclick="openDealDetail(${deal.id})">
+        <div class="deal-card-title">${esc(deal.name)}</div>
+        <div class="deal-card-company">${esc(deal.company_name||deal.contact_name||'')}</div>
+        <div class="deal-card-meta">
+          <span class="deal-value">${fmt$(deal.value)}</span>
+          <span class="deal-date">${deal.close_date ? fmtDate(deal.close_date) : ''}</span>
+          <div class="deal-owner">${initials(deal.owner_name||'Me')}</div>
+        </div>
+      </div>`;
+    });
+    html += `<button style="width:100%;padding:6px;background:transparent;border:1px dashed var(--crm-border);border-radius:6px;color:var(--crm-muted);cursor:pointer;font-size:12px;margin-top:4px;" onclick="openDealModalForStage('${stage}')">+ Add deal</button>
+      </div></div>`;
+  });
+  document.getElementById('pipelineBoard').innerHTML = html;
+}
+
+function openDealModalForStage(stage) {
+  openModal('newDealModal');
+  setTimeout(()=>{ document.getElementById('nd-stage').value = stage; }, 50);
+}
+
+// ── CONTACTS ──────────────────────────────────────────────────────────────────
+async function loadContacts() {
+  const d = await api('/contacts');
+  _contacts = d.contacts || [];
+  renderContacts(_contacts);
+}
+
+function renderContacts(list) {
+  if (!list.length) { document.getElementById('contactsTable').innerHTML = '<div class="empty-state">No contacts yet. Add your first one.</div>'; return; }
+  let html = `<table class="crm-table"><thead><tr>
+    <th>Name</th><th>Company</th><th>Email / Phone</th><th>Stage</th><th>Source</th><th>Deals</th><th>Last Activity</th><th></th>
+  </tr></thead><tbody>`;
+  list.forEach(c => {
+    html += `<tr onclick="openContactDetail(${c.id})">
+      <td><div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">${initials(c.name)}</div>
+        <div><div style="font-weight:600">${esc(c.name)}</div><div style="font-size:11px;color:var(--crm-muted)">${esc(c.title||'')}</div></div>
+      </div></td>
+      <td>${esc(c.company_name||'—')}</td>
+      <td><div>${esc(c.email||'—')}</div><div style="font-size:11px;color:var(--crm-muted)">${esc(c.phone||'')}</div></td>
+      <td><span class="badge ${STAGE_COLORS[c.stage]||'badge-muted'}">${STAGE_LABELS[c.stage]||c.stage||'—'}</span></td>
+      <td style="color:var(--crm-muted);font-size:12px">${c.source||'—'}</td>
+      <td style="font-weight:600">${c.deal_count||0}</td>
+      <td style="color:var(--crm-muted);font-size:12px">${c.last_activity ? fmtDate(c.last_activity) : '—'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openContactDetail(${c.id})">→</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('contactsTable').innerHTML = html;
+}
+
+function filterContacts(q) {
+  q = (q || document.getElementById('contactSearch').value || '').toLowerCase();
+  const stage = document.getElementById('contactStageFilter').value;
+  const filtered = _contacts.filter(c =>
+    (!q || (c.name+c.email+c.company_name||'').toLowerCase().includes(q)) &&
+    (!stage || c.stage===stage)
+  );
+  renderContacts(filtered);
+}
+
+// ── COMPANIES ─────────────────────────────────────────────────────────────────
+async function loadCompanies() {
+  const d = await api('/companies');
+  _companies = d.companies || [];
+  renderCompanies(_companies);
+}
+
+function renderCompanies(list) {
+  if (!list.length) { document.getElementById('companiesTable').innerHTML = '<div class="empty-state">No companies yet.</div>'; return; }
+  let html = `<table class="crm-table"><thead><tr>
+    <th>Company</th><th>Industry</th><th>Website</th><th>Employees</th><th>Annual Rev</th><th>Contacts</th><th>Open Deals</th><th></th>
+  </tr></thead><tbody>`;
+  list.forEach(c => {
+    html += `<tr>
+      <td style="font-weight:600">${esc(c.name)}</td>
+      <td style="color:var(--crm-muted)">${esc(c.industry||'—')}</td>
+      <td><a href="${esc(c.website||'#')}" target="_blank" style="color:var(--crm-blue);font-size:12px" onclick="event.stopPropagation()">${c.website?'🔗 Visit':'—'}</a></td>
+      <td>${c.employees||'—'}</td>
+      <td style="color:var(--crm-green)">${c.annual_revenue ? fmt$(c.annual_revenue) : '—'}</td>
+      <td style="font-weight:600">${c.contact_count||0}</td>
+      <td style="font-weight:600">${c.deal_count||0}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteCompany(${c.id})">Del</button></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('companiesTable').innerHTML = html;
+}
+
+function filterCompanies(q) {
+  q = (q||'').toLowerCase();
+  renderCompanies(_companies.filter(c => !q || c.name.toLowerCase().includes(q)));
+}
+
+// ── ACTIVITIES ────────────────────────────────────────────────────────────────
+async function loadActivities() {
+  const d = await api('/activities');
+  const acts = d.activities || [];
+
+  const icons = {call:'📞',email:'📧',meeting:'🤝',note:'📝',demo:'🖥',proposal:'📄'};
+  const bgMap = {call:'rgba(10,132,255,.12)',email:'rgba(48,209,88,.12)',meeting:'rgba(191,90,242,.12)',note:'rgba(255,255,255,.08)',demo:'rgba(255,159,10,.12)',proposal:'rgba(90,200,250,.12)'};
+
+  let html = '';
+  if (!acts.length) html = '<div class="empty-state">No activities logged yet.</div>';
+  acts.forEach(a => {
+    html += `<div class="activity-item">
+      <div class="activity-icon" style="background:${bgMap[a.activity_type]||bgMap.note}">${icons[a.activity_type]||'📝'}</div>
+      <div class="activity-body">
+        <div class="activity-text"><strong>${esc(a.summary)}</strong>${a.contact_name ? ` · <span style="color:var(--crm-muted)">${esc(a.contact_name)}</span>` : ''}</div>
+        ${a.notes ? `<div style="font-size:12px;color:var(--crm-muted);margin-top:2px">${esc(a.notes)}</div>` : ''}
+        <div class="activity-meta">${fmtDate(a.created_at)}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="deleteActivity(${a.id})">✕</button>
+    </div>`;
+  });
+  document.getElementById('activitiesFeed').innerHTML = html;
+
+  // Stats by type
+  const byType = {};
+  acts.forEach(a => { byType[a.activity_type] = (byType[a.activity_type]||0) + 1; });
+  let statsHtml = '';
+  Object.entries(byType).sort((a,b)=>b[1]-a[1]).forEach(([t,n]) => {
+    statsHtml += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;">
+      <span style="font-size:16px">${icons[t]||'📝'}</span>
+      <span style="flex:1;font-size:13px;text-transform:capitalize">${t}</span>
+      <span style="font-weight:700">${n}</span>
+    </div>`;
+  });
+  document.getElementById('activityStats').innerHTML = statsHtml || '<div class="empty-state">No data</div>';
+}
+
+// ── TASKS ─────────────────────────────────────────────────────────────────────
+async function loadTasks() {
+  const d = await api('/tasks');
+  _tasks = d.tasks || [];
+  const today = new Date().toISOString().slice(0,10);
+
+  const urgent   = _tasks.filter(t => t.status!=='done' && (t.due_date <= today));
+  const upcoming = _tasks.filter(t => t.status!=='done' && (!t.due_date || t.due_date > today));
+
+  document.getElementById('tasksUrgent').innerHTML   = renderTasks(urgent, today);
+  document.getElementById('tasksUpcoming').innerHTML = renderTasks(upcoming, today);
+}
+
+function renderTasks(list, today) {
+  if (!list.length) return '<div class="empty-state" style="padding:24px">All clear!</div>';
+  return list.map(t => {
+    const overdue = t.due_date && t.due_date < today;
+    const isToday = t.due_date === today;
+    const cls = overdue ? 'overdue' : isToday ? 'today' : '';
+    const dueCls = overdue ? 'overdue' : isToday ? 'today' : '';
+    const priColor = {urgent:'var(--crm-red)',high:'var(--crm-amber)',normal:''}[t.priority]||'';
+    return `<div class="task-item ${cls}">
+      <div class="task-cb ${t.status==='done'?'done':''}" onclick="toggleTask(${t.id})">${t.status==='done'?'✓':''}</div>
+      <div class="task-title" style="${t.status==='done'?'text-decoration:line-through;color:var(--crm-muted)':''}">
+        ${esc(t.title)}
+        ${t.contact_name ? `<div style="font-size:11px;color:var(--crm-muted)">${esc(t.contact_name)}</div>` : ''}
+      </div>
+      ${t.due_date ? `<div class="task-due ${dueCls}">${fmtDate(t.due_date)}</div>` : ''}
+      ${priColor ? `<span style="width:8px;height:8px;border-radius:50%;background:${priColor};flex-shrink:0;"></span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function toggleTask(id) {
+  const task = _tasks.find(t => t.id===id);
+  if (!task) return;
+  const newStatus = task.status==='done' ? 'open' : 'done';
+  await patch('/tasks/'+id, { status: newStatus });
+  loadTasks();
+}
+
+// ── REPORTS ───────────────────────────────────────────────────────────────────
+async function loadReports() {
+  const d = await api('/reports');
+
+  document.getElementById('reportKpis').innerHTML = [
+    `<div class="crm-kpi"><div class="crm-kpi-label">Total Contacts</div><div class="crm-kpi-val" style="color:var(--crm-blue)">${d.total_contacts}</div></div>`,
+    `<div class="crm-kpi"><div class="crm-kpi-label">Total Companies</div><div class="crm-kpi-val">${d.total_companies}</div></div>`,
+    `<div class="crm-kpi"><div class="crm-kpi-label">Open Pipeline</div><div class="crm-kpi-val" style="color:var(--crm-green)">${fmt$(d.open_pipeline_value)}</div></div>`,
+    `<div class="crm-kpi"><div class="crm-kpi-label">Activities (30d)</div><div class="crm-kpi-val" style="color:var(--crm-purple)">${d.activities_30d}</div></div>`,
+    `<div class="crm-kpi"><div class="crm-kpi-label">Tasks Open</div><div class="crm-kpi-val" style="color:${d.open_tasks>5?'var(--crm-amber)':'inherit'}">${d.open_tasks}</div></div>`,
+  ].join('');
+
+  // By stage
+  let stageHtml = '';
+  (d.by_stage||[]).forEach(s => {
+    stageHtml += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--crm-border);font-size:13px;">
+      <span><span class="badge ${STAGE_COLORS[s.stage]||'badge-muted'}">${STAGE_LABELS[s.stage]||s.stage}</span></span>
+      <span>${s.count} deals</span>
+      <span style="color:var(--crm-green);font-weight:700">${fmt$(s.total_value)}</span>
+    </div>`;
+  });
+  document.getElementById('reportByStage').innerHTML = stageHtml || '<div class="empty-state">No deals</div>';
+
+  // Won recently
+  let wonHtml = '';
+  (d.won_recently||[]).forEach(deal => {
+    wonHtml += `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04);">
+      <span>${esc(deal.name)}</span><span style="color:var(--crm-green);font-weight:700">${fmt$(deal.value)}</span>
+    </div>`;
+  });
+  document.getElementById('reportWon').innerHTML = wonHtml || '<div class="empty-state">No won deals yet</div>';
+
+  // Top contacts
+  let tcHtml = '';
+  (d.top_contacts||[]).forEach(c => {
+    tcHtml += `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px;border-bottom:1px solid rgba(255,255,255,.04);">
+      <span>${esc(c.name)}</span><span style="color:var(--crm-blue);font-weight:700">${fmt$(c.total_deal_value)}</span>
+    </div>`;
+  });
+  document.getElementById('reportTopContacts').innerHTML = tcHtml || '<div class="empty-state">No data</div>';
+
+  // Activity leaderboard
+  let alHtml = '';
+  (d.activity_by_type||[]).forEach(a => {
+    alHtml += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;">
+      <span>${ACT_ICONS[a.activity_type]||'📝'}</span>
+      <span style="flex:1;text-transform:capitalize;font-size:13px">${a.activity_type}</span>
+      <span style="font-weight:700">${a.count}</span>
+    </div>`;
+  });
+  document.getElementById('reportActivity').innerHTML = alHtml || '<div class="empty-state">No activities</div>';
+}
+
+// ── CONTACT DETAIL ────────────────────────────────────────────────────────────
+async function openContactDetail(id) {
+  const d = await api('/contacts/' + id);
+  const c = d.contact;
+  if (!c) return;
+
+  const acts = (d.activities||[]).map(a =>
+    `<div class="activity-item" style="padding:8px 0">
+      <div class="activity-icon" style="width:24px;height:24px;background:rgba(255,255,255,.08);font-size:12px">${ACT_ICONS[a.activity_type]||'📝'}</div>
+      <div><div style="font-size:12px;font-weight:600">${esc(a.summary)}</div><div style="font-size:11px;color:var(--crm-muted)">${fmtDate(a.created_at)}</div></div>
+    </div>`).join('') || '<div style="color:var(--crm-muted);font-size:12px">No activities yet</div>';
+
+  const deals = (d.deals||[]).map(deal =>
+    `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.04);">
+      <span>${esc(deal.name)}</span>
+      <span><span class="badge ${STAGE_COLORS[deal.stage]||'badge-muted'}" style="font-size:10px">${STAGE_LABELS[deal.stage]||deal.stage}</span></span>
+      <span style="color:var(--crm-green);font-weight:600">${fmt$(deal.value)}</span>
+    </div>`).join('') || '<div style="color:var(--crm-muted);font-size:12px">No deals</div>';
+
+  document.getElementById('cdContent').innerHTML = `
+    <div class="cd-avatar">${initials(c.name)}</div>
+    <div class="cd-name">${esc(c.name)}</div>
+    <div class="cd-company">${esc(c.title||'')} ${c.company_name ? '· '+esc(c.company_name) : ''}</div>
+    <span class="badge ${STAGE_COLORS[c.stage]||'badge-muted'}">${STAGE_LABELS[c.stage]||c.stage||'—'}</span>
+
+    <div class="section-title">Contact Info</div>
+    <div class="cd-field"><div class="cd-field-label">Email</div><div>${c.email ? `<a href="mailto:${esc(c.email)}" style="color:var(--crm-blue)">${esc(c.email)}</a>` : '—'}</div></div>
+    <div class="cd-field"><div class="cd-field-label">Phone</div><div>${c.phone ? `<a href="tel:${esc(c.phone)}" style="color:var(--crm-blue)">${esc(c.phone)}</a>` : '—'}</div></div>
+    <div class="cd-field"><div class="cd-field-label">Source</div><div>${c.source||'—'}</div></div>
+    <div class="cd-field"><div class="cd-field-label">Tags</div><div>${(JSON.parse(c.tags||'[]')).map(t=>`<span class="badge badge-muted" style="margin-right:4px">${esc(t)}</span>`).join('')||'—'}</div></div>
+    <div class="cd-field"><div class="cd-field-label">Added</div><div>${fmtDate(c.created_at)}</div></div>
+    ${c.notes ? `<div class="cd-field"><div class="cd-field-label">Notes</div><div style="font-size:12px;color:var(--crm-muted)">${esc(c.notes)}</div></div>` : ''}
+
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-primary btn-sm" onclick="openActivityFor(${c.id})">+ Activity</button>
+      <button class="btn btn-secondary btn-sm" onclick="openTaskFor(${c.id})">+ Task</button>
+      <button class="btn btn-secondary btn-sm" onclick="openDealFor(${c.id})">+ Deal</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteContact(${c.id})">Delete</button>
+    </div>
+
+    <div class="section-title">Deals</div>
+    ${deals}
+    <div class="section-title">Recent Activities</div>
+    ${acts}
+  `;
+  document.getElementById('contactDetail').classList.add('open');
+}
+
+function closeDetail() { document.getElementById('contactDetail').classList.remove('open'); }
+
+async function openDealDetail(id) {
+  const d = await api('/deals/' + id);
+  if (!d.deal) return;
+  const deal = d.deal;
+  // show in a simple alert for now — could expand to its own panel
+  const newStage = prompt(`Move "${deal.name}" to stage:\nlead / qualified / proposal / negotiation / won / lost\n\nCurrent: ${deal.stage}`);
+  if (newStage && ['lead','qualified','proposal','negotiation','won','lost'].includes(newStage)) {
+    await patch('/deals/' + id, { stage: newStage });
+    loadPipeline();
+  }
+}
+
+function openActivityFor(contactId) {
+  openModal('newActivityModal');
+  setTimeout(()=>{ document.getElementById('na-contact').value = contactId; }, 50);
+}
+function openTaskFor(contactId) {
+  openModal('newTaskModal');
+  setTimeout(()=>{ document.getElementById('nt-contact').value = contactId; }, 50);
+}
+function openDealFor(contactId) {
+  openModal('newDealModal');
+  setTimeout(()=>{ document.getElementById('nd-contact').value = contactId; }, 50);
+}
+
+// ── SAVE actions ──────────────────────────────────────────────────────────────
+async function saveDeal() {
+  const name = document.getElementById('nd-name').value.trim();
+  if (!name) return alert('Deal name is required');
+  await post('/deals', {
+    name, value: +document.getElementById('nd-value').value||0,
+    stage: document.getElementById('nd-stage').value,
+    close_date: document.getElementById('nd-close').value||null,
+    contact_id: document.getElementById('nd-contact').value||null,
+    company_id: document.getElementById('nd-company').value||null,
+    notes: document.getElementById('nd-notes').value,
+  });
+  closeModal('newDealModal');
+  loadPipeline();
+}
+
+async function saveContact() {
+  const name = document.getElementById('nc-name').value.trim();
+  if (!name) return alert('Name is required');
+  const tagsRaw = document.getElementById('nc-tags').value;
+  const tags = tagsRaw ? tagsRaw.split(',').map(t=>t.trim()).filter(Boolean) : [];
+  await post('/contacts', {
+    name, email: document.getElementById('nc-email').value,
+    phone: document.getElementById('nc-phone').value,
+    title: document.getElementById('nc-title').value,
+    company_id: document.getElementById('nc-company').value||null,
+    stage: document.getElementById('nc-stage').value,
+    source: document.getElementById('nc-source').value,
+    tags: JSON.stringify(tags),
+    notes: document.getElementById('nc-notes').value,
+  });
+  closeModal('newContactModal');
+  loadContacts();
+}
+
+async function saveCompany() {
+  const name = document.getElementById('nco-name').value.trim();
+  if (!name) return alert('Company name is required');
+  await post('/companies', {
+    name, industry: document.getElementById('nco-industry').value,
+    website: document.getElementById('nco-website').value,
+    annual_revenue: +document.getElementById('nco-revenue').value||null,
+    employees: +document.getElementById('nco-employees').value||null,
+    phone: document.getElementById('nco-phone').value,
+    notes: document.getElementById('nco-notes').value,
+  });
+  closeModal('newCompanyModal');
+  loadCompanies();
+}
+
+async function saveActivity() {
+  const summary = document.getElementById('na-summary').value.trim();
+  if (!summary) return alert('Summary required');
+  await post('/activities', {
+    activity_type: document.getElementById('na-type').value,
+    summary, notes: document.getElementById('na-notes').value,
+    contact_id: document.getElementById('na-contact').value||null,
+  });
+  closeModal('newActivityModal');
+  loadActivities();
+}
+
+async function saveTask() {
+  const title = document.getElementById('nt-title').value.trim();
+  if (!title) return alert('Task title required');
+  await post('/tasks', {
+    title, due_date: document.getElementById('nt-due').value||null,
+    priority: document.getElementById('nt-priority').value,
+    contact_id: document.getElementById('nt-contact').value||null,
+    notes: document.getElementById('nt-notes').value,
+  });
+  closeModal('newTaskModal');
+  loadTasks();
+}
+
+// ── DELETE ────────────────────────────────────────────────────────────────────
+async function deleteContact(id) {
+  if (!confirm('Delete this contact?')) return;
+  await del('/contacts/' + id);
+  closeDetail();
+  loadContacts();
+}
+async function deleteCompany(id) {
+  if (!confirm('Delete this company?')) return;
+  await del('/companies/' + id);
+  loadCompanies();
+}
+async function deleteActivity(id) {
+  await del('/activities/' + id);
+  loadActivities();
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  // Auto-populate CRM from existing platform data (users, contacts, outreach, social accounts)
+  await fetch(API + '/sync', { method:'POST' }).catch(()=>{});
+  // Load data
+  const [cd, cod] = await Promise.all([api('/contacts'), api('/companies')]);
+  _contacts  = cd.contacts  || [];
+  _companies = cod.companies || [];
+  loadPipeline();
+});
+</script>
+{% endblock %}

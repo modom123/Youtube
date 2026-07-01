@@ -1,0 +1,1376 @@
+{% extends "base.html" %}
+{% block title %}MONETIZER — Business OS{% endblock %}
+{% block content %}
+<style>
+:root {
+    --mon-bg: #0a0a0f;
+    --mon-card: #12121a;
+    --mon-border: #1e1e2e;
+    --mon-green: #00e676;
+    --mon-red: #ff5252;
+    --mon-blue: #448aff;
+    --mon-purple: #b388ff;
+    --mon-amber: #ffd740;
+    --mon-cyan: #18ffff;
+    --mon-text: #e0e0e0;
+    --mon-muted: #888;
+}
+.mon-wrap { padding: 24px; max-width: 1600px; margin: 0 auto; }
+.mon-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+.mon-header h1 { font-size: 28px; font-weight: 800; background: linear-gradient(135deg, var(--mon-green), var(--mon-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0; letter-spacing: 2px; }
+.mon-header .mon-subtitle { color: var(--mon-muted); font-size: 13px; }
+.mon-tabs { display: flex; gap: 4px; margin-bottom: 24px; flex-wrap: wrap; }
+.mon-tab { padding: 8px 18px; background: var(--mon-card); border: 1px solid var(--mon-border); border-radius: 8px; color: var(--mon-muted); cursor: pointer; font-size: 13px; font-weight: 600; transition: all .2s; }
+.mon-tab:hover { border-color: var(--mon-green); color: var(--mon-text); }
+.mon-tab.active { background: rgba(0,230,118,.1); border-color: var(--mon-green); color: var(--mon-green); }
+.mon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.mon-card { background: var(--mon-card); border: 1px solid var(--mon-border); border-radius: 12px; padding: 20px; }
+.mon-card h3 { font-size: 13px; color: var(--mon-muted); text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0; }
+.mon-card .mon-value { font-size: 32px; font-weight: 800; color: #fff; }
+.mon-card .mon-value.green { color: var(--mon-green); }
+.mon-card .mon-value.blue { color: var(--mon-blue); }
+.mon-card .mon-value.purple { color: var(--mon-purple); }
+.mon-card .mon-value.amber { color: var(--mon-amber); }
+.mon-card .mon-value.cyan { color: var(--mon-cyan); }
+.mon-card .mon-value.red { color: var(--mon-red); }
+.mon-card .mon-sub { font-size: 12px; color: var(--mon-muted); margin-top: 4px; }
+.mon-section { background: var(--mon-card); border: 1px solid var(--mon-border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+.mon-section h2 { font-size: 16px; font-weight: 700; color: #fff; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px; }
+.mon-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.mon-table th { text-align: left; color: var(--mon-muted); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--mon-border); text-transform: uppercase; font-size: 11px; letter-spacing: .5px; }
+.mon-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.03); color: var(--mon-text); }
+.mon-table tr:hover td { background: rgba(255,255,255,.02); }
+.mon-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.mon-badge.green { background: rgba(0,230,118,.15); color: var(--mon-green); }
+.mon-badge.red { background: rgba(255,82,82,.15); color: var(--mon-red); }
+.mon-badge.blue { background: rgba(68,138,255,.15); color: var(--mon-blue); }
+.mon-badge.amber { background: rgba(255,215,64,.15); color: var(--mon-amber); }
+.mon-badge.purple { background: rgba(179,136,255,.15); color: var(--mon-purple); }
+.mon-btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+.mon-btn-primary { background: var(--mon-green); color: #000; }
+.mon-btn-primary:hover { filter: brightness(1.2); }
+.mon-btn-outline { background: transparent; border: 1px solid var(--mon-border); color: var(--mon-text); }
+.mon-btn-outline:hover { border-color: var(--mon-green); }
+.mon-btn-danger { background: rgba(255,82,82,.15); color: var(--mon-red); border: 1px solid rgba(255,82,82,.2); }
+.mon-btn-sm { padding: 4px 10px; font-size: 11px; }
+.mon-bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; margin-top: 12px; }
+.mon-bar { min-width: 24px; background: var(--mon-green); border-radius: 4px 4px 0 0; transition: height .3s; position: relative; }
+.mon-bar:hover { filter: brightness(1.3); }
+.mon-bar .bar-label { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--mon-muted); white-space: nowrap; }
+.mon-bar .bar-value { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--mon-text); font-weight: 600; }
+.mon-panel { display: none; }
+.mon-panel.active { display: block; }
+.mon-form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.mon-input { background: rgba(255,255,255,.05); border: 1px solid var(--mon-border); border-radius: 6px; padding: 8px 12px; color: var(--mon-text); font-size: 13px; flex: 1; min-width: 140px; }
+.mon-input:focus { outline: none; border-color: var(--mon-green); }
+.mon-select { background: rgba(255,255,255,.05); border: 1px solid var(--mon-border); border-radius: 6px; padding: 8px 12px; color: var(--mon-text); font-size: 13px; }
+.mon-health-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.mon-health-dot.ok { background: var(--mon-green); }
+.mon-health-dot.warn { background: var(--mon-amber); }
+.mon-health-dot.error { background: var(--mon-red); }
+.mon-funnel { display: flex; flex-direction: column; gap: 4px; }
+.mon-funnel-bar { height: 32px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 12px; font-weight: 600; color: #fff; transition: width .5s; }
+.mon-tier-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--mon-border); }
+.mon-tier-row:last-child { border: none; }
+.mon-tier-label { min-width: 80px; font-weight: 700; }
+.mon-tier-bar { flex: 1; height: 24px; background: rgba(255,255,255,.05); border-radius: 4px; overflow: hidden; }
+.mon-tier-fill { height: 100%; border-radius: 4px; transition: width .5s; }
+.mon-loading { text-align: center; padding: 40px; color: var(--mon-muted); }
+.mon-empty { text-align: center; padding: 24px; color: var(--mon-muted); font-size: 13px; }
+.mon-alert-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; margin-bottom: 8px; }
+.formula-row { background:#0f172a;border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid #334155;transition:border-color .2s; }
+.formula-row:has(input[type=checkbox]:not(:checked)) { opacity:.45; }
+.formula-label-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:8px; }
+.formula-label-row label { color:#e2e8f0;font-size:.9rem;font-weight:600; }
+.formula-toggle-wrap { display:flex;align-items:center;gap:10px; }
+.formula-val { color:var(--mon-green);font-weight:700;font-size:1rem;min-width:56px;text-align:right; }
+.formula-toggle { position:relative;display:inline-block;width:36px;height:20px;cursor:pointer; }
+.formula-toggle input { opacity:0;width:0;height:0; }
+.formula-slider-knob { position:absolute;top:0;left:0;right:0;bottom:0;background:#334155;border-radius:20px;transition:.3s; }
+.formula-slider-knob:before { content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s; }
+.formula-toggle input:checked + .formula-slider-knob { background:var(--mon-green); }
+.formula-toggle input:checked + .formula-slider-knob:before { transform:translateX(16px); }
+.formula-range { width:100%;accent-color:var(--mon-green);cursor:pointer; }
+.formula-hint { color:#475569;font-size:.75rem;margin-top:5px; }
+.formula-result-card { background:#0f172a;border-radius:10px;padding:14px;border:1px solid #334155;text-align:center; }
+.formula-result-card .frc-label { color:#64748b;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em; }
+.formula-result-card .frc-val { font-size:1.5rem;font-weight:800;margin:.35rem 0 0; }
+.mon-alert-item.warning { background: rgba(255,215,64,.08); border-left: 3px solid var(--mon-amber); }
+.mon-alert-item.error { background: rgba(255,82,82,.08); border-left: 3px solid var(--mon-red); }
+.mon-alert-item.info { background: rgba(68,138,255,.08); border-left: 3px solid var(--mon-blue); }
+@media (max-width: 768px) {
+    .mon-grid { grid-template-columns: 1fr; }
+    .mon-tabs { overflow-x: auto; flex-wrap: nowrap; }
+}
+</style>
+
+<div class="mon-wrap">
+    <div class="mon-header">
+        <div>
+            <h1>MONETIZER</h1>
+            <div class="mon-subtitle">Business Operating System &mdash; Social Optimize Machine</div>
+        </div>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+            <button class="mon-btn mon-btn-primary" onclick="takeSnapshot()">Take KPI Snapshot</button>
+            <button class="mon-btn mon-btn-outline" onclick="refreshAll()">Refresh</button>
+        </div>
+    </div>
+
+    <div class="mon-tabs">
+        <div class="mon-tab active" onclick="showPanel('revenue')">Revenue</div>
+        <div class="mon-tab" onclick="showPanel('users')">Users</div>
+        <div class="mon-tab" onclick="showPanel('costs')">Costs</div>
+        <div class="mon-tab" onclick="showPanel('growth')">Growth</div>
+        <div class="mon-tab" onclick="showPanel('content')">Content</div>
+        <div class="mon-tab" onclick="showPanel('features')">Features</div>
+        <div class="mon-tab" onclick="showPanel('support')">Support</div>
+        <div class="mon-tab" onclick="showPanel('goals')">Goals</div>
+        <div class="mon-tab" onclick="showPanel('changelog')">Changelog</div>
+        <div class="mon-tab" onclick="showPanel('health')">System</div>
+        <div class="mon-tab" onclick="showPanel('pricing')">Pricing Lab</div>
+        <div class="mon-tab" onclick="showPanel('formula')">💡 Formula</div>
+        <div class="mon-tab" onclick="showPanel('credits-mgr')">Credits</div>
+        <div class="mon-tab" onclick="showPanel('export')">Export</div>
+    </div>
+
+    <!-- ═══ REVENUE ═══ -->
+    <div id="panel-revenue" class="mon-panel active">
+        <div class="mon-grid" id="revenue-kpis"></div>
+        <div class="mon-section">
+            <h2>Tier Breakdown</h2>
+            <div id="tier-breakdown"></div>
+        </div>
+        <div class="mon-section">
+            <h2>Recent Revenue Events</h2>
+            <div id="revenue-events"></div>
+        </div>
+    </div>
+
+    <!-- ═══ USERS ═══ -->
+    <div id="panel-users" class="mon-panel">
+        <div class="mon-section">
+            <h2>Signup Cohorts</h2>
+            <div id="user-cohorts"></div>
+        </div>
+        <div class="mon-grid">
+            <div class="mon-section">
+                <h2>Power Users</h2>
+                <div id="power-users"></div>
+            </div>
+            <div class="mon-section">
+                <h2 style="color:var(--mon-amber)">At-Risk Users</h2>
+                <div id="at-risk-users"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ COSTS ═══ -->
+    <div id="panel-costs" class="mon-panel">
+        <div class="mon-grid" id="cost-kpis"></div>
+        <div class="mon-section">
+            <h2>Expenses
+                <button class="mon-btn mon-btn-primary mon-btn-sm" style="margin-left:auto" onclick="showAddExpense()">+ Add</button>
+            </h2>
+            <div id="add-expense-form" style="display:none; margin-bottom:16px;">
+                <div class="mon-form-row">
+                    <input class="mon-input" id="exp-category" placeholder="Category (e.g. API, Hosting)">
+                    <input class="mon-input" id="exp-vendor" placeholder="Vendor">
+                    <input class="mon-input" id="exp-desc" placeholder="Description">
+                    <input class="mon-input" id="exp-amount" type="number" step="0.01" placeholder="Amount">
+                    <label style="display:flex;align-items:center;gap:4px;color:var(--mon-muted);font-size:12px">
+                        <input type="checkbox" id="exp-recurring"> Recurring
+                    </label>
+                    <button class="mon-btn mon-btn-primary mon-btn-sm" onclick="addExpense()">Save</button>
+                </div>
+            </div>
+            <div id="expenses-table"></div>
+        </div>
+        <div class="mon-section">
+            <h2>Cost Centers
+                <button class="mon-btn mon-btn-primary mon-btn-sm" style="margin-left:auto" onclick="showAddCostCenter()">+ Add</button>
+            </h2>
+            <div id="add-cc-form" style="display:none; margin-bottom:16px;">
+                <div class="mon-form-row">
+                    <input class="mon-input" id="cc-name" placeholder="Name">
+                    <input class="mon-input" id="cc-category" placeholder="Category">
+                    <input class="mon-input" id="cc-budget" type="number" step="0.01" placeholder="Monthly Budget">
+                    <button class="mon-btn mon-btn-primary mon-btn-sm" onclick="addCostCenter()">Save</button>
+                </div>
+            </div>
+            <div id="cost-centers-table"></div>
+        </div>
+    </div>
+
+    <!-- ═══ GROWTH ═══ -->
+    <div id="panel-growth" class="mon-panel">
+        <div class="mon-section">
+            <h2>Conversion Funnel</h2>
+            <div id="growth-funnel"></div>
+        </div>
+        <div class="mon-section">
+            <h2>Daily Signups (30 days)</h2>
+            <div id="signup-chart"></div>
+        </div>
+        <div class="mon-section">
+            <h2>Marketing Campaigns
+                <button class="mon-btn mon-btn-primary mon-btn-sm" style="margin-left:auto" onclick="showAddCampaign()">+ Add</button>
+            </h2>
+            <div id="add-campaign-form" style="display:none; margin-bottom:16px;">
+                <div class="mon-form-row">
+                    <input class="mon-input" id="camp-name" placeholder="Campaign Name">
+                    <input class="mon-input" id="camp-channel" placeholder="Channel (e.g. Google Ads)">
+                    <input class="mon-input" id="camp-budget" type="number" step="0.01" placeholder="Budget">
+                    <button class="mon-btn mon-btn-primary mon-btn-sm" onclick="addCampaign()">Save</button>
+                </div>
+            </div>
+            <div id="campaigns-table"></div>
+        </div>
+    </div>
+
+    <!-- ═══ CONTENT ═══ -->
+    <div id="panel-content" class="mon-panel">
+        <div class="mon-grid" id="content-kpis"></div>
+        <div class="mon-grid">
+            <div class="mon-section">
+                <h2>By Content Type</h2>
+                <div id="content-by-type"></div>
+            </div>
+            <div class="mon-section">
+                <h2>Platform Publishing</h2>
+                <div id="platform-stats"></div>
+            </div>
+        </div>
+        <div class="mon-section">
+            <h2>Top Performing Content</h2>
+            <div id="top-content"></div>
+        </div>
+    </div>
+
+    <!-- ═══ FEATURES ═══ -->
+    <div id="panel-features" class="mon-panel">
+        <div class="mon-section">
+            <h2>Feature Flags
+                <button class="mon-btn mon-btn-primary mon-btn-sm" style="margin-left:auto" onclick="showAddFeature()">+ Add</button>
+            </h2>
+            <div id="add-feature-form" style="display:none; margin-bottom:16px;">
+                <div class="mon-form-row">
+                    <input class="mon-input" id="ff-name" placeholder="Feature Name">
+                    <select class="mon-select" id="ff-tier"><option value="free">Free</option><option value="starter">Starter</option><option value="creator">Creator</option><option value="pro">Pro</option><option value="agency">Agency</option></select>
+                    <input class="mon-input" id="ff-rollout" type="number" placeholder="Rollout %" value="100" style="max-width:80px">
+                    <input class="mon-input" id="ff-desc" placeholder="Description">
+                    <button class="mon-btn mon-btn-primary mon-btn-sm" onclick="addFeature()">Save</button>
+                </div>
+            </div>
+            <div id="features-table"></div>
+        </div>
+    </div>
+
+    <!-- ═══ SUPPORT ═══ -->
+    <div id="panel-support" class="mon-panel">
+        <div class="mon-grid" id="support-kpis"></div>
+        <div class="mon-section">
+            <h2>Support Tickets
+                <button class="mon-btn mon-btn-primary mon-btn-sm" style="margin-left:auto" onclick="showAddTicket()">+ Add</button>
+            </h2>
+            <div id="add-ticket-form" style="display:none; margin-bottom:16px;">
+                <div class="mon-form-row">
+                    <input class="mon-input" id="tkt-subject" placeholder="Subject">
+                    <select class="mon-select" id="tkt-priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+                    <input class="mon-input" id="tkt-user" type="number" placeholder="User ID (opt)">
+                    <button class="mon-btn mon-btn-primary mon-btn-sm" onclick="addTicket()">Save</button>
+                </div>
+                <div class="mon-form-row">
+                    <textarea class="mon-input" id="tkt-body" placeholder="Details..." rows="2" style="min-width:100%"></textarea>
+                </div>
+            </div>
+            <div id="tickets-table"></div>
+        </div>
+    </div>
+
+    <!-- ═══ GOALS ═══ -->
+    <div id="panel-goals" class="mon-panel">
+        <div class="mon-section">
+            <h2>Business Goals
+                <button class="mon-btn mon-btn-primary mon-btn-sm" style="margin-left:auto" onclick="showAddGoal()">+ Add</button>
+            </h2>
+            <div id="add-goal-form" style="display:none; margin-bottom:16px;">
+                <div class="mon-form-row">
+                    <input class="mon-input" id="goal-metric" placeholder="Metric (e.g. MRR, Users)">
+                    <input class="mon-input" id="goal-target" type="number" placeholder="Target Value">
+                    <input class="mon-input" id="goal-current" type="number" placeholder="Current Value">
+                    <input class="mon-input" id="goal-deadline" type="date" placeholder="Deadline">
+                    <button class="mon-btn mon-btn-primary mon-btn-sm" onclick="addGoal()">Save</button>
+                </div>
+            </div>
+            <div id="goals-list"></div>
+        </div>
+    </div>
+
+    <!-- ═══ CHANGELOG ═══ -->
+    <div id="panel-changelog" class="mon-panel">
+        <div class="mon-section">
+            <h2>Product Changelog
+                <button class="mon-btn mon-btn-primary mon-btn-sm" style="margin-left:auto" onclick="showAddChangelog()">+ Add</button>
+            </h2>
+            <div id="add-changelog-form" style="display:none; margin-bottom:16px;">
+                <div class="mon-form-row">
+                    <input class="mon-input" id="cl-version" placeholder="Version (e.g. 2.1.0)" style="max-width:120px">
+                    <input class="mon-input" id="cl-title" placeholder="Title">
+                    <select class="mon-select" id="cl-category"><option value="feature">Feature</option><option value="fix">Fix</option><option value="improvement">Improvement</option><option value="breaking">Breaking</option></select>
+                    <button class="mon-btn mon-btn-primary mon-btn-sm" onclick="addChangelog()">Save</button>
+                </div>
+                <div class="mon-form-row">
+                    <textarea class="mon-input" id="cl-body" placeholder="Details..." rows="2" style="min-width:100%"></textarea>
+                </div>
+            </div>
+            <div id="changelog-list"></div>
+        </div>
+    </div>
+
+    <!-- ═══ SYSTEM HEALTH ═══ -->
+    <div id="panel-health" class="mon-panel">
+        <div class="mon-grid" id="health-kpis"></div>
+        <div class="mon-grid">
+            <div class="mon-section">
+                <h2>API Keys Status</h2>
+                <div id="api-keys-status"></div>
+            </div>
+            <div class="mon-section">
+                <h2>Alerts</h2>
+                <div id="alerts-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ PRICING LAB ═══ -->
+    <div id="panel-pricing" class="mon-panel">
+        <div class="mon-section">
+            <h2>Pricing Simulator</h2>
+            <p style="color:var(--mon-muted);font-size:13px;margin-bottom:16px">Model different pricing scenarios against your current user base.</p>
+            <div class="mon-form-row">
+                <input class="mon-input" id="sim-name" placeholder="Scenario Name" value="New Pricing">
+                <input class="mon-input" id="sim-starter" type="number" placeholder="Starter $" value="29" style="max-width:100px">
+                <input class="mon-input" id="sim-creator" type="number" placeholder="Creator $" value="79" style="max-width:100px">
+                <input class="mon-input" id="sim-agency" type="number" placeholder="Agency $" value="199" style="max-width:100px">
+                <button class="mon-btn mon-btn-primary" onclick="runSimulation()">Simulate</button>
+            </div>
+            <div id="sim-results" style="margin-top:16px"></div>
+        </div>
+    </div>
+
+    <!-- ═══ PROFITABLE FORMULA ═══ -->
+    <div id="panel-formula" class="mon-panel">
+        <div class="mon-section">
+            <h2>💡 Profitable Formula</h2>
+            <p style="color:var(--mon-muted);font-size:13px;margin-bottom:20px">
+                Adjust the levers that define profitability. Toggle each variable and the live calculator updates instantly.
+                Save your formula — it becomes the operating target for the entire business.
+            </p>
+
+            <!-- Margin Meter — actual vs target -->
+            <div style="background:#070d14;border-radius:16px;padding:24px;margin-bottom:24px;border:1px solid #1e3a5f;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;">
+
+                <!-- SVG Gauge -->
+                <div style="text-align:center;min-width:200px;">
+                    <svg id="margin-gauge-svg" viewBox="0 0 200 120" width="200" height="120">
+                        <!-- Track arcs (background) -->
+                        <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#1e293b" stroke-width="14" stroke-linecap="round"/>
+                        <!-- Colored zones: red 0-50, amber 50-70, green 70-100 -->
+                        <path d="M 20 110 A 80 80 0 0 1 81 34" fill="none" stroke="#ef4444" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+                        <path d="M 81 34 A 80 80 0 0 1 128 34" fill="none" stroke="#f59e0b" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+                        <path d="M 128 34 A 80 80 0 0 1 180 110" fill="none" stroke="#10b981" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+                        <!-- Target marker line -->
+                        <line id="gauge-target-line" x1="100" y1="30" x2="100" y2="44" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+                        <text id="gauge-target-label" x="100" y="26" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">TARGET</text>
+                        <!-- Active fill arc -->
+                        <path id="gauge-fill-arc" d="M 20 110 A 80 80 0 0 1 20 110" fill="none" stroke="#10b981" stroke-width="14" stroke-linecap="round"/>
+                        <!-- Needle -->
+                        <line id="gauge-needle" x1="100" y1="110" x2="100" y2="38" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+                        <circle cx="100" cy="110" r="5" fill="#fff"/>
+                        <!-- Center value -->
+                        <text id="gauge-center-val" x="100" y="98" text-anchor="middle" fill="#fff" font-size="22" font-weight="800">—</text>
+                        <text x="100" y="112" text-anchor="middle" fill="#64748b" font-size="9">Gross Margin</text>
+                    </svg>
+                    <div id="gauge-verdict-badge" style="display:inline-block;padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700;background:#1e293b;color:#64748b;margin-top:4px;">Calculating...</div>
+                </div>
+
+                <!-- Comparison columns -->
+                <div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                        <div style="background:#0f1a2e;border-radius:10px;padding:14px;border:1px solid #1e3a5f;">
+                            <div style="color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Actual Margin</div>
+                            <div id="meter-actual-margin" style="font-size:2.2rem;font-weight:800;color:#10b981;">—</div>
+                            <div id="meter-actual-profit" style="color:#475569;font-size:.8rem;margin-top:2px;">$— / mo</div>
+                        </div>
+                        <div style="background:#0a1220;border-radius:10px;padding:14px;border:1px solid #1e3a5f;">
+                            <div style="color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Target Margin</div>
+                            <div id="meter-target-margin-display" style="font-size:2.2rem;font-weight:800;color:#3b82f6;">70%</div>
+                            <div style="color:#475569;font-size:.8rem;margin-top:2px;">IEBC minimum</div>
+                        </div>
+                    </div>
+
+                    <!-- Linear comparison bar -->
+                    <div style="margin-bottom:8px;display:flex;justify-content:space-between;font-size:.75rem;color:#64748b;">
+                        <span>0%</span><span style="color:#3b82f6" id="meter-bar-target-label">Target 70%</span><span>100%</span>
+                    </div>
+                    <div style="background:#1e293b;border-radius:999px;height:20px;position:relative;overflow:visible;">
+                        <!-- Target line -->
+                        <div id="meter-target-tick" style="position:absolute;top:-4px;bottom:-4px;width:2px;background:#3b82f6;border-radius:1px;left:70%"></div>
+                        <!-- Actual fill -->
+                        <div id="meter-bar-fill" style="height:100%;border-radius:999px;background:linear-gradient(90deg,#ef4444 0%,#f59e0b 50%,#10b981 100%);background-size:100px 100%;transition:width .5s;width:0%;"></div>
+                    </div>
+                    <div id="meter-gap-label" style="color:#64748b;font-size:.75rem;margin-top:6px;text-align:right;"></div>
+
+                    <!-- Revenue vs cost breakdown -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px;">
+                        <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Revenue/mo</div><div id="meter-rev" style="color:#10b981;font-weight:700;">—</div></div>
+                        <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Costs/mo</div><div id="meter-cost" style="color:#ef4444;font-weight:700;">—</div></div>
+                        <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Profit/mo</div><div id="meter-profit" style="color:#fff;font-weight:700;">—</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formula sliders -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" id="formula-sliders">
+
+                <!-- Revenue side -->
+                <div>
+                    <div style="color:var(--mon-green);font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:14px;">Revenue Levers</div>
+
+                    <div class="formula-row" id="fr-avg-price">
+                        <div class="formula-label-row">
+                            <label>Avg Subscription Price / mo</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-avg-price">$49</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-avg-price" min="9" max="499" step="1" value="49" oninput="updVal('avg-price','$','')" onchange="recalc()">
+                        <div class="formula-hint">Current avg monthly charge across all paying tiers</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-paying-users">
+                        <div class="formula-label-row">
+                            <label>Paying Users</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-paying-users">100</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-paying-users" min="1" max="10000" step="1" value="100" oninput="updVal('paying-users','','')" onchange="recalc()">
+                        <div class="formula-hint">Target paying subscriber count</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-credit-rev">
+                        <div class="formula-label-row">
+                            <label>Credit Top-Up Revenue / mo</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-credit-rev">$500</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-credit-rev" min="0" max="50000" step="100" value="500" oninput="updVal('credit-rev','$','')" onchange="recalc()">
+                        <div class="formula-hint">Revenue from SO credit top-up purchases</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-churn">
+                        <div class="formula-label-row">
+                            <label>Monthly Churn Rate</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-churn">5%</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-churn" min="0" max="30" step="0.5" value="5" oninput="updVal('churn','','%')" onchange="recalc()">
+                        <div class="formula-hint">% of paying users lost each month</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-platform-fee">
+                        <div class="formula-label-row">
+                            <label>3rd-Party Platform Fee</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-platform-fee">0%</span>
+                                <label class="formula-toggle"><input type="checkbox" onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-platform-fee" min="0" max="40" step="1" value="0" oninput="updVal('platform-fee','','%')" onchange="recalc()">
+                        <div class="formula-hint">Gumroad/Whop/AppSumo cut (e.g. 30%). Applied to all subscription revenue.</div>
+                    </div>
+                </div>
+
+                <!-- Cost side -->
+                <div>
+                    <div style="color:#f59e0b;font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:14px;">Cost Levers</div>
+
+                    <div class="formula-row" id="fr-api-cost">
+                        <div class="formula-label-row">
+                            <label>AI / API Cost per User / mo</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-api-cost">$3</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-api-cost" min="0" max="50" step="0.25" value="3" oninput="updVal('api-cost','$','')" onchange="recalc()">
+                        <div class="formula-hint">Avg AI/API spend per paying user</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-infra-cost">
+                        <div class="formula-label-row">
+                            <label>Fixed Infrastructure / mo</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-infra-cost">$200</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-infra-cost" min="0" max="5000" step="25" value="200" oninput="updVal('infra-cost','$','')" onchange="recalc()">
+                        <div class="formula-hint">Hosting, DB, CDN, fixed SaaS tools</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-subs-cost">
+                        <div class="formula-label-row">
+                            <label>3rd-Party Subscriptions / mo</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-subs-cost">$300</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-subs-cost" min="0" max="10000" step="50" value="300" oninput="updVal('subs-cost','$','')" onchange="recalc()">
+                        <div class="formula-hint">All 3rd-party tool subscriptions</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-credit-cost">
+                        <div class="formula-label-row">
+                            <label>Cost to Deliver 1k SO Credits</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-credit-cost">$1</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-credit-cost" min="0" max="20" step="0.1" value="1" oninput="updVal('credit-cost','$','')" onchange="recalc()">
+                        <div class="formula-hint">What it costs you to deliver 1,000 credits</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target margin slider -->
+            <div style="background:#0a1628;border-radius:10px;padding:16px;margin-top:20px;border:1px solid #1e3a5f;">
+                <div style="color:#3b82f6;font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:12px;">Target Margin</div>
+                <div class="formula-label-row">
+                    <label style="color:#e2e8f0;">Gross Margin Target</label>
+                    <span class="formula-val" id="val-target-margin" style="color:#3b82f6;">70%</span>
+                </div>
+                <input type="range" class="formula-range" id="range-target-margin" min="20" max="95" step="1" value="70" oninput="updVal('target-margin','','%');recalc()">
+                <div class="formula-hint">Your IEBC efficiency target — the bar you must beat to stay in the green</div>
+            </div>
+
+            <!-- Live results -->
+            <div id="formula-results" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:20px;"></div>
+
+            <!-- Actual vs Formula comparison -->
+            <div id="actual-vs-formula" style="background:#070d14;border-radius:12px;padding:16px;margin-top:20px;border:1px solid #1e3a5f;display:none;">
+                <div style="color:#3b82f6;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:12px;">📊 Actual (Live DB) vs Formula Projection</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+                    <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Actual Revenue</div><div id="act-rev" style="color:#10b981;font-weight:700;font-size:1.1rem;">—</div></div>
+                    <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Actual Costs</div><div id="act-cost" style="color:#ef4444;font-weight:700;font-size:1.1rem;">—</div></div>
+                    <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Actual Margin</div><div id="act-margin" style="font-weight:800;font-size:1.3rem;">—</div></div>
+                    <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">vs Target</div><div id="act-gap" style="font-weight:700;font-size:1.1rem;">—</div></div>
+                </div>
+                <div style="margin-top:10px;background:#1e293b;border-radius:999px;height:14px;position:relative;overflow:visible;">
+                    <div id="act-target-tick" style="position:absolute;top:-3px;bottom:-3px;width:2px;background:#3b82f6;left:70%"></div>
+                    <div id="act-bar-fill" style="height:100%;border-radius:999px;background:linear-gradient(90deg,#ef4444,#f59e0b,#10b981);transition:width .5s;width:0%"></div>
+                </div>
+                <div id="act-verdict" style="font-size:.8rem;font-weight:600;margin-top:6px;text-align:right;"></div>
+                <div style="font-size:.7rem;color:#334155;margin-top:8px;">Sources: subscription MRR + finance clients + credit purchases / finance subscriptions + platforms + expenses + API spend</div>
+            </div>
+
+            <!-- Save button -->
+            <div style="margin-top:20px;display:flex;gap:12px;align-items:center;">
+                <button class="mon-btn mon-btn-primary" onclick="saveFormula()">💾 Save Formula</button>
+                <button class="mon-btn mon-btn-outline" onclick="loadSavedFormula()">↩ Restore Saved</button>
+                <button class="mon-btn mon-btn-outline" onclick="loadActualMargin()">📊 Load Actual Data</button>
+                <span id="formula-save-msg" style="color:var(--mon-green);font-size:12px;"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ CREDITS MANAGER ═══ -->
+    <div id="panel-credits-mgr" class="mon-panel">
+        <div class="mon-section">
+            <h2>🪙 SO Credits — Client Profiles</h2>
+            <p style="color:var(--mon-muted);font-size:13px;margin-bottom:16px">View and manage credit balances for all users.</p>
+            <div class="mon-form-row" style="margin-bottom:16px;">
+                <input class="mon-input" id="cred-uid" placeholder="User ID" style="width:110px;">
+                <input class="mon-input" id="cred-amount" type="number" placeholder="Credits to grant" style="width:150px;">
+                <input class="mon-input" id="cred-desc" placeholder="Reason" style="width:200px;">
+                <button class="mon-btn mon-btn-primary" onclick="grantCredits()">Grant Credits</button>
+                <button class="mon-btn mon-btn-outline" onclick="rolloverAll()">Run Monthly Rollover (All)</button>
+            </div>
+            <div id="credits-mgr-table"><div style="color:var(--mon-muted);padding:20px;">Loading...</div></div>
+        </div>
+    </div>
+
+    <!-- ═══ EXPORT ═══ -->
+    <div id="panel-export" class="mon-panel">
+        <div class="mon-section">
+            <h2>Export Reports</h2>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:12px;">
+                <a href="/monetizer/api/export/users" class="mon-btn mon-btn-outline" style="text-align:center;text-decoration:none">Export Users CSV</a>
+                <a href="/monetizer/api/export/revenue" class="mon-btn mon-btn-outline" style="text-align:center;text-decoration:none">Export Revenue CSV</a>
+                <a href="/monetizer/api/export/kpi" class="mon-btn mon-btn-outline" style="text-align:center;text-decoration:none">Export KPI History CSV</a>
+                <a href="/monetizer/api/export/jobs" class="mon-btn mon-btn-outline" style="text-align:center;text-decoration:none">Export Jobs CSV</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const BASE = '/monetizer/api';
+let currentPanel = 'revenue';
+
+function showPanel(name) {
+    document.querySelectorAll('.mon-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.mon-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    event.target.classList.add('active');
+    currentPanel = name;
+    loadPanel(name);
+}
+
+function loadPanel(name) {
+    const loaders = {
+        revenue: loadRevenue, users: loadUsers, costs: loadCosts,
+        growth: loadGrowth, content: loadContent, features: loadFeatures,
+        support: loadSupport, goals: loadGoals, changelog: loadChangelog,
+        health: loadHealth, formula: () => { loadSavedFormula(); recalc(); loadActualMargin(); },
+        'credits-mgr': loadCreditsManager,
+    };
+    if (loaders[name]) loaders[name]();
+}
+
+function refreshAll() { loadPanel(currentPanel); }
+
+async function api(path, opts) {
+    const r = await fetch(BASE + path, opts);
+    return r.json();
+}
+
+async function apiPost(path, body) {
+    return api(path, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+}
+
+function fmt$(n) { return '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
+function fmtPct(n) { return Number(n).toFixed(1) + '%'; }
+function fmtNum(n) { return Number(n).toLocaleString(); }
+
+function kpiCard(title, value, cls, sub) {
+    return `<div class="mon-card"><h3>${title}</h3><div class="mon-value ${cls||''}">${value}</div>${sub ? `<div class="mon-sub">${sub}</div>` : ''}</div>`;
+}
+
+// ═══ REVENUE ═══
+async function loadRevenue() {
+    const d = await api('/revenue/overview');
+    document.getElementById('revenue-kpis').innerHTML = [
+        kpiCard('MRR', fmt$(d.mrr), 'green', 'Monthly Recurring Revenue'),
+        kpiCard('ARR', fmt$(d.arr), 'cyan', 'Annual Run Rate'),
+        kpiCard('ARPU', fmt$(d.arpu), 'blue', 'Avg Revenue Per User'),
+        kpiCard('Paying Users', fmtNum(d.paying_users), 'purple', `of ${fmtNum(d.total_users)} total`),
+        kpiCard('Free Users', fmtNum(d.free_users), '', 'On free tier'),
+        kpiCard('Conversion', fmtPct(d.conversion_rate), 'amber', 'Free to paid'),
+    ].join('');
+
+    let tierHTML = '';
+    const tiers = ['free', 'starter', 'creator', 'agency'];
+    const colors = {free: '#888', starter: 'var(--mon-blue)', creator: 'var(--mon-purple)', agency: 'var(--mon-green)'};
+    const maxUsers = Math.max(...tiers.map(t => (d.tier_breakdown[t]||{}).total||0), 1);
+    tiers.forEach(t => {
+        const tb = d.tier_breakdown[t] || {total: 0, active: 0, revenue: 0};
+        const pct = (tb.total / maxUsers * 100).toFixed(0);
+        tierHTML += `<div class="mon-tier-row">
+            <div class="mon-tier-label" style="color:${colors[t]}">${t.charAt(0).toUpperCase()+t.slice(1)}</div>
+            <div class="mon-tier-bar"><div class="mon-tier-fill" style="width:${pct}%;background:${colors[t]}"></div></div>
+            <div style="min-width:80px;text-align:right;font-weight:700">${tb.total} users</div>
+            <div style="min-width:80px;text-align:right;color:var(--mon-green)">${fmt$(tb.revenue||0)}/mo</div>
+        </div>`;
+    });
+    document.getElementById('tier-breakdown').innerHTML = tierHTML;
+
+    let evHTML = '<table class="mon-table"><tr><th>Date</th><th>User</th><th>Event</th><th>Amount</th><th>Tier</th></tr>';
+    if (!d.recent_events.length) evHTML += '<tr><td colspan="5" class="mon-empty">No revenue events yet</td></tr>';
+    d.recent_events.forEach(e => {
+        evHTML += `<tr><td>${(e.created_at||'').slice(0,16)}</td><td>${e.email||'-'}</td>
+            <td><span class="mon-badge blue">${e.event_type}</span></td>
+            <td style="color:var(--mon-green)">${fmt$(e.amount)}</td><td>${e.tier||'-'}</td></tr>`;
+    });
+    evHTML += '</table>';
+    document.getElementById('revenue-events').innerHTML = evHTML;
+}
+
+// ═══ USERS ═══
+async function loadUsers() {
+    const d = await api('/users/cohorts');
+    let html = '<table class="mon-table"><tr><th>Month</th><th>Signups</th><th>Converted</th><th>Churned</th><th>Conv Rate</th></tr>';
+    d.cohorts.forEach(c => {
+        const rate = c.signups ? (c.converted / c.signups * 100).toFixed(1) : '0.0';
+        html += `<tr><td>${c.cohort_month}</td><td>${c.signups}</td><td style="color:var(--mon-green)">${c.converted}</td>
+            <td style="color:var(--mon-red)">${c.churned}</td><td>${rate}%</td></tr>`;
+    });
+    html += '</table>';
+    document.getElementById('user-cohorts').innerHTML = html || '<div class="mon-empty">No data</div>';
+
+    let pwHTML = '<table class="mon-table"><tr><th>User</th><th>Tier</th><th>Jobs</th><th>Videos</th><th>Credits</th></tr>';
+    d.power_users.slice(0, 10).forEach(u => {
+        pwHTML += `<tr><td>${u.email||u.name||'#'+u.id}</td><td><span class="mon-badge purple">${u.subscription_tier}</span></td>
+            <td>${u.total_jobs}</td><td>${u.videos_used}</td><td>${u.credits_used}</td></tr>`;
+    });
+    pwHTML += '</table>';
+    document.getElementById('power-users').innerHTML = pwHTML;
+
+    let arHTML = '';
+    if (!d.at_risk_users.length) arHTML = '<div class="mon-empty">No at-risk users</div>';
+    else {
+        arHTML = '<table class="mon-table"><tr><th>User</th><th>Tier</th><th>Last Activity</th></tr>';
+        d.at_risk_users.forEach(u => {
+            arHTML += `<tr><td>${u.email||u.name||'#'+u.id}</td><td><span class="mon-badge amber">${u.subscription_tier}</span></td>
+                <td style="color:var(--mon-red)">${u.last_activity ? u.last_activity.slice(0,10) : 'Never'}</td></tr>`;
+        });
+        arHTML += '</table>';
+    }
+    document.getElementById('at-risk-users').innerHTML = arHTML;
+}
+
+// ═══ COSTS ═══
+async function loadCosts() {
+    const d = await api('/costs/overview');
+    document.getElementById('cost-kpis').innerHTML = [
+        kpiCard('Monthly Recurring', fmt$(d.monthly_recurring), 'red', 'Fixed costs'),
+        kpiCard('Total Spend', fmt$(d.total_spend), 'amber'),
+        kpiCard('Budget', fmt$(d.total_budget), 'blue', 'Allocated'),
+        kpiCard('Cost/Video', '$' + d.cost_per_video.toFixed(2), 'cyan', `${fmtNum(d.total_videos_produced)} videos`),
+    ].join('');
+
+    let html = '<table class="mon-table"><tr><th>Category</th><th>Vendor</th><th>Description</th><th>Amount</th><th>Type</th><th></th></tr>';
+    d.expenses.forEach(e => {
+        html += `<tr><td>${e.category}</td><td>${e.vendor||'-'}</td><td>${e.description||'-'}</td>
+            <td style="color:var(--mon-red)">${fmt$(e.amount)}</td>
+            <td>${e.recurring ? '<span class="mon-badge amber">Recurring</span>' : '<span class="mon-badge">One-time</span>'}</td>
+            <td><button class="mon-btn mon-btn-danger mon-btn-sm" onclick="deleteExpense(${e.id})">Del</button></td></tr>`;
+    });
+    html += '</table>';
+    document.getElementById('expenses-table').innerHTML = html;
+
+    let ccHTML = '<table class="mon-table"><tr><th>Name</th><th>Category</th><th>Budget</th><th>Actual</th><th>Variance</th></tr>';
+    d.cost_centers.forEach(c => {
+        const variance = c.monthly_budget - c.actual_spend;
+        const vColor = variance >= 0 ? 'var(--mon-green)' : 'var(--mon-red)';
+        ccHTML += `<tr><td>${c.name}</td><td>${c.category}</td><td>${fmt$(c.monthly_budget)}</td>
+            <td>${fmt$(c.actual_spend)}</td><td style="color:${vColor}">${fmt$(variance)}</td></tr>`;
+    });
+    ccHTML += '</table>';
+    document.getElementById('cost-centers-table').innerHTML = ccHTML;
+}
+
+// ═══ GROWTH ═══
+async function loadGrowth() {
+    const d = await api('/growth/overview');
+    const f = d.funnel;
+    const total = f.total_users || 1;
+    const funnelHTML = `<div class="mon-funnel">
+        <div class="mon-funnel-bar" style="width:100%;background:var(--mon-muted)">Free: ${f.free} (${(f.free/total*100).toFixed(0)}%)</div>
+        <div class="mon-funnel-bar" style="width:${Math.max(f.starter/total*100,5)}%;background:var(--mon-blue)">Starter: ${f.starter}</div>
+        <div class="mon-funnel-bar" style="width:${Math.max(f.creator/total*100,5)}%;background:var(--mon-purple)">Creator: ${f.creator}</div>
+        <div class="mon-funnel-bar" style="width:${Math.max(f.agency/total*100,5)}%;background:var(--mon-green)">Agency: ${f.agency}</div>
+        <div class="mon-funnel-bar" style="width:${Math.max(f.churned/total*100,5)}%;background:var(--mon-red)">Churned: ${f.churned}</div>
+    </div>`;
+    document.getElementById('growth-funnel').innerHTML = funnelHTML;
+
+    const maxS = Math.max(...d.daily_signups.map(s => s.signups), 1);
+    let barHTML = '<div class="mon-bar-chart">';
+    d.daily_signups.forEach(s => {
+        const h = Math.max(s.signups / maxS * 100, 2);
+        barHTML += `<div class="mon-bar" style="height:${h}%;flex:1"><span class="bar-value">${s.signups}</span><span class="bar-label">${s.day.slice(5)}</span></div>`;
+    });
+    barHTML += '</div>';
+    document.getElementById('signup-chart').innerHTML = barHTML || '<div class="mon-empty">No data</div>';
+
+    let campHTML = '<table class="mon-table"><tr><th>Name</th><th>Channel</th><th>Status</th><th>Budget</th><th>Spent</th><th>Signups</th><th>Conv</th><th></th></tr>';
+    if (!d.campaigns.length) campHTML += '<tr><td colspan="8" class="mon-empty">No campaigns yet</td></tr>';
+    d.campaigns.forEach(c => {
+        campHTML += `<tr><td>${c.name}</td><td>${c.channel}</td><td><span class="mon-badge ${c.status==='active'?'green':'amber'}">${c.status}</span></td>
+            <td>${fmt$(c.budget)}</td><td>${fmt$(c.spent)}</td><td>${c.signups}</td><td>${c.conversions}</td>
+            <td><button class="mon-btn mon-btn-danger mon-btn-sm" onclick="deleteCampaign(${c.id})">Del</button></td></tr>`;
+    });
+    campHTML += '</table>';
+    document.getElementById('campaigns-table').innerHTML = campHTML;
+}
+
+// ═══ CONTENT ═══
+async function loadContent() {
+    const d = await api('/content/stats');
+    document.getElementById('content-kpis').innerHTML = [
+        kpiCard('Total Videos', fmtNum(d.total_videos_produced), 'cyan'),
+        kpiCard('Credits Used', fmtNum(d.total_credits_used), 'purple'),
+    ].join('');
+
+    let typeHTML = '<table class="mon-table"><tr><th>Type</th><th>Total</th><th>Done</th><th>Failed</th><th>Success %</th></tr>';
+    d.by_type.forEach(t => {
+        const rate = t.count ? ((t.completed||0) / t.count * 100).toFixed(0) : '-';
+        typeHTML += `<tr><td>${t.content_type||'unknown'}</td><td>${t.count}</td><td style="color:var(--mon-green)">${t.completed||0}</td>
+            <td style="color:var(--mon-red)">${t.failed||0}</td><td>${rate}%</td></tr>`;
+    });
+    typeHTML += '</table>';
+    document.getElementById('content-by-type').innerHTML = typeHTML;
+
+    let platHTML = '<table class="mon-table"><tr><th>Platform</th><th>Published</th><th>Successful</th></tr>';
+    if (!d.platform_stats.length) platHTML += '<tr><td colspan="3" class="mon-empty">No publishing data</td></tr>';
+    d.platform_stats.forEach(p => {
+        platHTML += `<tr><td>${p.platform}</td><td>${p.published}</td><td style="color:var(--mon-green)">${p.successful||0}</td></tr>`;
+    });
+    platHTML += '</table>';
+    document.getElementById('platform-stats').innerHTML = platHTML;
+
+    let topHTML = '<table class="mon-table"><tr><th>Topic</th><th>Type</th><th>Views</th><th>Likes</th><th>CTR</th></tr>';
+    d.top_content.forEach(c => {
+        topHTML += `<tr><td>${(c.topic||'').slice(0,50)}</td><td><span class="mon-badge blue">${c.content_type||'-'}</span></td>
+            <td>${fmtNum(c.views)}</td><td>${fmtNum(c.likes)}</td><td>${c.ctr ? fmtPct(c.ctr) : '-'}</td></tr>`;
+    });
+    topHTML += '</table>';
+    document.getElementById('top-content').innerHTML = topHTML;
+}
+
+// ═══ FEATURES ═══
+async function loadFeatures() {
+    const d = await api('/features');
+    let html = '<table class="mon-table"><tr><th>Feature</th><th>Status</th><th>Min Tier</th><th>Rollout</th><th>Description</th><th></th></tr>';
+    if (!d.flags.length) html += '<tr><td colspan="6" class="mon-empty">No feature flags configured</td></tr>';
+    d.flags.forEach(f => {
+        const badge = f.enabled ? '<span class="mon-badge green">ON</span>' : '<span class="mon-badge red">OFF</span>';
+        html += `<tr><td style="font-weight:600">${f.name}</td><td>${badge}</td><td>${f.tier_min}</td>
+            <td>${f.rollout_pct}%</td><td style="color:var(--mon-muted)">${f.description||'-'}</td>
+            <td><button class="mon-btn mon-btn-sm ${f.enabled?'mon-btn-danger':'mon-btn-primary'}" onclick="toggleFeature(${f.id})">${f.enabled?'Disable':'Enable'}</button></td></tr>`;
+    });
+    html += '</table>';
+    document.getElementById('features-table').innerHTML = html;
+}
+
+// ═══ SUPPORT ═══
+async function loadSupport() {
+    const d = await api('/support/tickets');
+    const open = d.tickets.filter(t => t.status === 'open').length;
+    const resolved = d.tickets.filter(t => t.status === 'resolved').length;
+    document.getElementById('support-kpis').innerHTML = [
+        kpiCard('Open Tickets', open, open > 5 ? 'red' : 'amber'),
+        kpiCard('Resolved', resolved, 'green'),
+        kpiCard('Total', d.tickets.length, 'blue'),
+    ].join('');
+
+    let html = '<table class="mon-table"><tr><th>Priority</th><th>Subject</th><th>User</th><th>Status</th><th>Created</th><th></th></tr>';
+    if (!d.tickets.length) html += '<tr><td colspan="6" class="mon-empty">No tickets</td></tr>';
+    d.tickets.forEach(t => {
+        const pColor = {urgent:'red',high:'amber',normal:'blue'}[t.priority]||'blue';
+        const sColor = {open:'amber',resolved:'green',closed:''}[t.status]||'';
+        html += `<tr><td><span class="mon-badge ${pColor}">${t.priority}</span></td><td>${t.subject}</td>
+            <td>${t.email||t.user_id||'-'}</td><td><span class="mon-badge ${sColor}">${t.status}</span></td>
+            <td>${(t.created_at||'').slice(0,10)}</td>
+            <td>${t.status==='open' ? `<button class="mon-btn mon-btn-primary mon-btn-sm" onclick="resolveTicket(${t.id})">Resolve</button>` : ''}</td></tr>`;
+    });
+    html += '</table>';
+    document.getElementById('tickets-table').innerHTML = html;
+}
+
+// ═══ GOALS ═══
+async function loadGoals() {
+    const d = await api('/goals');
+    let html = '';
+    if (!d.goals.length) html = '<div class="mon-empty">No goals set. Add your first business goal.</div>';
+    d.goals.forEach(g => {
+        const pct = g.target_value ? Math.min(g.current_value / g.target_value * 100, 100).toFixed(0) : 0;
+        const color = pct >= 100 ? 'var(--mon-green)' : pct >= 50 ? 'var(--mon-amber)' : 'var(--mon-blue)';
+        html += `<div style="margin-bottom:16px;padding:12px;background:rgba(255,255,255,.02);border-radius:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <span style="font-weight:700">${g.metric}</span>
+                <span style="color:var(--mon-muted);font-size:12px">${g.deadline ? 'Due: '+g.deadline : ''}</span>
+                <button class="mon-btn mon-btn-danger mon-btn-sm" onclick="deleteGoal(${g.id})">Del</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+                <div style="flex:1;height:8px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden">
+                    <div style="height:100%;width:${pct}%;background:${color};border-radius:4px"></div>
+                </div>
+                <span style="font-size:12px;font-weight:600;min-width:60px;text-align:right">${fmtNum(g.current_value)} / ${fmtNum(g.target_value)}</span>
+            </div>
+        </div>`;
+    });
+    document.getElementById('goals-list').innerHTML = html;
+}
+
+// ═══ CHANGELOG ═══
+async function loadChangelog() {
+    const d = await api('/changelog');
+    let html = '';
+    if (!d.entries.length) html = '<div class="mon-empty">No changelog entries.</div>';
+    const catColors = {feature:'green', fix:'red', improvement:'blue', breaking:'amber'};
+    d.entries.forEach(e => {
+        html += `<div style="padding:12px 0;border-bottom:1px solid var(--mon-border)">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+                ${e.version ? `<span style="font-weight:700;color:var(--mon-cyan)">v${e.version}</span>` : ''}
+                <span class="mon-badge ${catColors[e.category]||''}">${e.category}</span>
+                <span style="font-weight:600">${e.title}</span>
+                <span style="margin-left:auto;color:var(--mon-muted);font-size:11px">${(e.created_at||'').slice(0,10)}</span>
+            </div>
+            ${e.body ? `<div style="color:var(--mon-muted);font-size:13px;margin-top:4px">${e.body}</div>` : ''}
+        </div>`;
+    });
+    document.getElementById('changelog-list').innerHTML = html;
+}
+
+// ═══ HEALTH ═══
+async function loadHealth() {
+    const [h, a] = await Promise.all([api('/system/health'), api('/alerts')]);
+
+    const diskCls = h.disk_usage_pct > 90 ? 'red' : h.disk_usage_pct > 70 ? 'amber' : 'green';
+    const errCls = h.error_rate_24h > 20 ? 'red' : h.error_rate_24h > 5 ? 'amber' : 'green';
+    document.getElementById('health-kpis').innerHTML = [
+        kpiCard('DB Size', h.database_size_mb + ' MB', 'cyan'),
+        kpiCard('Output Size', h.output_size_mb + ' MB', 'blue'),
+        kpiCard('Disk Usage', fmtPct(h.disk_usage_pct), diskCls, `${h.disk_free_gb} GB free`),
+        kpiCard('Stuck Jobs', h.stuck_jobs, h.stuck_jobs > 0 ? 'red' : 'green'),
+        kpiCard('Errors (24h)', h.error_jobs_24h, errCls, `${fmtPct(h.error_rate_24h)} error rate`),
+        kpiCard('Jobs (24h)', h.total_jobs_24h, 'purple'),
+    ].join('');
+
+    let keyHTML = '';
+    Object.entries(h.api_keys).forEach(([k, v]) => {
+        keyHTML += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0">
+            <span class="mon-health-dot ${v?'ok':'error'}"></span>
+            <span style="font-weight:600;text-transform:capitalize">${k}</span>
+            <span style="color:var(${v?'--mon-green':'--mon-red'});font-size:12px;margin-left:auto">${v?'Connected':'Missing'}</span>
+        </div>`;
+    });
+    document.getElementById('api-keys-status').innerHTML = keyHTML;
+
+    let alertHTML = '';
+    if (!a.alerts.length) alertHTML = '<div class="mon-empty">No alerts</div>';
+    a.alerts.forEach(al => {
+        alertHTML += `<div class="mon-alert-item ${al.severity}">
+            <div style="flex:1"><strong>${al.alert_type}</strong>: ${al.message}
+                <div style="color:var(--mon-muted);font-size:11px;margin-top:2px">${(al.created_at||'').slice(0,16)}</div>
+            </div>
+            ${!al.acknowledged ? `<button class="mon-btn mon-btn-sm mon-btn-outline" onclick="ackAlert(${al.id})">Ack</button>` : '<span class="mon-badge green">Acked</span>'}
+        </div>`;
+    });
+    document.getElementById('alerts-list').innerHTML = alertHTML;
+}
+
+// ═══ PRICING LAB ═══
+async function runSimulation() {
+    const d = await apiPost('/pricing/simulate', {
+        scenarios: [{
+            name: document.getElementById('sim-name').value,
+            prices: {
+                starter: +document.getElementById('sim-starter').value,
+                creator: +document.getElementById('sim-creator').value,
+                agency: +document.getElementById('sim-agency').value,
+            }
+        }]
+    });
+    let html = '';
+    d.results.forEach(r => {
+        html += `<div class="mon-card" style="margin-bottom:12px">
+            <h3>${r.name}</h3>
+            <div class="mon-value green">${fmt$(r.mrr)}/mo</div>
+            <div class="mon-sub">ARR: ${fmt$(r.arr)}</div>
+            <div style="margin-top:12px">`;
+        Object.entries(r.breakdown).forEach(([tier, b]) => {
+            html += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px">
+                <span>${tier}: ${b.users} users x ${fmt$(b.price)}</span><span style="color:var(--mon-green)">${fmt$(b.revenue)}</span></div>`;
+        });
+        html += '</div></div>';
+    });
+    document.getElementById('sim-results').innerHTML = html;
+}
+
+// ═══ ACTIONS ═══
+async function takeSnapshot() {
+    await apiPost('/kpi/snapshot', {});
+    alert('KPI snapshot saved.');
+}
+
+function showAddExpense() { toggle('add-expense-form'); }
+function showAddCostCenter() { toggle('add-cc-form'); }
+function showAddCampaign() { toggle('add-campaign-form'); }
+function showAddFeature() { toggle('add-feature-form'); }
+function showAddTicket() { toggle('add-ticket-form'); }
+function showAddGoal() { toggle('add-goal-form'); }
+function showAddChangelog() { toggle('add-changelog-form'); }
+function toggle(id) { const el = document.getElementById(id); el.style.display = el.style.display === 'none' ? 'block' : 'none'; }
+
+async function addExpense() {
+    await apiPost('/costs/expense', {
+        category: document.getElementById('exp-category').value,
+        vendor: document.getElementById('exp-vendor').value,
+        description: document.getElementById('exp-desc').value,
+        amount: +document.getElementById('exp-amount').value,
+        recurring: document.getElementById('exp-recurring').checked,
+    });
+    loadCosts();
+}
+async function deleteExpense(id) { await fetch(BASE+'/costs/expense/'+id, {method:'DELETE'}); loadCosts(); }
+
+async function addCostCenter() {
+    await apiPost('/costs/center', {
+        name: document.getElementById('cc-name').value,
+        category: document.getElementById('cc-category').value,
+        monthly_budget: +document.getElementById('cc-budget').value,
+    });
+    loadCosts();
+}
+
+async function addCampaign() {
+    await apiPost('/growth/campaign', {
+        name: document.getElementById('camp-name').value,
+        channel: document.getElementById('camp-channel').value,
+        budget: +document.getElementById('camp-budget').value,
+    });
+    loadGrowth();
+}
+async function deleteCampaign(id) { await fetch(BASE+'/growth/campaign/'+id, {method:'DELETE'}); loadGrowth(); }
+
+async function toggleFeature(id) { await apiPost('/features/'+id+'/toggle', {}); loadFeatures(); }
+
+async function addFeature() {
+    await apiPost('/features', {
+        name: document.getElementById('ff-name').value,
+        tier_min: document.getElementById('ff-tier').value,
+        rollout_pct: +document.getElementById('ff-rollout').value,
+        description: document.getElementById('ff-desc').value,
+        enabled: true,
+    });
+    loadFeatures();
+}
+
+async function addTicket() {
+    await apiPost('/support/ticket', {
+        subject: document.getElementById('tkt-subject').value,
+        body: document.getElementById('tkt-body').value,
+        priority: document.getElementById('tkt-priority').value,
+        user_id: document.getElementById('tkt-user').value || null,
+    });
+    loadSupport();
+}
+async function resolveTicket(id) { await apiPost('/support/ticket', {id, status: 'resolved'}); loadSupport(); }
+
+async function addGoal() {
+    await apiPost('/goals', {
+        metric: document.getElementById('goal-metric').value,
+        target_value: +document.getElementById('goal-target').value,
+        current_value: +document.getElementById('goal-current').value,
+        deadline: document.getElementById('goal-deadline').value,
+    });
+    loadGoals();
+}
+async function deleteGoal(id) { await fetch(BASE+'/goals/'+id, {method:'DELETE'}); loadGoals(); }
+
+async function addChangelog() {
+    await apiPost('/changelog', {
+        version: document.getElementById('cl-version').value,
+        title: document.getElementById('cl-title').value,
+        body: document.getElementById('cl-body').value,
+        category: document.getElementById('cl-category').value,
+        published: true,
+    });
+    loadChangelog();
+}
+
+async function ackAlert(id) { await apiPost('/alerts/'+id+'/ack', {}); loadHealth(); }
+
+// ═══ PROFITABLE FORMULA ═══
+function updVal(id, pre, suf) {
+    const v = document.getElementById('range-'+id).value;
+    const num = parseFloat(v);
+    document.getElementById('val-'+id).textContent = pre + (Number.isInteger(num) ? num.toLocaleString() : num) + suf;
+}
+
+function getSliderVal(id) {
+    const el = document.getElementById('range-'+id);
+    const cb = el.closest('.formula-row')?.querySelector('input[type=checkbox]');
+    if (cb && !cb.checked) return 0;
+    return parseFloat(el.value) || 0;
+}
+
+function recalc() {
+    const avgPrice      = getSliderVal('avg-price');
+    const payingUsers   = getSliderVal('paying-users');
+    const creditRev     = getSliderVal('credit-rev');
+    const churnPct      = getSliderVal('churn');
+    const platformFeePct= getSliderVal('platform-fee');
+    const apiCostPer    = getSliderVal('api-cost');
+    const infraCost     = getSliderVal('infra-cost');
+    const subsCost      = getSliderVal('subs-cost');
+    const creditCost    = getSliderVal('credit-cost');
+    const targetMargin  = parseFloat(document.getElementById('range-target-margin').value) || 70;
+
+    // Revenue (apply platform fee cut to subscription revenue)
+    const grossSubRev = avgPrice * payingUsers;
+    const subRev = grossSubRev * (1 - platformFeePct / 100);
+    const totalRev = subRev + creditRev;
+
+    // Costs
+    const varCosts = apiCostPer * payingUsers;
+    const creditDeliveryCost = (creditRev / 10) * creditCost;
+    const totalCosts = varCosts + infraCost + subsCost + creditDeliveryCost;
+
+    // Metrics
+    const grossProfit = totalRev - totalCosts;
+    const grossMargin = totalRev > 0 ? (grossProfit / totalRev * 100) : 0;
+    const churnedUsers = Math.round(payingUsers * churnPct / 100);
+    const ltv = churnPct > 0 ? (avgPrice / (churnPct / 100)) : 0;
+    const gap = grossMargin - targetMargin;
+    const marginColor = grossMargin >= targetMargin ? '#10b981' : grossMargin >= targetMargin * 0.75 ? '#f59e0b' : '#ef4444';
+
+    // ── Update Margin Meter ──────────────────────────────────────────────────
+    updateGauge(grossMargin, targetMargin, marginColor);
+
+    // Top display numbers
+    document.getElementById('meter-actual-margin').textContent = grossMargin.toFixed(1) + '%';
+    document.getElementById('meter-actual-margin').style.color = marginColor;
+    document.getElementById('meter-actual-profit').textContent = '$' + Math.round(grossProfit).toLocaleString() + ' / mo profit';
+    document.getElementById('meter-target-margin-display').textContent = targetMargin.toFixed(0) + '%';
+    document.getElementById('meter-bar-target-label').textContent = 'Target ' + targetMargin + '%';
+
+    // Bar
+    const barFill = Math.min(Math.max(grossMargin, 0), 100);
+    document.getElementById('meter-bar-fill').style.width = barFill + '%';
+    document.getElementById('meter-target-tick').style.left = targetMargin + '%';
+    document.getElementById('meter-gap-label').textContent =
+        gap >= 0 ? `✅ ${gap.toFixed(1)}% above target` : `⚠️ ${Math.abs(gap).toFixed(1)}% below ${targetMargin}% target`;
+    document.getElementById('meter-gap-label').style.color = gap >= 0 ? '#10b981' : '#f59e0b';
+
+    // Revenue / Cost / Profit row
+    document.getElementById('meter-rev').textContent  = '$' + Math.round(totalRev).toLocaleString();
+    document.getElementById('meter-cost').textContent = '$' + Math.round(totalCosts).toLocaleString();
+    document.getElementById('meter-profit').textContent = '$' + Math.round(grossProfit).toLocaleString();
+    document.getElementById('meter-profit').style.color = grossProfit >= 0 ? '#10b981' : '#ef4444';
+
+    // Verdict badge
+    const badge = document.getElementById('gauge-verdict-badge');
+    if (grossMargin >= targetMargin) {
+        badge.textContent = '✅ PROFITABLE'; badge.style.background='rgba(16,185,129,.15)'; badge.style.color='#10b981';
+    } else if (grossMargin >= targetMargin * 0.75) {
+        badge.textContent = '⚠️ CLOSE'; badge.style.background='rgba(245,158,11,.15)'; badge.style.color='#f59e0b';
+    } else {
+        badge.textContent = '🔴 BELOW TARGET'; badge.style.background='rgba(239,68,68,.15)'; badge.style.color='#ef4444';
+    }
+
+    // Result cards
+    const results = [
+        { label: 'Monthly Revenue', val: '$' + Math.round(totalRev).toLocaleString(), color: '#10b981' },
+        { label: 'Monthly Costs', val: '$' + Math.round(totalCosts).toLocaleString(), color: '#ef4444' },
+        { label: 'Gross Profit', val: '$' + Math.round(grossProfit).toLocaleString(), color: grossProfit >= 0 ? '#10b981' : '#ef4444' },
+        { label: 'Gross Margin', val: grossMargin.toFixed(1) + '%', color: marginColor },
+        { label: 'LTV / User', val: '$' + Math.round(ltv).toLocaleString(), color: 'var(--mon-cyan)' },
+        { label: 'Churn / mo', val: churnedUsers + ' users', color: '#f59e0b' },
+        { label: 'Break-even', val: avgPrice > apiCostPer && avgPrice > 0 ? Math.ceil((infraCost + subsCost) / ((avgPrice*(1-platformFeePct/100)) - apiCostPer)).toLocaleString() + ' users' : '—', color: '#a5b4fc' },
+        { label: 'ARR', val: '$' + Math.round(totalRev * 12).toLocaleString(), color: 'var(--mon-cyan)' },
+    ];
+    document.getElementById('formula-results').innerHTML = results.map(r =>
+        `<div class="formula-result-card"><div class="frc-label">${r.label}</div><div class="frc-val" style="color:${r.color}">${r.val}</div></div>`
+    ).join('');
+
+    // Push to plan widget if visible
+    if (typeof updatePlanMarginWidget === 'function') updatePlanMarginWidget(grossMargin, targetMargin, totalRev, grossProfit);
+}
+
+// ── SVG Gauge ──────────────────────────────────────────────────────────────
+function updateGauge(margin, target, color) {
+    // Gauge spans 180°: 0% = left (20,110), 100% = right (180,110), center = (100,30)
+    const clamp = v => Math.max(0, Math.min(100, v));
+    const toRad = deg => deg * Math.PI / 180;
+    const cx = 100, cy = 110, r = 80;
+
+    function pct2xy(pct) {
+        const angle = 180 - clamp(pct) * 1.8; // 180° (left) to 0° (right)
+        return {
+            x: cx + r * Math.cos(toRad(angle)),
+            y: cy - r * Math.sin(toRad(angle))
+        };
+    }
+
+    function arcPath(pct) {
+        const start = {x: 20, y: 110};
+        const end = pct2xy(pct);
+        const large = pct > 50 ? 1 : 0;
+        return `M ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y}`;
+    }
+
+    const fillArc = document.getElementById('gauge-fill-arc');
+    if (fillArc) {
+        fillArc.setAttribute('d', arcPath(clamp(margin)));
+        fillArc.setAttribute('stroke', color);
+    }
+
+    // Needle
+    const needle = document.getElementById('gauge-needle');
+    if (needle) {
+        const nxy = pct2xy(clamp(margin));
+        const shortX = cx + (nxy.x - cx) * 0.75;
+        const shortY = cy + (nxy.y - cy) * 0.75;
+        needle.setAttribute('x2', shortX);
+        needle.setAttribute('y2', shortY);
+    }
+
+    // Target line
+    const tline = document.getElementById('gauge-target-line');
+    const tlabel = document.getElementById('gauge-target-label');
+    if (tline) {
+        const txy = pct2xy(clamp(target));
+        const inner = {x: cx + (txy.x-cx)*0.7, y: cy + (txy.y-cy)*0.7};
+        tline.setAttribute('x1', inner.x); tline.setAttribute('y1', inner.y);
+        tline.setAttribute('x2', txy.x); tline.setAttribute('y2', txy.y);
+    }
+    if (tlabel) {
+        const txy = pct2xy(clamp(target));
+        const lx = cx + (txy.x-cx)*0.55, ly = cy + (txy.y-cy)*0.55;
+        tlabel.setAttribute('x', lx); tlabel.setAttribute('y', ly);
+    }
+
+    // Center value text
+    const cv = document.getElementById('gauge-center-val');
+    if (cv) { cv.textContent = margin.toFixed(1)+'%'; cv.setAttribute('fill', color); }
+}
+
+async function saveFormula() {
+    const formula = {};
+    ['avg-price','paying-users','credit-rev','churn','api-cost','infra-cost','subs-cost','credit-cost','target-margin'].forEach(id => {
+        formula[id] = parseFloat(document.getElementById('range-'+id).value);
+    });
+    await apiPost('/formula/save', formula);
+    const msg = document.getElementById('formula-save-msg');
+    msg.textContent = 'Saved ✓';
+    setTimeout(() => msg.textContent = '', 3000);
+}
+
+async function loadSavedFormula() {
+    const d = await api('/formula');
+    if (!d || !d.formula) return;
+    const f = d.formula;
+    ['avg-price','paying-users','credit-rev','churn','api-cost','infra-cost','subs-cost','credit-cost','target-margin'].forEach(id => {
+        const key = id.replace(/-/g,'_');
+        if (f[key] !== undefined || f[id] !== undefined) {
+            const v = f[key] ?? f[id];
+            document.getElementById('range-'+id).value = v;
+        }
+    });
+    // Re-render displayed values
+    updVal('avg-price','$',''); updVal('paying-users','',''); updVal('credit-rev','$','');
+    updVal('churn','','%'); updVal('api-cost','$',''); updVal('infra-cost','$','');
+    updVal('subs-cost','$',''); updVal('credit-cost','$',''); updVal('target-margin','','%');
+    recalc();
+}
+
+// ═══ ACTUAL MARGIN (from live DB) ═══
+async function loadActualMargin() {
+    const d = await api('/actual-margin');
+    if (d.error) return;
+    const wrap = document.getElementById('actual-vs-formula');
+    if (wrap) wrap.style.display = 'block';
+
+    const m = d.gross_margin;
+    const target = d.target_margin;
+    const gap = d.gap;
+    const color = m >= target ? '#10b981' : m >= target*0.75 ? '#f59e0b' : '#ef4444';
+
+    document.getElementById('act-rev').textContent    = '$' + Math.round(d.total_revenue).toLocaleString();
+    document.getElementById('act-cost').textContent   = '$' + Math.round(d.total_costs).toLocaleString();
+    document.getElementById('act-margin').textContent = m.toFixed(1) + '%';
+    document.getElementById('act-margin').style.color = color;
+    document.getElementById('act-gap').textContent    = (gap>=0?'+':'')+gap.toFixed(1)+'%';
+    document.getElementById('act-gap').style.color    = color;
+
+    document.getElementById('act-bar-fill').style.width = Math.min(Math.max(m,0),100)+'%';
+    document.getElementById('act-target-tick').style.left = target+'%';
+    const v = document.getElementById('act-verdict');
+    v.textContent = gap >= 0 ? `✅ ${gap.toFixed(1)}% above ${target}% target — profitable` : `⚠️ ${Math.abs(gap).toFixed(1)}% below ${target}% target`;
+    v.style.color = color;
+
+    // Also update the gauge with actual data
+    updateGauge(m, target, color);
+    document.getElementById('meter-actual-margin').textContent = m.toFixed(1)+'%';
+    document.getElementById('meter-actual-margin').style.color = color;
+    document.getElementById('meter-actual-profit').textContent = '$'+Math.round(d.gross_profit).toLocaleString()+' / mo actual';
+    document.getElementById('meter-rev').textContent   = '$'+Math.round(d.total_revenue).toLocaleString();
+    document.getElementById('meter-cost').textContent  = '$'+Math.round(d.total_costs).toLocaleString();
+    document.getElementById('meter-profit').textContent = '$'+Math.round(d.gross_profit).toLocaleString();
+    document.getElementById('meter-profit').style.color = d.gross_profit >= 0 ? '#10b981' : '#ef4444';
+    document.getElementById('meter-bar-fill').style.width = Math.min(Math.max(m,0),100)+'%';
+    document.getElementById('meter-target-tick').style.left = target+'%';
+    document.getElementById('meter-gap-label').textContent = gap >= 0 ? `✅ ${gap.toFixed(1)}% above target` : `⚠️ ${Math.abs(gap).toFixed(1)}% below ${target}% target`;
+    document.getElementById('meter-gap-label').style.color = color;
+    const badge = document.getElementById('gauge-verdict-badge');
+    if (badge) {
+        badge.textContent = m >= target ? '✅ PROFITABLE (ACTUAL)' : '⚠️ BELOW TARGET (ACTUAL)';
+        badge.style.background = m >= target ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.15)';
+        badge.style.color = color;
+    }
+}
+
+// ═══ CREDITS MANAGER ═══
+async function loadCreditsManager() {
+    const d = await api('/users/list');
+    const users = d.users || [];
+    const rows = users.map(u => `
+        <tr>
+            <td>${u.id}</td>
+            <td>${u.email}</td>
+            <td>${u.subscription_tier || 'free'}</td>
+            <td id="cred-bal-${u.id}"><button class="mon-btn mon-btn-outline mon-btn-sm" onclick="loadUserCredits(${u.id})">View</button></td>
+            <td><button class="mon-btn mon-btn-primary mon-btn-sm" onclick="quickGrant(${u.id})">+ Credits</button></td>
+        </tr>`).join('');
+    document.getElementById('credits-mgr-table').innerHTML = `
+        <table class="mon-table">
+            <thead><tr><th>ID</th><th>Email</th><th>Tier</th><th>Balance</th><th>Action</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:var(--mon-muted)">No users</td></tr>'}</tbody>
+        </table>`;
+}
+
+async function loadUserCredits(uid) {
+    const d = await fetch(`/api/monetizer/client-credits/${uid}`).then(r=>r.json());
+    const w = d.wallet || {};
+    document.getElementById(`cred-bal-${uid}`).innerHTML =
+        `<span style="color:var(--mon-green);font-weight:700">${Math.round((w.balance||0)+(w.rollover_balance||0))} cr</span>`;
+}
+
+async function quickGrant(uid) {
+    const amount = prompt('Credits to grant to user ' + uid + ':');
+    if (!amount) return;
+    const r = await fetch(`/api/monetizer/client-credits/${uid}/topup`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount: parseFloat(amount)})
+    });
+    const d = await r.json();
+    if (d.ok) { alert('Granted! New balance: ' + Math.round(d.balance) + ' cr'); loadCreditsManager(); }
+    else { alert('Error: ' + (d.error||'Unknown')); }
+}
+
+async function grantCredits() {
+    const uid = document.getElementById('cred-uid').value;
+    const amount = document.getElementById('cred-amount').value;
+    const desc = document.getElementById('cred-desc').value;
+    if (!uid || !amount) return alert('User ID and amount required');
+    const r = await fetch(`/api/monetizer/client-credits/${uid}/topup`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount: parseFloat(amount), description: desc})
+    });
+    const d = await r.json();
+    if (d.ok) { alert('Done! New balance: ' + Math.round(d.balance) + ' cr'); loadCreditsManager(); }
+    else { alert('Error: ' + (d.error||'Unknown')); }
+}
+
+async function rolloverAll() {
+    if (!confirm('Run monthly rollover for ALL users?')) return;
+    const d = await apiPost('/credits/rollover-all', {});
+    alert(`Rollover complete: ${d.success}/${d.processed} users processed.`);
+}
+
+// ═══ INIT ═══
+document.addEventListener('DOMContentLoaded', () => { loadRevenue(); recalc(); });
+</script>
+{% endblock %}

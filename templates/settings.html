@@ -1,183 +1,345 @@
 {% extends "base.html" %}
 {% set active_page = "settings" %}
 
-{% block title %}Settings — Social Optimize Machine{% endblock %}
+{% block title %}Settings — Social Optimize{% endblock %}
 {% block topbar_title %}Settings{% endblock %}
-{% block topbar_sub %}API keys and configuration{% endblock %}
+{% block topbar_sub %}Connect your AI services and configure defaults{% endblock %}
 {% block topbar_actions %}{% endblock %}
 
 {% block content %}
+<style>
+  .api-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; display:flex; align-items:center; gap:16px; transition:border-color .2s; }
+  .api-card.connected { border-color:var(--green); }
+  .api-card.error { border-color:var(--red); }
+  .api-icon { font-size:32px; width:44px; text-align:center; flex-shrink:0; }
+  .api-info { flex:1; min-width:0; }
+  .api-name { font-size:14px; font-weight:700; color:var(--text); }
+  .api-desc { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.4; }
+  .api-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+  .key-wizard-step { display:none; padding:28px; }
+  .key-wizard-step.active { display:block; }
+</style>
 
-<div class="grid-2" style="align-items:start;">
-
-  <!-- API Status -->
-  <div class="card">
-    <div class="card-title mb-16"><span class="accent">🔑</span> API Key Status</div>
-    <div id="api-check-grid" style="display:flex;flex-direction:column;gap:12px;">
-      <div class="text-dim text-sm">Checking...</div>
+<!-- Progress bar placeholder for wizard -->
+<div id="api-wizard-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;width:100%;max-width:520px;overflow:hidden;position:relative;">
+    <button onclick="closeKeyWizard()" style="position:absolute;top:14px;right:14px;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;">✕</button>
+    <div style="height:4px;background:var(--bg-elevated);">
+      <div id="kw-progress" style="height:4px;background:var(--accent);transition:width .3s;width:50%;"></div>
     </div>
-    <hr class="divider">
-    <div class="text-dim text-sm">
-      Edit your <code style="background:var(--bg-elevated);padding:2px 6px;border-radius:4px;">.env</code> file
-      in the project directory to configure API keys.
+
+    <!-- Step 1: Get the key -->
+    <div class="key-wizard-step" id="kw-step-1">
+      <div style="font-size:44px;text-align:center;margin-bottom:12px;" id="kw-icon"></div>
+      <div style="font-size:18px;font-weight:700;text-align:center;margin-bottom:6px;" id="kw-name"></div>
+      <p class="text-dim text-sm text-center mb-20" id="kw-why"></p>
+
+      <div style="background:var(--bg-elevated);border-radius:12px;padding:18px;margin-bottom:20px;">
+        <div class="text-xs text-dim mb-8" style="text-transform:uppercase;letter-spacing:.05em;">Where to get it</div>
+        <div id="kw-howto" style="font-size:12px;line-height:2;color:var(--text);"></div>
+      </div>
+
+      <a id="kw-portal-link" href="#" target="_blank" rel="noopener"
+         class="btn btn-primary btn-block mb-12" style="display:block;text-align:center;">
+        Open Dashboard ↗
+      </a>
+      <button class="btn btn-ghost btn-block" onclick="kwNext(2)">I have my key →</button>
+    </div>
+
+    <!-- Step 2: Paste key -->
+    <div class="key-wizard-step" id="kw-step-2">
+      <div style="font-size:44px;text-align:center;margin-bottom:12px;" id="kw-icon-2"></div>
+      <div style="font-size:18px;font-weight:700;text-align:center;margin-bottom:20px;" id="kw-name-2"></div>
+
+      <div class="form-group">
+        <label id="kw-field-label">API Key</label>
+        <input type="password" id="kw-key-input" placeholder="Paste your key here…" autocomplete="off"
+               style="font-family:monospace;">
+        <div class="text-xs text-dim mt-4">Stored securely and never shown again after saving.</div>
+      </div>
+
+      <div id="kw-save-ok" style="display:none;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="color:#4ade80;font-size:13px;font-weight:700;">Connected!</div>
+        <div class="text-xs text-dim mt-2">Active immediately — no restart needed.</div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button class="btn btn-ghost" style="flex:1;" onclick="kwNext(1)">← Back</button>
+        <button class="btn btn-primary" style="flex:2;" id="kw-save-btn" onclick="kwSave()">Save & Connect</button>
+      </div>
     </div>
   </div>
+</div>
 
-  <!-- Voice Preview -->
+<!-- API Services -->
+<div class="section-header mb-16">
+  <div class="section-title">AI & Media <span class="accent">Services</span></div>
+  <span class="text-dim text-sm">Connect once — powers everything</span>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px;" id="api-service-list">
+  <div class="text-dim text-sm">Loading...</div>
+</div>
+
+<!-- Default Settings -->
+<div class="section-header mb-16" style="margin-top:8px;">
+  <div class="section-title">Default <span class="accent">Settings</span></div>
+</div>
+
+<div class="grid-2" style="align-items:start;">
   <div class="card">
-    <div class="card-title mb-16"><span class="accent">🎙️</span> Default Settings</div>
+    <div class="card-title mb-16"><span class="accent">🎙️</span> Voice & Content</div>
     <div class="form-group">
       <label>Default Voice</label>
       <select id="def-voice">
-        <option>en-US-AriaNeural</option>
-        <option>en-US-GuyNeural</option>
-        <option>en-US-JennyNeural</option>
-        <option>en-US-DavisNeural</option>
-        <option>en-GB-SoniaNeural</option>
-        <option>en-AU-NatashaNeural</option>
+        {% for v in voices %}
+        <option value="{{ v.id }}" {% if v.id == user.default_voice %}selected{% endif %}>{{ v.label }}</option>
+        {% endfor %}
       </select>
     </div>
     <div class="form-group">
       <label>Default Privacy</label>
       <select id="def-privacy">
-        <option value="private">Private</option>
+        <option value="private">Private (review before publishing)</option>
         <option value="unlisted">Unlisted</option>
         <option value="public">Public</option>
       </select>
     </div>
+    <button class="btn btn-primary btn-block" onclick="saveDefaults()">Save Defaults</button>
   </div>
 
-  <!-- Setup Guide -->
-  <div class="card" style="grid-column:1/-1;">
-    <div class="card-title mb-16"><span class="accent">📖</span> Quick Setup Guide</div>
-    <div class="grid-3">
-      <div class="card" style="background:var(--bg-elevated);">
-        <div style="font-size:24px;margin-bottom:8px;">🤖</div>
-        <div class="text-bold mb-4">1. Anthropic API</div>
-        <div class="text-dim text-sm mb-12">Required for AI script generation using Claude.</div>
-        <div class="text-xs">
-          1. Go to <strong>console.anthropic.com</strong><br>
-          2. Create an API key<br>
-          3. Add to <code>.env</code>: <code>ANTHROPIC_API_KEY=sk-ant-...</code>
-        </div>
-      </div>
-      <div class="card" style="background:var(--bg-elevated);">
-        <div style="font-size:24px;margin-bottom:8px;">🖼️</div>
-        <div class="text-bold mb-4">2. Pexels API</div>
-        <div class="text-dim text-sm mb-12">Free stock photos and videos for your content.</div>
-        <div class="text-xs">
-          1. Go to <strong>pexels.com/api</strong><br>
-          2. Create free account<br>
-          3. Add to <code>.env</code>: <code>PEXELS_API_KEY=...</code>
-        </div>
-      </div>
-      <div class="card" style="background:var(--bg-elevated);">
-        <div style="font-size:24px;margin-bottom:8px;">▶️</div>
-        <div class="text-bold mb-4">3. YouTube</div>
-        <div class="text-dim text-sm mb-12">Upload videos and Shorts to your channel.</div>
-        <div class="text-xs">
-          1. <strong>console.cloud.google.com</strong><br>
-          2. Enable YouTube Data API v3<br>
-          3. Create OAuth 2.0 credentials<br>
-          4. Add Client ID + Secret to <code>.env</code>
-        </div>
-      </div>
-      <div class="card" style="background:var(--bg-elevated);">
-        <div style="font-size:24px;margin-bottom:8px;">🎵</div>
-        <div class="text-bold mb-4">4. TikTok</div>
-        <div class="text-dim text-sm mb-12">Post videos directly to TikTok.</div>
-        <div class="text-xs">
-          1. <strong>developers.tiktok.com</strong><br>
-          2. Create an app<br>
-          3. Apply for Content Posting API<br>
-          4. Add Client Key + Secret to <code>.env</code>
-        </div>
-      </div>
-      <div class="card" style="background:var(--bg-elevated);">
-        <div style="font-size:24px;margin-bottom:8px;">📸</div>
-        <div class="text-bold mb-4">5. Instagram</div>
-        <div class="text-dim text-sm mb-12">Publish Reels to your Instagram account.</div>
-        <div class="text-xs">
-          1. <strong>developers.facebook.com</strong><br>
-          2. Create Meta App<br>
-          3. Add Instagram Basic Display<br>
-          4. Generate long-lived access token<br>
-          5. Connect via Accounts → Instagram
-        </div>
-      </div>
-      <div class="card" style="background:var(--bg-elevated);border:1px solid var(--blue);">
-        <div style="font-size:24px;margin-bottom:8px;">🎬</div>
-        <div class="text-bold mb-4">6. Google Flow (Veo 2)</div>
-        <div class="text-dim text-sm mb-12">AI-generated cinematic video clips — no stock footage needed.</div>
-        <div class="text-xs">
-          1. Go to <strong>aistudio.google.com</strong><br>
-          2. Click <strong>Get API Key</strong><br>
-          3. Copy the key<br>
-          4. Add to <code>.env</code>: <code>GOOGLE_API_KEY=AI...</code><br>
-          5. Select "Google Flow" on the Create page
-        </div>
-      </div>
-      <div class="card" style="background:var(--bg-elevated);border:1px solid var(--blue);">
-        <div style="font-size:24px;margin-bottom:8px;">🤖</div>
-        <div class="text-bold mb-4">7. Higgsfield AI</div>
-        <div class="text-dim text-sm mb-12">Access Kling v2, Wan, HunyuanVideo, Luma and more.</div>
-        <div class="text-xs">
-          1. Go to <strong>higgsfield.ai</strong><br>
-          2. Sign up → Dashboard → API Keys<br>
-          3. Copy your key + secret<br>
-          4. Add to <code>.env</code>:<br>
-          <code>HIGGSFIELD_API_KEY=key:secret</code><br>
-          5. Select model on the Create page
-        </div>
-      </div>
-      <div class="card" style="background:var(--bg-elevated);">
-        <div style="font-size:24px;margin-bottom:8px;">📁</div>
-        <div class="text-bold mb-4">8. Output Files</div>
-        <div class="text-dim text-sm mb-12">All generated content is saved locally.</div>
-        <div class="text-xs">
-          Output folder: <code>./output/</code><br><br>
-          Each job creates a folder with:<br>
-          • script.json (full AI script)<br>
-          • voiceover.mp3<br>
-          • thumbnail.jpg<br>
-          • video.mp4 (final)<br>
-          • manifest.json
-        </div>
-      </div>
+  <div class="card">
+    <div class="card-title mb-16"><span class="accent">👤</span> Account</div>
+    <div class="form-group">
+      <label>Display Name</label>
+      <input type="text" id="acc-name" placeholder="Your name">
     </div>
+    <div class="form-group">
+      <label>Email Notifications</label>
+      <select id="acc-notify">
+        <option value="1">Enabled</option>
+        <option value="0">Disabled</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>My Assistant</label>
+      <select id="acc-assistant" {% if user.assistant_enabled == 0 %}data-off{% endif %}>
+        <option value="1" {% if user.assistant_enabled != 0 %}selected{% endif %}>On</option>
+        <option value="0" {% if user.assistant_enabled == 0 %}selected{% endif %}>Off</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="saveAccount()">Save Account</button>
   </div>
-
 </div>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-(async () => {
+const API_SERVICES = [
+  {
+    key: 'ANTHROPIC_API_KEY',
+    icon: '🤖', name: 'Anthropic AI',
+    desc: 'Powers the AI brain — writes scripts, plans content, and runs the 5-agent pipeline. Required.',
+    required: true,
+    why: 'Without this, no scripts can be generated. It\'s the core engine of the entire platform.',
+    portalUrl: 'https://console.anthropic.com/settings/keys',
+    portalLabel: 'Open Anthropic Console',
+    howto: '1. Sign in (or create a free account)\n2. Click "Create Key"\n3. Copy the key (starts with sk-ant-...)',
+    fieldLabel: 'Anthropic API Key (starts with sk-ant-...)',
+    statusKey: 'anthropic',
+  },
+  {
+    key: 'PIXABAY_API_KEY',
+    icon: '🖼️', name: 'Pixabay Stock Media',
+    desc: 'Free stock photos and videos — primary media source. Pixabay is free and does not require a credit card.',
+    required: true,
+    why: 'Provides free stock footage to fill your videos. Takes 30 seconds to get a key.',
+    portalUrl: 'https://pixabay.com/api/',
+    portalLabel: 'Get Free Pixabay API Key',
+    howto: '1. Click the link above and sign up (free)\n2. Your API key is shown immediately on the dashboard\n3. Copy and paste it here',
+    fieldLabel: 'Pixabay API Key',
+    statusKey: 'pixabay',
+  },
+  {
+    key: 'HIGGSFIELD_MCP_TOKEN',
+    icon: '🎬', name: 'Social Optimize AI Video',
+    desc: 'AI video generation — Kling 3, Cinema Studio, Wan and more. Used by Cinema House.',
+    required: false,
+    why: 'Enables AI-generated cinematic video clips instead of stock footage. Used by The Forge and Cinema House.',
+    portalUrl: 'https://app.higgsfield.ai/',
+    portalLabel: 'Open Higgsfield Dashboard',
+    howto: '1. Log in to your Higgsfield account\n2. Go to Account → API Keys (or Settings → Tokens)\n3. Copy your Bearer Token (long alphanumeric string)\n\nNote: paste the token, NOT the endpoint URL',
+    fieldLabel: 'Higgsfield Bearer Token',
+    statusKey: 'higgsville',
+  },
+  {
+    key: 'GOOGLE_API_KEY',
+    icon: '🔵', name: 'Google AI (Veo / TTS)',
+    desc: 'Unlocks Google\'s Veo 3 video AI and high-quality Neural2 voices for narration.',
+    required: false,
+    why: 'Optional but upgrades voice quality significantly and enables Google Veo AI video clips.',
+    portalUrl: 'https://aistudio.google.com/apikey',
+    portalLabel: 'Get Google API Key (free)',
+    howto: '1. Sign in with your Google account\n2. Click "Create API Key"\n3. Copy the key (starts with AIza...)',
+    fieldLabel: 'Google API Key (starts with AIza...)',
+    statusKey: 'google_flow',
+  },
+  {
+    key: 'ELEVENLABS_API_KEY',
+    icon: '🎙️', name: 'ElevenLabs Premium Voices',
+    desc: 'Ultra-realistic AI voices for narration. Falls back to free Microsoft voices if not set.',
+    required: false,
+    why: 'Optional upgrade — adds premium voice quality. The platform works without it using free voices.',
+    portalUrl: 'https://elevenlabs.io/app/settings/api-keys',
+    portalLabel: 'Open ElevenLabs Dashboard',
+    howto: '1. Log in to ElevenLabs\n2. Go to Settings → API Keys\n3. Copy your API key',
+    fieldLabel: 'ElevenLabs API Key',
+    statusKey: 'elevenlabs',
+  },
+];
+
+let _kwService = null;
+
+function openKeyWizard(service) {
+  _kwService = service;
+
+  // Step 1
+  document.getElementById('kw-icon').textContent = service.icon;
+  document.getElementById('kw-name').textContent = service.name;
+  document.getElementById('kw-why').textContent = service.why;
+  document.getElementById('kw-portal-link').href = service.portalUrl;
+  document.getElementById('kw-portal-link').textContent = service.portalLabel + ' ↗';
+  document.getElementById('kw-howto').innerHTML = service.howto.split('\n').map(l =>
+    `<div style="padding:1px 0;">${l}</div>`
+  ).join('');
+
+  // Step 2
+  document.getElementById('kw-icon-2').textContent = service.icon;
+  document.getElementById('kw-name-2').textContent = service.name;
+  document.getElementById('kw-field-label').textContent = service.fieldLabel;
+  document.getElementById('kw-key-input').value = '';
+  document.getElementById('kw-save-ok').style.display = 'none';
+  document.getElementById('kw-save-btn').disabled = false;
+  document.getElementById('kw-save-btn').textContent = 'Save & Connect';
+
+  kwNext(1);
+  document.getElementById('api-wizard-overlay').style.display = 'flex';
+}
+
+function closeKeyWizard() {
+  document.getElementById('api-wizard-overlay').style.display = 'none';
+}
+
+function kwNext(step) {
+  document.getElementById('kw-step-1').classList.toggle('active', step === 1);
+  document.getElementById('kw-step-2').classList.toggle('active', step === 2);
+  document.getElementById('kw-progress').style.width = (step === 1 ? 50 : 100) + '%';
+}
+
+async function kwSave() {
+  const key = document.getElementById('kw-key-input').value.trim();
+  if (!key) { toast('error', 'Key required', 'Paste your API key first.'); return; }
+
+  const btn = document.getElementById('kw-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const resp = await fetch('/api/settings/api-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service: _kwService.key, key }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      toast('error', 'Save failed', data.error || 'Unknown error');
+      btn.disabled = false;
+      btn.textContent = 'Save & Connect';
+      return;
+    }
+    document.getElementById('kw-save-ok').style.display = 'block';
+    btn.textContent = 'Connected!';
+    toast('success', `${_kwService.name} connected!`, 'Active immediately.');
+    setTimeout(() => {
+      closeKeyWizard();
+      loadApiStatus();
+    }, 1800);
+  } catch (e) {
+    toast('error', 'Network error', e.message);
+    btn.disabled = false;
+    btn.textContent = 'Save & Connect';
+  }
+}
+
+async function loadApiStatus() {
   const resp = await fetch('/api/settings/check');
   const data = await resp.json();
-  const labels = {
-    anthropic:   ['🤖 Anthropic AI',        'Required for AI script generation'],
-    pexels:      ['🖼️ Pexels Media',         'Free stock footage & images'],
-    google_flow: ['🎬 Google Flow / Veo 3',  'AI-generated cinematic video clips'],
-    higgsville:  ['🎬 Higgsville',           'Kling 3, Veo 3.1, Cinema Studio + 14 more models'],
-    youtube:     ['▶️ YouTube',              'Upload videos & Shorts'],
-    tiktok:      ['🎵 TikTok',              'Post videos to TikTok'],
-    instagram:   ['📸 Instagram',           'Publish Reels'],
-  };
-  const grid = document.getElementById('api-check-grid');
-  grid.innerHTML = '';
-  for (const [key, ok] of Object.entries(data)) {
-    const [label, hint] = labels[key] || [key, ''];
-    grid.innerHTML += `
-      <div class="flex-between" style="padding:10px;background:var(--bg-elevated);border-radius:8px;border:1px solid var(--border);">
-        <div>
-          <div class="text-sm text-bold">${label}</div>
-          <div class="text-xs text-dim">${hint}</div>
+  const list = document.getElementById('api-service-list');
+  list.innerHTML = '';
+
+  for (const svc of API_SERVICES) {
+    const ok = data[svc.statusKey];
+    const isWrongVal = svc.statusKey === 'higgsville' && data.higgsville_url_as_token;
+    const cardClass = isWrongVal ? 'error' : ok ? 'connected' : '';
+    const pill = isWrongVal
+      ? `<span class="pill pill-error">⚠ Wrong value</span>`
+      : ok
+        ? `<span class="pill pill-done">✓ Connected</span>`
+        : `<span class="pill ${svc.required ? 'pill-error' : 'pill-pending'}">${svc.required ? 'Required' : 'Optional'}</span>`;
+    const svcIdx = API_SERVICES.indexOf(svc);
+    const btn = ok && !isWrongVal
+      ? `<button class="btn btn-ghost btn-sm" onclick="openKeyWizard(API_SERVICES[${svcIdx}])">Update Key</button>`
+      : `<button class="btn btn-primary btn-sm" onclick="openKeyWizard(API_SERVICES[${svcIdx}])">Connect →</button>`;
+
+    list.innerHTML += `
+      <div class="api-card ${cardClass}">
+        <div class="api-icon">${svc.icon}</div>
+        <div class="api-info">
+          <div class="api-name">${svc.name}</div>
+          <div class="api-desc">${svc.desc}</div>
+          ${isWrongVal ? '<div style="font-size:11px;color:var(--red);margin-top:4px;">You pasted the URL — paste the Bearer Token instead.</div>' : ''}
         </div>
-        <span class="pill ${ok ? 'pill-done' : 'pill-error'}">${ok ? '✓ Configured' : '✗ Missing'}</span>
+        <div class="api-actions">
+          ${pill}
+          ${btn}
+        </div>
       </div>`;
   }
-})();
+}
+
+async function saveDefaults() {
+  const voice = document.getElementById('def-voice').value;
+  const resp = await fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ default_voice: voice }),
+  });
+  if (resp.ok) {
+    toast('success', 'Saved', 'Default settings updated.');
+  } else {
+    toast('error', 'Error', 'Could not save default settings.');
+  }
+}
+
+async function saveAccount() {
+  const resp = await fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: document.getElementById('acc-name').value,
+      notify_email: parseInt(document.getElementById('acc-notify').value),
+      assistant_enabled: parseInt(document.getElementById('acc-assistant').value),
+    }),
+  });
+  if (resp.ok) {
+    window._assistantEnabled = parseInt(document.getElementById('acc-assistant').value) === 1;
+    _assistantApplyVisibility();
+    toast('success', 'Saved', 'Account settings updated.');
+  }
+  else toast('error', 'Failed', 'Could not save.');
+}
+
+loadApiStatus();
 </script>
 {% endblock %}

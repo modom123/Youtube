@@ -1,0 +1,793 @@
+{% extends "base.html" %}
+{% set active_page = "podcast" %}
+
+{% block title %}Podcast Studio — Social Optimize{% endblock %}
+{% block topbar_title %}🎙️ Podcast Studio{% endblock %}
+{% block topbar_sub %}Generate full episodes · AI show notes · Audiogram · Publish everywhere{% endblock %}
+
+{% block topbar_actions %}
+<a href="/music-studio" class="btn btn-secondary" style="font-size:12px;">🎵 Hit Factory</a>
+<a href="/clipper" class="btn btn-secondary" style="font-size:12px;">✂️ Scalpel</a>
+{% endblock %}
+
+{% block content %}
+<style>
+:root {
+  --pod-purple: #a855f7;
+  --pod-purple2: #9333ea;
+  --pod-purple-dim: rgba(168,85,247,.12);
+  --pod-green: #22c55e;
+  --pod-blue: #3b82f6;
+}
+
+.pod-layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 0;
+  height: calc(100vh - 80px);
+}
+@media(max-width:900px){ .pod-layout { grid-template-columns:1fr; height:auto; } }
+
+/* ── Left panel ── */
+.pod-left {
+  background: var(--card);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.pod-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.pod-tab {
+  flex: 1;
+  padding: 13px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted);
+  cursor: pointer;
+  border: none;
+  background: none;
+  border-bottom: 2px solid transparent;
+  transition: all .15s;
+}
+.pod-tab.active { color: var(--pod-purple); border-bottom-color: var(--pod-purple); }
+
+.pod-panel { display: none; padding: 20px; flex: 1; }
+.pod-panel.active { display: block; }
+
+.pod-form-row { margin-bottom: 14px; }
+.pod-form-row label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+.pod-form-row input,
+.pod-form-row select,
+.pod-form-row textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 9px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.pod-form-row input:focus,
+.pod-form-row select:focus,
+.pod-form-row textarea:focus { outline: none; border-color: var(--pod-purple); }
+.pod-form-row textarea { resize: vertical; min-height: 60px; }
+
+.dur-grid {
+  display: grid;
+  grid-template-columns: repeat(4,1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+.dur-btn {
+  padding: 9px 4px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  transition: all .15s;
+}
+.dur-btn.selected {
+  border-color: var(--pod-purple);
+  background: var(--pod-purple-dim);
+  color: var(--pod-purple);
+}
+.dur-btn .dur-val { font-size: 14px; font-weight: 800; }
+.dur-btn .dur-lbl { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+.format-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.format-chip {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.format-chip.selected {
+  border-color: var(--pod-purple);
+  background: var(--pod-purple-dim);
+  color: var(--pod-purple);
+}
+
+.btn-generate-pod {
+  width: 100%;
+  padding: 13px;
+  background: var(--pod-purple);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity .15s;
+}
+.btn-generate-pod:disabled { opacity: .4; cursor: not-allowed; }
+.btn-generate-pod:hover:not(:disabled) { opacity: .88; }
+
+/* Upload tab */
+.upload-zone-pod {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 32px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s;
+  background: var(--bg);
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.upload-zone-pod:hover, .upload-zone-pod.drag {
+  border-color: var(--pod-purple);
+  background: var(--pod-purple-dim);
+}
+.upload-zone-pod input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* ── Right panel ── */
+.pod-right {
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pod-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--muted);
+  padding: 60px 20px;
+}
+.pod-empty-icon { font-size: 64px; margin-bottom: 16px; opacity: .6; }
+.pod-empty h2 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.pod-empty p { font-size: 14px; line-height: 1.7; max-width: 360px; }
+
+.pod-progress {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  display: none;
+}
+.pod-progress-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+.pod-step { display: flex; align-items: center; gap: 12px; padding: 8px 0; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--border); }
+.pod-step:last-child { border-bottom: none; }
+.pod-step.active { color: var(--text); font-weight: 600; }
+.pod-step.done { color: var(--pod-green); }
+.pod-step .step-icon { font-size: 16px; width: 24px; flex-shrink: 0; }
+.progress-bar-wrap { margin-top: 16px; background: var(--bg); border-radius: 99px; height: 6px; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--pod-purple); border-radius: 99px; transition: width .4s ease; }
+
+.pod-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+}
+.pod-card h3 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+/* Audio player */
+.pod-player {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pod-waveform {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 13px;
+  overflow: hidden;
+  position: relative;
+}
+.pod-waveform audio { width: 100%; }
+.pod-player-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Show notes */
+.shownotes-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text);
+  white-space: pre-wrap;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* Chapters */
+.chapter-list { display: flex; flex-direction: column; gap: 8px; }
+.chapter-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.chapter-time {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pod-purple);
+  min-width: 42px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Audiogram */
+.audiogram-preview {
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg);
+  max-height: 220px;
+}
+.audiogram-preview video { width: 100%; display: block; max-height: 220px; object-fit: cover; }
+
+/* Publish row */
+.pub-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.pub-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+.pub-chip:hover { border-color: var(--pod-purple); color: var(--pod-purple); }
+.pub-chip.posting { opacity: .5; cursor: not-allowed; }
+.pub-chip.done-pub { background: #22c55e20; border-color: #22c55e; color: #22c55e; }
+
+.btn-sm-pod {
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  transition: all .15s;
+}
+.btn-sm-pod:hover { border-color: var(--pod-purple); color: var(--pod-purple); }
+.btn-sm-pod.primary {
+  background: var(--pod-purple);
+  color: #fff;
+  border-color: var(--pod-purple);
+}
+.btn-sm-pod.primary:hover { opacity: .88; }
+</style>
+
+<div class="pod-layout">
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="pod-left">
+    <div class="pod-tabs">
+      <button class="pod-tab active" onclick="switchTab('generate', this)">✨ AI Generate</button>
+      <button class="pod-tab" onclick="switchTab('upload', this)">📁 Upload Audio</button>
+    </div>
+
+    <!-- AI GENERATE TAB -->
+    <div class="pod-panel active" id="tab-generate">
+      <div class="pod-form-row">
+        <label>Show / Podcast Name</label>
+        <input type="text" id="p-show" placeholder="e.g. The Wealth Builder Podcast">
+      </div>
+      <div class="pod-form-row">
+        <label>Episode Topic</label>
+        <input type="text" id="p-topic" placeholder="e.g. How Nike almost went bankrupt">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="pod-form-row">
+          <label>Episode #</label>
+          <input type="number" id="p-episode" value="1" min="1" max="9999">
+        </div>
+        <div class="pod-form-row">
+          <label>Guest (optional)</label>
+          <input type="text" id="p-guest" placeholder="e.g. John Smith">
+        </div>
+      </div>
+      <div class="pod-form-row">
+        <label>Format</label>
+        <div class="format-chips">
+          <div class="format-chip selected" data-fmt="solo" onclick="selectFmt(this,'solo')">🎤 Solo</div>
+          <div class="format-chip" data-fmt="interview" onclick="selectFmt(this,'interview')">🎙️🎙️ Interview</div>
+          <div class="format-chip" data-fmt="panel" onclick="selectFmt(this,'panel')">👥 Panel</div>
+          <div class="format-chip" data-fmt="story" onclick="selectFmt(this,'story')">📖 Story</div>
+        </div>
+      </div>
+      <div class="pod-form-row">
+        <label>Style</label>
+        <select id="p-style">
+          <option value="educational">🎓 Educational</option>
+          <option value="conversational">💬 Conversational</option>
+          <option value="news">📰 News & Analysis</option>
+          <option value="true_crime">🔍 True Crime</option>
+          <option value="comedy">😂 Comedy</option>
+          <option value="motivational">🔥 Motivational</option>
+          <option value="interview">🎤 Interview</option>
+        </select>
+      </div>
+      <div class="pod-form-row">
+        <label>Episode Length</label>
+        <div class="dur-grid">
+          <div class="dur-btn" onclick="selectDur(this,900)"><div class="dur-val">15m</div><div class="dur-lbl">Daily</div></div>
+          <div class="dur-btn selected" onclick="selectDur(this,1800)"><div class="dur-val">30m</div><div class="dur-lbl">Standard</div></div>
+          <div class="dur-btn" onclick="selectDur(this,3600)"><div class="dur-val">60m</div><div class="dur-lbl">Full</div></div>
+          <div class="dur-btn" onclick="selectDur(this,5400)"><div class="dur-val">90m</div><div class="dur-lbl">Deep dive</div></div>
+        </div>
+        <input type="hidden" id="p-duration" value="1800">
+      </div>
+      <div class="pod-form-row">
+        <label>Voice</label>
+        <select id="p-voice">
+          {% for v in voices %}
+          <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="pod-form-row">
+        <label>Background Music</label>
+        <select id="p-music">
+          <option value="">None</option>
+          <option value="lo-fi">Lo-fi Chill</option>
+          <option value="cinematic">Cinematic</option>
+          <option value="upbeat">Upbeat Corporate</option>
+          <option value="ambient">Ambient</option>
+          <option value="jazz">Jazz</option>
+        </select>
+      </div>
+      <div class="pod-form-row">
+        <label>Additional Context (optional)</label>
+        <textarea id="p-context" placeholder="Key points to cover, target audience, sponsor message..."></textarea>
+      </div>
+      <button class="btn-generate-pod" id="genBtn" onclick="generatePodcast()">🎙️ Generate Episode</button>
+    </div>
+
+    <!-- UPLOAD TAB -->
+    <div class="pod-panel" id="tab-upload">
+      <div class="upload-zone-pod" id="uploadZone">
+        <input type="file" id="audioFile" accept="audio/*,video/mp4,video/mov" onchange="previewAudio(this)">
+        <div style="font-size:36px;margin-bottom:8px;">🎧</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px;">Drop your recording here</div>
+        <div style="font-size:12px;color:var(--muted);">MP3, WAV, M4A, MP4 · AI will generate transcript, show notes & audiogram</div>
+      </div>
+      <div id="audioPreview" style="display:none;margin-bottom:14px;">
+        <audio id="previewAudio" controls style="width:100%;border-radius:8px;"></audio>
+      </div>
+      <div class="pod-form-row">
+        <label>Show / Podcast Name</label>
+        <input type="text" id="u-show" placeholder="e.g. The Wealth Builder Podcast">
+      </div>
+      <div class="pod-form-row">
+        <label>Episode Title</label>
+        <input type="text" id="u-title" placeholder="e.g. How Nike Almost Went Bankrupt">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="pod-form-row">
+          <label>Episode #</label>
+          <input type="number" id="u-episode" value="1" min="1">
+        </div>
+        <div class="pod-form-row">
+          <label>Guest (optional)</label>
+          <input type="text" id="u-guest" placeholder="">
+        </div>
+      </div>
+      <button class="btn-generate-pod" id="uploadBtn" onclick="processUpload()">⚡ Process Audio</button>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="pod-right" id="podRight">
+
+    <div class="pod-empty" id="emptyState">
+      <div class="pod-empty-icon">🎙️</div>
+      <h2>Your episode appears here</h2>
+      <p>Configure your episode on the left and hit Generate. You'll get a full audio file, show notes, chapter markers, and an audiogram video ready to publish.</p>
+      <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap;justify-content:center;">
+        <div style="background:var(--pod-purple-dim);border:1px solid var(--pod-purple);border-radius:10px;padding:14px 18px;font-size:13px;text-align:center;">
+          <div style="font-size:22px;margin-bottom:4px;">🎵</div>
+          <div style="font-weight:700;color:var(--pod-purple);">AI Audio</div>
+          <div style="color:var(--muted);font-size:11px;">Full episode narrated</div>
+        </div>
+        <div style="background:var(--pod-purple-dim);border:1px solid var(--pod-purple);border-radius:10px;padding:14px 18px;font-size:13px;text-align:center;">
+          <div style="font-size:22px;margin-bottom:4px;">📝</div>
+          <div style="font-weight:700;color:var(--pod-purple);">Show Notes</div>
+          <div style="color:var(--muted);font-size:11px;">SEO-ready description</div>
+        </div>
+        <div style="background:var(--pod-purple-dim);border:1px solid var(--pod-purple);border-radius:10px;padding:14px 18px;font-size:13px;text-align:center;">
+          <div style="font-size:22px;margin-bottom:4px;">📺</div>
+          <div style="font-weight:700;color:var(--pod-purple);">Audiogram</div>
+          <div style="color:var(--muted);font-size:11px;">Video for social media</div>
+        </div>
+        <div style="background:var(--pod-purple-dim);border:1px solid var(--pod-purple);border-radius:10px;padding:14px 18px;font-size:13px;text-align:center;">
+          <div style="font-size:22px;margin-bottom:4px;">🚀</div>
+          <div style="font-weight:700;color:var(--pod-purple);">Publish</div>
+          <div style="color:var(--muted);font-size:11px;">YouTube, Spotify & more</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="pod-progress" id="progressCard">
+      <div class="pod-progress-title">⏳ Generating your episode...</div>
+      <div class="pod-step" id="step-script"><span class="step-icon">📝</span> Writing script & chapters</div>
+      <div class="pod-step" id="step-audio"><span class="step-icon">🎙️</span> Generating voice narration</div>
+      <div class="pod-step" id="step-notes"><span class="step-icon">📋</span> Crafting show notes</div>
+      <div class="pod-step" id="step-video"><span class="step-icon">📺</span> Building audiogram video</div>
+      <div class="pod-step" id="step-done"><span class="step-icon">✅</span> Finalizing episode</div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+      <div style="margin-top:8px;font-size:12px;color:var(--muted);" id="progressMsg">Starting...</div>
+    </div>
+
+    <!-- Audio Player -->
+    <div class="pod-card" id="audioCard" style="display:none;">
+      <h3>🎧 Episode Audio</h3>
+      <div class="pod-player">
+        <div class="pod-waveform">
+          <audio id="episodeAudio" controls style="width:100%;"></audio>
+        </div>
+        <div class="pod-player-actions">
+          <button class="btn-sm-pod primary" onclick="downloadAudio()">⬇ Download MP3</button>
+          <button class="btn-sm-pod" onclick="copyRssUrl()">📡 RSS Feed URL</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Audiogram -->
+    <div class="pod-card" id="audiogramCard" style="display:none;">
+      <h3>📺 Audiogram Video</h3>
+      <div class="audiogram-preview">
+        <video id="audiogramVideo" controls muted loop></video>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn-sm-pod primary" onclick="downloadAudiogram()">⬇ Download Video</button>
+      </div>
+    </div>
+
+    <!-- Show Notes -->
+    <div class="pod-card" id="notesCard" style="display:none;">
+      <h3>📝 Show Notes</h3>
+      <div class="shownotes-box" id="showNotesBox" contenteditable="true"></div>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button class="btn-sm-pod" onclick="copyNotes()">📋 Copy</button>
+      </div>
+    </div>
+
+    <!-- Chapters -->
+    <div class="pod-card" id="chaptersCard" style="display:none;">
+      <h3>🗂 Chapter Markers</h3>
+      <div class="chapter-list" id="chapterList"></div>
+      <div style="margin-top:10px;">
+        <button class="btn-sm-pod" onclick="copyChapters()">📋 Copy for YouTube</button>
+      </div>
+    </div>
+
+    <!-- Publish -->
+    <div class="pod-card" id="publishCard" style="display:none;">
+      <h3>🚀 Publish Episode</h3>
+      <div class="pub-grid" id="pubGrid">
+        <div class="pub-chip" onclick="publishTo('youtube', this)">▶️ YouTube</div>
+        <div class="pub-chip" onclick="publishTo('spotify', this)">🟢 Spotify</div>
+        <div class="pub-chip" onclick="publishTo('apple', this)">🎵 Apple Podcasts</div>
+        <div class="pub-chip" onclick="publishTo('twitter', this)">𝕏 X / Twitter</div>
+        <div class="pub-chip" onclick="publishTo('instagram', this)">📸 Instagram</div>
+        <div class="pub-chip" onclick="publishTo('facebook', this)">👍 Facebook</div>
+        <div class="pub-chip" onclick="publishTo('tiktok', this)">🎵 TikTok</div>
+        <div class="pub-chip" onclick="publishTo('linkedin', this)">💼 LinkedIn</div>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px;">Spotify & Apple use your RSS feed. Social platforms publish the audiogram video.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let _podJobId = null;
+let _pollInterval = null;
+let _podFmt = 'solo';
+let _podDur = 1800;
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.pod-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.pod-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function selectFmt(el, fmt) {
+  document.querySelectorAll('.format-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _podFmt = fmt;
+}
+
+function selectDur(el, secs) {
+  document.querySelectorAll('.dur-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  _podDur = secs;
+  document.getElementById('p-duration').value = secs;
+}
+
+function previewAudio(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  document.getElementById('previewAudio').src = url;
+  document.getElementById('audioPreview').style.display = 'block';
+}
+
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) { const dt = new DataTransfer(); dt.items.add(f); document.getElementById('audioFile').files = dt.files; previewAudio(document.getElementById('audioFile')); }
+});
+
+async function generatePodcast() {
+  const topic = document.getElementById('p-topic').value.trim();
+  if (!topic) { alert('Enter an episode topic.'); return; }
+
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true; btn.textContent = '⏳ Starting...';
+  showProgress();
+
+  try {
+    const resp = await fetch('/api/podcast/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode: 'generate',
+        show_name: document.getElementById('p-show').value.trim() || topic,
+        topic,
+        episode_number: parseInt(document.getElementById('p-episode').value) || 1,
+        guest_name: document.getElementById('p-guest').value.trim(),
+        format: _podFmt,
+        style: document.getElementById('p-style').value,
+        duration: _podDur,
+        voice: document.getElementById('p-voice').value,
+        music: document.getElementById('p-music').value,
+        context: document.getElementById('p-context').value.trim(),
+      })
+    });
+    const data = await resp.json();
+    if (data.error) { showError(data.error); return; }
+    _podJobId = data.job_id;
+    _pollInterval = setInterval(pollStatus, 2000);
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '🎙️ Generate Episode';
+  }
+}
+
+async function processUpload() {
+  const fi = document.getElementById('audioFile');
+  if (!fi.files[0]) { alert('Upload an audio file first.'); return; }
+
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true; btn.textContent = '⏳ Uploading...';
+  showProgress();
+
+  const fd = new FormData();
+  fd.append('audio', fi.files[0]);
+  fd.append('show_name', document.getElementById('u-show').value.trim());
+  fd.append('title', document.getElementById('u-title').value.trim());
+  fd.append('episode_number', document.getElementById('u-episode').value || '1');
+  fd.append('guest_name', document.getElementById('u-guest').value.trim());
+  fd.append('mode', 'upload');
+
+  try {
+    const resp = await fetch('/api/podcast/generate', { method: 'POST', body: fd });
+    const data = await resp.json();
+    if (data.error) { showError(data.error); return; }
+    _podJobId = data.job_id;
+    _pollInterval = setInterval(pollStatus, 2000);
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '⚡ Process Audio';
+  }
+}
+
+async function pollStatus() {
+  try {
+    const resp = await fetch(`/api/podcast/${_podJobId}/status`);
+    const data = await resp.json();
+
+    updateProgress(data);
+
+    if (data.status === 'done') {
+      clearInterval(_pollInterval);
+      showResults(data);
+    } else if (data.status === 'error') {
+      clearInterval(_pollInterval);
+      showError(data.error || 'Generation failed');
+    }
+  } catch(e) {}
+}
+
+function updateProgress(data) {
+  const pct = data.progress || 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressMsg').textContent = data.step || '...';
+
+  const steps = ['step-script','step-audio','step-notes','step-video','step-done'];
+  const thresholds = [10, 35, 60, 80, 98];
+  steps.forEach((sid, i) => {
+    const el = document.getElementById(sid);
+    if (!el) return;
+    el.classList.remove('active','done');
+    if (pct >= (thresholds[i+1] || 100)) el.classList.add('done');
+    else if (pct >= thresholds[i]) el.classList.add('active');
+  });
+}
+
+function showResults(data) {
+  document.getElementById('progressCard').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+
+  if (data.audio_url) {
+    document.getElementById('episodeAudio').src = data.audio_url;
+    document.getElementById('audioCard').style.display = 'block';
+  }
+  if (data.video_url) {
+    document.getElementById('audiogramVideo').src = data.video_url;
+    document.getElementById('audiogramCard').style.display = 'block';
+  }
+  if (data.show_notes) {
+    document.getElementById('showNotesBox').textContent = data.show_notes;
+    document.getElementById('notesCard').style.display = 'block';
+  }
+  if (data.chapters && data.chapters.length) {
+    const list = document.getElementById('chapterList');
+    list.innerHTML = data.chapters.map(c =>
+      `<div class="chapter-item">
+        <span class="chapter-time">${c.timestamp}</span>
+        <span>${c.title}</span>
+      </div>`
+    ).join('');
+    document.getElementById('chaptersCard').style.display = 'block';
+  }
+  document.getElementById('publishCard').style.display = 'block';
+}
+
+function showProgress() {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('progressCard').style.display = 'block';
+  document.getElementById('audioCard').style.display = 'none';
+  document.getElementById('audiogramCard').style.display = 'none';
+  document.getElementById('notesCard').style.display = 'none';
+  document.getElementById('chaptersCard').style.display = 'none';
+  document.getElementById('publishCard').style.display = 'none';
+}
+
+function showError(msg) {
+  document.getElementById('progressMsg').textContent = '❌ ' + msg;
+  document.getElementById('progressFill').style.background = '#ef4444';
+}
+
+function downloadAudio() {
+  if (!_podJobId) return;
+  window.location.href = `/api/podcast/${_podJobId}/download/audio`;
+}
+
+function downloadAudiogram() {
+  if (!_podJobId) return;
+  window.location.href = `/api/podcast/${_podJobId}/download/video`;
+}
+
+function copyNotes() {
+  const text = document.getElementById('showNotesBox').innerText;
+  navigator.clipboard.writeText(text).then(() => alert('Show notes copied!'));
+}
+
+function copyChapters() {
+  const items = document.querySelectorAll('.chapter-item');
+  const text = [...items].map(el => {
+    const time = el.querySelector('.chapter-time').textContent.trim();
+    const title = el.querySelector('span:last-child').textContent.trim();
+    return time + ' ' + title;
+  }).join('\n');
+  navigator.clipboard.writeText(text).then(() => alert('Chapters copied for YouTube!'));
+}
+
+function copyRssUrl() {
+  const url = window.location.origin + '/api/podcast/rss/{{ current_user.id if current_user else "me" }}';
+  navigator.clipboard.writeText(url).then(() => alert('RSS URL copied! Submit this to Spotify & Apple Podcasts.'));
+}
+
+async function publishTo(platform, btn) {
+  if (!_podJobId) return;
+  btn.classList.add('posting');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '⏳ Posting...';
+  try {
+    const resp = await fetch(`/api/podcast/${_podJobId}/publish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      btn.classList.remove('posting');
+      btn.classList.add('done-pub');
+      btn.innerHTML = '✅ ' + platform.charAt(0).toUpperCase() + platform.slice(1);
+    } else {
+      btn.classList.remove('posting');
+      btn.innerHTML = orig;
+      alert('Error: ' + (data.error || 'unknown'));
+    }
+  } catch(e) {
+    btn.classList.remove('posting');
+    btn.innerHTML = orig;
+    alert('Error: ' + e.message);
+  }
+}
+</script>
+{% endblock %}

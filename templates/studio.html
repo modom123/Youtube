@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% set active_page = "studio" %}
 
-{% block title %}Production Studio — Social Optimize{% endblock %}
+{% block title %}The Forge — Social Optimize{% endblock %}
 
-{% block topbar_title %}Production Studio{% endblock %}
-{% block topbar_sub %}5-Agent AI Pipeline · Trend Architect → Narrative Designer → Asset Curator → Cost Engineer → Growth Engineer{% endblock %}
+{% block topbar_title %}🔥 The Forge{% endblock %}
+{% block topbar_sub %}Where YouTube hits are made · 5-Agent AI Pipeline{% endblock %}
 
 {% block topbar_actions %}
-<a href="/create" class="btn btn-secondary">Standard Create</a>
+<a href="/create" class="btn btn-secondary">Create Content</a>
 {% endblock %}
 
 {% block content %}
@@ -142,7 +142,6 @@
           <select id="s-format" onchange="studioFormatChange()">
             <option value="long">Long-form (16:9)</option>
             <option value="short">Short / Reel (9:16)</option>
-            <option value="podcast">Podcast Episode</option>
             <option value="commercial">Commercial / Ad</option>
           </select>
         </div>
@@ -152,49 +151,13 @@
         </div>
       </div>
 
-      <!-- Podcast duration picker (shown only when podcast selected) -->
-      <div id="podcastDurationRow" style="display:none;margin-bottom:14px;">
-        <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Episode Length</label>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
-          <div onclick="studioPickPodcastDur(this,900)" data-pdur="900" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
-            <div style="font-size:15px;font-weight:800;">15 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Daily briefing</div>
-          </div>
-          <div onclick="studioPickPodcastDur(this,1800)" data-pdur="1800" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--accent);background:rgba(255,59,48,.08);">
-            <div style="font-size:15px;font-weight:800;">30 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Standard episode</div>
-          </div>
-          <div onclick="studioPickPodcastDur(this,3600)" data-pdur="3600" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
-            <div style="font-size:15px;font-weight:800;">60 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Full interview</div>
-          </div>
-          <div onclick="studioPickPodcastDur(this,5400)" data-pdur="5400" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);background:var(--bg);">
-            <div style="font-size:15px;font-weight:800;">90 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Deep dive</div>
-          </div>
-        </div>
-      </div>
-
       <div class="form-grid-2">
         <div class="form-row">
           <label>Voice</label>
           <select id="s-voice">
-            {% if google_api_key and google_tts_voices %}
-            <optgroup label="Google Neural2 (HD quality)">
-              {% for v in google_tts_voices %}
-              <option value="{{ v.id }}" {% if v.id == 'en-US-Neural2-C' %}selected{% endif %}>{{ v.name }} ({{ v.locale }})</option>
-              {% endfor %}
-            </optgroup>
-            <optgroup label="Edge TTS (fallback)">
-              {% for v in voices %}
-              <option value="{{ v }}">{{ v }}</option>
-              {% endfor %}
-            </optgroup>
-            {% else %}
             {% for v in voices %}
-            <option value="{{ v }}" {% if loop.first %}selected{% endif %}>{{ v }}</option>
+            <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
             {% endfor %}
-            {% endif %}
           </select>
         </div>
         <div class="form-row">
@@ -294,6 +257,7 @@
       <div class="progress-bar-wrap">
         <div class="progress-bar-track"><div class="progress-bar-fill" id="studioPbar"></div></div>
         <div class="progress-label" id="studioStepLabel">Starting…</div>
+        <span class="so-brand-counter" id="studioBrand"></span>
       </div>
       <div class="log-box" id="studioLogBox"></div>
     </div>
@@ -421,6 +385,13 @@
         <div class="log-box" id="r-errors-box"></div>
       </div>
 
+      <div style="display:flex;gap:12px;margin-top:4px;">
+        <a id="studio-job-link" href="/jobs" class="btn btn-primary" style="display:none;">
+          View in Jobs →
+        </a>
+        <a href="/jobs" class="btn btn-ghost">Browse All Jobs</a>
+      </div>
+
     </div><!-- /studioResults -->
   </div>
 </div>
@@ -455,21 +426,13 @@ let studioES = null;
 function studioFormatChange() {
   const fmt = document.getElementById('s-format').value;
   const dur = document.getElementById('s-duration');
-  const podRow = document.getElementById('podcastDurationRow');
   const durRow = document.getElementById('durationRow');
   const commPanel = document.getElementById('studioCommercialPanel');
-  if (fmt === 'podcast') {
-    podRow.style.display = '';
-    durRow.style.display = 'none';
-    commPanel.style.display = 'none';
-    dur.value = 1800;
-  } else if (fmt === 'commercial') {
-    podRow.style.display = 'none';
+  if (fmt === 'commercial') {
     durRow.style.display = 'none';
     commPanel.style.display = '';
     dur.value = 30;
   } else {
-    podRow.style.display = 'none';
     durRow.style.display = '';
     commPanel.style.display = 'none';
     dur.value = fmt === 'short' ? 55 : 480;
@@ -487,15 +450,6 @@ function studioPickAdLen(el, adFmt, seconds) {
   document.getElementById('s-duration').value = seconds;
 }
 
-function studioPickPodcastDur(el, seconds) {
-  document.querySelectorAll('#podcastDurationRow [data-pdur]').forEach(c => {
-    c.style.borderColor = 'var(--border)';
-    c.style.background = 'var(--bg)';
-  });
-  el.style.borderColor = 'var(--accent)';
-  el.style.background = 'rgba(255,59,48,.08)';
-  document.getElementById('s-duration').value = seconds;
-}
 
 function agentState(nodeId, state, statusText) {
   const el = document.getElementById(nodeId);
@@ -627,6 +581,15 @@ function renderResult(result) {
   document.getElementById('studioResults').classList.add('visible');
 }
 
+function showJobLink(dbJobId) {
+  if (!dbJobId) return;
+  const el = document.getElementById('studio-job-link');
+  if (el) {
+    el.href = '/jobs/' + dbJobId;
+    el.style.display = '';
+  }
+}
+
 function studioRun() {
   const niche = document.getElementById('s-niche').value.trim();
   if (!niche) { alert('Please enter a niche/topic.'); return; }
@@ -639,6 +602,7 @@ function studioRun() {
   document.getElementById('studioProgressCard').style.display = '';
   document.getElementById('studioResults').classList.remove('visible');
   document.getElementById('studioPbar').style.width = '0%';
+  soBrandCounterRender('studioBrand', 0);
   document.getElementById('studioLogBox').innerHTML = '';
   document.getElementById('r-errors-card').style.display = 'none';
   ['agent-1','agent-2','agent-3','agent-35','agent-4','agent-compile'].forEach(id => agentState(id, null, 'Waiting'));
@@ -699,6 +663,7 @@ function listenStudio(jobId) {
 
     document.getElementById('studioPbar').style.width = pct + '%';
     document.getElementById('studioStepLabel').textContent = step;
+    soBrandCounterRender('studioBrand', pct);
     if (step) addLog(step);
 
     updateAgentsFromProgress(pct);
@@ -709,6 +674,7 @@ function listenStudio(jobId) {
       document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
       addLog('✓ Pipeline complete!', 'success');
       if (msg.result) renderResult(msg.result);
+      showJobLink(msg.db_job_id);
     } else if (msg.status === 'error') {
       studioES.close();
       document.getElementById('studioRunBtn').disabled = false;
@@ -732,12 +698,14 @@ function pollStatus(jobId) {
       const pct = data.progress || 0;
       document.getElementById('studioPbar').style.width = pct + '%';
       document.getElementById('studioStepLabel').textContent = data.step || '';
+      soBrandCounterRender('studioBrand', pct);
       updateAgentsFromProgress(pct);
 
       if (data.status === 'done') {
         document.getElementById('studioRunBtn').disabled = false;
         document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
         if (data.result) renderResult(data.result);
+        showJobLink(data.db_job_id);
       } else if (data.status === 'error') {
         document.getElementById('studioRunBtn').disabled = false;
         document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
@@ -759,14 +727,16 @@ async function loadTrendingTopics() {
 
     const section = document.getElementById('trending-section');
     const chips = document.getElementById('trending-chips');
-    chips.innerHTML = daily.slice(0, 10).map(t =>
-      `<span onclick="document.getElementById('s-niche').value='${t.replace(/'/g, "\\'")}'"
-        style="display:inline-block;padding:4px 10px;background:var(--border);border-radius:20px;
-               font-size:11px;cursor:pointer;white-space:nowrap;transition:background .15s;"
-        onmouseover="this.style.background='var(--accent)';this.style.color='#fff'"
-        onmouseout="this.style.background='var(--border)';this.style.color=''"
-      >${t}</span>`
-    ).join('');
+    chips.innerHTML = '';
+    daily.slice(0, 10).forEach(t => {
+      const span = document.createElement('span');
+      span.textContent = t;
+      span.style.cssText = 'display:inline-block;padding:4px 10px;background:var(--border);border-radius:20px;font-size:11px;cursor:pointer;white-space:nowrap;transition:background .15s;';
+      span.onclick = () => { document.getElementById('s-niche').value = t; };
+      span.onmouseover = () => { span.style.background='var(--accent)'; span.style.color='#fff'; };
+      span.onmouseout = () => { span.style.background='var(--border)'; span.style.color=''; };
+      chips.appendChild(span);
+    });
     section.style.display = '';
   } catch (e) {
     // Silently skip if trends unavailable

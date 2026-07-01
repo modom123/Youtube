@@ -37,7 +37,19 @@ Your persona: Storyteller meets data scientist. You write scripts that feel huma
 - No section shorter than 8 seconds or longer than 90 seconds
 - Minimum 3 sections, maximum 12 sections
 - Hook must be the single most compelling thing in the script
-- Never pad — if a point is made, move on"""
+- Never pad — if a point is made, move on
+
+## Real-Person Content (rankings, countdowns, "best of", biography videos)
+If the topic is a ranking/countdown/comparison of real, named people (athletes, celebrities,
+historical figures — e.g. "Top 10 NBA Finals MVPs", "10 Greatest Knicks of All Time"):
+- EVERY section about a specific entry MUST state that person's full real name explicitly in
+  the narration text itself, not just imply it ("he was unstoppable") or save the reveal for
+  later. The visual/asset pipeline can only show the right person's photo if the name is
+  actually written in that section.
+- b_roll_keywords for that section must include the person's full name as one of the keywords
+  (e.g. ["Patrick Ewing", "basketball", "Madison Square Garden"]).
+- Never substitute a slang/acronym term (e.g. "the GOAT", "the MVP") for the actual name —
+  always write the real proper noun, even if the blueprint or topic used the slang term."""
 
     def run(self, blueprint: VideoBlueprint, target_duration: int = 480, audience: str = "") -> FullScript:
         audience_str = f"\n\nTarget audience: {audience}" if audience else ""

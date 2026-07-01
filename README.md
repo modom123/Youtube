@@ -1,4 +1,4 @@
-# Social Optimize Machine
+# Social Money
 
 Turn any topic into a complete, publish-ready content package in minutes.
 
@@ -146,6 +146,59 @@ utils/
   file_manager.py          ← Job directories, manifests
   logger.py                ← Rich-powered console output
 ```
+
+## Multi-Platform Deployment
+
+The app ships for every environment from one codebase.
+
+### Web (PWA) — already live
+The Flask app is a full **Progressive Web App**. Users can install it from any browser:
+- **Chrome/Edge desktop** → address bar "Install" button
+- **Safari on iPhone/iPad** → Share → Add to Home Screen
+- **Android Chrome** → Install prompt appears automatically
+
+### Desktop — Electron (macOS · Windows · Linux)
+
+```bash
+cd desktop
+npm install
+
+# Run locally (connects to production URL)
+npm start
+
+# Build distributable
+npm run build:mac      # → .dmg + .zip (Intel + Apple Silicon)
+npm run build:win      # → .exe installer + portable
+npm run build:linux    # → .AppImage + .deb + .rpm
+```
+
+The desktop app bundles as a standalone installer. On macOS you get a native `.dmg`, on Windows an NSIS installer, on Linux an AppImage.
+
+### Mobile — Expo (iOS · Android)
+
+Requires [EAS CLI](https://docs.expo.dev/eas/) and an Expo account.
+
+```bash
+cd mobile
+npm install
+npm install -g eas-cli
+
+# Set your project ID in app.json → extra.eas.projectId
+
+# Run in simulator/emulator
+npm run ios         # Xcode + iOS simulator required
+npm run android     # Android Studio + emulator required
+
+# Build for distribution
+npm run build:ios       # → .ipa for App Store
+npm run build:android   # → .aab for Google Play
+
+# Submit to stores
+npm run submit:ios
+npm run submit:android
+```
+
+Update the `APP_URL` in `mobile/src/constants/index.ts` to point to your deployed backend before building.
 
 ## Tips
 

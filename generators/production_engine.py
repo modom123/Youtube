@@ -1,6 +1,9 @@
 """
 ProductionStudioEngine — orchestrates the 5-agent pipeline and drives
 actual asset generation (audio + video assembly).
+
+Uses studio_blueprints for predetermined production recipe and
+studio_intelligence for learning from past jobs.
 """
 from __future__ import annotations
 import json
@@ -9,6 +12,8 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import config
+from generators.studio_blueprints import get_blueprint, validate_output
+from generators.studio_intelligence import record_job, get_recommendations
 from generators.agents import (
     TrendArchitect,
     NarrativeDesigner,
@@ -43,16 +48,23 @@ class ProductionStudioEngine:
         self,
         monthly_budget: int = 500,
         progress_callback: ProgressCallback = _noop,
+        subscription_tier: str = "free",
     ):
         self.monthly_budget = monthly_budget
         self.cb = progress_callback
 
-        # Instantiate agents
+        # Instantiate agents and apply tier-based model routing
         self.trend_architect = TrendArchitect()
         self.narrative_designer = NarrativeDesigner()
         self.asset_curator = AssetCurator()
         self.cost_engineer = CostEngineer()
         self.growth_engineer = GrowthEngineer()
+
+        for agent in (
+            self.trend_architect, self.narrative_designer,
+            self.asset_curator, self.cost_engineer, self.growth_engineer,
+        ):
+            agent.set_tier(subscription_tier)
 
     # ── Public entry point ───────────────────────────────────────────────────
 
@@ -79,9 +91,22 @@ class ProductionStudioEngine:
         from generators import audio_generator, video_generator, media_fetcher, thumbnail_generator
         from generators.researcher import research_topic, brief_to_context
         from generators import higgsfield_mcp
-        from utils import file_manager, logger
+        from utils import file_manager
 
-        voice = voice or config.DEFAULT_VOICE
+        _start_time = time.time()
+        _bp = get_blueprint("production")
+        _recs = get_recommendations("production", genre=niche)
+
+        # Apply learned voice preference if available
+        if _recs.get("voice") and not voice:
+            voice = _recs["voice"]
+
+        # Auto-select Google Neural2 voice when API key is configured
+        if config.GOOGLE_API_KEY:
+            voice = voice or config.GOOGLE_TTS_VOICE
+        else:
+            voice = voice or config.DEFAULT_VOICE
+
         errors: list[str] = []
         blueprint: VideoBlueprint | None = None
         script: FullScript | None = None
@@ -181,6 +206,36 @@ class ProductionStudioEngine:
                 quality_impact="Optimisation skipped due to error",
             )
 
+        # ── FORCE hook section (section_id=1) to have Higgsfield ─────────────
+        # Regardless of Cost Engineer decision, section 1 must be AI-generated
+        # when HIGGSFIELD_MCP_TOKEN is configured.
+        if config.HIGGSFIELD_MCP_TOKEN and not dry_run:
+            hook_has_higgsfield = any(
+                a.section_id == 1 and a.source.startswith("higgsfield_")
+                for a in asset_plan.assets
+            )
+            if not hook_has_higgsfield:
+                # Build a sensible prompt from the hook text or first section
+                hook_prompt = blueprint.hook or niche
+                if script.sections:
+                    hook_prompt = script.sections[0].visual_direction or hook_prompt
+                hook_asset = AssetSpec(
+                    section_id=1,
+                    asset_type="video_clip",
+                    source="higgsfield_cinematic",
+                    prompt=f"Cinematic opening shot: {hook_prompt[:200]}. Dramatic lighting, slow camera push-in, professional film quality.",
+                    model_key="cinematic_studio_3_0",
+                    duration_seconds=script.sections[0].duration_seconds if script.sections else 15,
+                    aspect_ratio="9:16" if is_portrait else "16:9",
+                    credit_cost=8,
+                    priority=1,
+                )
+                # Remove any existing section_id=1 asset and prepend the forced one
+                asset_plan.assets = [a for a in asset_plan.assets if a.section_id != 1]
+                asset_plan.assets.insert(0, hook_asset)
+                asset_plan.total_credit_cost += 8
+                errors.append("Note: Hook section forced to Higgsfield cinematic_studio_3_0")
+
         # ── Agent 4: Growth Engineer ──────────────────────────────────────────
         self.cb("Agent 4/5 — Growth Engineer crafting SEO package…", 52)
         try:
@@ -199,10 +254,24 @@ class ProductionStudioEngine:
                 output_path=audio_path,
                 voice=voice,
             )
-            duration = audio_generator.get_audio_duration(audio_path)
+            _duration = audio_generator.get_audio_duration(audio_path)
         except Exception as e:
             errors.append(f"Audio generation failed: {e}")
-            duration = target_duration
+            _duration = target_duration
+            if not audio_path.exists():
+                errors.append("No audio file produced — cannot assemble video")
+                self.cb("Saving manifest…", 94)
+                manifest = {
+                    "niche": niche, "title": seo.title_final if seo else niche,
+                    "errors": errors, "files": {},
+                }
+                file_manager.save_manifest(job_dir, manifest)
+                return ProductionResult(
+                    niche=niche, blueprint=blueprint, script=script,
+                    asset_plan=asset_plan, seo=seo,
+                    pipeline_cost_credits=asset_plan.total_credit_cost if asset_plan else 0,
+                    status="failed", errors=errors,
+                )
 
         # ── Fetch / generate assets ───────────────────────────────────────────
         self.cb("Fetching and generating visual assets…", 65)
@@ -212,23 +281,57 @@ class ProductionStudioEngine:
 
         # Group assets by source
         higgsfield_assets = [a for a in asset_plan.assets if a.source.startswith("higgsfield_")]
-        pexels_assets = [a for a in asset_plan.assets if a.source == "free_pexels_api"]
+        pixabay_assets = [a for a in asset_plan.assets if a.source == "free_pixabay_api"]
+        person_assets = [a for a in asset_plan.assets if a.source == "real_person_wikimedia"]
 
-        # Stock media from Pexels
-        pexels_keywords = list({kw for a in pexels_assets for kw in a.prompt.split()[:3]})
-        pexels_keywords = pexels_keywords or script.sections[0].b_roll_keywords[:3] if script.sections else ["abstract background"]
+        # Real photos of named people via Wikimedia Commons (free, legally-clean)
+        person_image_clips: list[Path] = []
+        if person_assets:
+            self.cb(f"Asset Agent — sourcing real photos for {len(person_assets)} named people…", 67)
+            for pa in person_assets:
+                name = (pa.entity_name or "").strip()
+                if not name:
+                    continue
+                try:
+                    found = media_fetcher.fetch_person_images(name, output_dir=stock_dir, count=3)
+                    if found:
+                        person_image_clips.extend(found)
+                        continue
+                except Exception as e:
+                    errors.append(f"Wikimedia fetch failed for '{name}': {e}")
+                # No real photo found — fall back to the curator's generic query
+                try:
+                    fb_clips, fb_imgs = media_fetcher.fetch_media_for_topic(
+                        keywords=[pa.prompt.strip() or name],
+                        output_dir=stock_dir,
+                        video_count=1,
+                        is_portrait=is_portrait,
+                    )
+                    person_image_clips.extend(fb_imgs)
+                except Exception as e:
+                    errors.append(f"Stock fallback failed for '{name}': {e}")
+
+        # Stock media from Pixabay
+        pixabay_keywords = list({kw for a in pixabay_assets for kw in a.prompt.split()[:3]})
+        if not pixabay_keywords:
+            if script.sections:
+                pixabay_keywords = script.sections[0].b_roll_keywords[:3]
+            else:
+                pixabay_keywords = ["abstract background"]
 
         video_clips: list[Path] = []
         image_clips: list[Path] = []
         try:
             video_clips, image_clips = media_fetcher.fetch_media_for_topic(
-                keywords=pexels_keywords[:5],
+                keywords=pixabay_keywords[:5],
                 output_dir=stock_dir,
-                video_count=max(4, len(pexels_assets)),
+                video_count=max(4, len(pixabay_assets)),
                 is_portrait=is_portrait,
             )
         except Exception as e:
-            errors.append(f"Pexels fetch failed: {e}")
+            errors.append(f"Pixabay fetch failed: {e}")
+
+        image_clips = person_image_clips + image_clips
 
         # Higgsfield AI clips via MCP
         ai_clips: list[Path] = []
@@ -263,6 +366,22 @@ class ProductionStudioEngine:
             )
         except Exception as e:
             errors.append(f"Thumbnail failed: {e}")
+
+        # ── AI Thumbnail via Higgsfield (upgrade over standard thumbnail) ─────
+        if config.HIGGSFIELD_MCP_TOKEN and not dry_run and script.thumbnail_prompt:
+            self.cb("Generating AI thumbnail…", 81)
+            try:
+                ai_thumb_path = job_dir / "thumbnail_ai.jpg"
+                result_path = higgsfield_mcp.generate_image_via_mcp(
+                    prompt=script.thumbnail_prompt,
+                    output_path=ai_thumb_path,
+                    model_id="nano_banana_pro",
+                    aspect_ratio="16:9",
+                )
+                if result_path and result_path.exists() and result_path.stat().st_size > 1_000:
+                    thumbnail_path = result_path
+            except Exception as e:
+                errors.append(f"AI thumbnail generation failed (using standard): {e}")
 
         # ── Assemble video ────────────────────────────────────────────────────
         self.cb("Assembling final video…", 84)
@@ -321,6 +440,37 @@ class ProductionStudioEngine:
             pipeline_cost_credits=asset_plan.total_credit_cost,
             status="success" if not errors else "partial",
             errors=errors,
+            video_path=str(video_path) if video_path.exists() else "",
+            audio_path=str(audio_path),
+            thumbnail_path=str(thumbnail_path),
+            manifest_path=str(job_dir / "manifest.json"),
+        )
+
+        # ── Record learning ───────────────────────────────────────────────
+        _elapsed = time.time() - _start_time
+        _clip_count = len(all_video_clips) + len(image_clips)
+        _output_meta = {
+            "min_unique_clips": _clip_count,
+            "thumbnail_has_text": True,
+        }
+        if video_path.exists():
+            _output_meta["min_duration_seconds"] = _duration
+        _gates = validate_output("production", _output_meta)
+        _passed = sum(1 for g in _gates.values() if g.get("passed"))
+        record_job(
+            studio="production", job_id=0, user_id=0,
+            topic=niche, genre=niche, format="long",
+            clip_count=_clip_count,
+            duration_seconds=_duration,
+            voice_used=voice or "",
+            ai_provider="higgsfield" if ai_clips else "stock_only",
+            completed=1 if result.status in ("success", "partial") else 0,
+            error_message="; ".join(errors) if errors else "",
+            generation_time_seconds=round(_elapsed, 1),
+            file_size_bytes=video_path.stat().st_size if video_path.exists() else 0,
+            quality_score=0.8 if result.status == "success" else 0.5,
+            gates_passed=_passed, gates_total=len(_gates),
+            asset_sources={"ai_clips": len(ai_clips), "stock_clips": len(video_clips), "images": len(image_clips)},
         )
 
         self.cb("Production complete!", 100)
@@ -360,3 +510,43 @@ def _blank_seo(title: str) -> dict:
         "pinned_comment": "", "upload_timing": "Tuesday 14:00 UTC",
         "predicted_views_30d": 0, "ab_title_variants": [title],
     }
+
+
+def run_production_pipeline(
+    job_id: int = None,
+    niche: str = "",
+    remaining_credits: int = 500,
+    monthly_budget: int = 500,
+    target_duration: int = 480,
+    audience: str = "",
+    format: str = "long",
+    is_portrait: bool = False,
+    voice: str = None,
+    thumbnail_style: str = "fire",
+    privacy: str = "private",
+    dry_run: bool = False,
+    research_enabled: bool = True,
+    competitor_titles: list = None,
+    platforms: list = None,
+    subscription_tier: str = "free",
+    **kwargs,
+) -> ProductionResult:
+    """Convenience wrapper so callers can use a simple function instead of the class."""
+    engine = ProductionStudioEngine(
+        monthly_budget=monthly_budget,
+        subscription_tier=subscription_tier,
+    )
+    return engine.run_daily_pipeline(
+        niche=niche,
+        remaining_credits=remaining_credits,
+        target_duration=target_duration,
+        audience=audience,
+        is_portrait=is_portrait,
+        voice=voice,
+        thumbnail_style=thumbnail_style,
+        privacy=privacy,
+        dry_run=dry_run,
+        research_enabled=research_enabled,
+        competitor_titles=competitor_titles or [],
+        platforms=platforms or [],
+    )

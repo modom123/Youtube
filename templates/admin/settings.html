@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% set active_page = "admin" %}
+
+{% block title %}Settings — Admin{% endblock %}
+{% block topbar_title %}Settings{% endblock %}
+{% block topbar_sub %}API Keys & Environment Variables — {{ total_set }}/{{ total_vars }} configured{% endblock %}
+
+{% block topbar_actions %}
+<a href="/admin" class="btn btn-ghost" style="font-size:12px;">Back to Admin</a>
+{% endblock %}
+
+{% block content %}
+<style>
+  .sg { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:20px; }
+  .sg h3 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 14px; }
+  .sv { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.05); }
+  .sv:last-child { border-bottom:none; }
+  .sv-status { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  .sv-status.on { background:#22c55e; box-shadow:0 0 6px rgba(34,197,94,.4); }
+  .sv-status.off { background:#ef4444; box-shadow:0 0 6px rgba(239,68,68,.3); }
+  .sv-info { flex:1; min-width:0; }
+  .sv-name { font-size:13px; font-weight:600; font-family:monospace; color:var(--text); }
+  .sv-desc { font-size:11px; color:var(--muted); margin-top:2px; }
+  .sv-val { font-size:12px; font-family:monospace; color:var(--muted); background:var(--bg); padding:4px 8px; border-radius:4px; }
+  .sv-actions { display:flex; gap:6px; flex-shrink:0; }
+  .sv-btn { font-size:11px; padding:4px 10px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text); cursor:pointer; }
+  .sv-btn:hover { border-color:var(--accent); }
+  .sv-btn.sv-set { background:rgba(234,179,8,.15); border-color:rgba(234,179,8,.3); color:#eab308; }
+  .summary-bar { display:flex; gap:16px; margin-bottom:20px; }
+  .summary-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:16px 20px; flex:1; text-align:center; }
+  .summary-card .num { font-size:28px; font-weight:700; }
+  .summary-card .lbl { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:4px; }
+  .edit-row { display:flex; gap:6px; align-items:center; margin-top:6px; }
+  .edit-row input { flex:1; font-size:12px; font-family:monospace; padding:5px 8px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); }
+  .edit-row input:focus { outline:none; border-color:#eab308; }
+  .note { font-size:11px; color:var(--muted); background:rgba(234,179,8,.08); border:1px solid rgba(234,179,8,.15); border-radius:8px; padding:10px 14px; margin-bottom:20px; line-height:1.6; }
+</style>
+
+<div class="note">
+  API keys saved here are <strong>stored permanently in the database</strong> and automatically loaded on every restart. No need to set them on Render separately.
+</div>
+
+<div class="summary-bar">
+  <div class="summary-card">
+    <div class="num" style="color:#22c55e;">{{ total_set }}</div>
+    <div class="lbl">Configured</div>
+  </div>
+  <div class="summary-card">
+    <div class="num" style="color:#ef4444;">{{ total_vars - total_set }}</div>
+    <div class="lbl">Not Set</div>
+  </div>
+  <div class="summary-card">
+    <div class="num">{{ total_vars }}</div>
+    <div class="lbl">Total Variables</div>
+  </div>
+</div>
+
+{% for group in groups %}
+<div class="sg">
+  <h3>{{ group.name }}</h3>
+  {% for item in group.vars %}
+  <div class="sv" id="row-{{ item.name }}">
+    <div class="sv-status {{ 'on' if item.is_set else 'off' }}"></div>
+    <div class="sv-info">
+      <div class="sv-name">{{ item.name }}</div>
+      <div class="sv-desc">{{ item.description }}</div>
+    </div>
+    {% if item.is_set %}
+    <span class="sv-val" id="val-{{ item.name }}">{{ item.masked }}</span>
+    {% endif %}
+    <div class="sv-actions">
+      <button class="sv-btn {{ 'sv-set' if not item.is_set }}" onclick="editVar('{{ item.name }}')">
+        {{ 'Update' if item.is_set else 'Set' }}
+      </button>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+
+<script>
+function editVar(name) {
+  const row = document.getElementById('row-' + name);
+  if (row.querySelector('.edit-row')) return;
+  const div = document.createElement('div');
+  div.className = 'edit-row';
+  div.innerHTML = '<input type="text" placeholder="Paste value..." id="input-' + name + '">' +
+    '<button class="sv-btn" onclick="saveVar(\'' + name + '\')">Save</button>' +
+    '<button class="sv-btn" onclick="this.parentElement.remove()">Cancel</button>';
+  row.appendChild(div);
+  document.getElementById('input-' + name).focus();
+}
+
+async function saveVar(name) {
+  const input = document.getElementById('input-' + name);
+  const value = input.value.trim();
+  if (!value) { alert('Value cannot be empty'); return; }
+
+  const resp = await fetch('/api/admin/env', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name, value }),
+  });
+  const data = await resp.json();
+  if (data.ok) {
+    const row = document.getElementById('row-' + name);
+    row.querySelector('.sv-status').className = 'sv-status on';
+    const editRow = row.querySelector('.edit-row');
+    if (editRow) editRow.remove();
+
+    let valEl = document.getElementById('val-' + name);
+    if (!valEl) {
+      valEl = document.createElement('span');
+      valEl.className = 'sv-val';
+      valEl.id = 'val-' + name;
+      row.querySelector('.sv-actions').before(valEl);
+    }
+    valEl.textContent = data.masked;
+
+    const btn = row.querySelector('.sv-btn');
+    btn.textContent = 'Update';
+    btn.classList.remove('sv-set');
+  } else {
+    alert(data.error || 'Failed to save');
+  }
+}
+</script>
+{% endblock %}

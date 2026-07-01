@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+{% set active_page = "quickpost" %}
+
+{% block title %}Quick Post — Social Optimize{% endblock %}
+{% block topbar_title %}Quick Post{% endblock %}
+{% block topbar_sub %}Upload a photo or video → AI writes platform-ready captions → publish instantly{% endblock %}
+
+{% block content %}
+<style>
+  .qp-grid { display: grid; grid-template-columns: 380px 1fr; gap: 24px; align-items: start; }
+  @media(max-width:960px){ .qp-grid { grid-template-columns:1fr; } }
+
+  .qp-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:24px; }
+  .qp-card h2 { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0 0 16px; }
+
+  .form-row { margin-bottom:14px; }
+  .form-row label { display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.05em; }
+  .form-row input, .form-row select, .form-row textarea {
+    width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    color:var(--text); padding:9px 12px; font-size:14px; font-family:inherit; box-sizing:border-box;
+  }
+  .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline:none; border-color:var(--accent); }
+  .form-row textarea { resize:vertical; min-height:60px; }
+
+  .upload-zone {
+    border:2px dashed var(--border); border-radius:12px; padding:36px 16px;
+    text-align:center; cursor:pointer; transition:all .2s; background:var(--bg);
+    margin-bottom:14px; position:relative; overflow:hidden;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color:var(--accent); background:rgba(255,59,48,.04); }
+  .upload-zone input[type=file] { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .upload-zone .uz-icon { font-size:36px; margin-bottom:8px; }
+  .upload-zone .uz-title { font-size:14px; font-weight:600; margin-bottom:3px; }
+  .upload-zone .uz-sub { font-size:12px; color:var(--muted); }
+
+  .preview-wrap { position:relative; border-radius:10px; overflow:hidden; margin-bottom:14px; max-height:220px; display:none; }
+  .preview-wrap img, .preview-wrap video { width:100%; height:100%; object-fit:cover; display:block; max-height:220px; }
+  .preview-clear { position:absolute; top:8px; right:8px; background:rgba(0,0,0,.7); border:none; color:#fff; width:26px; height:26px; border-radius:50%; cursor:pointer; font-size:13px; }
+
+  .platform-chips { display:flex; flex-wrap:wrap; gap:7px; }
+  .platform-chip { display:flex; align-items:center; gap:5px; border:1px solid var(--border); border-radius:20px; padding:4px 11px; cursor:pointer; font-size:12px; font-weight:500; background:var(--bg); transition:all .15s; user-select:none; }
+  .platform-chip.active { border-color:var(--accent); background:rgba(255,59,48,.1); color:var(--accent); }
+
+  .btn-generate { width:100%; padding:13px; background:var(--accent); color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer; margin-top:6px; transition:opacity .15s; }
+  .btn-generate:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-generate:hover:not(:disabled) { opacity:.88; }
+
+  .empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
+  .empty-state .es-icon { font-size:48px; margin-bottom:14px; }
+  .empty-state h3 { font-size:17px; font-weight:600; color:var(--text); margin-bottom:8px; }
+
+  .spinner { text-align:center; padding:60px 20px; }
+  .spinner-icon { font-size:32px; animation: spin 1s linear infinite; display:inline-block; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .spinner p { color:var(--muted); font-size:14px; margin-top:12px; }
+
+  .platform-tabs { display:flex; gap:4px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:20px; }
+  .ptab { padding:7px 14px; font-size:12px; font-weight:600; border:none; background:none; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .15s; border-radius:6px 6px 0 0; }
+  .ptab.active { color:var(--accent); border-bottom-color:var(--accent); background:rgba(255,59,48,.05); }
+
+  .caption-panel { display:none; }
+  .caption-panel.active { display:block; }
+
+  .caption-box {
+    background:var(--bg); border:1px solid var(--border); border-radius:10px;
+    padding:16px; font-size:14px; line-height:1.7; color:var(--text);
+    min-height:100px; white-space:pre-wrap; word-break:break-word;
+  }
+  .caption-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .btn-sm { padding:7px 14px; border-radius:7px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text); transition:all .15s; }
+  .btn-sm:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-sm.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn-sm.primary:hover { opacity:.88; color:#fff; }
+
+  .meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
+  .meta-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; }
+  .meta-box h4 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:8px; }
+  .meta-box p { font-size:13px; line-height:1.6; color:var(--text); }
+
+  .hashtag-cloud { display:flex; flex-wrap:wrap; gap:6px; }
+  .hashtag-pill { background:rgba(255,59,48,.08); border:1px solid rgba(255,59,48,.2); color:var(--accent); border-radius:20px; padding:3px 10px; font-size:12px; cursor:pointer; transition:background .15s; }
+  .hashtag-pill:hover { background:rgba(255,59,48,.15); }
+
+  .media-preview-result { border-radius:10px; overflow:hidden; margin-bottom:16px; max-height:200px; }
+  .media-preview-result img, .media-preview-result video { width:100%; max-height:200px; object-fit:cover; display:block; }
+
+  .vision-card { background:rgba(255,59,48,.05); border:1px solid rgba(255,59,48,.15); border-radius:10px; padding:14px; font-size:13px; line-height:1.6; color:var(--text); margin-bottom:16px; }
+  .vision-card strong { display:block; font-size:11px; color:var(--accent); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+
+  .schedule-row { display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap; }
+  .schedule-row input[type=datetime-local] { flex:1; min-width:160px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:7px 10px; font-size:13px; font-family:inherit; }
+</style>
+
+<div class="qp-grid">
+
+  <!-- LEFT PANEL -->
+  <div>
+    <div class="qp-card">
+      <h2>📸 Quick Post</h2>
+
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="mediaFile" accept="image/*,video/*" onchange="previewMedia(this)">
+        <div class="uz-icon">📁</div>
+        <div class="uz-title">Drop your photo or video</div>
+        <div class="uz-sub">JPG, PNG, WEBP, MP4, MOV — AI analyzes it instantly</div>
+      </div>
+
+      <div class="preview-wrap" id="previewWrap">
+        <img id="previewImg" src="" alt="" style="display:none">
+        <video id="previewVid" src="" muted autoplay loop style="display:none"></video>
+        <button class="preview-clear" onclick="clearMedia()">✕</button>
+      </div>
+
+      <div class="form-row">
+        <label>Caption Tone</label>
+        <select id="tone">
+          <option value="engaging">Engaging &amp; Relatable</option>
+          <option value="professional">Professional &amp; Authoritative</option>
+          <option value="funny">Funny &amp; Viral</option>
+          <option value="inspirational">Inspirational &amp; Motivating</option>
+          <option value="promotional">Promotional &amp; Sales-focused</option>
+          <option value="educational">Educational &amp; Informative</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Additional Context (optional)</label>
+        <textarea id="context" placeholder="e.g. This is our new summer collection launch, targeting fitness enthusiasts..."></textarea>
+      </div>
+
+      <div class="form-row">
+        <label>Post To</label>
+        <div class="platform-chips" id="platformChips">
+          {% for pid, icon, label in [
+            ('instagram','📸','Instagram'),('tiktok','🎵','TikTok'),
+            ('facebook','👍','Facebook'),('twitter','𝕏','X'),
+            ('twitch','🟣','Twitch'),('threads','🧵','Threads'),
+            ('youtube','▶️','YouTube'),('snapchat','👻','Snapchat')
+          ] %}
+          <div class="platform-chip {% if pid in connected_platforms %}active{% endif %}" data-platform="{{ pid }}" onclick="this.classList.toggle('active')">
+            {{ icon }} {{ label }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <button class="btn-generate" id="generateBtn" onclick="generatePost()">
+        ✨ Generate Captions
+      </button>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="rightPanel">
+
+    <div id="emptyState" class="qp-card empty-state">
+      <div class="es-icon">📲</div>
+      <h3>Platform-ready captions appear here</h3>
+      <p style="max-width:300px; margin:0 auto; line-height:1.6">Upload any photo or video, choose your platforms, and AI will write optimized captions for each one — hashtags included.</p>
+    </div>
+
+    <div id="spinnerState" class="qp-card spinner" style="display:none">
+      <div class="spinner-icon">⚙️</div>
+      <p id="spinnerMsg">Analyzing your media...</p>
+    </div>
+
+    <div id="resultState" style="display:none">
+
+      <div class="media-preview-result" id="resultMediaWrap" style="display:none"></div>
+
+      <div class="vision-card" id="visionCard" style="display:none">
+        <strong>🔍 AI saw this in your media</strong>
+        <span id="visionText"></span>
+      </div>
+
+      <div class="qp-card" style="margin-bottom:16px;">
+        <div class="platform-tabs" id="platformTabs"></div>
+        <div id="captionPanels"></div>
+      </div>
+
+      <div class="qp-card" style="margin-bottom:16px;">
+        <h2>Suggested Hashtags</h2>
+        <div class="hashtag-cloud" id="hashtagCloud"></div>
+        <div style="margin-top:10px;">
+          <button class="btn-sm" onclick="copyAllHashtags()">📋 Copy All Hashtags</button>
+        </div>
+      </div>
+
+      <div class="meta-grid">
+        <div class="meta-box">
+          <h4>⏰ Best Time to Post</h4>
+          <p id="bestTime">—</p>
+        </div>
+        <div class="meta-box">
+          <h4>♿ Alt Text</h4>
+          <p id="altText">—</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+let currentJobId = null;
+let pollInterval = null;
+let generatedData = null;
+
+function previewMedia(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const wrap = document.getElementById('previewWrap');
+  const img  = document.getElementById('previewImg');
+  const vid  = document.getElementById('previewVid');
+  if (file.type.startsWith('video/')) {
+    img.style.display = 'none'; vid.src = url; vid.style.display = 'block';
+  } else {
+    vid.style.display = 'none'; img.src = url; img.style.display = 'block';
+  }
+  wrap.style.display = 'block';
+  document.getElementById('uploadZone').style.display = 'none';
+}
+function clearMedia() {
+  document.getElementById('mediaFile').value = '';
+  document.getElementById('previewWrap').style.display = 'none';
+  document.getElementById('uploadZone').style.display = 'block';
+}
+
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) { const dt = new DataTransfer(); dt.items.add(f); document.getElementById('mediaFile').files = dt.files; previewMedia(document.getElementById('mediaFile')); }
+});
+
+async function generatePost() {
+  const fi = document.getElementById('mediaFile');
+  if (!fi.files[0]) { alert('Upload a photo or video first.'); return; }
+
+  const platforms = [...document.querySelectorAll('.platform-chip.active')].map(e => e.dataset.platform);
+  if (!platforms.length) { alert('Select at least one platform.'); return; }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true; btn.textContent = '⏳ Generating...';
+
+  showState('spinner');
+  document.getElementById('spinnerMsg').textContent = 'Uploading media...';
+
+  const fd = new FormData();
+  fd.append('media', fi.files[0]);
+  fd.append('tone', document.getElementById('tone').value);
+  fd.append('context', document.getElementById('context').value);
+  platforms.forEach(p => fd.append('platforms', p));
+
+  try {
+    const resp = await fetch('/api/quickpost/generate', { method:'POST', body:fd });
+    const data = await resp.json();
+    if (data.error) { showError(data.error); return; }
+    currentJobId = data.job_id;
+    pollInterval = setInterval(pollStatus, 1200);
+  } catch(e) {
+    showError(e.message);
+  }
+}
+
+async function pollStatus() {
+  try {
+    const resp = await fetch(`/api/quickpost/${currentJobId}/status`);
+    const data = await resp.json();
+
+    if (data.step) document.getElementById('spinnerMsg').textContent = data.step;
+
+    if (data.status === 'done') {
+      clearInterval(pollInterval);
+      generatedData = data;
+      showResults(data);
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = false; btn.textContent = '✨ Generate Captions';
+    } else if (data.status === 'error') {
+      clearInterval(pollInterval);
+      showError(data.error || 'Generation failed');
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = false; btn.textContent = '✨ Generate Captions';
+    }
+  } catch(e) {}
+}
+
+function showResults(d) {
+  showState('result');
+
+  const fi = document.getElementById('mediaFile');
+  if (fi.files[0]) {
+    const wrap = document.getElementById('resultMediaWrap');
+    const url  = URL.createObjectURL(fi.files[0]);
+    wrap.innerHTML = fi.files[0].type.startsWith('video/')
+      ? `<video src="${url}" muted autoplay loop controls></video>`
+      : `<img src="${url}" alt="Your media">`;
+    wrap.style.display = 'block';
+  }
+
+  if (d.media_description) {
+    document.getElementById('visionText').textContent = d.media_description;
+    document.getElementById('visionCard').style.display = 'block';
+  }
+
+  const captions  = d.captions || {};
+  const tabsEl    = document.getElementById('platformTabs');
+  const panelsEl  = document.getElementById('captionPanels');
+  tabsEl.innerHTML = ''; panelsEl.innerHTML = '';
+
+  const icons = {instagram:'📸',tiktok:'🎵',facebook:'👍',twitter:'𝕏',twitch:'🟣',threads:'🧵',youtube:'▶️',snapchat:'👻'};
+  const names = {instagram:'Instagram',tiktok:'TikTok',facebook:'Facebook',twitter:'X',twitch:'Twitch',threads:'Threads',youtube:'YouTube',snapchat:'Snapchat'};
+
+  let first = true;
+  for (const [platform, caption] of Object.entries(captions)) {
+    const tabId = 'cap-' + platform;
+    tabsEl.innerHTML += `<button class="ptab ${first?'active':''}" onclick="switchCapTab('${platform}', this)">${icons[platform]||'📲'} ${names[platform]||platform}</button>`;
+    panelsEl.innerHTML += `
+      <div class="caption-panel ${first?'active':''}" id="${tabId}">
+        <div class="caption-box" id="box-${platform}" contenteditable="true">${caption}</div>
+        <div class="caption-actions">
+          <button class="btn-sm" onclick="copyCaption('${platform}')">📋 Copy</button>
+          <button class="btn-sm primary" onclick="postNow('${platform}', this)">🚀 Post Now</button>
+          <button class="btn-sm" onclick="openSchedule('${platform}')">📅 Schedule</button>
+        </div>
+        <div class="schedule-row" id="schedule-${platform}" style="display:none">
+          <input type="datetime-local" id="schedtime-${platform}">
+          <button class="btn-sm primary" onclick="schedulePost('${platform}')">📅 Confirm Schedule</button>
+          <button class="btn-sm" onclick="document.getElementById('schedule-${platform}').style.display='none'">Cancel</button>
+        </div>
+      </div>`;
+    first = false;
+  }
+
+  const tags = d.suggested_tags || [];
+  document.getElementById('hashtagCloud').innerHTML = tags.map(t => `<span class="hashtag-pill" onclick="copyTag(this, '#${t}')">#${t}</span>`).join('');
+
+  document.getElementById('bestTime').textContent = d.best_time || '—';
+  document.getElementById('altText').textContent  = d.alt_text  || '—';
+}
+
+function switchCapTab(platform, btn) {
+  document.querySelectorAll('.caption-panel').forEach(e => e.classList.remove('active'));
+  document.querySelectorAll('.ptab').forEach(e => e.classList.remove('active'));
+  document.getElementById('cap-' + platform).classList.add('active');
+  btn.classList.add('active');
+}
+
+function copyCaption(platform) {
+  const text = document.getElementById('box-' + platform).innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target; btn.textContent = '✅ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 1500);
+  });
+}
+
+function copyTag(el, tag) {
+  navigator.clipboard.writeText(tag).then(() => {
+    el.style.background = 'rgba(48,209,88,.2)';
+    setTimeout(() => el.style.background = '', 1000);
+  });
+}
+
+function copyAllHashtags() {
+  const tags = [...document.querySelectorAll('.hashtag-pill')].map(e => e.textContent).join(' ');
+  navigator.clipboard.writeText(tags).then(() => alert('All hashtags copied!'));
+}
+
+function openSchedule(platform) {
+  document.getElementById('schedule-' + platform).style.display = 'flex';
+}
+
+async function postNow(platform, btn) {
+  const caption = document.getElementById('box-' + platform).innerText;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Posting...';
+  try {
+    const resp = await fetch(`/api/quickpost/${currentJobId}/publish`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ platform, caption })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      if (data.result && data.result.status === 'manual_required') {
+        btn.disabled = false;
+        btn.textContent = orig;
+        alert('📋 ' + data.result.reason + '\n\nCaption copied to clipboard!');
+        navigator.clipboard.writeText(caption).catch(() => {});
+      } else {
+        btn.textContent = '✅ Posted!';
+        btn.style.background = '#30d158';
+        btn.style.borderColor = '#30d158';
+      }
+    } else {
+      btn.disabled = false;
+      btn.textContent = orig;
+      alert('Error: ' + (data.error || 'unknown'));
+    }
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = orig;
+    alert('Error: ' + e.message);
+  }
+}
+
+async function schedulePost(platform) {
+  const caption  = document.getElementById('box-' + platform).innerText;
+  const schedAt  = document.getElementById('schedtime-' + platform).value;
+  if (!schedAt) { alert('Pick a date and time.'); return; }
+
+  const resp = await fetch(`/api/quickpost/${currentJobId}/publish`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ platform, caption, schedule_at: schedAt })
+  });
+  const data = await resp.json();
+  if (data.ok) {
+    alert(`✅ Scheduled for ${platform}!`);
+    document.getElementById('schedule-' + platform).style.display = 'none';
+  } else {
+    alert('Error: ' + (data.error || 'unknown'));
+  }
+}
+
+function showState(state) {
+  document.getElementById('emptyState').style.display   = state === 'empty'  ? 'block' : 'none';
+  document.getElementById('spinnerState').style.display = state === 'spinner' ? 'block' : 'none';
+  document.getElementById('resultState').style.display  = state === 'result'  ? 'block' : 'none';
+}
+
+function showError(msg) {
+  showState('spinner');
+  document.getElementById('spinnerMsg').textContent = '❌ ' + msg;
+}
+</script>
+{% endblock %}

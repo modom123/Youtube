@@ -8,6 +8,14 @@
 
 {% block content %}
 
+<!-- ── Content Template Picker ─────────────────────────────────────────────── -->
+<div class="section-header mb-16">
+  <div class="section-title">Quick <span class="accent">Templates</span></div>
+  <span class="text-dim text-sm">Pick a template to pre-fill the form</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:28px;" id="template-grid">
+</div>
+
 <div class="grid-2" style="align-items:start;">
 
   <!-- ── Left: Configuration ──────────────────────────── -->
@@ -23,6 +31,29 @@
       <div class="form-group">
         <label>Target Audience</label>
         <input type="text" id="audience" value="general public" placeholder="e.g. beginner investors aged 25-40">
+      </div>
+      <div class="form-group">
+        <label>Tone &amp; Voice</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px;" id="tone-grid">
+          {% for t_id, t_label, t_emoji in [
+            ('engaging','Engaging','🔥'),('educational','Educational','📚'),
+            ('humorous','Humorous','😂'),('professional','Professional','💼'),
+            ('inspirational','Inspirational','✨'),('casual','Casual','😊')
+          ] %}
+          <div class="format-card {% if t_id == 'engaging' %}selected{% endif %}"
+               data-tone="{{ t_id }}"
+               onclick="selectTone(this,'{{ t_id }}')"
+               style="padding:8px 6px;text-align:center;cursor:pointer;border-radius:8px;">
+            <div style="font-size:16px;">{{ t_emoji }}</div>
+            <div style="font-size:11px;font-weight:600;margin-top:2px;">{{ t_label }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        <input type="hidden" id="tone" value="engaging">
+      </div>
+      <div class="form-group">
+        <label>SEO Keywords <span class="text-dim text-xs">(optional — comma separated)</span></label>
+        <input type="text" id="keywords" placeholder="e.g. soccer stadiums, FIFA, world cup, largest arena">
       </div>
       <div class="form-group">
         <label>Extra Instructions <span class="text-dim text-xs">(optional)</span></label>
@@ -49,67 +80,43 @@
           <div class="format-desc">Deep-dive YouTube video · 8 minutes</div>
           <span class="format-badge badge-blue">16:9 Landscape</span>
         </div>
-        <div class="format-card" data-format="podcast" onclick="selectFormat(this,'podcast')">
-          <div class="format-name">Podcast Episode</div>
-          <div class="format-desc">Conversational audio+visual · 10 min</div>
-          <span class="format-badge badge-green">16:9 Landscape</span>
+        <div class="format-card" onclick="window.location.href='/podcast-studio'" style="border-color:#a855f755;">
+          <div class="format-name">🎙️ Podcast</div>
+          <div class="format-desc">Full podcast studio → dedicated tool</div>
+          <span class="format-badge" style="background:#a855f720;color:#a855f7;">Podcast Studio</span>
+        </div>
+        <div class="format-card" data-format="countdown" onclick="selectFormat(this,'countdown')" style="border-color:#22d3ee55;">
+          <div class="format-name" style="color:#22d3ee;">🏆 Top N Countdown</div>
+          <div class="format-desc">Ranked list video · Top 5–25</div>
+          <span class="format-badge" style="background:rgba(34,211,238,.15);color:#22d3ee;">16:9 Landscape</span>
         </div>
         <div class="format-card" data-format="commercial" onclick="selectFormat(this,'commercial')" style="border-color:#f59e0b55;">
           <div class="format-name" style="color:#f59e0b;">📺 Commercial</div>
           <div class="format-desc">Brand ad · 6 / 15 / 30 / 60 sec</div>
           <span class="format-badge" style="background:rgba(245,158,11,.15);color:#f59e0b;">Any Ratio</span>
         </div>
+        <div class="format-card" data-format="documentary" onclick="selectFormat(this,'documentary')" style="border-color:#06b6d455;">
+          <div class="format-name" style="color:#06b6d4;">🎬 Documentary</div>
+          <div class="format-desc">NatGeo · ESPN 30/30 · HBO style</div>
+          <span class="format-badge" style="background:rgba(6,182,212,.15);color:#06b6d4;">16:9 Cinematic</span>
+        </div>
+        <div class="format-card" data-format="animation" onclick="selectFormat(this,'animation')" style="border-color:#e879f955;">
+          <div class="format-name" style="color:#e879f9;">🎨 Animation</div>
+          <div class="format-desc">LEGO · Clay · Anime · Comic · Pixel</div>
+          <span class="format-badge" style="background:rgba(232,121,249,.15);color:#e879f9;">16:9 Landscape</span>
+        </div>
       </div>
     </div>
 
-    <!-- Publishing -->
-    <div class="card">
-      <div class="card-title mb-16"><span class="accent">📡</span> Publish To</div>
-      <div class="platform-grid">
-        <div class="platform-card youtube" data-platform="youtube" onclick="togglePlatform(this)">
-          <div class="platform-icon">▶️</div>
-          <div class="platform-name">YouTube</div>
-        </div>
-        <div class="platform-card tiktok" data-platform="tiktok" onclick="togglePlatform(this)">
-          <div class="platform-icon">🎵</div>
-          <div class="platform-name">TikTok</div>
-        </div>
-        <div class="platform-card instagram" data-platform="instagram" onclick="togglePlatform(this)">
-          <div class="platform-icon">📸</div>
-          <div class="platform-name">Instagram</div>
-        </div>
-        <div class="platform-card facebook" data-platform="facebook" onclick="togglePlatform(this)">
-          <div class="platform-icon">📘</div>
-          <div class="platform-name">Facebook</div>
-        </div>
-        <div class="platform-card twitter" data-platform="twitter" onclick="togglePlatform(this)">
-          <div class="platform-icon">🐦</div>
-          <div class="platform-name">Twitter / X</div>
-        </div>
-        <div class="platform-card linkedin" data-platform="linkedin" onclick="togglePlatform(this)">
-          <div class="platform-icon">💼</div>
-          <div class="platform-name">LinkedIn</div>
-        </div>
-        <div class="platform-card pinterest" data-platform="pinterest" onclick="togglePlatform(this)">
-          <div class="platform-icon">📌</div>
-          <div class="platform-name">Pinterest</div>
-        </div>
-        <div class="platform-card threads" data-platform="threads" onclick="togglePlatform(this)">
-          <div class="platform-icon">🧵</div>
-          <div class="platform-name">Threads</div>
+    <!-- Publishing note -->
+    <div class="card" style="border-color:var(--border-bright);background:var(--bg-elevated);">
+      <div class="flex gap-12" style="align-items:center;">
+        <span style="font-size:22px;">📡</span>
+        <div>
+          <div class="text-bold text-sm">Choose platforms after review</div>
+          <div class="text-dim text-xs mt-2">Generate your video first — then open the job to preview it and select which platforms to publish to.</div>
         </div>
       </div>
-      <div class="form-group mt-16">
-        <label>Privacy</label>
-        <select id="privacy">
-          <option value="private">🔒 Private (safe for testing)</option>
-          <option value="unlisted">🔗 Unlisted</option>
-          <option value="public">🌍 Public</option>
-        </select>
-      </div>
-      <label class="flex-center gap-8 mt-8" style="cursor:pointer;">
-        <input type="checkbox" id="dry_run"> Generate only — skip uploading (dry run)
-      </label>
     </div>
 
   </div>
@@ -123,39 +130,24 @@
       <div class="form-group">
         <label>Narrator Voice</label>
         <select id="voice">
-          {% if google_api_key and google_tts_voices %}
-          <optgroup label="Google Neural2 (HD quality)">
-            {% for v in google_tts_voices %}
-            <option value="{{ v.id }}" {% if v.id == 'en-US-Neural2-C' %}selected{% endif %}>{{ v.name }} ({{ v.locale }})</option>
-            {% endfor %}
-          </optgroup>
-          <optgroup label="Edge TTS (fallback)">
-            {% for v in voices %}
-            <option value="{{ v }}">{{ v }}</option>
-            {% endfor %}
-          </optgroup>
-          {% else %}
           {% for v in voices %}
-          <option value="{{ v }}" {% if v == 'en-US-AriaNeural' %}selected{% endif %}>{{ v }}</option>
+          <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
           {% endfor %}
-          {% endif %}
         </select>
-        <div class="form-hint">{% if google_api_key %}Google Cloud Neural2 HD voices active{% else %}Using Microsoft Edge TTS — set GOOGLE_API_KEY for Neural2 HD{% endif %}</div>
+        <div class="form-hint">10 premium voices — 6 female, 4 male</div>
       </div>
-      {% if google_api_key %}
       <div class="form-group">
         <label>Script Engine</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="radio" name="ai_model" value="claude" checked /> Claude (premium)
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;" id="model-grid">
+          {% for m in ai_models %}{% if m.available %}
+          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;{% if m.id == 'auto' %}border-color:var(--accent);{% endif %}">
+            <input type="radio" name="ai_model" value="{{ m.id }}" {% if m.id == 'auto' %}checked{% endif %} />
+            <span>{{ m.name }}{% if m.badge == 'free' %} <span style="font-size:10px;background:#22c55e22;color:#22c55e;padding:1px 5px;border-radius:4px;">FREE</span>{% endif %}</span>
           </label>
-          <label style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;">
-            <input type="radio" name="ai_model" value="gemini" /> Gemini Flash (fast)
-          </label>
+          {% endif %}{% endfor %}
         </div>
-        <div class="form-hint">Gemini Flash is faster and cheaper — ideal for bulk generation</div>
+        <div class="form-hint">Auto picks the best available model. Free models cost nothing.</div>
       </div>
-      {% endif %}
       <div class="form-group">
         <label>Thumbnail Style</label>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="style-grid">
@@ -166,52 +158,6 @@
           </div>
           {% endfor %}
         </div>
-      </div>
-    </div>
-
-    <!-- Podcast Settings (shown only when podcast format selected) -->
-    <div class="card" id="podcastPanel" style="display:none;border-color:#a855f7;">
-      <div class="card-title mb-16">
-        <span class="accent" style="color:#a855f7;">🎙️</span> Podcast Settings
-      </div>
-      <div class="form-group">
-        <label>Show / Podcast Name</label>
-        <input type="text" id="podcast_name" placeholder="e.g. The Wealth Builder Podcast">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="form-group">
-          <label>Episode Number</label>
-          <input type="number" id="episode_number" value="1" min="1" max="9999" style="width:100%;">
-        </div>
-        <div class="form-group">
-          <label>Guest Name <span class="text-dim text-xs">(optional)</span></label>
-          <input type="text" id="guest_name" placeholder="e.g. John Smith">
-        </div>
-      </div>
-      <div class="form-group mt-8">
-        <label>Episode Length</label>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;" id="podcastDurationGrid">
-          <div class="format-card" data-pdur="900" onclick="selectPodcastDuration(this,900)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
-            <div style="font-size:15px;font-weight:800;">15 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Daily briefing</div>
-          </div>
-          <div class="format-card selected" data-pdur="1800" onclick="selectPodcastDuration(this,1800)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
-            <div style="font-size:15px;font-weight:800;">30 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Standard episode</div>
-          </div>
-          <div class="format-card" data-pdur="3600" onclick="selectPodcastDuration(this,3600)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
-            <div style="font-size:15px;font-weight:800;">60 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Full interview</div>
-          </div>
-          <div class="format-card" data-pdur="5400" onclick="selectPodcastDuration(this,5400)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
-            <div style="font-size:15px;font-weight:800;">90 min</div>
-            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Deep dive</div>
-          </div>
-        </div>
-        <input type="hidden" id="podcast_duration" value="1800">
-      </div>
-      <div class="text-dim text-xs mt-8">
-        The podcast video will include an animated equalizer, chapter markers, and a progress bar.
       </div>
     </div>
 
@@ -295,6 +241,135 @@
       </div>
     </div>
 
+    <!-- Documentary Settings -->
+    <div class="card" id="documentaryPanel" style="display:none;border-color:#06b6d455;">
+      <div class="card-title mb-16">
+        <span style="color:#06b6d4;">🎬</span> Documentary Settings
+      </div>
+      <div class="form-group mb-16">
+        <label>Documentary Style</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;" id="docStyleGrid">
+          <div class="format-card selected" data-docstyle="natgeo" onclick="selectDocStyle(this,'natgeo')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🌍</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">NatGeo</div>
+            <div style="font-size:10px;color:var(--muted);">Nature / Science</div>
+          </div>
+          <div class="format-card" data-docstyle="espn30for30" onclick="selectDocStyle(this,'espn30for30')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🏆</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">ESPN 30/30</div>
+            <div style="font-size:10px;color:var(--muted);">Sports stories</div>
+          </div>
+          <div class="format-card" data-docstyle="vice" onclick="selectDocStyle(this,'vice')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🔎</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">VICE</div>
+            <div style="font-size:10px;color:var(--muted);">Investigative</div>
+          </div>
+          <div class="format-card" data-docstyle="hbo" onclick="selectDocStyle(this,'hbo')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🎥</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">HBO</div>
+            <div style="font-size:10px;color:var(--muted);">Premium cinematic</div>
+          </div>
+          <div class="format-card" data-docstyle="true_crime" onclick="selectDocStyle(this,'true_crime')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🕵️</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">True Crime</div>
+            <div style="font-size:10px;color:var(--muted);">Mystery / thriller</div>
+          </div>
+          <div class="format-card" data-docstyle="history" onclick="selectDocStyle(this,'history')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">📜</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">History</div>
+            <div style="font-size:10px;color:var(--muted);">Historical deep dive</div>
+          </div>
+        </div>
+        <input type="hidden" id="doc_style" value="natgeo">
+      </div>
+      <div class="form-group">
+        <label>Episode Length</label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;" id="docDurationGrid">
+          <div class="format-card" data-docdur="300" onclick="selectDocDur(this,300)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">5 min</div>
+            <div style="font-size:10px;color:var(--muted);">Mini-doc</div>
+          </div>
+          <div class="format-card selected" data-docdur="900" onclick="selectDocDur(this,900)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">15 min</div>
+            <div style="font-size:10px;color:var(--muted);">YouTube doc</div>
+          </div>
+          <div class="format-card" data-docdur="1800" onclick="selectDocDur(this,1800)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">30 min</div>
+            <div style="font-size:10px;color:var(--muted);">TV episode</div>
+          </div>
+          <div class="format-card" data-docdur="3600" onclick="selectDocDur(this,3600)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:15px;font-weight:800;">60 min</div>
+            <div style="font-size:10px;color:var(--muted);">Feature length</div>
+          </div>
+        </div>
+        <input type="hidden" id="doc_duration" value="900">
+      </div>
+      <div class="text-dim text-xs mt-8">
+        Cinematic narration with dramatic pacing, archival-style research, and AI-generated footage. Best with Cinema Studio 3.0 or Veo 3.1.
+      </div>
+    </div>
+
+    <!-- Animation Settings -->
+    <div class="card" id="animationPanel" style="display:none;border-color:#e879f955;">
+      <div class="card-title mb-16">
+        <span style="color:#e879f9;">🎨</span> Animation Settings
+      </div>
+      <div class="form-group mb-16">
+        <label>Animation Style</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;" id="animStyleGrid">
+          <div class="format-card selected" data-animstyle="lego" onclick="selectAnimStyle(this,'lego')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🧱</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">LEGO</div>
+            <div style="font-size:10px;color:var(--muted);">Brick stop-motion</div>
+          </div>
+          <div class="format-card" data-animstyle="clay" onclick="selectAnimStyle(this,'clay')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🏺</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">Claymation</div>
+            <div style="font-size:10px;color:var(--muted);">Stop-motion clay</div>
+          </div>
+          <div class="format-card" data-animstyle="anime" onclick="selectAnimStyle(this,'anime')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">⛩️</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">Anime</div>
+            <div style="font-size:10px;color:var(--muted);">Japanese animation</div>
+          </div>
+          <div class="format-card" data-animstyle="comic" onclick="selectAnimStyle(this,'comic')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">💥</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">Comic Book</div>
+            <div style="font-size:10px;color:var(--muted);">Graphic novel panels</div>
+          </div>
+          <div class="format-card" data-animstyle="pixel" onclick="selectAnimStyle(this,'pixel')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">👾</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">Pixel Art</div>
+            <div style="font-size:10px;color:var(--muted);">Retro 8-bit style</div>
+          </div>
+          <div class="format-card" data-animstyle="watercolor" onclick="selectAnimStyle(this,'watercolor')" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+            <div style="font-size:22px;">🖌️</div>
+            <div style="font-size:13px;font-weight:700;margin-top:4px;">Watercolor</div>
+            <div style="font-size:10px;color:var(--muted);">Painted animation</div>
+          </div>
+        </div>
+        <input type="hidden" id="animation_style" value="lego">
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <div class="format-card selected" data-animdur="60" onclick="selectAnimDur(this,60)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+          <div style="font-size:15px;font-weight:800;">1 min</div>
+          <div style="font-size:10px;color:var(--muted);">Quick clip</div>
+        </div>
+        <div class="format-card" data-animdur="120" onclick="selectAnimDur(this,120)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+          <div style="font-size:15px;font-weight:800;">2 min</div>
+          <div style="font-size:10px;color:var(--muted);">Standard</div>
+        </div>
+        <div class="format-card" data-animdur="300" onclick="selectAnimDur(this,300)" style="padding:10px 6px;text-align:center;cursor:pointer;border-radius:8px;border:1px solid var(--border);">
+          <div style="font-size:15px;font-weight:800;">5 min</div>
+          <div style="font-size:10px;color:var(--muted);">Deep story</div>
+        </div>
+      </div>
+      <input type="hidden" id="animation_duration" value="60">
+      <div class="text-dim text-xs mt-8">
+        AI generates every frame in your chosen animation style. Best results with Higgsfield Cinema Studio 3.0 or Veo 3.1.
+      </div>
+    </div>
+
     <!-- Research Preview -->
     <div class="card" id="researchPreview" style="display:none;">
       <div class="flex-between mb-12">
@@ -374,7 +449,7 @@
     <!-- BLITZ Mode -->
     <div class="card" style="border-color:var(--red);background:var(--red-glow);">
       <div class="card-title mb-8"><span class="accent glow-red">🔥</span> BLITZ Mode</div>
-      <div class="text-dim text-sm mb-16">Create all 3 formats simultaneously (short + long + podcast) and publish everywhere at once.</div>
+      <div class="text-dim text-sm mb-16">Create all 3 formats simultaneously (short + long + reel) and publish everywhere at once.</div>
       <button class="btn btn-primary btn-block" onclick="startBlitz()">
         🔥 Launch BLITZ — All Formats
       </button>
@@ -406,6 +481,9 @@
       <div class="progress-track">
         <div class="progress-bar" id="prog-bar" style="width:0%"></div>
       </div>
+      <div class="flex-between mt-8">
+        <span class="so-brand-counter" id="prog-brand"></span>
+      </div>
       <div class="job-log" id="prog-log"></div>
       <div class="flex gap-12 mt-16" id="prog-done-actions" style="display:none!important">
         <a href="#" class="btn btn-green" id="prog-download">⬇ Download MP4</a>
@@ -423,15 +501,67 @@
 <script>
 let _format = 'short';
 let _style = 'fire';
-let _platforms = new Set();
+let _tone = 'engaging';
 let _researchDebounce = null;
+
+// ── Content Templates ─────────────────────────────────────────────────────────
+const CONTENT_TEMPLATES = [
+  { emoji:'🔥', label:'Viral Hook',      topic:'',    format:'short',    tone:'engaging',     audience:'general public',      instructions:'Hook in first 2 seconds. Use pattern interrupts. End with controversy or cliffhanger.',  placeholder:'e.g. 5 facts about soccer that will blow your mind' },
+  { emoji:'🏆', label:'Top 10 List',     topic:'',    format:'countdown', tone:'engaging',    audience:'general public',      instructions:'Build suspense. Reveal #1 last. Use real stats and names.',                              placeholder:'e.g. Top 10 largest soccer stadiums in the world' },
+  { emoji:'📚', label:'Tutorial',        topic:'',    format:'long',      tone:'educational', audience:'beginners',           instructions:'Step-by-step structure. Use simple language. Include tips and common mistakes.',          placeholder:'e.g. How to start investing with $100' },
+  { emoji:'💡', label:'Explainer',       topic:'',    format:'long',      tone:'educational', audience:'curious learners',    instructions:'Why does it work? Include history, science, and real examples.',                          placeholder:'e.g. Why do planes leave white trails in the sky' },
+  { emoji:'📰', label:'News Take',       topic:'',    format:'short',     tone:'professional','audience':'news-following adults', instructions:'Objective opening, then your unique angle. Be concise.',                             placeholder:'e.g. What the Fed rate decision means for your money' },
+  { emoji:'💼', label:'Business Tips',   topic:'',    format:'long',      tone:'professional','audience':'entrepreneurs and professionals', instructions:'Data-driven. Include case studies and actionable takeaways.',              placeholder:'e.g. 7 habits of the most productive CEOs' },
+  { emoji:'😂', label:'Comedy Short',    topic:'',    format:'short',     tone:'humorous',    audience:'general public',      instructions:'Subvert expectations. Timing is everything. End with a punchline.',                       placeholder:'e.g. Things that make no sense about modern life' },
+  { emoji:'✨', label:'Motivational',    topic:'',    format:'reel',      tone:'inspirational','audience':'people wanting growth', instructions:'Personal story arc. Emotional build-up. Powerful CTA at end.',                    placeholder:'e.g. The mindset shift that changed everything for me' },
+  { emoji:'🎙️', label:'Podcast Ep',     topic:'',    format:'podcast',   tone:'casual',      audience:'general public',      instructions:'Conversational tone. Three key chapters. Strong listener CTA at end.',                   placeholder:'e.g. The untold story of how Nike almost went bankrupt', redirect:'/podcast-studio' },
+  { emoji:'🛍️', label:'Product Review', topic:'',    format:'short',     tone:'casual',      audience:'buyers researching products', instructions:'Pros and cons. Personal experience. Would you buy it again?',                  placeholder:'e.g. Honest review: Tesla Model 3 after 2 years' },
+  { emoji:'📊', label:'Finance/Stats',   topic:'',    format:'long',      tone:'educational', audience:'investors aged 25-45', instructions:'Use real data and charts. Be honest about risks.',                                   placeholder:'e.g. Why 90% of traders lose money' },
+  { emoji:'🌍', label:'Documentary',     topic:'',    format:'long',      tone:'professional','audience':'curious adults',     instructions:'Storytelling structure. Build narrative arc. Use vivid scene descriptions.',           placeholder:'e.g. The rise and fall of Blockbuster Video' },
+];
+
+function renderTemplates() {
+  const grid = document.getElementById('template-grid');
+  grid.innerHTML = CONTENT_TEMPLATES.map((t, i) => `
+    <div onclick="applyTemplate(${i})" style="
+      background:var(--card);border:1px solid var(--border);border-radius:12px;
+      padding:14px 10px;text-align:center;cursor:pointer;transition:border-color .2s,transform .1s;
+    " onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'"
+       onmouseout="this.style.borderColor='var(--border)';this.style.transform=''">
+      <div style="font-size:22px;margin-bottom:6px;">${t.emoji}</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);">${t.label}</div>
+    </div>
+  `).join('');
+}
+
+function applyTemplate(idx) {
+  const t = CONTENT_TEMPLATES[idx];
+  if (t.redirect) { window.location.href = t.redirect; return; }
+  if (t.placeholder) document.getElementById('topic').placeholder = t.placeholder;
+  if (t.audience) document.getElementById('audience').value = t.audience;
+  if (t.instructions) document.getElementById('instructions').value = t.instructions;
+  const fmtEl = document.querySelector(`.format-card[data-format="${t.format}"]`);
+  if (fmtEl) { selectFormat(fmtEl, t.format); }
+  const toneEl = document.querySelector(`#tone-grid .format-card[data-tone="${t.tone}"]`);
+  if (toneEl) { selectTone(toneEl, t.tone); }
+  toast('info', t.emoji + ' ' + t.label, 'Template applied — add your topic and hit Generate!');
+  document.getElementById('topic').focus();
+}
 
 function selectFormat(el, fmt) {
   document.querySelectorAll('.format-card[data-format]').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   _format = fmt;
-  document.getElementById('podcastPanel').style.display = (fmt === 'podcast') ? '' : 'none';
   document.getElementById('commercialPanel').style.display = (fmt === 'commercial') ? '' : 'none';
+  document.getElementById('documentaryPanel').style.display = (fmt === 'documentary') ? '' : 'none';
+  document.getElementById('animationPanel').style.display = (fmt === 'animation') ? '' : 'none';
+}
+
+function selectTone(el, t) {
+  document.querySelectorAll('#tone-grid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _tone = t;
+  document.getElementById('tone').value = t;
 }
 
 function selectAdLen(el, adFmt, seconds) {
@@ -447,20 +577,39 @@ function selectPodcastDuration(el, seconds) {
   document.getElementById('podcast_duration').value = seconds;
 }
 
+function selectDocStyle(el, style) {
+  document.querySelectorAll('#docStyleGrid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('doc_style').value = style;
+}
+
+function selectDocDur(el, seconds) {
+  document.querySelectorAll('#docDurationGrid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('doc_duration').value = seconds;
+}
+
+function selectAnimStyle(el, style) {
+  document.querySelectorAll('#animStyleGrid .format-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('animation_style').value = style;
+}
+
+function selectAnimDur(el, seconds) {
+  document.querySelectorAll('#animationPanel .format-card[data-animdur]').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('animation_duration').value = seconds;
+}
+
 function selectStyle(el, s) {
   document.querySelectorAll('#style-grid .format-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   _style = s;
 }
 
-function togglePlatform(el) {
-  const p = el.dataset.platform;
-  if (_platforms.has(p)) { _platforms.delete(p); el.classList.remove('selected'); }
-  else { _platforms.add(p); el.classList.add('selected'); }
-}
-
 // ── Live research preview ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  renderTemplates();
   const topicEl = document.getElementById('topic');
   if (!topicEl) return;
   topicEl.addEventListener('input', () => {
@@ -495,7 +644,12 @@ async function fetchResearchPreview(topic) {
     countEl.textContent = `${all.length} facts found`;
 
     if (data.summary) {
-      factsEl.innerHTML = `<div class="text-sm" style="line-height:1.6;color:var(--white-dim);margin-bottom:8px;">${data.summary}</div>`;
+      const sumDiv = document.createElement('div');
+      sumDiv.className = 'text-sm';
+      sumDiv.style.cssText = 'line-height:1.6;color:var(--white-dim);margin-bottom:8px;';
+      sumDiv.textContent = data.summary;
+      factsEl.innerHTML = '';
+      factsEl.appendChild(sumDiv);
     } else {
       factsEl.innerHTML = '';
     }
@@ -503,7 +657,15 @@ async function fetchResearchPreview(topic) {
     all.slice(0, 8).forEach(f => {
       const el = document.createElement('div');
       el.style.cssText = 'display:flex;gap:8px;align-items:flex-start;';
-      el.innerHTML = `<span style="color:var(--green);flex-shrink:0;margin-top:2px;">•</span><span class="text-sm" style="line-height:1.5;">${f}</span>`;
+      const dot = document.createElement('span');
+      dot.style.cssText = 'color:var(--green);flex-shrink:0;margin-top:2px;';
+      dot.textContent = '•';
+      const txt = document.createElement('span');
+      txt.className = 'text-sm';
+      txt.style.cssText = 'line-height:1.5;';
+      txt.textContent = f;
+      el.appendChild(dot);
+      el.appendChild(txt);
       factsEl.appendChild(el);
     });
 
@@ -525,23 +687,26 @@ async function startCreate() {
   const payload = {
     topic,
     format: _format,
-    platforms: Array.from(_platforms),
+    platforms: [],
     audience: document.getElementById('audience').value,
     voice: document.getElementById('voice').value,
     style: _style,
-    privacy: document.getElementById('privacy').value,
+    privacy: 'private',
     instructions: document.getElementById('instructions').value || null,
-    dry_run: document.getElementById('dry_run').checked,
+    tone: _tone,
+    keywords: document.getElementById('keywords').value || '',
+    dry_run: false,
     skip_research: document.getElementById('skip_research').checked,
     ai_model: _aiModelEl ? _aiModelEl.value : 'claude',
     ai_video_provider: document.getElementById('ai_video_provider').value,
     higgsfield_model: document.getElementById('higgsfield_model').value,
-    podcast_name: document.getElementById('podcast_name').value || topic,
-    episode_number: parseInt(document.getElementById('episode_number').value) || 1,
-    guest_name: document.getElementById('guest_name').value || '',
     target_duration: _format === 'commercial'
       ? parseInt(document.getElementById('ad_duration').value) || 30
-      : parseInt(document.getElementById('podcast_duration').value) || 1800,
+      : _format === 'documentary'
+      ? parseInt(document.getElementById('doc_duration').value) || 900
+      : _format === 'animation'
+      ? parseInt(document.getElementById('animation_duration').value) || 60
+      : 1800,
     // Commercial-specific fields
     ad_format: _format === 'commercial' ? document.getElementById('ad_format').value : null,
     ad_brand: document.getElementById('ad_brand').value || '',
@@ -550,6 +715,10 @@ async function startCreate() {
     ad_cta: document.getElementById('ad_cta').value || '',
     ad_style: document.getElementById('ad_style').value || 'cinematic',
     ad_platforms: Array.from(document.querySelectorAll('input[name="ad_platform"]:checked')).map(c => c.value),
+    // Documentary-specific fields
+    doc_style: _format === 'documentary' ? document.getElementById('doc_style').value : null,
+    // Animation-specific fields
+    animation_style: _format === 'animation' ? document.getElementById('animation_style').value : null,
   };
 
   await launchJob(payload);
@@ -559,16 +728,16 @@ async function startBlitz() {
   const topic = document.getElementById('topic').value.trim();
   if (!topic) { toast('error', 'Topic Required', 'Please enter a topic.'); return; }
   toast('info', 'BLITZ Mode', 'Creating all formats — this will take a few minutes...');
-  for (const fmt of ['short', 'long', 'podcast']) {
+  for (const fmt of ['short', 'long', 'reel']) {
     await launchJob({
       topic,
       format: fmt,
-      platforms: Array.from(_platforms),
+      platforms: [],
       audience: document.getElementById('audience').value,
       voice: document.getElementById('voice').value,
       style: _style,
-      privacy: document.getElementById('privacy').value,
-      dry_run: document.getElementById('dry_run').checked,
+      privacy: 'private',
+      dry_run: false,
     });
   }
 }
@@ -585,6 +754,14 @@ async function launchJob(payload) {
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(payload),
   });
+  if (!resp.ok) {
+    let errMsg = `Server error (${resp.status})`;
+    try { const d = await resp.json(); errMsg = d.error || errMsg; } catch(_) {}
+    panel.style.display = 'none';
+    document.getElementById('launch-btn').disabled = false;
+    toast('error', 'Cannot Create Job', errMsg);
+    return;
+  }
   const { job_id } = await resp.json();
 
   return new Promise((resolve) => {
@@ -593,7 +770,10 @@ async function launchJob(payload) {
 
     es.onmessage = (e) => {
       const d = JSON.parse(e.data);
-      if (d.progress !== undefined) document.getElementById('prog-bar').style.width = d.progress + '%';
+      if (d.progress !== undefined) {
+        document.getElementById('prog-bar').style.width = d.progress + '%';
+        soBrandCounterRender('prog-brand', d.progress);
+      }
       if (d.step) document.getElementById('prog-step').textContent = d.step;
       if (d.log) {
         const span = document.createElement('span');
@@ -608,6 +788,8 @@ async function launchJob(payload) {
         document.getElementById('prog-status').className = 'pill pill-done';
         document.getElementById('prog-status').textContent = 'Done!';
         document.getElementById('prog-bar').className = 'progress-bar green';
+        document.getElementById('prog-bar').style.width = '100%';
+        soBrandCounterRender('prog-brand', 100);
         document.getElementById('prog-title').textContent = d.title || payload.topic;
         const acts = document.getElementById('prog-done-actions');
         acts.style.removeProperty('display');
@@ -632,6 +814,7 @@ async function launchJob(payload) {
 function resetProgress() {
   document.getElementById('prog-bar').style.width = '0%';
   document.getElementById('prog-bar').className = 'progress-bar';
+  soBrandCounterRender('prog-brand', 0);
   document.getElementById('prog-step').textContent = 'Starting...';
   document.getElementById('prog-status').className = 'pill pill-running';
   document.getElementById('prog-status').textContent = 'Running';

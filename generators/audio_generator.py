@@ -265,7 +265,7 @@ def get_audio_duration(audio_path: Path) -> float:
     """Get duration of audio file in seconds using moviepy."""
     from moviepy import AudioFileClip
     clip = AudioFileClip(str(audio_path))
-    duration = clip.duration
+    duration = float(clip.duration)  # cast numpy.float64 → plain float so DB drivers don't choke
     clip.close()
     return duration
 
