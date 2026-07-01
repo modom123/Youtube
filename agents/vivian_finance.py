@@ -96,6 +96,32 @@ def _total_monthly_revenue():
 
 # ── Analysis cycles ───────────────────────────────────────────────────────────
 
+def _process_credit_rollovers():
+    """Safety-net sweep: roll over any customer whose credits haven't
+    refreshed in 30+ days. Real billing-cycle events (Stripe
+    invoice.payment_succeeded, Whop/Gumroad/etc membership renewal) already
+    trigger rollover_credits() directly and reset the timer — this only
+    catches accounts on channels that don't fire a reliable renewal event,
+    so it should rarely find anything to do in normal operation."""
+    try:
+        due = db.get_users_due_for_rollover()
+    except Exception as exc:
+        bus.log_msg(AGENT_NAME, f"Rollover sweep query failed: {exc}", "warning")
+        return
+    if not due:
+        return
+    processed = 0
+    for uid in due:
+        try:
+            result = db.rollover_credits(uid)
+            if result.get("ok"):
+                processed += 1
+        except Exception:
+            pass
+    if processed:
+        bus.log_msg(AGENT_NAME, f"💳  Rollover sweep: refreshed credits for {processed} user(s)")
+
+
 def _sync_higgsfield_balance():
     """Pull the real Higgsfield credit balance and upsert it into
     finance_provider_credits, so _check_credits() alerts on real data
@@ -240,6 +266,7 @@ def _run_cycle():
     bus.log_msg(AGENT_NAME, "Vivian Cross (CFO) — running IEBC efficiency audit")
     try:
         _efficiency_report()
+        _process_credit_rollovers()
         _sync_higgsfield_balance()
         _check_credits()
         _check_renewals()

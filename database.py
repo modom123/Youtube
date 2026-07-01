@@ -1282,6 +1282,22 @@ def rollover_credits(user_id: int) -> dict:
         return {"ok": True, "new_balance": monthly, "rollover": float(wallet.get("rollover_balance", 0)) + old_balance}
 
 
+def get_users_due_for_rollover(days: int = 30) -> list:
+    """Safety net for automated rollover: users whose credits haven't rolled
+    over in >= `days` (or never have). Real per-customer billing-cycle
+    triggers (Stripe invoice.payment_succeeded, Whop/etc membership renewal)
+    call rollover_credits() directly and reset last_rollover_at, so this
+    only catches users on channels that don't fire a reliable renewal event."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT c.user_id FROM so_credits c JOIN users u ON u.id = c.user_id "
+            "WHERE (c.last_rollover_at IS NULL AND u.created_at <= NOW() - (%s || ' days')::interval) "
+            "OR c.last_rollover_at <= NOW() - (%s || ' days')::interval",
+            (days, days),
+        ).fetchall()
+        return [r["user_id"] for r in rows]
+
+
 def get_credit_txns(user_id: int, limit: int = 50) -> list:
     with get_conn() as conn:
         return [dict(r) for r in conn.execute(
@@ -1305,6 +1321,24 @@ def save_contact_message(name: str, email: str, subject: str, message: str) -> i
             (name, email, subject, message),
         ).fetchone()
         return row["id"]
+
+
+def log_revenue_event(user_id, event_type: str, amount: float = 0, currency: str = "usd",
+                       tier: str = None, stripe_event_id: str = None, notes: str = None):
+    """Record a real subscription lifecycle event (new_subscription, upgrade,
+    downgrade, cancel, payment_received) so Monetizer's revenue overview
+    reflects actual webhook activity instead of sitting empty. Called from
+    billing.py (Stripe) and sales_channels.py (Whop/Gumroad/LemonSqueezy/
+    AppSumo/PayPal) at the point each event is confirmed real."""
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO monetizer_revenue_log (user_id, event_type, amount, currency, tier, stripe_event_id, notes) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (user_id, event_type, amount, currency, tier, stripe_event_id, notes),
+            )
+    except Exception:
+        pass
 
 
 def row_to_dict(row):

@@ -54,17 +54,38 @@ def _product_to_tier(channel: str, product_id: str) -> str | None:
 
 def _activate_subscription(email: str, tier: str, channel: str, external_id: str = ""):
     user = db.get_user_by_email(email)
+    is_new_user = not user
     if not user:
         log.warning(f"[{channel}] No user found for {email} — creating account")
         password_hash = hashlib.sha256(uuid.uuid4().hex.encode()).hexdigest()
         user_id = db.create_user(email=email, password_hash=password_hash, name=email.split("@")[0])
         user = db.get_user_by_id(user_id)
+
+    old_tier = (user.get("subscription_tier") or "free") if not is_new_user else "free"
     db.update_user(user["id"],
                    subscription_tier=tier,
                    subscription_status="active",
                    subscription_channel=channel,
                    subscription_external_id=external_id)
     log.info(f"[{channel}] Activated {tier} for {email} (ext: {external_id})")
+
+    if is_new_user or old_tier == "free":
+        event_type = "new_subscription"
+    elif old_tier in TIER_ORDER and tier in TIER_ORDER and TIER_ORDER.index(tier) > TIER_ORDER.index(old_tier):
+        event_type = "upgrade"
+    elif old_tier in TIER_ORDER and tier in TIER_ORDER and TIER_ORDER.index(tier) < TIER_ORDER.index(old_tier):
+        event_type = "downgrade"
+    else:
+        event_type = "new_subscription"
+    amount = config.TIERS.get(tier, {}).get("price_monthly", 0)
+    db.log_revenue_event(user["id"], event_type, amount=amount, tier=tier,
+                          notes=f"{channel}:{external_id}")
+
+    try:
+        db.rollover_credits(user["id"])
+    except Exception as exc:
+        log.warning(f"[{channel}] Credit rollover failed for {email}: {exc}")
+
     return user
 
 
@@ -79,6 +100,8 @@ def _cancel_subscription(email: str = None, external_id: str = "", channel: str 
                        subscription_tier="free",
                        subscription_status="cancelled")
         log.info(f"[{channel}] Cancelled subscription for {user['email']}")
+        db.log_revenue_event(user["id"], "cancel", amount=0,
+                              tier=user.get("subscription_tier"), notes=f"{channel}:{external_id}")
     else:
         log.warning(f"[{channel}] Cancel: no user found (email={email}, ext={external_id})")
 

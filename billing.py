@@ -228,16 +228,29 @@ def _handle_subscription(sub):
         # Infer from price ID
         price_id = sub["items"]["data"][0]["price"]["id"] if sub.get("items") else None
         tier_name = _price_to_tier(price_id)
+    tier_name = tier_name or user["subscription_tier"]
 
     status = sub.get("status", "active")
     sub_status = "active" if status in ("active", "trialing") else "inactive"
 
+    old_tier = user.get("subscription_tier") or "free"
     db.update_user(
         user["id"],
-        subscription_tier=tier_name or user["subscription_tier"],
+        subscription_tier=tier_name,
         subscription_status=sub_status,
         stripe_subscription_id=sub["id"],
     )
+
+    if old_tier != tier_name and sub_status == "active":
+        if old_tier == "free" or old_tier not in TIER_ORDER:
+            event_type = "new_subscription"
+        elif tier_name in TIER_ORDER and TIER_ORDER.index(tier_name) > TIER_ORDER.index(old_tier):
+            event_type = "upgrade"
+        else:
+            event_type = "downgrade"
+        amount = config.TIERS.get(tier_name, {}).get("price_monthly", 0)
+        db.log_revenue_event(user["id"], event_type, amount=amount, tier=tier_name,
+                              stripe_event_id=sub.get("id"))
 
 
 def _handle_subscription_deleted(sub):
@@ -245,6 +258,8 @@ def _handle_subscription_deleted(sub):
     if user:
         db.update_user(user["id"], subscription_tier="free", subscription_status="inactive",
                        stripe_subscription_id=None)
+        db.log_revenue_event(user["id"], "cancel", amount=0,
+                              tier=user.get("subscription_tier"), stripe_event_id=sub.get("id"))
 
 
 def _handle_checkout_completed(session):
@@ -277,10 +292,19 @@ def _handle_checkout_completed(session):
             subscription_status="active",
             stripe_subscription_id=sub_id,
         )
+        amount = config.TIERS.get(tier_name, {}).get("price_monthly", 0)
+        db.log_revenue_event(int(uid), "new_subscription", amount=amount, tier=tier_name,
+                              stripe_event_id=session.get("id"))
+        try:
+            db.rollover_credits(int(uid))
+        except Exception:
+            pass
 
 
 def _handle_payment_succeeded(invoice):
-    """Reset monthly usage on a successful subscription payment (new billing period)."""
+    """Reset monthly usage and roll over credits on a successful subscription
+    payment (new billing period) — this is the precise per-customer renewal
+    signal, fired exactly on their own billing anniversary."""
     cid = invoice.get("customer")
     if not cid:
         return
@@ -290,7 +314,14 @@ def _handle_payment_succeeded(invoice):
     # Only reset for subscription invoices
     if invoice.get("subscription"):
         db.reset_monthly_usage(user["id"])
+        try:
+            db.rollover_credits(user["id"])
+        except Exception:
+            pass
     db.update_user(user["id"], subscription_status="active")
+    amount = float(invoice.get("amount_paid", 0)) / 100
+    db.log_revenue_event(user["id"], "payment_received", amount=amount,
+                          tier=user.get("subscription_tier"), stripe_event_id=invoice.get("id"))
 
 
 def _handle_payment_failed(invoice):
