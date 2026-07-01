@@ -7570,6 +7570,71 @@ def mon_export_jobs():
                               headers={"Content-Disposition": "attachment;filename=jobs.csv"})
 
 
+# ── Monetizer: Profitable Formula ────────────────────────────────────────────
+
+@app.route("/monetizer/api/formula", methods=["GET"])
+@login_required
+def mon_formula_get():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        row = conn.execute(
+            "SELECT value FROM monetizer_kpi_snapshots WHERE id=0 LIMIT 1"
+        ).fetchone()
+        # We store formula in a dedicated simple key-value: reuse monetizer_alerts table with alert_type='formula'
+        row = conn.execute(
+            "SELECT message FROM monetizer_alerts WHERE alert_type='_formula' LIMIT 1"
+        ).fetchone()
+    if row:
+        try:
+            formula = json.loads(row["message"])
+        except Exception:
+            formula = {}
+    else:
+        formula = {}
+    return jsonify({"formula": formula})
+
+
+@app.route("/monetizer/api/formula/save", methods=["POST"])
+@login_required
+def mon_formula_save():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.json or {}
+    payload = json.dumps(data)
+    with db.get_conn() as conn:
+        conn.execute("DELETE FROM monetizer_alerts WHERE alert_type='_formula'")
+        conn.execute(
+            "INSERT INTO monetizer_alerts (alert_type, message, severity, acknowledged) VALUES ('_formula', %s, 'info', TRUE)",
+            (payload,)
+        )
+    return jsonify({"ok": True})
+
+
+@app.route("/monetizer/api/users/list", methods=["GET"])
+@login_required
+def mon_users_list():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, email, name, subscription_tier, created_at FROM users ORDER BY id DESC LIMIT 500"
+        ).fetchall()
+    return jsonify({"users": [dict(r) for r in rows]})
+
+
+@app.route("/monetizer/api/credits/rollover-all", methods=["POST"])
+@login_required
+def mon_credits_rollover_all():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    with db.get_conn() as conn:
+        user_ids = [r["id"] for r in conn.execute("SELECT id FROM users").fetchall()]
+    results = [db.rollover_credits(uid) for uid in user_ids]
+    ok = sum(1 for r in results if r.get("ok"))
+    return jsonify({"ok": True, "processed": len(user_ids), "success": ok})
+
+
 # ── Podcast Studio ────────────────────────────────────────────────────────────
 
 _podcast_jobs: dict = {}

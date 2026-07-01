@@ -78,6 +78,23 @@
 .mon-loading { text-align: center; padding: 40px; color: var(--mon-muted); }
 .mon-empty { text-align: center; padding: 24px; color: var(--mon-muted); font-size: 13px; }
 .mon-alert-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; margin-bottom: 8px; }
+.formula-row { background:#0f172a;border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid #334155;transition:border-color .2s; }
+.formula-row:has(input[type=checkbox]:not(:checked)) { opacity:.45; }
+.formula-label-row { display:flex;align-items:center;justify-content:space-between;margin-bottom:8px; }
+.formula-label-row label { color:#e2e8f0;font-size:.9rem;font-weight:600; }
+.formula-toggle-wrap { display:flex;align-items:center;gap:10px; }
+.formula-val { color:var(--mon-green);font-weight:700;font-size:1rem;min-width:56px;text-align:right; }
+.formula-toggle { position:relative;display:inline-block;width:36px;height:20px;cursor:pointer; }
+.formula-toggle input { opacity:0;width:0;height:0; }
+.formula-slider-knob { position:absolute;top:0;left:0;right:0;bottom:0;background:#334155;border-radius:20px;transition:.3s; }
+.formula-slider-knob:before { content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s; }
+.formula-toggle input:checked + .formula-slider-knob { background:var(--mon-green); }
+.formula-toggle input:checked + .formula-slider-knob:before { transform:translateX(16px); }
+.formula-range { width:100%;accent-color:var(--mon-green);cursor:pointer; }
+.formula-hint { color:#475569;font-size:.75rem;margin-top:5px; }
+.formula-result-card { background:#0f172a;border-radius:10px;padding:14px;border:1px solid #334155;text-align:center; }
+.formula-result-card .frc-label { color:#64748b;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em; }
+.formula-result-card .frc-val { font-size:1.5rem;font-weight:800;margin:.35rem 0 0; }
 .mon-alert-item.warning { background: rgba(255,215,64,.08); border-left: 3px solid var(--mon-amber); }
 .mon-alert-item.error { background: rgba(255,82,82,.08); border-left: 3px solid var(--mon-red); }
 .mon-alert-item.info { background: rgba(68,138,255,.08); border-left: 3px solid var(--mon-blue); }
@@ -111,6 +128,8 @@
         <div class="mon-tab" onclick="showPanel('changelog')">Changelog</div>
         <div class="mon-tab" onclick="showPanel('health')">System</div>
         <div class="mon-tab" onclick="showPanel('pricing')">Pricing Lab</div>
+        <div class="mon-tab" onclick="showPanel('formula')">💡 Formula</div>
+        <div class="mon-tab" onclick="showPanel('credits-mgr')">Credits</div>
         <div class="mon-tab" onclick="showPanel('export')">Export</div>
     </div>
 
@@ -339,6 +358,176 @@
         </div>
     </div>
 
+    <!-- ═══ PROFITABLE FORMULA ═══ -->
+    <div id="panel-formula" class="mon-panel">
+        <div class="mon-section">
+            <h2>💡 Profitable Formula</h2>
+            <p style="color:var(--mon-muted);font-size:13px;margin-bottom:20px">
+                Adjust the levers that define profitability. Toggle each variable and the live calculator updates instantly.
+                Save your formula — it becomes the operating target for the entire business.
+            </p>
+
+            <!-- Live profitability score -->
+            <div id="formula-score-bar" style="background:#0a0a0a;border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid #1a2a1a;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <span style="color:#fff;font-weight:700;font-size:16px;">Profitability Score</span>
+                    <span id="formula-score-num" style="font-size:2rem;font-weight:800;color:var(--mon-green);">—</span>
+                </div>
+                <div style="background:#1e293b;border-radius:999px;height:12px;overflow:hidden;">
+                    <div id="formula-score-fill" style="height:100%;background:linear-gradient(90deg,#ef4444,#f59e0b,#10b981);border-radius:999px;transition:width .4s;width:0%;"></div>
+                </div>
+                <div id="formula-verdict" style="color:#64748b;font-size:12px;margin-top:8px;text-align:right;"></div>
+            </div>
+
+            <!-- Formula sliders -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" id="formula-sliders">
+
+                <!-- Revenue side -->
+                <div>
+                    <div style="color:var(--mon-green);font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:14px;">Revenue Levers</div>
+
+                    <div class="formula-row" id="fr-avg-price">
+                        <div class="formula-label-row">
+                            <label>Avg Subscription Price / mo</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-avg-price">$49</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-avg-price" min="9" max="499" step="1" value="49" oninput="updVal('avg-price','$','')" onchange="recalc()">
+                        <div class="formula-hint">Current avg monthly charge across all paying tiers</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-paying-users">
+                        <div class="formula-label-row">
+                            <label>Paying Users</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-paying-users">100</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-paying-users" min="1" max="10000" step="1" value="100" oninput="updVal('paying-users','','')" onchange="recalc()">
+                        <div class="formula-hint">Target paying subscriber count</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-credit-rev">
+                        <div class="formula-label-row">
+                            <label>Credit Top-Up Revenue / mo</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-credit-rev">$500</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-credit-rev" min="0" max="50000" step="100" value="500" oninput="updVal('credit-rev','$','')" onchange="recalc()">
+                        <div class="formula-hint">Revenue from SO credit top-up purchases</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-churn">
+                        <div class="formula-label-row">
+                            <label>Monthly Churn Rate</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-churn">5%</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-churn" min="0" max="30" step="0.5" value="5" oninput="updVal('churn','','%')" onchange="recalc()">
+                        <div class="formula-hint">% of paying users lost each month</div>
+                    </div>
+                </div>
+
+                <!-- Cost side -->
+                <div>
+                    <div style="color:#f59e0b;font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:14px;">Cost Levers</div>
+
+                    <div class="formula-row" id="fr-api-cost">
+                        <div class="formula-label-row">
+                            <label>AI / API Cost per User / mo</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-api-cost">$3</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-api-cost" min="0" max="50" step="0.25" value="3" oninput="updVal('api-cost','$','')" onchange="recalc()">
+                        <div class="formula-hint">Avg AI/API spend per paying user</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-infra-cost">
+                        <div class="formula-label-row">
+                            <label>Fixed Infrastructure / mo</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-infra-cost">$200</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-infra-cost" min="0" max="5000" step="25" value="200" oninput="updVal('infra-cost','$','')" onchange="recalc()">
+                        <div class="formula-hint">Hosting, DB, CDN, fixed SaaS tools</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-subs-cost">
+                        <div class="formula-label-row">
+                            <label>3rd-Party Subscriptions / mo</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-subs-cost">$300</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-subs-cost" min="0" max="10000" step="50" value="300" oninput="updVal('subs-cost','$','')" onchange="recalc()">
+                        <div class="formula-hint">All 3rd-party tool subscriptions</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-credit-cost">
+                        <div class="formula-label-row">
+                            <label>Cost to Deliver 1k SO Credits</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-credit-cost">$1</span>
+                                <label class="formula-toggle"><input type="checkbox" checked onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-credit-cost" min="0" max="20" step="0.1" value="1" oninput="updVal('credit-cost','$','')" onchange="recalc()">
+                        <div class="formula-hint">What it costs you to deliver 1,000 credits</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target margin slider -->
+            <div style="background:#0a1628;border-radius:10px;padding:16px;margin-top:20px;border:1px solid #1e3a5f;">
+                <div style="color:#3b82f6;font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:12px;">Target Margin</div>
+                <div class="formula-label-row">
+                    <label style="color:#e2e8f0;">Gross Margin Target</label>
+                    <span class="formula-val" id="val-target-margin" style="color:#3b82f6;">70%</span>
+                </div>
+                <input type="range" class="formula-range" id="range-target-margin" min="20" max="95" step="1" value="70" oninput="updVal('target-margin','','%');recalc()">
+                <div class="formula-hint">Your IEBC efficiency target — the bar you must beat to stay in the green</div>
+            </div>
+
+            <!-- Live results -->
+            <div id="formula-results" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:20px;"></div>
+
+            <!-- Save button -->
+            <div style="margin-top:20px;display:flex;gap:12px;align-items:center;">
+                <button class="mon-btn mon-btn-primary" onclick="saveFormula()">💾 Save Formula</button>
+                <button class="mon-btn mon-btn-outline" onclick="loadSavedFormula()">↩ Restore Saved</button>
+                <span id="formula-save-msg" style="color:var(--mon-green);font-size:12px;"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ CREDITS MANAGER ═══ -->
+    <div id="panel-credits-mgr" class="mon-panel">
+        <div class="mon-section">
+            <h2>🪙 SO Credits — Client Profiles</h2>
+            <p style="color:var(--mon-muted);font-size:13px;margin-bottom:16px">View and manage credit balances for all users.</p>
+            <div class="mon-form-row" style="margin-bottom:16px;">
+                <input class="mon-input" id="cred-uid" placeholder="User ID" style="width:110px;">
+                <input class="mon-input" id="cred-amount" type="number" placeholder="Credits to grant" style="width:150px;">
+                <input class="mon-input" id="cred-desc" placeholder="Reason" style="width:200px;">
+                <button class="mon-btn mon-btn-primary" onclick="grantCredits()">Grant Credits</button>
+                <button class="mon-btn mon-btn-outline" onclick="rolloverAll()">Run Monthly Rollover (All)</button>
+            </div>
+            <div id="credits-mgr-table"><div style="color:var(--mon-muted);padding:20px;">Loading...</div></div>
+        </div>
+    </div>
+
     <!-- ═══ EXPORT ═══ -->
     <div id="panel-export" class="mon-panel">
         <div class="mon-section">
@@ -371,7 +560,8 @@ function loadPanel(name) {
         revenue: loadRevenue, users: loadUsers, costs: loadCosts,
         growth: loadGrowth, content: loadContent, features: loadFeatures,
         support: loadSupport, goals: loadGoals, changelog: loadChangelog,
-        health: loadHealth,
+        health: loadHealth, formula: () => { loadSavedFormula(); recalc(); },
+        'credits-mgr': loadCreditsManager,
     };
     if (loaders[name]) loaders[name]();
 }
@@ -811,7 +1001,169 @@ async function addChangelog() {
 
 async function ackAlert(id) { await apiPost('/alerts/'+id+'/ack', {}); loadHealth(); }
 
+// ═══ PROFITABLE FORMULA ═══
+function updVal(id, pre, suf) {
+    const v = document.getElementById('range-'+id).value;
+    const num = parseFloat(v);
+    document.getElementById('val-'+id).textContent = pre + (Number.isInteger(num) ? num.toLocaleString() : num) + suf;
+}
+
+function getSliderVal(id) {
+    const el = document.getElementById('range-'+id);
+    const cb = el.closest('.formula-row')?.querySelector('input[type=checkbox]');
+    if (cb && !cb.checked) return 0;
+    return parseFloat(el.value) || 0;
+}
+
+function recalc() {
+    const avgPrice      = getSliderVal('avg-price');
+    const payingUsers   = getSliderVal('paying-users');
+    const creditRev     = getSliderVal('credit-rev');
+    const churnPct      = getSliderVal('churn');
+    const apiCostPer    = getSliderVal('api-cost');
+    const infraCost     = getSliderVal('infra-cost');
+    const subsCost      = getSliderVal('subs-cost');
+    const creditCost    = getSliderVal('credit-cost');
+    const targetMargin  = parseFloat(document.getElementById('range-target-margin').value) || 70;
+
+    // Revenue
+    const subRev = avgPrice * payingUsers;
+    const totalRev = subRev + creditRev;
+
+    // Costs
+    const varCosts = apiCostPer * payingUsers;
+    const creditDeliveryCost = (creditRev / 10) * creditCost; // rough: creditRev/$10 = k credits
+    const totalCosts = varCosts + infraCost + subsCost + creditDeliveryCost;
+
+    // Metrics
+    const grossProfit = totalRev - totalCosts;
+    const grossMargin = totalRev > 0 ? (grossProfit / totalRev * 100) : 0;
+    const churnedUsers = Math.round(payingUsers * churnPct / 100);
+    const ltv = churnPct > 0 ? (avgPrice / (churnPct / 100)) : 0;
+
+    // Score: 0-100 based on how far margin is above target
+    const score = Math.max(0, Math.min(100, (grossMargin / targetMargin) * 100));
+    const scoreEl = document.getElementById('formula-score-num');
+    const fillEl  = document.getElementById('formula-score-fill');
+    const verdictEl = document.getElementById('formula-verdict');
+
+    scoreEl.textContent = grossMargin.toFixed(1) + '%';
+    scoreEl.style.color = grossMargin >= targetMargin ? 'var(--mon-green)' : grossMargin >= targetMargin * 0.7 ? '#f59e0b' : '#ef4444';
+    fillEl.style.width = Math.min(score, 100) + '%';
+
+    const gap = grossMargin - targetMargin;
+    if (grossMargin >= targetMargin) {
+        verdictEl.textContent = `✅ ${gap.toFixed(1)}% above target — formula is profitable`;
+        verdictEl.style.color = 'var(--mon-green)';
+    } else {
+        verdictEl.textContent = `⚠️ ${Math.abs(gap).toFixed(1)}% below ${targetMargin}% target — adjust levers`;
+        verdictEl.style.color = '#f59e0b';
+    }
+
+    // Result cards
+    const results = [
+        { label: 'Monthly Revenue', val: '$' + Math.round(totalRev).toLocaleString(), color: 'var(--mon-green)' },
+        { label: 'Monthly Costs', val: '$' + Math.round(totalCosts).toLocaleString(), color: '#ef4444' },
+        { label: 'Gross Profit', val: '$' + Math.round(grossProfit).toLocaleString(), color: grossProfit >= 0 ? 'var(--mon-green)' : '#ef4444' },
+        { label: 'Gross Margin', val: grossMargin.toFixed(1) + '%', color: grossMargin >= targetMargin ? 'var(--mon-green)' : '#f59e0b' },
+        { label: 'LTV / User', val: '$' + Math.round(ltv).toLocaleString(), color: 'var(--mon-cyan)' },
+        { label: 'Churn / mo', val: churnedUsers + ' users', color: '#f59e0b' },
+        { label: 'Break-even Users', val: totalCosts > 0 && avgPrice > apiCostPer ? Math.ceil((infraCost + subsCost) / (avgPrice - apiCostPer)).toLocaleString() : '—', color: '#a5b4fc' },
+        { label: 'ARR', val: '$' + Math.round(totalRev * 12).toLocaleString(), color: 'var(--mon-cyan)' },
+    ];
+    document.getElementById('formula-results').innerHTML = results.map(r =>
+        `<div class="formula-result-card"><div class="frc-label">${r.label}</div><div class="frc-val" style="color:${r.color}">${r.val}</div></div>`
+    ).join('');
+}
+
+async function saveFormula() {
+    const formula = {};
+    ['avg-price','paying-users','credit-rev','churn','api-cost','infra-cost','subs-cost','credit-cost','target-margin'].forEach(id => {
+        formula[id] = parseFloat(document.getElementById('range-'+id).value);
+    });
+    await apiPost('/formula/save', formula);
+    const msg = document.getElementById('formula-save-msg');
+    msg.textContent = 'Saved ✓';
+    setTimeout(() => msg.textContent = '', 3000);
+}
+
+async function loadSavedFormula() {
+    const d = await api('/formula');
+    if (!d || !d.formula) return;
+    const f = d.formula;
+    ['avg-price','paying-users','credit-rev','churn','api-cost','infra-cost','subs-cost','credit-cost','target-margin'].forEach(id => {
+        const key = id.replace(/-/g,'_');
+        if (f[key] !== undefined || f[id] !== undefined) {
+            const v = f[key] ?? f[id];
+            document.getElementById('range-'+id).value = v;
+        }
+    });
+    // Re-render displayed values
+    updVal('avg-price','$',''); updVal('paying-users','',''); updVal('credit-rev','$','');
+    updVal('churn','','%'); updVal('api-cost','$',''); updVal('infra-cost','$','');
+    updVal('subs-cost','$',''); updVal('credit-cost','$',''); updVal('target-margin','','%');
+    recalc();
+}
+
+// ═══ CREDITS MANAGER ═══
+async function loadCreditsManager() {
+    const d = await api('/users/list');
+    const users = d.users || [];
+    const rows = users.map(u => `
+        <tr>
+            <td>${u.id}</td>
+            <td>${u.email}</td>
+            <td>${u.subscription_tier || 'free'}</td>
+            <td id="cred-bal-${u.id}"><button class="mon-btn mon-btn-outline mon-btn-sm" onclick="loadUserCredits(${u.id})">View</button></td>
+            <td><button class="mon-btn mon-btn-primary mon-btn-sm" onclick="quickGrant(${u.id})">+ Credits</button></td>
+        </tr>`).join('');
+    document.getElementById('credits-mgr-table').innerHTML = `
+        <table class="mon-table">
+            <thead><tr><th>ID</th><th>Email</th><th>Tier</th><th>Balance</th><th>Action</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:var(--mon-muted)">No users</td></tr>'}</tbody>
+        </table>`;
+}
+
+async function loadUserCredits(uid) {
+    const d = await fetch(`/api/monetizer/client-credits/${uid}`).then(r=>r.json());
+    const w = d.wallet || {};
+    document.getElementById(`cred-bal-${uid}`).innerHTML =
+        `<span style="color:var(--mon-green);font-weight:700">${Math.round((w.balance||0)+(w.rollover_balance||0))} cr</span>`;
+}
+
+async function quickGrant(uid) {
+    const amount = prompt('Credits to grant to user ' + uid + ':');
+    if (!amount) return;
+    const r = await fetch(`/api/monetizer/client-credits/${uid}/topup`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount: parseFloat(amount)})
+    });
+    const d = await r.json();
+    if (d.ok) { alert('Granted! New balance: ' + Math.round(d.balance) + ' cr'); loadCreditsManager(); }
+    else { alert('Error: ' + (d.error||'Unknown')); }
+}
+
+async function grantCredits() {
+    const uid = document.getElementById('cred-uid').value;
+    const amount = document.getElementById('cred-amount').value;
+    const desc = document.getElementById('cred-desc').value;
+    if (!uid || !amount) return alert('User ID and amount required');
+    const r = await fetch(`/api/monetizer/client-credits/${uid}/topup`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount: parseFloat(amount), description: desc})
+    });
+    const d = await r.json();
+    if (d.ok) { alert('Done! New balance: ' + Math.round(d.balance) + ' cr'); loadCreditsManager(); }
+    else { alert('Error: ' + (d.error||'Unknown')); }
+}
+
+async function rolloverAll() {
+    if (!confirm('Run monthly rollover for ALL users?')) return;
+    const d = await apiPost('/credits/rollover-all', {});
+    alert(`Rollover complete: ${d.success}/${d.processed} users processed.`);
+}
+
 // ═══ INIT ═══
-document.addEventListener('DOMContentLoaded', () => loadRevenue());
+document.addEventListener('DOMContentLoaded', () => { loadRevenue(); recalc(); });
 </script>
 {% endblock %}
