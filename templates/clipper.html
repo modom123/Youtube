@@ -882,11 +882,60 @@
 
   // ---- Publish ----
   window.publishClip = function(idx){
-    toast('info','Coming Soon','One-click publish for individual clips is coming soon.');
+    if(!_clipJobId || !_clips[idx]) return;
+    const clip = _clips[idx];
+    _publishTarget = { type:'single', idx };
+    document.getElementById('pubModalTitle').textContent = 'Publish: ' + (clip.title || 'Clip '+(idx+1));
+    document.getElementById('pubCaption').value = (clip.hook ? clip.hook + '\n\n' : '') + (clip.title || '');
+    document.getElementById('pubModal').style.display = 'flex';
   };
 
   window.publishAll = function(){
-    toast('info','Coming Soon','Batch publishing is coming soon.');
+    if(!_clipJobId || !_clips.length) return;
+    _publishTarget = { type:'all' };
+    document.getElementById('pubModalTitle').textContent = 'Publish All ' + _clips.length + ' Clips';
+    document.getElementById('pubCaption').value = '';
+    document.getElementById('pubModal').style.display = 'flex';
+  };
+
+  let _publishTarget = null;
+
+  window.closePubModal = function(){
+    document.getElementById('pubModal').style.display = 'none';
+    _publishTarget = null;
+  };
+
+  window.confirmPublish = async function(){
+    if(!_publishTarget) return;
+    const platform = document.getElementById('pubPlatform').value;
+    const caption  = document.getElementById('pubCaption').value.trim();
+    if(!caption){ alert('Enter a caption.'); return; }
+
+    const btn = document.getElementById('pubConfirmBtn');
+    btn.disabled = true; btn.textContent = '⏳ Publishing...';
+
+    const indices = _publishTarget.type === 'all'
+      ? _clips.map((_,i) => i)
+      : [_publishTarget.idx];
+
+    let ok = 0, fail = 0;
+    for(const idx of indices){
+      try{
+        const resp = await fetch(`/api/clipper/${_clipJobId}/clips/${idx}/publish`, {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ platform, caption })
+        });
+        const data = await resp.json();
+        if(data.ok) ok++;
+        else { fail++; console.error('clip '+idx, data.error); }
+      } catch(e){ fail++; }
+    }
+
+    btn.disabled = false; btn.textContent = '🚀 Publish';
+    closePubModal();
+    if(fail === 0) toast('success','Published','All clips published to '+platform+'!');
+    else toast('warning','Partial',''+ok+' published, '+fail+' failed. Check console.');
   };
 
   // ---- Regenerate ----
@@ -982,9 +1031,39 @@
 
   // Close modal on Escape
   document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape' && $('editorModal').classList.contains('open')) closeEditor();
+    if(e.key === 'Escape'){
+      if($('editorModal').classList.contains('open')) closeEditor();
+      if(document.getElementById('pubModal').style.display === 'flex') closePubModal();
+    }
   });
 
 })();
 </script>
+
+<!-- Publish Modal -->
+<div id="pubModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px;width:420px;max-width:95vw;">
+    <h3 id="pubModalTitle" style="margin:0 0 18px;font-size:15px;font-weight:700;"></h3>
+    <div style="margin-bottom:14px;">
+      <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">Platform</label>
+      <select id="pubPlatform" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:14px;">
+        <option value="youtube">▶️ YouTube</option>
+        <option value="tiktok">🎵 TikTok</option>
+        <option value="instagram">📸 Instagram</option>
+        <option value="twitter">𝕏 X / Twitter</option>
+        <option value="facebook">👍 Facebook</option>
+        <option value="linkedin">💼 LinkedIn</option>
+        <option value="threads">🧵 Threads</option>
+      </select>
+    </div>
+    <div style="margin-bottom:18px;">
+      <label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">Caption</label>
+      <textarea id="pubCaption" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:14px;font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="closePubModal()" style="padding:9px 18px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;">Cancel</button>
+      <button id="pubConfirmBtn" onclick="confirmPublish()" style="padding:9px 18px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">🚀 Publish</button>
+    </div>
+  </div>
+</div>
 {% endblock %}

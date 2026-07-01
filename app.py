@@ -4504,6 +4504,43 @@ def _run_clipper_thread(clip_job_id: str, clip_config: dict):
         }
 
 
+@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/publish", methods=["POST"])
+@login_required
+def api_clipper_clip_publish(clip_job_id, clip_idx):
+    with _clip_lock:
+        job = _clip_jobs.get(clip_job_id)
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Clip job not ready"}), 400
+    clips = job.get("clips", [])
+    if clip_idx >= len(clips):
+        return jsonify({"error": "Clip index out of range"}), 400
+
+    data = request.json or {}
+    platform = data.get("platform", "youtube")
+    caption  = data.get("caption", "")
+
+    video_path = job.get("config", {}).get("video_path")
+    if not video_path or not Path(video_path).exists():
+        return jsonify({"error": "No source video available for this clip job. Download the clip and upload manually."}), 400
+
+    import social_optimize as _so
+    clip = clips[clip_idx]
+    title = (clip.get("title") or f"Clip {clip_idx+1}")[:100]
+    try:
+        results = _so.publish_to_platforms(
+            video_path=video_path,
+            title=title,
+            description=caption or title,
+            hashtags=[],
+            keywords=[],
+            platforms=[platform],
+            privacy="public",
+        )
+        return jsonify({"ok": True, "result": results.get(platform, {})})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ── Ad Lab ────────────────────────────────────────────────────────────────────
 
 COMMERCIAL_UPLOADS = Path(config.DATA_DIR) / "commercial_uploads"
