@@ -118,7 +118,7 @@ As a valued {user.get('subscription_tier', '').title()} member, here's what we'v
 - Hit Factory with AI beat generation
 - Ad Lab for brand ads
 
-To welcome you back, we're adding 50 bonus credits to your account.
+We've added 50 bonus credits to your account to welcome you back.
 
 Jump back in: {config.APP_BASE_URL}/create
 
@@ -134,10 +134,10 @@ Customer Success, Social Optimize"""
 
 Quick heads up — we're seeing a surge in content creation in your space. Your competitors are posting 3-5 videos per week.
 
-Here are this week's top-performing templates:
-1. "Day in the Life" series — 4.2x engagement
-2. "Behind the Scenes" reels — 3.8x engagement
-3. "Quick Tips" shorts — 5.1x engagement
+Here are this week's popular templates:
+1. "Day in the Life" series
+2. "Behind the Scenes" reels
+3. "Quick Tips" shorts
 
 You can create any of these in under 2 minutes with our AI.
 
@@ -174,13 +174,15 @@ def _compute_retention_metrics():
     """Compute and publish retention KPIs."""
     with db.get_conn() as conn:
         total_paying = conn.execute(
-            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL"
+            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') "
+            "AND subscription_tier IS NOT NULL AND COALESCE(is_admin,0)=0"
         ).fetchone()[0]
         week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         active_paying = conn.execute("""
             SELECT COUNT(DISTINCT u.id) FROM users u
             JOIN jobs j ON u.id = j.user_id
             WHERE u.subscription_tier NOT IN ('free','') AND u.subscription_tier IS NOT NULL
+            AND COALESCE(u.is_admin,0)=0
             AND j.created_at >= ?
         """, (week_ago,)).fetchone()[0]
 

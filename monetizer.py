@@ -1542,11 +1542,17 @@ def api_plan_update_milestone(milestone_id):
 
         total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         paying = conn.execute(
-            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL"
+            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') "
+            "AND subscription_tier IS NOT NULL AND COALESCE(is_admin,0)=0"
         ).fetchone()[0]
         tier_prices = {k: v["price_monthly"] for k, v in config.TIERS.items()}
         mrr = 0
-        for row in conn.execute("SELECT subscription_tier, COUNT(*) as cnt FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL AND subscription_status='active' GROUP BY subscription_tier").fetchall():
+        for row in conn.execute("""
+            SELECT subscription_tier, COUNT(*) as cnt FROM users
+            WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL
+              AND subscription_status='active' AND COALESCE(is_admin,0)=0
+            GROUP BY subscription_tier
+        """).fetchall():
             mrr += row["cnt"] * tier_prices.get(row["subscription_tier"], 0)
 
         sets.extend(["actual_users=?", "actual_mrr=?"])

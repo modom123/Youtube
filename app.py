@@ -600,6 +600,11 @@ def privacy():
     return render_template("privacy.html")
 
 
+@app.route("/terms")
+def terms():
+    return render_template("legal/terms.html")
+
+
 @app.route("/docs")
 def docs():
     return render_template("docs.html")
@@ -613,6 +618,49 @@ def about():
 @app.route("/blog")
 def blog():
     return render_template("blog.html")
+
+
+@app.route("/contact")
+def contact():
+    return render_template("contact.html")
+
+
+@app.route("/api/contact", methods=["POST"])
+def api_contact():
+    data = request.get_json(silent=True) or request.form.to_dict()
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip()
+    subject = (data.get("subject") or "other").strip()
+    message = (data.get("message") or "").strip()
+
+    if not name or not email or not message:
+        return jsonify({"message": "Name, email, and message are required."}), 400
+    if "@" not in email or len(email) > 254 or len(name) > 200 or len(message) > 5000:
+        return jsonify({"message": "Please check your input and try again."}), 400
+
+    db.save_contact_message(name, email, subject, message)
+
+    if config.CONTACT_NOTIFY_EMAIL:
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            if config.SMTP_HOST and config.SMTP_USER:
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = f"[Contact Form] {subject}: {name}"
+                msg["From"] = config.SMTP_FROM
+                msg["To"] = config.CONTACT_NOTIFY_EMAIL
+                msg["Reply-To"] = email
+                body = f"From: {name} <{email}>\nSubject: {subject}\n\n{message}"
+                msg.attach(MIMEText(body, "plain"))
+                with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT) as server:
+                    server.starttls()
+                    server.login(config.SMTP_USER, config.SMTP_PASS)
+                    server.sendmail(config.SMTP_FROM, config.CONTACT_NOTIFY_EMAIL, msg.as_string())
+        except Exception:
+            app.logger.exception("Failed to send contact form notification email")
+
+    return jsonify({"ok": True})
 
 
 @app.route("/tiktoktZP2Ao6MnBjhPb6PTnJsMZ2dzTLrSfPy.txt")
@@ -6786,26 +6834,6 @@ def api_credits_topup():
     desc = data.get("description", "Admin top-up")
     result = db.add_credits(int(uid), amount, "topup", desc)
     return jsonify(result)
-
-
-@app.route("/api/credits/purchase", methods=["POST"])
-@login_required
-def api_credits_purchase():
-    """User purchases a credit package (payment handled externally; this just grants credits)."""
-    data = request.json or {}
-    pkg_id = data.get("package_id")
-    if not pkg_id:
-        return jsonify({"error": "package_id required"}), 400
-    packages = {str(p["id"]): p for p in db.get_credit_packages()}
-    pkg = packages.get(str(pkg_id))
-    if not pkg:
-        return jsonify({"error": "Invalid package"}), 404
-    credits = float(pkg["credits"])
-    bonus = credits * float(pkg.get("bonus_pct", 0)) / 100
-    total = credits + bonus
-    result = db.add_credits(current_user.id, total, "purchase",
-                            f"Purchased {pkg['name']} ({total:.0f} credits)")
-    return jsonify({**result, "package": pkg["name"], "credits": total})
 
 
 @app.route("/api/credits/deduct", methods=["POST"])

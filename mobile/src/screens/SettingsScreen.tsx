@@ -8,7 +8,6 @@ import { COLORS, APP_URL } from '../constants';
 
 export function SettingsScreen() {
   const { user, logout } = useAuth();
-  const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
 
   const handleLogout = () => {
@@ -71,7 +70,6 @@ export function SettingsScreen() {
       {/* Preferences */}
       <Text style={styles.sectionTitle}>Preferences</Text>
       <Card>
-        <SettingRow label="Push Notifications" value={notifications} onToggle={setNotifications} />
         <SettingRow label="Dark Mode" value={darkMode} onToggle={setDarkMode} />
       </Card>
 

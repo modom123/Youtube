@@ -205,138 +205,38 @@
   <h1>Plans for every creator</h1>
   <p>Start free, scale as you grow. No hidden fees, cancel anytime. All plans include 30 days of support.</p>
 
-  <!-- Toggle -->
-  <div class="pricing-toggle-wrap">
-    <span>Monthly</span>
-    <div class="pricing-toggle">
-      <button class="active" onclick="togglePricing('monthly')">Monthly</button>
-      <button onclick="togglePricing('annual')">Annual</button>
-    </div>
-    <div class="pricing-savings" id="savingsLabel" style="display: none;">Save 20%</div>
-  </div>
-
   <!-- Pricing Grid -->
   <div class="pricing-grid">
-
-    <!-- FREE -->
-    <div class="pricing-card">
-      <div class="pricing-tier">Free Forever</div>
-      <h3 class="pricing-name">Free</h3>
-      <div class="pricing-price">$<span style="font-size:36px">0</span><span>/mo</span></div>
-      <p class="pricing-desc">No credit card. No commitment. Start creating today.</p>
+    {% set badges = {
+      'starter': ('7-Day Free Trial', '#3b82f6', ''),
+      'creator': ('Best for Small Business', '#30d158', 'color:#000;'),
+      'pro': ('⭐ Most Popular', '', ''),
+      'agency': ('14-Day Free Trial', '#a855f7', ''),
+    } %}
+    {% for tier_key, tier in tiers.items() %}
+    <div class="pricing-card {% if tier_key == 'pro' %}featured{% endif %}">
+      {% if tier_key in badges %}
+        {% set label, bg, extra = badges[tier_key] %}
+        <div class="pricing-popular" {% if bg %}style="background:{{ bg }};{{ extra }}"{% endif %}>{{ label }}</div>
+      {% endif %}
+      <div class="pricing-tier">{{ tier.label }}{% if tier.price_monthly > 0 %} — ${{ '%.2f'|format(tier.price_monthly) }}/mo{% else %} Forever{% endif %}</div>
+      <h3 class="pricing-name">{{ tier.label }}</h3>
+      <div class="pricing-price">
+        {% if tier.price_monthly == 0 %}$<span style="font-size:36px">0</span>{% else %}<span id="{{ tier_key }}-price">${{ '%.2f'|format(tier.price_monthly) }}</span>{% endif %}<span>/mo</span>
+      </div>
+      <p class="pricing-desc">{{ tier.description }}</p>
+      {% if tier_key == 'free' %}
       <button class="pricing-cta" onclick="window.location.href='{{ url_for('auth.register') }}'">Start Free</button>
+      {% else %}
+      <button class="pricing-cta" onclick="openCheckout('{{ tier_key }}')">Start {{ tier.trial_days }}-Day Free Trial</button>
+      {% endif %}
       <ul class="pricing-features">
-        <li>🎬 3 AI videos/month</li>
-        <li>📲 Publish to 3 platforms</li>
-        <li>📸 Quick Post from photo/video</li>
-        <li>🖼 Pexels stock media</li>
-        <li>✍️ Basic AI script writing</li>
-        <li>#️⃣ Hashtag suggestions</li>
-        <li>🎛️ The Cut</li>
-        <li>📅 Content Calendar</li>
-        <li>💬 Community support</li>
+        {% for f in tier.features %}
+        <li>{{ f }}</li>
+        {% endfor %}
       </ul>
     </div>
-
-    <!-- STARTER -->
-    <div class="pricing-card">
-      <div class="pricing-popular" style="background:#3b82f6;">7-Day Free Trial</div>
-      <div class="pricing-tier">Starter — $9.99/mo</div>
-      <h3 class="pricing-name">Starter</h3>
-      <div class="pricing-price"><span id="starter-price">$9.99</span><span>/mo</span></div>
-      <p class="pricing-desc">Essential tools to start growing your brand across multiple platforms.</p>
-      <button class="pricing-cta" onclick="openCheckout('starter')">Start 7-Day Free Trial</button>
-      <ul class="pricing-features">
-        <li>✅ 7-day free trial</li>
-        <li>🎬 7 AI videos/month</li>
-        <li>📲 Publish to 5 platforms</li>
-        <li>🤖 50 Social Optimize Credits/mo</li>
-        <li>🧠 5-agent AI content pipeline</li>
-        <li>📅 Content calendar & scheduling</li>
-        <li>🎛️ The Cut</li>
-        <li>📚 Template Library</li>
-        <li>#️⃣ Hashtag research</li>
-        <li>📸 Quick Post from photo/video</li>
-        <li>🖼 Pexels stock media</li>
-        <li>📧 Email support</li>
-      </ul>
-    </div>
-
-    <!-- CREATOR — Small Business -->
-    <div class="pricing-card">
-      <div class="pricing-popular" style="background:#30d158;color:#000;">Best for Small Business</div>
-      <div class="pricing-tier">Creator — $29.99/mo</div>
-      <h3 class="pricing-name">Creator</h3>
-      <div class="pricing-price"><span id="creator-price">$29.99</span><span>/mo</span></div>
-      <p class="pricing-desc">Built for entrepreneurs and small businesses. Grow your brand with AI-powered content across every platform.</p>
-      <button class="pricing-cta" onclick="openCheckout('creator')">Start 14-Day Free Trial</button>
-      <ul class="pricing-features">
-        <li>✅ 14-day free trial</li>
-        <li>🎬 15 AI videos/month</li>
-        <li>📲 Publish to 8 platforms</li>
-        <li>🤖 150 Social Optimize Credits/mo</li>
-        <li>🧠 5-agent AI content pipeline</li>
-        <li>🔥 The Forge — production suite</li>
-        <li>📢 Ad Lab — photo → ad</li>
-        <li>🎵 Hit Factory</li>
-        <li>📦 Batch Generator</li>
-        <li>📅 Content calendar & scheduling</li>
-        <li>#️⃣ Hashtag research tool</li>
-        <li>📧 Email support</li>
-      </ul>
-    </div>
-
-    <!-- PRO (FEATURED) -->
-    <div class="pricing-card featured">
-      <div class="pricing-popular">⭐ Most Popular</div>
-      <div class="pricing-tier">Pro — $79.99/mo</div>
-      <h3 class="pricing-name">Pro</h3>
-      <div class="pricing-price"><span id="pro-price">$79.99</span><span>/mo</span></div>
-      <p class="pricing-desc">The full creative suite for serious creators. Cancel anytime.</p>
-      <button class="pricing-cta" onclick="openCheckout('pro')">Start 14-Day Free Trial</button>
-      <ul class="pricing-features">
-        <li>✅ 14-day free trial</li>
-        <li>🎬 50 AI videos/month</li>
-        <li>📲 Publish to all 8 platforms</li>
-        <li>🤖 500 Social Optimize Credits/mo</li>
-        <li>✨ Everything in Creator</li>
-        <li>🔥 The Forge — full production suite</li>
-        <li>🎬 Cinema House — cinematic AI</li>
-        <li>🎵 Hit Factory — DJ & beat maker</li>
-        <li>✂️ The Scalpel — auto-clip to shorts</li>
-        <li>🎥 Documentary & Animation formats</li>
-        <li>📦 Batch create 30 videos at once</li>
-        <li>🔍 Competitor & trend analysis</li>
-        <li>🌍 Multi-language (15 languages)</li>
-        <li>📊 Advanced analytics & reporting</li>
-        <li>🎛️ The Cut — full suite</li>
-        <li>⚡ Priority support</li>
-      </ul>
-    </div>
-
-    <!-- AGENCY -->
-    <div class="pricing-card">
-      <div class="pricing-popular" style="background:#a855f7;">14-Day Free Trial</div>
-      <div class="pricing-tier">Agency — $199.99/mo</div>
-      <h3 class="pricing-name">Agency</h3>
-      <div class="pricing-price"><span id="agency-price">$199.99</span><span>/mo</span></div>
-      <p class="pricing-desc">Scale your content operation with your whole team. Cancel anytime.</p>
-      <button class="pricing-cta" onclick="openCheckout('agency')">Start 14-Day Free Trial</button>
-      <ul class="pricing-features">
-        <li>✅ 14-day free trial</li>
-        <li>🎬 125 AI videos/month</li>
-        <li>📲 Publish to all 8 platforms</li>
-        <li>🤖 2,000 Social Optimize Credits/mo</li>
-        <li>🎙 Everything in Pro</li>
-        <li>👥 Team management (5 seats)</li>
-        <li>🏷 White-label exports</li>
-        <li>📣 SMS/WhatsApp outreach</li>
-        <li>🔌 API access</li>
-        <li>🧑‍💼 Dedicated account manager</li>
-        <li>🕐 24/7 priority support</li>
-      </ul>
-    </div>
-
+    {% endfor %}
   </div>
 </section>
 
@@ -361,19 +261,15 @@
       <tbody>
         <tr>
           <td class="comp-feature">Price</td>
-          <td><span class="comp-check">$0</span></td>
-          <td><span class="comp-check">$9.99</span></td>
-          <td><span class="comp-check">$29.99</span></td>
-          <td><span class="comp-check">$79.99</span></td>
-          <td><span class="comp-check">$199.99</span></td>
+          {% for tier_key, tier in tiers.items() %}
+          <td><span class="comp-check">{% if tier.price_monthly == 0 %}$0{% else %}${{ '%.2f'|format(tier.price_monthly) }}{% endif %}</span></td>
+          {% endfor %}
         </tr>
         <tr>
           <td class="comp-feature">Videos per month</td>
-          <td><span class="comp-check">3</span></td>
-          <td><span class="comp-check">7</span></td>
-          <td><span class="comp-check">15</span></td>
-          <td><span class="comp-check">50</span></td>
-          <td><span class="comp-check">125</span></td>
+          {% for tier_key, tier in tiers.items() %}
+          <td><span class="comp-check">{{ tier.videos_per_month if tier.videos_per_month != -1 else '3' }}</span></td>
+          {% endfor %}
         </tr>
         <tr>
           <td class="comp-feature">Platforms supported</td>
@@ -385,11 +281,9 @@
         </tr>
         <tr>
           <td class="comp-feature">SO Credits/mo</td>
-          <td><span class="comp-check">10</span></td>
-          <td><span class="comp-check">50</span></td>
-          <td><span class="comp-check">150</span></td>
-          <td><span class="comp-check">500</span></td>
-          <td><span class="comp-check">2,000</span></td>
+          {% for tier_key, tier in tiers.items() %}
+          <td><span class="comp-check">{{ '{:,}'.format(tier.higgsfield_credits) }}</span></td>
+          {% endfor %}
         </tr>
         <tr>
           <td class="comp-feature">The Forge, Ad Lab & Hit Factory</td>
@@ -499,7 +393,7 @@
         <div class="faq-toggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
       </button>
       <div class="faq-a">
-        <p>Yes! Our annual plans save you 20% compared to monthly billing. Pay once per year and lock in that rate.</p>
+        <p>Not yet — all plans are billed monthly right now. We'll announce annual billing here if we launch it.</p>
       </div>
     </div>
     <div class="faq-item">
@@ -541,8 +435,8 @@
     <a href="/about">About</a>
     <a href="/blog">Blog</a>
     <a href="/contact">Contact</a>
-    <a href="/legal/privacy">Privacy</a>
-    <a href="/legal/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
   </div>
 </div>
 
@@ -588,24 +482,6 @@ function closeCheckout() {
 document.getElementById('whopCheckoutOverlay').addEventListener('click', function(e) {
   if (e.target === this) closeCheckout();
 });
-
-const priceMap = {
-  'monthly': { starter: '9.99', creator: '29.99', pro: '79.99', agency: '199.99' },
-  'annual': { starter: '7.99', creator: '23.99', pro: '63.99', agency: '159.99' }
-};
-
-function togglePricing(period) {
-  document.querySelectorAll('.pricing-toggle button').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-
-  const savingsLabel = document.getElementById('savingsLabel');
-  savingsLabel.style.display = period === 'annual' ? 'block' : 'none';
-
-  document.getElementById('starter-price').textContent = '$' + priceMap[period].starter;
-  document.getElementById('creator-price').textContent = '$' + priceMap[period].creator;
-  document.getElementById('pro-price').textContent = '$' + priceMap[period].pro;
-  document.getElementById('agency-price').textContent = '$' + priceMap[period].agency;
-}
 
 function toggleFaq(button) {
   const answer = button.nextElementSibling;

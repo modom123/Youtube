@@ -1,10 +1,12 @@
 """Billing Blueprint — Stripe checkout, portal, webhook."""
-import json
+import logging
 import stripe
 from flask import Blueprint, request, redirect, render_template, url_for, jsonify
 from flask_login import login_required, current_user
 import config
 import database as db
+
+log = logging.getLogger(__name__)
 
 billing_bp = Blueprint("billing", __name__, url_prefix="/billing")
 
@@ -94,6 +96,40 @@ def checkout(tier_name):
     return redirect(session.url, code=303)
 
 
+@billing_bp.route("/checkout/credits/<int:package_id>")
+@login_required
+def checkout_credits(package_id):
+    packages = {int(p["id"]): p for p in db.get_credit_packages()}
+    pkg = packages.get(package_id)
+    if not pkg:
+        return redirect(url_for("credits_page"))
+
+    customer_id = current_user.stripe_customer_id
+    if not customer_id:
+        customer = stripe.Customer.create(email=current_user.email, name=current_user.name)
+        customer_id = customer.id
+        db.update_user(current_user.id, stripe_customer_id=customer_id)
+
+    session = stripe.checkout.Session.create(
+        customer=customer_id,
+        payment_method_types=["card"],
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "product_data": {"name": f"{pkg['name']} — Credit Pack"},
+                "unit_amount": int(round(float(pkg["price_usd"]) * 100)),
+            },
+            "quantity": 1,
+        }],
+        success_url=config.APP_BASE_URL + url_for("credits_page") + "?purchase=success",
+        cancel_url=config.APP_BASE_URL + url_for("credits_page"),
+        client_reference_id=str(current_user.id),
+        metadata={"user_id": str(current_user.id), "credit_package_id": str(package_id)},
+    )
+    return redirect(session.url, code=303)
+
+
 @billing_bp.route("/success")
 @login_required
 def checkout_success():
@@ -152,16 +188,15 @@ def webhook():
     payload = request.get_data()
     sig = request.headers.get("Stripe-Signature", "")
 
-    if config.STRIPE_WEBHOOK_SECRET:
-        try:
-            event = stripe.Webhook.construct_event(payload, sig, config.STRIPE_WEBHOOK_SECRET)
-        except (ValueError, stripe.error.SignatureVerificationError):
-            return jsonify({"error": "Invalid signature"}), 400
-    else:
-        try:
-            event = json.loads(payload)
-        except Exception:
-            return jsonify({"error": "Bad payload"}), 400
+    if not config.STRIPE_WEBHOOK_SECRET:
+        log.error("STRIPE_WEBHOOK_SECRET is not set — rejecting webhook (fail closed). "
+                  "Set STRIPE_WEBHOOK_SECRET to accept real Stripe events.")
+        return jsonify({"error": "Webhook not configured"}), 503
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig, config.STRIPE_WEBHOOK_SECRET)
+    except (ValueError, stripe.error.SignatureVerificationError):
+        return jsonify({"error": "Invalid signature"}), 400
 
     etype = event["type"]
     data  = event["data"]["object"]
@@ -213,10 +248,29 @@ def _handle_subscription_deleted(sub):
 
 
 def _handle_checkout_completed(session):
-    tier_name = session.get("metadata", {}).get("tier")
+    metadata = session.get("metadata", {}) or {}
+    uid = metadata.get("user_id")
+    if not uid:
+        return
+
+    credit_package_id = metadata.get("credit_package_id")
+    if credit_package_id:
+        if session.get("payment_status") != "paid":
+            return
+        packages = {int(p["id"]): p for p in db.get_credit_packages()}
+        pkg = packages.get(int(credit_package_id))
+        if not pkg:
+            return
+        credits = float(pkg["credits"])
+        bonus = credits * float(pkg.get("bonus_pct", 0)) / 100
+        total = credits + bonus
+        db.add_credits(int(uid), total, "purchase",
+                       f"Purchased {pkg['name']} ({total:.0f} credits)")
+        return
+
+    tier_name = metadata.get("tier")
     sub_id = session.get("subscription")
-    uid = session.get("metadata", {}).get("user_id")
-    if uid and tier_name:
+    if tier_name:
         db.update_user(
             int(uid),
             subscription_tier=tier_name,

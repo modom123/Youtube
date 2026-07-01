@@ -93,7 +93,10 @@ def _find_user_by_external_id(external_id: str, channel: str):
 
 def _verify_hmac(payload: bytes, signature: str, secret: str, algo="sha256") -> bool:
     if not secret:
-        return True
+        log.error("Webhook secret not configured — rejecting webhook (fail closed).")
+        return False
+    if not signature:
+        return False
     expected = hmac.new(secret.encode(), payload, getattr(hashlib, algo)).hexdigest()
     return hmac.compare_digest(expected, signature)
 
@@ -106,7 +109,7 @@ def _verify_hmac(payload: bytes, signature: str, secret: str, algo="sha256") -> 
 def whop_webhook():
     payload = request.get_data()
     sig = request.headers.get("Whop-Signature", "")
-    if config.WHOP_WEBHOOK_SECRET and not _verify_hmac(payload, sig, config.WHOP_WEBHOOK_SECRET):
+    if not _verify_hmac(payload, sig, config.WHOP_WEBHOOK_SECRET):
         return jsonify({"error": "invalid signature"}), 401
 
     data = request.get_json(silent=True) or {}
@@ -158,7 +161,7 @@ def gumroad_webhook():
 def lemonsqueezy_webhook():
     payload = request.get_data()
     sig = request.headers.get("X-Signature", "")
-    if config.LEMONSQUEEZY_WEBHOOK_SECRET and not _verify_hmac(payload, sig, config.LEMONSQUEEZY_WEBHOOK_SECRET):
+    if not _verify_hmac(payload, sig, config.LEMONSQUEEZY_WEBHOOK_SECRET):
         return jsonify({"error": "invalid signature"}), 401
 
     data = request.get_json(silent=True) or {}
@@ -192,7 +195,7 @@ APPSUMO_TIER_MAP = {1: "starter", 2: "creator", 3: "pro", 4: "agency", 5: "agenc
 def appsumo_webhook():
     payload = request.get_data()
     sig = request.headers.get("X-AppSumo-Signature", "")
-    if config.APPSUMO_WEBHOOK_SECRET and not _verify_hmac(payload, sig, config.APPSUMO_WEBHOOK_SECRET):
+    if not _verify_hmac(payload, sig, config.APPSUMO_WEBHOOK_SECRET):
         return jsonify({"error": "invalid signature"}), 401
 
     data = request.get_json(silent=True) or {}
@@ -230,7 +233,8 @@ def _paypal_base_url():
 
 def _paypal_verify_webhook(headers: dict, body: bytes) -> bool:
     if not config.PAYPAL_WEBHOOK_ID:
-        return True
+        log.error("PAYPAL_WEBHOOK_ID is not configured — rejecting webhook (fail closed).")
+        return False
     import requests as _req
     try:
         token_resp = _req.post(f"{_paypal_base_url()}/v1/oauth2/token",

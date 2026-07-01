@@ -173,6 +173,17 @@ def init_db():
         )
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS contact_messages (
+            id          SERIAL PRIMARY KEY,
+            name        TEXT NOT NULL,
+            email       TEXT NOT NULL,
+            subject     TEXT,
+            message     TEXT NOT NULL,
+            status      TEXT DEFAULT 'new',
+            created_at  TIMESTAMP DEFAULT NOW()
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS contacts (
             id          SERIAL PRIMARY KEY,
             user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -1256,6 +1267,16 @@ def get_credit_packages() -> list:
         return [dict(r) for r in conn.execute(
             "SELECT * FROM so_credit_packages WHERE active=TRUE ORDER BY price_usd"
         ).fetchall()]
+
+
+def save_contact_message(name: str, email: str, subject: str, message: str) -> int:
+    with get_conn() as conn:
+        row = conn.execute(
+            "INSERT INTO contact_messages (name, email, subject, message) "
+            "VALUES (%s,%s,%s,%s) RETURNING id",
+            (name, email, subject, message),
+        ).fetchone()
+        return row["id"]
 
 
 def row_to_dict(row):
