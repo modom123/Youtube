@@ -759,7 +759,7 @@ def produce_studio(studio_key):
         "studio": studio_key,
         "label": studio["label"],
         "title": script["title"],
-        "duration": video.duration,
+        "duration": float(video.duration),
         "resolution": f"{w}x{h}",
         "fps": fps,
         "has_music": has_music,

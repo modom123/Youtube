@@ -688,7 +688,7 @@ def produce(
     for p in [output_dir / "bgm.mp3", output_dir / "mixed.mp3", output_dir / "_padded.mp3"]:
         p.unlink(missing_ok=True)
 
-    duration = video.duration
+    duration = float(video.duration)
     file_size = output_path.stat().st_size / (1024 * 1024)
     video.close()
     voice_clip.close()

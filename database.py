@@ -1631,6 +1631,17 @@ def create_job(topic, format, platforms, audience, voice, style, privacy,
         return cur.fetchone()["id"]
 
 
+def _coerce_val(v):
+    """Convert numpy scalars → native Python types so psycopg2 can serialize them.
+    numpy 2.x repr changed: str(np.float64(x)) == 'np.float64(x)', which breaks SQL."""
+    try:
+        if hasattr(v, "item") and type(v).__module__.startswith("numpy"):
+            return v.item()
+    except Exception:
+        pass
+    return v
+
+
 def update_job(job_id, **kwargs):
     if not kwargs:
         return
@@ -1638,7 +1649,7 @@ def update_job(job_id, **kwargs):
         if k in kwargs and isinstance(kwargs[k], (list, dict)):
             kwargs[k] = json.dumps(kwargs[k])
     cols = ", ".join(f"{k}=%s" for k in kwargs)
-    vals = list(kwargs.values()) + [job_id]
+    vals = [_coerce_val(v) for v in kwargs.values()] + [job_id]
     with get_conn() as conn:
         conn.execute(f"UPDATE jobs SET {cols} WHERE id=%s", vals)
 
