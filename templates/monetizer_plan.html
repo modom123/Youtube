@@ -48,6 +48,41 @@
 
 <div class="plan-kpis" id="kpiCards"></div>
 
+<!-- Profitable Formula Margin Meter (live from Monetizer formula) -->
+<div id="plan-margin-meter" style="background:#070d14;border:1px solid #1e3a5f;border-radius:16px;padding:20px;margin-bottom:24px;display:none;">
+    <div style="color:#3b82f6;font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:14px;">💡 Profitable Formula — Live Margin Target</div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;">
+        <svg viewBox="0 0 200 120" width="180" height="110">
+            <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#1e293b" stroke-width="14" stroke-linecap="round"/>
+            <path d="M 20 110 A 80 80 0 0 1 81 34" fill="none" stroke="#ef4444" stroke-width="14" stroke-linecap="round" opacity=".25"/>
+            <path d="M 81 34 A 80 80 0 0 1 128 34" fill="none" stroke="#f59e0b" stroke-width="14" stroke-linecap="round" opacity=".25"/>
+            <path d="M 128 34 A 80 80 0 0 1 180 110" fill="none" stroke="#10b981" stroke-width="14" stroke-linecap="round" opacity=".25"/>
+            <path id="plan-gauge-fill" d="M 20 110 A 80 80 0 0 1 20 110" fill="none" stroke="#10b981" stroke-width="14" stroke-linecap="round"/>
+            <line id="plan-gauge-target" x1="128" y1="34" x2="142" y2="27" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+            <line id="plan-gauge-needle" x1="100" y1="110" x2="100" y2="45" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="100" cy="110" r="5" fill="#fff"/>
+            <text id="plan-gauge-val" x="100" y="98" text-anchor="middle" fill="#10b981" font-size="20" font-weight="800">—</text>
+            <text x="100" y="111" text-anchor="middle" fill="#475569" font-size="8">Gross Margin</text>
+        </svg>
+        <div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+                <div><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Revenue/mo</div><div id="plan-meter-rev" style="color:#10b981;font-weight:700;font-size:1.1rem;">—</div></div>
+                <div><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Profit/mo</div><div id="plan-meter-profit" style="color:#fff;font-weight:700;font-size:1.1rem;">—</div></div>
+                <div><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">vs Target</div><div id="plan-meter-gap" style="font-weight:700;font-size:1.1rem;">—</div></div>
+            </div>
+            <div style="background:#1e293b;border-radius:999px;height:16px;position:relative;overflow:visible;margin-bottom:6px;">
+                <div id="plan-meter-target-tick" style="position:absolute;top:-3px;bottom:-3px;width:2px;background:#3b82f6;left:70%"></div>
+                <div id="plan-meter-fill" style="height:100%;border-radius:999px;background:linear-gradient(90deg,#ef4444,#f59e0b,#10b981);transition:width .5s;width:0%"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:.7rem;color:#475569;margin-bottom:10px;">
+                <span>0%</span><span id="plan-meter-target-lbl" style="color:#3b82f6;">Target 70%</span><span>100%</span>
+            </div>
+            <div id="plan-meter-verdict" style="font-size:.8rem;font-weight:600;"></div>
+            <a href="/monetizer" onclick="sessionStorage.setItem('openPanel','formula')" style="color:#3b82f6;font-size:.75rem;text-decoration:none;margin-top:8px;display:inline-block;">→ Adjust formula in Monetizer</a>
+        </div>
+    </div>
+</div>
+
 <div id="milestonesContainer"></div>
 
 <script>
@@ -149,5 +184,60 @@ async function cycleStatus(id,current){
 
 loadPlan();
 setInterval(loadPlan,60000);
+
+// ── Plan margin meter (from ACTUAL live sales + expenses) ─────────────────
+async function loadPlanMarginMeter() {
+    try {
+        const d = await fetch('/monetizer/api/actual-margin').then(r=>r.json());
+        if (d.error) return;
+
+        const margin   = d.gross_margin;
+        const target   = d.target_margin;
+        const profit   = d.gross_profit;
+        const totalRev = d.total_revenue;
+        const gap      = d.gap;
+        const color    = margin >= target ? '#10b981' : margin >= target*0.75 ? '#f59e0b' : '#ef4444';
+
+        // Show meter
+        document.getElementById('plan-margin-meter').style.display = 'block';
+
+        // Gauge arc (same math as Monetizer)
+        const clamp = v => Math.max(0, Math.min(100, v));
+        const toRad = d => d * Math.PI / 180;
+        function pct2xy(pct) {
+            const angle = 180 - clamp(pct) * 1.8;
+            return { x: 100 + 80*Math.cos(toRad(angle)), y: 110 - 80*Math.sin(toRad(angle)) };
+        }
+        function arcPath(pct) {
+            const e = pct2xy(pct);
+            const large = pct > 50 ? 1 : 0;
+            return `M 20 110 A 80 80 0 ${large} 1 ${e.x} ${e.y}`;
+        }
+        document.getElementById('plan-gauge-fill').setAttribute('d', arcPath(clamp(margin)));
+        document.getElementById('plan-gauge-fill').setAttribute('stroke', color);
+        const nxy = pct2xy(clamp(margin));
+        const nx = 100+(nxy.x-100)*0.75, ny = 110+(nxy.y-110)*0.75;
+        document.getElementById('plan-gauge-needle').setAttribute('x2', nx);
+        document.getElementById('plan-gauge-needle').setAttribute('y2', ny);
+        document.getElementById('plan-gauge-val').textContent = margin.toFixed(1)+'%';
+        document.getElementById('plan-gauge-val').setAttribute('fill', color);
+
+        // Numbers
+        document.getElementById('plan-meter-rev').textContent = '$'+Math.round(totalRev).toLocaleString();
+        document.getElementById('plan-meter-profit').textContent = '$'+Math.round(profit).toLocaleString();
+        document.getElementById('plan-meter-profit').style.color = profit >= 0 ? '#10b981' : '#ef4444';
+        document.getElementById('plan-meter-gap').textContent = (gap>=0?'+':'')+gap.toFixed(1)+'%';
+        document.getElementById('plan-meter-gap').style.color = color;
+
+        // Bar
+        document.getElementById('plan-meter-fill').style.width = clamp(margin)+'%';
+        document.getElementById('plan-meter-target-tick').style.left = target+'%';
+        document.getElementById('plan-meter-target-lbl').textContent = 'Target '+target+'%';
+        const vEl = document.getElementById('plan-meter-verdict');
+        vEl.textContent = gap >= 0 ? `✅ Profitable — ${gap.toFixed(1)}% above ${target}% target` : `⚠️ ${Math.abs(gap).toFixed(1)}% below ${target}% target — review formula`;
+        vEl.style.color = color;
+    } catch(e) { /* formula not yet saved */ }
+}
+loadPlanMarginMeter();
 </script>
 {% endblock %}

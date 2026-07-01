@@ -6980,6 +6980,108 @@ def mon_revenue_overview():
     })
 
 
+# ── Actual Margin (real sales + expenses) ────────────────────────────────────
+
+@app.route("/monetizer/api/actual-margin")
+@login_required
+def mon_actual_margin():
+    if not current_user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+
+    # ── Revenue: subscription MRR from live user tiers
+    counts = _mon_user_counts()
+    prices = _mon_tier_prices()
+    sub_mrr = sum(counts.get(t, 0) * prices.get(t, 0) for t in prices if t != "free")
+
+    # ── Revenue: finance_clients monthly value (active clients)
+    try:
+        with db.get_conn() as conn:
+            row = conn.execute(
+                "SELECT COALESCE(SUM(monthly_value),0) AS total FROM finance_clients WHERE status='active'"
+            ).fetchone()
+            client_rev = float(row["total"] if row else 0)
+    except Exception:
+        client_rev = 0
+
+    # ── Revenue: SO credit purchases this month
+    try:
+        with db.get_conn() as conn:
+            row = conn.execute(
+                """SELECT COALESCE(SUM(amount),0) AS total FROM so_credit_txns
+                   WHERE direction='credit' AND action_type='purchase'
+                   AND created_at >= date_trunc('month', NOW())"""
+            ).fetchone()
+            credit_rev = float(row["total"] if row else 0)
+    except Exception:
+        credit_rev = 0
+
+    total_revenue = sub_mrr + client_rev + credit_rev
+
+    # ── Costs: finance_subscriptions + finance_platforms (fixed monthly)
+    try:
+        with db.get_conn() as conn:
+            r1 = conn.execute("SELECT COALESCE(SUM(monthly_cost),0) AS t FROM finance_subscriptions WHERE status='active'").fetchone()
+            r2 = conn.execute("SELECT COALESCE(SUM(monthly_cost),0) AS t FROM finance_platforms WHERE status='active'").fetchone()
+            fixed_costs = float(r1["t"] if r1 else 0) + float(r2["t"] if r2 else 0)
+    except Exception:
+        fixed_costs = 0
+
+    # ── Costs: monetizer_expenses this month
+    try:
+        with db.get_conn() as conn:
+            row = conn.execute(
+                """SELECT COALESCE(SUM(amount),0) AS total FROM monetizer_expenses
+                   WHERE created_at >= date_trunc('month', NOW())"""
+            ).fetchone()
+            var_costs = float(row["total"] if row else 0)
+    except Exception:
+        var_costs = 0
+
+    # ── Costs: provider credit spend this month (API costs)
+    try:
+        with db.get_conn() as conn:
+            row = conn.execute(
+                "SELECT COALESCE(SUM(monthly_spend),0) AS total FROM finance_provider_credits"
+            ).fetchone()
+            api_costs = float(row["total"] if row else 0)
+    except Exception:
+        api_costs = 0
+
+    total_costs = fixed_costs + var_costs + api_costs
+    gross_profit = total_revenue - total_costs
+    gross_margin = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+
+    # Pull target from saved formula
+    target_margin = 70.0
+    try:
+        with db.get_conn() as conn:
+            row = conn.execute(
+                "SELECT message FROM monetizer_alerts WHERE alert_type='_formula' LIMIT 1"
+            ).fetchone()
+            if row:
+                f = json.loads(row["message"])
+                target_margin = float(f.get("target-margin", f.get("target_margin", 70)))
+    except Exception:
+        pass
+
+    return jsonify({
+        "total_revenue":   round(total_revenue, 2),
+        "total_costs":     round(total_costs, 2),
+        "gross_profit":    round(gross_profit, 2),
+        "gross_margin":    round(gross_margin, 2),
+        "target_margin":   round(target_margin, 2),
+        "gap":             round(gross_margin - target_margin, 2),
+        "breakdown": {
+            "sub_mrr":    round(sub_mrr, 2),
+            "client_rev": round(client_rev, 2),
+            "credit_rev": round(credit_rev, 2),
+            "fixed_costs": round(fixed_costs, 2),
+            "var_costs":  round(var_costs, 2),
+            "api_costs":  round(api_costs, 2),
+        }
+    })
+
+
 # ── Users ─────────────────────────────────────────────────────────────────────
 
 @app.route("/monetizer/api/users/cohorts")

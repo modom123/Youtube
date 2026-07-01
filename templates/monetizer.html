@@ -367,16 +367,67 @@
                 Save your formula — it becomes the operating target for the entire business.
             </p>
 
-            <!-- Live profitability score -->
-            <div id="formula-score-bar" style="background:#0a0a0a;border-radius:12px;padding:20px;margin-bottom:24px;border:1px solid #1a2a1a;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                    <span style="color:#fff;font-weight:700;font-size:16px;">Profitability Score</span>
-                    <span id="formula-score-num" style="font-size:2rem;font-weight:800;color:var(--mon-green);">—</span>
+            <!-- Margin Meter — actual vs target -->
+            <div style="background:#070d14;border-radius:16px;padding:24px;margin-bottom:24px;border:1px solid #1e3a5f;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center;">
+
+                <!-- SVG Gauge -->
+                <div style="text-align:center;min-width:200px;">
+                    <svg id="margin-gauge-svg" viewBox="0 0 200 120" width="200" height="120">
+                        <!-- Track arcs (background) -->
+                        <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#1e293b" stroke-width="14" stroke-linecap="round"/>
+                        <!-- Colored zones: red 0-50, amber 50-70, green 70-100 -->
+                        <path d="M 20 110 A 80 80 0 0 1 81 34" fill="none" stroke="#ef4444" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+                        <path d="M 81 34 A 80 80 0 0 1 128 34" fill="none" stroke="#f59e0b" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+                        <path d="M 128 34 A 80 80 0 0 1 180 110" fill="none" stroke="#10b981" stroke-width="14" stroke-linecap="round" opacity=".35"/>
+                        <!-- Target marker line -->
+                        <line id="gauge-target-line" x1="100" y1="30" x2="100" y2="44" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+                        <text id="gauge-target-label" x="100" y="26" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">TARGET</text>
+                        <!-- Active fill arc -->
+                        <path id="gauge-fill-arc" d="M 20 110 A 80 80 0 0 1 20 110" fill="none" stroke="#10b981" stroke-width="14" stroke-linecap="round"/>
+                        <!-- Needle -->
+                        <line id="gauge-needle" x1="100" y1="110" x2="100" y2="38" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+                        <circle cx="100" cy="110" r="5" fill="#fff"/>
+                        <!-- Center value -->
+                        <text id="gauge-center-val" x="100" y="98" text-anchor="middle" fill="#fff" font-size="22" font-weight="800">—</text>
+                        <text x="100" y="112" text-anchor="middle" fill="#64748b" font-size="9">Gross Margin</text>
+                    </svg>
+                    <div id="gauge-verdict-badge" style="display:inline-block;padding:4px 14px;border-radius:999px;font-size:11px;font-weight:700;background:#1e293b;color:#64748b;margin-top:4px;">Calculating...</div>
                 </div>
-                <div style="background:#1e293b;border-radius:999px;height:12px;overflow:hidden;">
-                    <div id="formula-score-fill" style="height:100%;background:linear-gradient(90deg,#ef4444,#f59e0b,#10b981);border-radius:999px;transition:width .4s;width:0%;"></div>
+
+                <!-- Comparison columns -->
+                <div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+                        <div style="background:#0f1a2e;border-radius:10px;padding:14px;border:1px solid #1e3a5f;">
+                            <div style="color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Actual Margin</div>
+                            <div id="meter-actual-margin" style="font-size:2.2rem;font-weight:800;color:#10b981;">—</div>
+                            <div id="meter-actual-profit" style="color:#475569;font-size:.8rem;margin-top:2px;">$— / mo</div>
+                        </div>
+                        <div style="background:#0a1220;border-radius:10px;padding:14px;border:1px solid #1e3a5f;">
+                            <div style="color:#64748b;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Target Margin</div>
+                            <div id="meter-target-margin-display" style="font-size:2.2rem;font-weight:800;color:#3b82f6;">70%</div>
+                            <div style="color:#475569;font-size:.8rem;margin-top:2px;">IEBC minimum</div>
+                        </div>
+                    </div>
+
+                    <!-- Linear comparison bar -->
+                    <div style="margin-bottom:8px;display:flex;justify-content:space-between;font-size:.75rem;color:#64748b;">
+                        <span>0%</span><span style="color:#3b82f6" id="meter-bar-target-label">Target 70%</span><span>100%</span>
+                    </div>
+                    <div style="background:#1e293b;border-radius:999px;height:20px;position:relative;overflow:visible;">
+                        <!-- Target line -->
+                        <div id="meter-target-tick" style="position:absolute;top:-4px;bottom:-4px;width:2px;background:#3b82f6;border-radius:1px;left:70%"></div>
+                        <!-- Actual fill -->
+                        <div id="meter-bar-fill" style="height:100%;border-radius:999px;background:linear-gradient(90deg,#ef4444 0%,#f59e0b 50%,#10b981 100%);background-size:100px 100%;transition:width .5s;width:0%;"></div>
+                    </div>
+                    <div id="meter-gap-label" style="color:#64748b;font-size:.75rem;margin-top:6px;text-align:right;"></div>
+
+                    <!-- Revenue vs cost breakdown -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px;">
+                        <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Revenue/mo</div><div id="meter-rev" style="color:#10b981;font-weight:700;">—</div></div>
+                        <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Costs/mo</div><div id="meter-cost" style="color:#ef4444;font-weight:700;">—</div></div>
+                        <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Profit/mo</div><div id="meter-profit" style="color:#fff;font-weight:700;">—</div></div>
+                    </div>
                 </div>
-                <div id="formula-verdict" style="color:#64748b;font-size:12px;margin-top:8px;text-align:right;"></div>
             </div>
 
             <!-- Formula sliders -->
@@ -432,6 +483,18 @@
                         </div>
                         <input type="range" class="formula-range" id="range-churn" min="0" max="30" step="0.5" value="5" oninput="updVal('churn','','%')" onchange="recalc()">
                         <div class="formula-hint">% of paying users lost each month</div>
+                    </div>
+
+                    <div class="formula-row" id="fr-platform-fee">
+                        <div class="formula-label-row">
+                            <label>3rd-Party Platform Fee</label>
+                            <div class="formula-toggle-wrap">
+                                <span class="formula-val" id="val-platform-fee">0%</span>
+                                <label class="formula-toggle"><input type="checkbox" onchange="recalc()"><span class="formula-slider-knob"></span></label>
+                            </div>
+                        </div>
+                        <input type="range" class="formula-range" id="range-platform-fee" min="0" max="40" step="1" value="0" oninput="updVal('platform-fee','','%')" onchange="recalc()">
+                        <div class="formula-hint">Gumroad/Whop/AppSumo cut (e.g. 30%). Applied to all subscription revenue.</div>
                     </div>
                 </div>
 
@@ -503,10 +566,28 @@
             <!-- Live results -->
             <div id="formula-results" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:20px;"></div>
 
+            <!-- Actual vs Formula comparison -->
+            <div id="actual-vs-formula" style="background:#070d14;border-radius:12px;padding:16px;margin-top:20px;border:1px solid #1e3a5f;display:none;">
+                <div style="color:#3b82f6;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-bottom:12px;">📊 Actual (Live DB) vs Formula Projection</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;">
+                    <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Actual Revenue</div><div id="act-rev" style="color:#10b981;font-weight:700;font-size:1.1rem;">—</div></div>
+                    <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Actual Costs</div><div id="act-cost" style="color:#ef4444;font-weight:700;font-size:1.1rem;">—</div></div>
+                    <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">Actual Margin</div><div id="act-margin" style="font-weight:800;font-size:1.3rem;">—</div></div>
+                    <div style="text-align:center;"><div style="color:#64748b;font-size:.7rem;text-transform:uppercase;">vs Target</div><div id="act-gap" style="font-weight:700;font-size:1.1rem;">—</div></div>
+                </div>
+                <div style="margin-top:10px;background:#1e293b;border-radius:999px;height:14px;position:relative;overflow:visible;">
+                    <div id="act-target-tick" style="position:absolute;top:-3px;bottom:-3px;width:2px;background:#3b82f6;left:70%"></div>
+                    <div id="act-bar-fill" style="height:100%;border-radius:999px;background:linear-gradient(90deg,#ef4444,#f59e0b,#10b981);transition:width .5s;width:0%"></div>
+                </div>
+                <div id="act-verdict" style="font-size:.8rem;font-weight:600;margin-top:6px;text-align:right;"></div>
+                <div style="font-size:.7rem;color:#334155;margin-top:8px;">Sources: subscription MRR + finance clients + credit purchases / finance subscriptions + platforms + expenses + API spend</div>
+            </div>
+
             <!-- Save button -->
             <div style="margin-top:20px;display:flex;gap:12px;align-items:center;">
                 <button class="mon-btn mon-btn-primary" onclick="saveFormula()">💾 Save Formula</button>
                 <button class="mon-btn mon-btn-outline" onclick="loadSavedFormula()">↩ Restore Saved</button>
+                <button class="mon-btn mon-btn-outline" onclick="loadActualMargin()">📊 Load Actual Data</button>
                 <span id="formula-save-msg" style="color:var(--mon-green);font-size:12px;"></span>
             </div>
         </div>
@@ -560,7 +641,7 @@ function loadPanel(name) {
         revenue: loadRevenue, users: loadUsers, costs: loadCosts,
         growth: loadGrowth, content: loadContent, features: loadFeatures,
         support: loadSupport, goals: loadGoals, changelog: loadChangelog,
-        health: loadHealth, formula: () => { loadSavedFormula(); recalc(); },
+        health: loadHealth, formula: () => { loadSavedFormula(); recalc(); loadActualMargin(); },
         'credits-mgr': loadCreditsManager,
     };
     if (loaders[name]) loaders[name]();
@@ -1020,19 +1101,21 @@ function recalc() {
     const payingUsers   = getSliderVal('paying-users');
     const creditRev     = getSliderVal('credit-rev');
     const churnPct      = getSliderVal('churn');
+    const platformFeePct= getSliderVal('platform-fee');
     const apiCostPer    = getSliderVal('api-cost');
     const infraCost     = getSliderVal('infra-cost');
     const subsCost      = getSliderVal('subs-cost');
     const creditCost    = getSliderVal('credit-cost');
     const targetMargin  = parseFloat(document.getElementById('range-target-margin').value) || 70;
 
-    // Revenue
-    const subRev = avgPrice * payingUsers;
+    // Revenue (apply platform fee cut to subscription revenue)
+    const grossSubRev = avgPrice * payingUsers;
+    const subRev = grossSubRev * (1 - platformFeePct / 100);
     const totalRev = subRev + creditRev;
 
     // Costs
     const varCosts = apiCostPer * payingUsers;
-    const creditDeliveryCost = (creditRev / 10) * creditCost; // rough: creditRev/$10 = k credits
+    const creditDeliveryCost = (creditRev / 10) * creditCost;
     const totalCosts = varCosts + infraCost + subsCost + creditDeliveryCost;
 
     // Metrics
@@ -1040,40 +1123,118 @@ function recalc() {
     const grossMargin = totalRev > 0 ? (grossProfit / totalRev * 100) : 0;
     const churnedUsers = Math.round(payingUsers * churnPct / 100);
     const ltv = churnPct > 0 ? (avgPrice / (churnPct / 100)) : 0;
-
-    // Score: 0-100 based on how far margin is above target
-    const score = Math.max(0, Math.min(100, (grossMargin / targetMargin) * 100));
-    const scoreEl = document.getElementById('formula-score-num');
-    const fillEl  = document.getElementById('formula-score-fill');
-    const verdictEl = document.getElementById('formula-verdict');
-
-    scoreEl.textContent = grossMargin.toFixed(1) + '%';
-    scoreEl.style.color = grossMargin >= targetMargin ? 'var(--mon-green)' : grossMargin >= targetMargin * 0.7 ? '#f59e0b' : '#ef4444';
-    fillEl.style.width = Math.min(score, 100) + '%';
-
     const gap = grossMargin - targetMargin;
+    const marginColor = grossMargin >= targetMargin ? '#10b981' : grossMargin >= targetMargin * 0.75 ? '#f59e0b' : '#ef4444';
+
+    // ── Update Margin Meter ──────────────────────────────────────────────────
+    updateGauge(grossMargin, targetMargin, marginColor);
+
+    // Top display numbers
+    document.getElementById('meter-actual-margin').textContent = grossMargin.toFixed(1) + '%';
+    document.getElementById('meter-actual-margin').style.color = marginColor;
+    document.getElementById('meter-actual-profit').textContent = '$' + Math.round(grossProfit).toLocaleString() + ' / mo profit';
+    document.getElementById('meter-target-margin-display').textContent = targetMargin.toFixed(0) + '%';
+    document.getElementById('meter-bar-target-label').textContent = 'Target ' + targetMargin + '%';
+
+    // Bar
+    const barFill = Math.min(Math.max(grossMargin, 0), 100);
+    document.getElementById('meter-bar-fill').style.width = barFill + '%';
+    document.getElementById('meter-target-tick').style.left = targetMargin + '%';
+    document.getElementById('meter-gap-label').textContent =
+        gap >= 0 ? `✅ ${gap.toFixed(1)}% above target` : `⚠️ ${Math.abs(gap).toFixed(1)}% below ${targetMargin}% target`;
+    document.getElementById('meter-gap-label').style.color = gap >= 0 ? '#10b981' : '#f59e0b';
+
+    // Revenue / Cost / Profit row
+    document.getElementById('meter-rev').textContent  = '$' + Math.round(totalRev).toLocaleString();
+    document.getElementById('meter-cost').textContent = '$' + Math.round(totalCosts).toLocaleString();
+    document.getElementById('meter-profit').textContent = '$' + Math.round(grossProfit).toLocaleString();
+    document.getElementById('meter-profit').style.color = grossProfit >= 0 ? '#10b981' : '#ef4444';
+
+    // Verdict badge
+    const badge = document.getElementById('gauge-verdict-badge');
     if (grossMargin >= targetMargin) {
-        verdictEl.textContent = `✅ ${gap.toFixed(1)}% above target — formula is profitable`;
-        verdictEl.style.color = 'var(--mon-green)';
+        badge.textContent = '✅ PROFITABLE'; badge.style.background='rgba(16,185,129,.15)'; badge.style.color='#10b981';
+    } else if (grossMargin >= targetMargin * 0.75) {
+        badge.textContent = '⚠️ CLOSE'; badge.style.background='rgba(245,158,11,.15)'; badge.style.color='#f59e0b';
     } else {
-        verdictEl.textContent = `⚠️ ${Math.abs(gap).toFixed(1)}% below ${targetMargin}% target — adjust levers`;
-        verdictEl.style.color = '#f59e0b';
+        badge.textContent = '🔴 BELOW TARGET'; badge.style.background='rgba(239,68,68,.15)'; badge.style.color='#ef4444';
     }
 
     // Result cards
     const results = [
-        { label: 'Monthly Revenue', val: '$' + Math.round(totalRev).toLocaleString(), color: 'var(--mon-green)' },
+        { label: 'Monthly Revenue', val: '$' + Math.round(totalRev).toLocaleString(), color: '#10b981' },
         { label: 'Monthly Costs', val: '$' + Math.round(totalCosts).toLocaleString(), color: '#ef4444' },
-        { label: 'Gross Profit', val: '$' + Math.round(grossProfit).toLocaleString(), color: grossProfit >= 0 ? 'var(--mon-green)' : '#ef4444' },
-        { label: 'Gross Margin', val: grossMargin.toFixed(1) + '%', color: grossMargin >= targetMargin ? 'var(--mon-green)' : '#f59e0b' },
+        { label: 'Gross Profit', val: '$' + Math.round(grossProfit).toLocaleString(), color: grossProfit >= 0 ? '#10b981' : '#ef4444' },
+        { label: 'Gross Margin', val: grossMargin.toFixed(1) + '%', color: marginColor },
         { label: 'LTV / User', val: '$' + Math.round(ltv).toLocaleString(), color: 'var(--mon-cyan)' },
         { label: 'Churn / mo', val: churnedUsers + ' users', color: '#f59e0b' },
-        { label: 'Break-even Users', val: totalCosts > 0 && avgPrice > apiCostPer ? Math.ceil((infraCost + subsCost) / (avgPrice - apiCostPer)).toLocaleString() : '—', color: '#a5b4fc' },
+        { label: 'Break-even', val: avgPrice > apiCostPer && avgPrice > 0 ? Math.ceil((infraCost + subsCost) / ((avgPrice*(1-platformFeePct/100)) - apiCostPer)).toLocaleString() + ' users' : '—', color: '#a5b4fc' },
         { label: 'ARR', val: '$' + Math.round(totalRev * 12).toLocaleString(), color: 'var(--mon-cyan)' },
     ];
     document.getElementById('formula-results').innerHTML = results.map(r =>
         `<div class="formula-result-card"><div class="frc-label">${r.label}</div><div class="frc-val" style="color:${r.color}">${r.val}</div></div>`
     ).join('');
+
+    // Push to plan widget if visible
+    if (typeof updatePlanMarginWidget === 'function') updatePlanMarginWidget(grossMargin, targetMargin, totalRev, grossProfit);
+}
+
+// ── SVG Gauge ──────────────────────────────────────────────────────────────
+function updateGauge(margin, target, color) {
+    // Gauge spans 180°: 0% = left (20,110), 100% = right (180,110), center = (100,30)
+    const clamp = v => Math.max(0, Math.min(100, v));
+    const toRad = deg => deg * Math.PI / 180;
+    const cx = 100, cy = 110, r = 80;
+
+    function pct2xy(pct) {
+        const angle = 180 - clamp(pct) * 1.8; // 180° (left) to 0° (right)
+        return {
+            x: cx + r * Math.cos(toRad(angle)),
+            y: cy - r * Math.sin(toRad(angle))
+        };
+    }
+
+    function arcPath(pct) {
+        const start = {x: 20, y: 110};
+        const end = pct2xy(pct);
+        const large = pct > 50 ? 1 : 0;
+        return `M ${start.x} ${start.y} A ${r} ${r} 0 ${large} 1 ${end.x} ${end.y}`;
+    }
+
+    const fillArc = document.getElementById('gauge-fill-arc');
+    if (fillArc) {
+        fillArc.setAttribute('d', arcPath(clamp(margin)));
+        fillArc.setAttribute('stroke', color);
+    }
+
+    // Needle
+    const needle = document.getElementById('gauge-needle');
+    if (needle) {
+        const nxy = pct2xy(clamp(margin));
+        const shortX = cx + (nxy.x - cx) * 0.75;
+        const shortY = cy + (nxy.y - cy) * 0.75;
+        needle.setAttribute('x2', shortX);
+        needle.setAttribute('y2', shortY);
+    }
+
+    // Target line
+    const tline = document.getElementById('gauge-target-line');
+    const tlabel = document.getElementById('gauge-target-label');
+    if (tline) {
+        const txy = pct2xy(clamp(target));
+        const inner = {x: cx + (txy.x-cx)*0.7, y: cy + (txy.y-cy)*0.7};
+        tline.setAttribute('x1', inner.x); tline.setAttribute('y1', inner.y);
+        tline.setAttribute('x2', txy.x); tline.setAttribute('y2', txy.y);
+    }
+    if (tlabel) {
+        const txy = pct2xy(clamp(target));
+        const lx = cx + (txy.x-cx)*0.55, ly = cy + (txy.y-cy)*0.55;
+        tlabel.setAttribute('x', lx); tlabel.setAttribute('y', ly);
+    }
+
+    // Center value text
+    const cv = document.getElementById('gauge-center-val');
+    if (cv) { cv.textContent = margin.toFixed(1)+'%'; cv.setAttribute('fill', color); }
 }
 
 async function saveFormula() {
@@ -1103,6 +1264,52 @@ async function loadSavedFormula() {
     updVal('churn','','%'); updVal('api-cost','$',''); updVal('infra-cost','$','');
     updVal('subs-cost','$',''); updVal('credit-cost','$',''); updVal('target-margin','','%');
     recalc();
+}
+
+// ═══ ACTUAL MARGIN (from live DB) ═══
+async function loadActualMargin() {
+    const d = await api('/actual-margin');
+    if (d.error) return;
+    const wrap = document.getElementById('actual-vs-formula');
+    if (wrap) wrap.style.display = 'block';
+
+    const m = d.gross_margin;
+    const target = d.target_margin;
+    const gap = d.gap;
+    const color = m >= target ? '#10b981' : m >= target*0.75 ? '#f59e0b' : '#ef4444';
+
+    document.getElementById('act-rev').textContent    = '$' + Math.round(d.total_revenue).toLocaleString();
+    document.getElementById('act-cost').textContent   = '$' + Math.round(d.total_costs).toLocaleString();
+    document.getElementById('act-margin').textContent = m.toFixed(1) + '%';
+    document.getElementById('act-margin').style.color = color;
+    document.getElementById('act-gap').textContent    = (gap>=0?'+':'')+gap.toFixed(1)+'%';
+    document.getElementById('act-gap').style.color    = color;
+
+    document.getElementById('act-bar-fill').style.width = Math.min(Math.max(m,0),100)+'%';
+    document.getElementById('act-target-tick').style.left = target+'%';
+    const v = document.getElementById('act-verdict');
+    v.textContent = gap >= 0 ? `✅ ${gap.toFixed(1)}% above ${target}% target — profitable` : `⚠️ ${Math.abs(gap).toFixed(1)}% below ${target}% target`;
+    v.style.color = color;
+
+    // Also update the gauge with actual data
+    updateGauge(m, target, color);
+    document.getElementById('meter-actual-margin').textContent = m.toFixed(1)+'%';
+    document.getElementById('meter-actual-margin').style.color = color;
+    document.getElementById('meter-actual-profit').textContent = '$'+Math.round(d.gross_profit).toLocaleString()+' / mo actual';
+    document.getElementById('meter-rev').textContent   = '$'+Math.round(d.total_revenue).toLocaleString();
+    document.getElementById('meter-cost').textContent  = '$'+Math.round(d.total_costs).toLocaleString();
+    document.getElementById('meter-profit').textContent = '$'+Math.round(d.gross_profit).toLocaleString();
+    document.getElementById('meter-profit').style.color = d.gross_profit >= 0 ? '#10b981' : '#ef4444';
+    document.getElementById('meter-bar-fill').style.width = Math.min(Math.max(m,0),100)+'%';
+    document.getElementById('meter-target-tick').style.left = target+'%';
+    document.getElementById('meter-gap-label').textContent = gap >= 0 ? `✅ ${gap.toFixed(1)}% above target` : `⚠️ ${Math.abs(gap).toFixed(1)}% below ${target}% target`;
+    document.getElementById('meter-gap-label').style.color = color;
+    const badge = document.getElementById('gauge-verdict-badge');
+    if (badge) {
+        badge.textContent = m >= target ? '✅ PROFITABLE (ACTUAL)' : '⚠️ BELOW TARGET (ACTUAL)';
+        badge.style.background = m >= target ? 'rgba(16,185,129,.15)' : 'rgba(239,68,68,.15)';
+        badge.style.color = color;
+    }
 }
 
 // ═══ CREDITS MANAGER ═══
