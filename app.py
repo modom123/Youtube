@@ -1525,6 +1525,13 @@ def oauth_youtube_start():
     )
     auth_url, state = flow.authorization_url(prompt="consent", access_type="offline")
     session["youtube_state"] = state
+    # google-auth-oauthlib >=1.1.0 defaults autogenerate_code_verifier=True,
+    # so authorization_url() just embedded a PKCE code_challenge in that URL
+    # (lazily generating flow.code_verifier as a side effect). Google now
+    # requires the matching code_verifier on token exchange — it has to be
+    # persisted here and restored in the callback's Flow, which otherwise
+    # gets its own unrelated auto-generated verifier that Google never saw.
+    session["youtube_code_verifier"] = flow.code_verifier
     return redirect(auth_url)
 
 
@@ -1546,6 +1553,11 @@ def oauth_youtube_callback():
             redirect_uri=config.APP_BASE_URL + "/oauth/youtube/callback",
             state=session.get("youtube_state"),
         )
+        # Restore the verifier generated in oauth_youtube_start — this Flow
+        # instance would otherwise auto-generate its own, unrelated one that
+        # Google never associated with this authorization code, causing
+        # "invalid_grant (Missing code verifier)" on every single attempt.
+        flow.code_verifier = session.get("youtube_code_verifier")
         flow.fetch_token(authorization_response=request.url)
         creds = flow.credentials
         yt = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
