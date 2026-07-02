@@ -8026,22 +8026,43 @@ def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
         voice_id    = params.get("voice_id", "")
         context     = params.get("context", "")
 
+        user_row = db.get_user_by_id(user_id) if user_id else {}
+        tier = (user_row or {}).get("subscription_tier", "starter")
+
+        # generate_script()'s real signature has no podcast-specific kwargs
+        # (podcast_name/guest_name/podcast_duration/style/context never
+        # existed) -- fold that context into custom_instructions instead,
+        # the mechanism the function actually supports.
+        extra = [f"This is episode {episode_num} of the podcast '{show_name}'."]
+        if guest:
+            extra.append(f"This episode features guest: {guest}. Reference them naturally throughout.")
+        if style:
+            extra.append(f"Style/tone: {style}.")
+        if context:
+            extra.append(context)
+
         script_result = script_generator.generate_script(
             topic=topic,
-            format="podcast",
+            content_type="podcast",
+            target_duration=duration * 60,
             audience=audience,
-            podcast_name=show_name,
-            episode_number=episode_num,
-            guest_name=guest,
-            podcast_duration=duration,
-            style=style,
-            context=context,
+            custom_instructions=" ".join(extra),
+            subscription_tier=tier,
         )
-        script_text = script_result.get("script", "") if isinstance(script_result, dict) else str(script_result)
-        title       = script_result.get("title", topic) if isinstance(script_result, dict) else topic
-        description = script_result.get("description", "") if isinstance(script_result, dict) else ""
-        show_notes  = script_result.get("show_notes", description) if isinstance(script_result, dict) else description
-        chapters    = script_result.get("chapters", []) if isinstance(script_result, dict) else []
+        # generate_script() returns a ContentScript dataclass, not a dict --
+        # .get(...) would AttributeError, and fields like .script/.show_notes/
+        # .chapters never existed on it (it's .narration, and there's no
+        # dedicated show_notes/chapters field at all).
+        title       = script_result.title or topic
+        description = script_result.description
+        narration   = script_result.narration
+        show_notes  = description
+        chapters    = []
+        cursor = 0
+        for sec in (script_result.sections or []):
+            mm, ss = divmod(cursor, 60)
+            chapters.append({"timestamp": f"{mm:02d}:{ss:02d}", "title": sec.get("name", "Section")})
+            cursor += int(sec.get("duration", 0) or 0)
 
         _push({"progress": 35, "step": "Generating audio…", "title": title})
 
@@ -8051,9 +8072,9 @@ def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
         audio_path = os.path.join(out_dir, "episode.mp3")
 
         audio_generator.generate_audio(
-            script=script_text,
+            text=narration,
             output_path=audio_path,
-            voice_id=voice_id or None,
+            voice=voice_id or None,
         )
         _push({"progress": 65, "step": "Creating audiogram video…"})
 
@@ -8064,10 +8085,11 @@ def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
             video_out  = os.path.join(out_dir, "audiogram.mp4")
             create_podcast_video(
                 audio_path=audio_path,
-                script=script_text,
-                podcast_name=show_name,
-                episode_number=episode_num,
                 output_path=video_out,
+                channel_name=show_name,
+                episode_number=episode_num,
+                title=title,
+                sections=script_result.sections,
             )
             if os.path.exists(video_out):
                 video_path = video_out
