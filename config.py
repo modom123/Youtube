@@ -418,6 +418,35 @@ SHORTS_MAX_DURATION = 60
 LONG_VIDEO_MIN_DURATION = 180
 PODCAST_MIN_DURATION = 300
 
+# Canonical studio/tool list -- single source of truth for anything that
+# needs to enumerate "what studios exist" (currently /api/studios for the
+# mobile app). Paths must match the real routes in app.py/templates/base.html
+# exactly -- a studio listed here with a wrong path 404s for whoever calls it.
+STUDIOS = [
+    {"id": "create", "name": "Create", "icon": "🚀", "path": "/create",
+     "desc": "Turn any topic into a complete, ready-to-post video."},
+    {"id": "studio", "name": "The Forge", "icon": "🏭", "path": "/studio",
+     "desc": "Premium YouTube video production, niche-driven."},
+    {"id": "hollywood", "name": "Cinema House", "icon": "🎬", "path": "/hollywood",
+     "desc": "Documentary-grade cinematic storytelling."},
+    {"id": "music", "name": "Hit Factory", "icon": "🎵", "path": "/music-studio",
+     "desc": "Beats and songs that sound radio-ready."},
+    {"id": "podcast", "name": "Podcast Studio", "icon": "🎙️", "path": "/podcast-studio",
+     "desc": "Record, edit, and publish podcast episodes."},
+    {"id": "commercial", "name": "Ad Lab", "icon": "📺", "path": "/commercial",
+     "desc": "Scroll-stopping product ads from a photo or clip."},
+    {"id": "clipper", "name": "Clipper", "icon": "✂️", "path": "/clipper",
+     "desc": "Turn a long video into viral short clips."},
+    {"id": "editing-room", "name": "Editing Room", "icon": "🎞️", "path": "/editing-room",
+     "desc": "Assemble a polished video from your own footage."},
+    {"id": "ranking", "name": "Ranking Studio", "icon": "🏆", "path": "/ranking-studio",
+     "desc": "Top N / listicle videos via Gamma slide decks."},
+    {"id": "batch", "name": "Batch", "icon": "📦", "path": "/batch",
+     "desc": "Generate multiple videos from a topic list at once."},
+    {"id": "quickpost", "name": "QuickPost", "icon": "⚡", "path": "/quickpost",
+     "desc": "Turn a photo or clip into ready-to-post captions."},
+]
+
 # Single canonical voice catalog used across every studio (Create, Studio,
 # Hollywood, Ad Lab, Batch, Settings). 10 distinct, highest-quality Google
 # Neural2/Studio/Journey voices — 6 female, 4 male — each with a real edge-tts

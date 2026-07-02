@@ -74,7 +74,12 @@ login_manager.login_message_category = "info"
 
 @login_manager.unauthorized_handler
 def _unauthorized():
-    if request.path.startswith("/api/"):
+    # /settings/data and /settings/update are the mobile app's JSON routes
+    # (see api.ts) even though they don't live under /api/ -- an unauthed
+    # mobile request to them needs the same clean 401 as everything else,
+    # not an HTML redirect to the login page that fetch would just follow
+    # and return as opaque text.
+    if request.path.startswith("/api/") or request.path.startswith("/settings/"):
         return jsonify({"error": "Session expired — please sign in again"}), 401
     return redirect(url_for("auth.login"))
 
@@ -769,6 +774,50 @@ def _job_to_mobile_dict(job: dict) -> dict:
 def api_jobs_list():
     jobs = db.get_jobs(limit=50, user_id=current_user.id)
     return jsonify({"jobs": [_job_to_mobile_dict(j) for j in jobs]})
+
+
+@app.route("/api/studios")
+@login_required
+def api_studios():
+    return jsonify({"studios": config.STUDIOS})
+
+
+@app.route("/api/analytics")
+@login_required
+def api_analytics():
+    # Same underlying data as the web /analytics page (db.get_analytics),
+    # just as plain JSON instead of a rendered template.
+    analytics = db.get_analytics(user_id=current_user.id)
+    total_views = sum(a.get("views", 0) for a in analytics)
+    total_revenue = sum(a.get("revenue_estimate", 0) for a in analytics)
+    return jsonify({
+        "videos": analytics,
+        "total_views": total_views,
+        "total_revenue": total_revenue,
+    })
+
+
+@app.route("/settings/data")
+@login_required
+def api_settings_data():
+    user = db.get_user_by_id(current_user.id)
+    return jsonify({
+        "name": user.get("name"),
+        "email": user.get("email"),
+        "notify_email": bool(user.get("notify_email")),
+        "webhook_url": user.get("webhook_url") or "",
+        "assistant_enabled": user.get("assistant_enabled") != 0,
+        "default_voice": user.get("default_voice") or config.DEFAULT_VOICE,
+        "subscription_tier": user.get("subscription_tier") or "free",
+        "voices": config.VOICE_CATALOG,
+    })
+
+
+@app.route("/settings/update", methods=["POST"])
+@login_required
+def api_settings_update_mobile():
+    _apply_settings_update(current_user.id, request.json or {})
+    return jsonify({"status": "saved"})
 
 
 @app.route("/create")
@@ -2845,10 +2894,9 @@ def settings_page():
     return render_template("settings.html", user=user, voices=config.VOICE_CATALOG)
 
 
-@app.route("/api/settings", methods=["POST"])
-@login_required
-def api_update_settings():
-    data = request.json or {}
+def _apply_settings_update(user_id: int, data: dict) -> None:
+    """Shared by the web /api/settings route and the mobile /settings/update
+    route so the two clients can't drift onto different validation rules."""
     updates = {}
     if "name" in data:
         updates["name"] = data["name"].strip()
@@ -2863,7 +2911,13 @@ def api_update_settings():
         if data["default_voice"] in valid_ids:
             updates["default_voice"] = data["default_voice"]
     if updates:
-        db.update_user(current_user.id, **updates)
+        db.update_user(user_id, **updates)
+
+
+@app.route("/api/settings", methods=["POST"])
+@login_required
+def api_update_settings():
+    _apply_settings_update(current_user.id, request.json or {})
     return jsonify({"status": "saved"})
 
 

@@ -118,11 +118,9 @@ export async function createVideo(data: {
   });
 }
 
-// NOTE: these four aren't called from any screen yet, and the backend
-// doesn't have matching JSON routes (/api/studios, /api/analytics,
-// /settings/data, /settings/update) -- add the routes before wiring these
-// up to a screen, following the pattern used by /api/profile and
-// /api/dashboard in app.py.
+// These four aren't called from any screen yet, but the backend routes
+// are real (see /api/studios, /api/analytics, /settings/data,
+// /settings/update in app.py) -- safe to wire up to a screen whenever needed.
 export async function getStudios() {
   return api('/api/studios');
 }
