@@ -8171,10 +8171,10 @@ def _run_podcast_upload_thread(pod_job_id: str, params: dict, audio_path: str, u
             video_out = os.path.join(out_dir, "audiogram.mp4")
             create_podcast_video(
                 audio_path=audio_path,
-                script=transcript,
-                podcast_name=show_name,
-                episode_number=ep_num,
                 output_path=video_out,
+                channel_name=show_name,
+                episode_number=ep_num,
+                title=topic,
             )
             if os.path.exists(video_out):
                 video_path = video_out
