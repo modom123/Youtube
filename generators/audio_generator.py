@@ -268,8 +268,25 @@ def _generate_google_tts(text: str, output_path: Path, voice: str) -> bool:
         return False
 
 
+def _resolve_edge_voice(voice: str) -> str:
+    """Resolve a Social Optimize voice-catalog id (e.g. 'en-US-Studio-O') or a
+    Google Neural2 name to a real edge-tts voice name (e.g. 'en-US-AriaNeural').
+
+    edge-tts has its own naming scheme, distinct from both the app's catalog
+    ids and Google Cloud TTS's Neural2/Studio names — passing either of those
+    straight through fails with "Invalid voice" every time. Every catalog
+    entry already carries the correct edge-tts name in its 'edge' field."""
+    if voice.endswith("Neural") or voice.endswith("Neural2"):
+        return voice
+    catalog_entry = next((v for v in config.VOICE_CATALOG if v["id"] == voice), None)
+    if catalog_entry and catalog_entry.get("edge"):
+        return catalog_entry["edge"]
+    return "en-US-AriaNeural"
+
+
 async def _generate_speech(text: str, output_path: Path, voice: str, rate: str, pitch: str) -> None:
-    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+    edge_voice = _resolve_edge_voice(voice)
+    communicate = edge_tts.Communicate(text, edge_voice, rate=rate, pitch=pitch)
     await communicate.save(str(output_path))
 
 
@@ -357,26 +374,34 @@ def generate_audio(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    def _has_real_audio() -> bool:
+        # edge-tts (and some failure paths) can leave a 0-byte file behind
+        # when the connection drops mid-write — exists() alone would treat
+        # that empty stub as a successful result.
+        return output_path.exists() and output_path.stat().st_size > 0
+
     # 1. Try ElevenLabs
     if getattr(config, "ELEVENLABS_API_KEY", ""):
         if _generate_elevenlabs_tts(clean_text, output_path, voice):
-            if output_path.exists():
+            if _has_real_audio():
                 return output_path
 
     # 2. Try Google Cloud TTS Neural2
     if getattr(config, "GOOGLE_API_KEY", ""):
         if _generate_google_tts(clean_text, output_path, voice):
-            if output_path.exists():
+            if _has_real_audio():
                 return output_path
 
     # 3. Try edge-tts
     try:
         asyncio.run(_generate_speech(clean_text, output_path, voice, rate, pitch))
+        if not _has_real_audio():
+            raise RuntimeError("edge-tts produced no audio content")
     except Exception as e:
         print(f"[audio] edge-tts failed ({e}) — using fallback TTS")
         _tts_fallback(clean_text, output_path)
 
-    if not output_path.exists():
+    if not _has_real_audio():
         raise RuntimeError(f"Audio generation failed — no output at {output_path}")
 
     return output_path
