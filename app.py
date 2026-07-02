@@ -16,6 +16,7 @@ import uuid
 import vobject
 from pathlib import Path
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for,
     send_file, Response, stream_with_context, session
@@ -34,6 +35,21 @@ from hermes_agent import hermes_bp
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
+
+# Every OAuth redirect_uri in this app is built from APP_BASE_URL / the
+# per-platform *_REDIRECT_URI configs, all of which point at the bare domain
+# (e.g. https://socialoptimize.online) — but the site is actually served at
+# www.socialoptimize.online too. Without an explicit cookie domain, Flask's
+# session cookie is host-only: a user who starts the OAuth flow on the www
+# host loses that cookie the instant the provider redirects back to the bare
+# host (or vice versa), silently dropping the OAuth "state" value and, for
+# every @login_required callback, dropping the login session itself. That's
+# the root cause behind "connect account" failing with an unhandled error —
+# sharing the cookie across both hosts fixes it for every platform at once.
+_base_host = urlparse(config.APP_BASE_URL).hostname or ""
+if _base_host and _base_host not in ("localhost", "127.0.0.1"):
+    _bare_host = _base_host[4:] if _base_host.startswith("www.") else _base_host
+    app.config["SESSION_COOKIE_DOMAIN"] = "." + _bare_host
 
 @app.template_filter("datefmt")
 def _datefmt(val, fmt="%Y-%m-%d %H:%M"):
@@ -1374,6 +1390,9 @@ def accounts_page():
         threads_configured=bool(config.THREADS_APP_ID),
         twitch_configured=bool(config.TWITCH_CLIENT_ID),
         snapchat_configured=bool(config.SNAP_CLIENT_ID),
+        connected_platform=request.args.get("connected"),
+        error_platform=request.args.get("error"),
+        error_detail=request.args.get("detail"),
     )
 
 
@@ -1478,6 +1497,16 @@ def api_automation_engagement_run(platform):
     return jsonify({"status": "ran", "results": results})
 
 
+def _oauth_fail(platform: str, detail: str):
+    """Every OAuth callback below routes failures here instead of letting an
+    exception bubble up into a raw 500 — so a broken/expired credential, a
+    provider API change, or a missing scope shows the user an actionable
+    message on /accounts instead of a blank crash page."""
+    print(f"[oauth] {platform} connection failed: {detail}")
+    from urllib.parse import quote
+    return redirect(f"/accounts?error={platform}&detail={quote(str(detail)[:200])}")
+
+
 @app.route("/oauth/youtube/start")
 def oauth_youtube_start():
     if not config.YOUTUBE_CLIENT_ID:
@@ -1504,40 +1533,47 @@ def oauth_youtube_start():
 def oauth_youtube_callback():
     from google_auth_oauthlib.flow import Flow
     import googleapiclient.discovery
-    flow = Flow.from_client_config(
-        {"web": {
-            "client_id": config.YOUTUBE_CLIENT_ID,
-            "client_secret": config.YOUTUBE_CLIENT_SECRET,
-            "redirect_uris": [config.APP_BASE_URL + "/oauth/youtube/callback"],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-        }},
-        scopes=config.YOUTUBE_SCOPES + ["https://www.googleapis.com/auth/youtube.readonly"],
-        redirect_uri=config.APP_BASE_URL + "/oauth/youtube/callback",
-        state=session.get("youtube_state"),
-    )
-    flow.fetch_token(authorization_response=request.url)
-    creds = flow.credentials
-    yt = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
-    channels = yt.channels().list(part="snippet,statistics", mine=True).execute()
-    channel = channels["items"][0] if channels.get("items") else {}
-    snippet = channel.get("snippet", {})
-    stats = channel.get("statistics", {})
-    db.upsert_account(
-        platform="youtube",
-        username=snippet.get("customUrl", snippet.get("title", "YouTube")),
-        display_name=snippet.get("title"),
-        avatar_url=snippet.get("thumbnails", {}).get("default", {}).get("url"),
-        access_token=creds.token,
-        refresh_token=creds.refresh_token,
-        account_id=channel.get("id"),
-        followers=int(stats.get("subscriberCount", 0)),
-        user_id=current_user.id,
-    )
+    try:
+        flow = Flow.from_client_config(
+            {"web": {
+                "client_id": config.YOUTUBE_CLIENT_ID,
+                "client_secret": config.YOUTUBE_CLIENT_SECRET,
+                "redirect_uris": [config.APP_BASE_URL + "/oauth/youtube/callback"],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }},
+            scopes=config.YOUTUBE_SCOPES + ["https://www.googleapis.com/auth/youtube.readonly"],
+            redirect_uri=config.APP_BASE_URL + "/oauth/youtube/callback",
+            state=session.get("youtube_state"),
+        )
+        flow.fetch_token(authorization_response=request.url)
+        creds = flow.credentials
+        yt = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
+        channels = yt.channels().list(part="snippet,statistics", mine=True).execute()
+        channel = channels["items"][0] if channels.get("items") else {}
+        if not channel:
+            return _oauth_fail("youtube", "No YouTube channel found on that Google account — "
+                                          "create a channel first, then reconnect.")
+        snippet = channel.get("snippet", {})
+        stats = channel.get("statistics", {})
+        db.upsert_account(
+            platform="youtube",
+            username=snippet.get("customUrl", snippet.get("title", "YouTube")),
+            display_name=snippet.get("title"),
+            avatar_url=snippet.get("thumbnails", {}).get("default", {}).get("url"),
+            access_token=creds.token,
+            refresh_token=creds.refresh_token,
+            account_id=channel.get("id"),
+            followers=int(stats.get("subscriberCount", 0)),
+            user_id=current_user.id,
+        )
+    except Exception as e:
+        return _oauth_fail("youtube", str(e))
     return redirect("/accounts?connected=youtube")
 
 
 @app.route("/oauth/tiktok/start")
+@login_required
 def oauth_tiktok_start():
     if not config.TIKTOK_CLIENT_KEY:
         return jsonify({"error": "TikTok credentials not configured in .env"}), 400
@@ -1554,29 +1590,37 @@ def oauth_tiktok_start():
 
 
 @app.route("/oauth/tiktok/callback")
+@login_required
 def oauth_tiktok_callback():
     import requests as req
     code = request.args.get("code")
-    redirect_uri = config.APP_BASE_URL + "/oauth/tiktok/callback"
-    token_resp = req.post("https://open.tiktokapis.com/v2/oauth/token/", data={
-        "client_key": config.TIKTOK_CLIENT_KEY,
-        "client_secret": config.TIKTOK_CLIENT_SECRET,
-        "code": code, "grant_type": "authorization_code", "redirect_uri": redirect_uri,
-    }).json()
-    access_token = token_resp.get("access_token")
-    open_id = token_resp.get("open_id")
-    user_resp = req.get(
-        "https://open.tiktokapis.com/v2/user/info/",
-        headers={"Authorization": f"Bearer {access_token}"},
-        params={"fields": "display_name,avatar_url,follower_count,open_id"},
-    ).json()
-    user = user_resp.get("data", {}).get("user", {})
-    db.upsert_account(
-        platform="tiktok", username=user.get("display_name", "TikTok User"),
-        display_name=user.get("display_name"), avatar_url=user.get("avatar_url"),
-        access_token=access_token, account_id=open_id, followers=user.get("follower_count", 0),
-        user_id=current_user.id,
-    )
+    if not code:
+        return _oauth_fail("tiktok", "TikTok did not return an authorization code.")
+    try:
+        redirect_uri = config.APP_BASE_URL + "/oauth/tiktok/callback"
+        token_resp = req.post("https://open.tiktokapis.com/v2/oauth/token/", data={
+            "client_key": config.TIKTOK_CLIENT_KEY,
+            "client_secret": config.TIKTOK_CLIENT_SECRET,
+            "code": code, "grant_type": "authorization_code", "redirect_uri": redirect_uri,
+        }).json()
+        access_token = token_resp.get("access_token")
+        if not access_token:
+            return _oauth_fail("tiktok", token_resp.get("error_description") or "Token exchange failed.")
+        open_id = token_resp.get("open_id")
+        user_resp = req.get(
+            "https://open.tiktokapis.com/v2/user/info/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"fields": "display_name,avatar_url,follower_count,open_id"},
+        ).json()
+        user = user_resp.get("data", {}).get("user", {})
+        db.upsert_account(
+            platform="tiktok", username=user.get("display_name", "TikTok User"),
+            display_name=user.get("display_name"), avatar_url=user.get("avatar_url"),
+            access_token=access_token, account_id=open_id, followers=user.get("follower_count", 0),
+            user_id=current_user.id,
+        )
+    except Exception as e:
+        return _oauth_fail("tiktok", str(e))
     return redirect("/accounts?connected=tiktok")
 
 
@@ -1606,68 +1650,71 @@ def oauth_facebook_callback():
     code = request.args.get("code")
     error = request.args.get("error")
     if error or not code:
-        return redirect("/accounts?error=facebook_denied")
+        return _oauth_fail("facebook", error or "Facebook did not return an authorization code.")
 
-    redirect_uri = config.APP_BASE_URL + "/oauth/facebook/callback"
-    # Exchange code for user access token
-    token_resp = req.get("https://graph.facebook.com/v18.0/oauth/access_token", params={
-        "client_id": config.FACEBOOK_APP_ID,
-        "client_secret": config.FACEBOOK_APP_SECRET,
-        "redirect_uri": redirect_uri,
-        "code": code,
-    }).json()
-    user_token = token_resp.get("access_token")
-    if not user_token:
-        return redirect("/accounts?error=facebook_token_failed")
-
-    # Exchange for long-lived token (60 days)
-    long_resp = req.get("https://graph.facebook.com/v18.0/oauth/access_token", params={
-        "grant_type": "fb_exchange_token",
-        "client_id": config.FACEBOOK_APP_ID,
-        "client_secret": config.FACEBOOK_APP_SECRET,
-        "fb_exchange_token": user_token,
-    }).json()
-    long_token = long_resp.get("access_token", user_token)
-
-    # Get user profile
-    me = req.get("https://graph.facebook.com/v18.0/me", params={
-        "fields": "id,name,picture", "access_token": long_token,
-    }).json()
-
-    db.upsert_account(
-        platform="facebook", username=me.get("name", "Facebook User"),
-        display_name=me.get("name"),
-        avatar_url=me.get("picture", {}).get("data", {}).get("url"),
-        access_token=long_token, account_id=me.get("id"), followers=0,
-        user_id=current_user.id,
-    )
-
-    # Also pull connected Pages and Instagram business accounts
-    pages_resp = req.get("https://graph.facebook.com/v18.0/me/accounts", params={
-        "access_token": long_token,
-    }).json()
-    for page in pages_resp.get("data", []):
-        page_token = page.get("access_token")
-        page_id = page.get("id")
-        # Check for connected Instagram business account
-        ig_resp = req.get(f"https://graph.facebook.com/v18.0/{page_id}", params={
-            "fields": "instagram_business_account", "access_token": page_token,
+    try:
+        redirect_uri = config.APP_BASE_URL + "/oauth/facebook/callback"
+        # Exchange code for user access token
+        token_resp = req.get("https://graph.facebook.com/v18.0/oauth/access_token", params={
+            "client_id": config.FACEBOOK_APP_ID,
+            "client_secret": config.FACEBOOK_APP_SECRET,
+            "redirect_uri": redirect_uri,
+            "code": code,
         }).json()
-        ig_id = ig_resp.get("instagram_business_account", {}).get("id")
-        if ig_id:
-            ig_user = req.get(f"https://graph.facebook.com/v18.0/{ig_id}", params={
-                "fields": "username,name,profile_picture_url,followers_count",
-                "access_token": page_token,
+        user_token = token_resp.get("access_token")
+        if not user_token:
+            return _oauth_fail("facebook", token_resp.get("error", {}).get("message") or "Token exchange failed.")
+
+        # Exchange for long-lived token (60 days)
+        long_resp = req.get("https://graph.facebook.com/v18.0/oauth/access_token", params={
+            "grant_type": "fb_exchange_token",
+            "client_id": config.FACEBOOK_APP_ID,
+            "client_secret": config.FACEBOOK_APP_SECRET,
+            "fb_exchange_token": user_token,
+        }).json()
+        long_token = long_resp.get("access_token", user_token)
+
+        # Get user profile
+        me = req.get("https://graph.facebook.com/v18.0/me", params={
+            "fields": "id,name,picture", "access_token": long_token,
+        }).json()
+
+        db.upsert_account(
+            platform="facebook", username=me.get("name", "Facebook User"),
+            display_name=me.get("name"),
+            avatar_url=me.get("picture", {}).get("data", {}).get("url"),
+            access_token=long_token, account_id=me.get("id"), followers=0,
+            user_id=current_user.id,
+        )
+
+        # Also pull connected Pages and Instagram business accounts
+        pages_resp = req.get("https://graph.facebook.com/v18.0/me/accounts", params={
+            "access_token": long_token,
+        }).json()
+        for page in pages_resp.get("data", []):
+            page_token = page.get("access_token")
+            page_id = page.get("id")
+            # Check for connected Instagram business account
+            ig_resp = req.get(f"https://graph.facebook.com/v18.0/{page_id}", params={
+                "fields": "instagram_business_account", "access_token": page_token,
             }).json()
-            db.upsert_account(
-                platform="instagram",
-                username=ig_user.get("username", ig_user.get("name", "Instagram")),
-                display_name=ig_user.get("name"),
-                avatar_url=ig_user.get("profile_picture_url"),
-                access_token=page_token, account_id=ig_id,
-                followers=int(ig_user.get("followers_count", 0)),
-                user_id=current_user.id,
-            )
+            ig_id = ig_resp.get("instagram_business_account", {}).get("id")
+            if ig_id:
+                ig_user = req.get(f"https://graph.facebook.com/v18.0/{ig_id}", params={
+                    "fields": "username,name,profile_picture_url,followers_count",
+                    "access_token": page_token,
+                }).json()
+                db.upsert_account(
+                    platform="instagram",
+                    username=ig_user.get("username", ig_user.get("name", "Instagram")),
+                    display_name=ig_user.get("name"),
+                    avatar_url=ig_user.get("profile_picture_url"),
+                    access_token=page_token, account_id=ig_id,
+                    followers=int(ig_user.get("followers_count", 0)),
+                    user_id=current_user.id,
+                )
+    except Exception as e:
+        return _oauth_fail("facebook", str(e))
 
     return redirect("/accounts?connected=facebook")
 
@@ -1698,29 +1745,32 @@ def oauth_linkedin_callback():
     import requests as req
     code = request.args.get("code")
     if not code:
-        return redirect("/accounts?error=linkedin_denied")
-    redirect_uri = config.APP_BASE_URL + "/oauth/linkedin/callback"
-    token_resp = req.post("https://www.linkedin.com/oauth/v2/accessToken", data={
-        "grant_type": "authorization_code",
-        "code": code,
-        "redirect_uri": redirect_uri,
-        "client_id": config.LINKEDIN_CLIENT_ID,
-        "client_secret": config.LINKEDIN_CLIENT_SECRET,
-    }).json()
-    access_token = token_resp.get("access_token")
-    if not access_token:
-        return redirect("/accounts?error=linkedin_token_failed")
-    me = req.get("https://api.linkedin.com/v2/userinfo", headers={
-        "Authorization": f"Bearer {access_token}",
-    }).json()
-    db.upsert_account(
-        platform="linkedin",
-        username=me.get("name", "LinkedIn User"),
-        display_name=me.get("name"),
-        avatar_url=me.get("picture"),
-        access_token=access_token, account_id=me.get("sub"), followers=0,
-        user_id=current_user.id,
-    )
+        return _oauth_fail("linkedin", "LinkedIn did not return an authorization code.")
+    try:
+        redirect_uri = config.APP_BASE_URL + "/oauth/linkedin/callback"
+        token_resp = req.post("https://www.linkedin.com/oauth/v2/accessToken", data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "client_id": config.LINKEDIN_CLIENT_ID,
+            "client_secret": config.LINKEDIN_CLIENT_SECRET,
+        }).json()
+        access_token = token_resp.get("access_token")
+        if not access_token:
+            return _oauth_fail("linkedin", token_resp.get("error_description") or "Token exchange failed.")
+        me = req.get("https://api.linkedin.com/v2/userinfo", headers={
+            "Authorization": f"Bearer {access_token}",
+        }).json()
+        db.upsert_account(
+            platform="linkedin",
+            username=me.get("name", "LinkedIn User"),
+            display_name=me.get("name"),
+            avatar_url=me.get("picture"),
+            access_token=access_token, account_id=me.get("sub"), followers=0,
+            user_id=current_user.id,
+        )
+    except Exception as e:
+        return _oauth_fail("linkedin", str(e))
     return redirect("/accounts?connected=linkedin")
 
 
@@ -1765,40 +1815,44 @@ def oauth_twitter_callback():
     code = request.args.get("code")
     verifier = session.pop("twitter_verifier", None)
     if not code or not verifier:
-        return redirect(url_for("accounts_page"))
-    credentials = base64.b64encode(
-        f"{config.TWITTER_CLIENT_ID}:{config.TWITTER_CLIENT_SECRET}".encode()
-    ).decode()
-    resp = requests.post(
-        "https://api.twitter.com/2/oauth2/token",
-        headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/x-www-form-urlencoded"},
-        data={
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": config.TWITTER_REDIRECT_URI,
-            "code_verifier": verifier,
-        },
-    )
-    if resp.status_code != 200:
-        return redirect(url_for("accounts_page"))
-    tokens = resp.json()
-    access_token = tokens.get("access_token")
-    # Fetch user profile
-    me = requests.get(
-        "https://api.twitter.com/2/users/me",
-        headers={"Authorization": f"Bearer {access_token}"},
-        params={"user.fields": "name,username,public_metrics"},
-    ).json().get("data", {})
-    db.upsert_account(
-        user_id=current_user.id, platform="twitter",
-        platform_user_id=me.get("id", ""),
-        username=me.get("username", ""),
-        display_name=me.get("name", ""),
-        access_token=access_token,
-        refresh_token=tokens.get("refresh_token", ""),
-        followers=me.get("public_metrics", {}).get("followers_count", 0),
-    )
-    return redirect(url_for("accounts_page"))
+        return _oauth_fail("twitter", "Missing authorization code or PKCE verifier — "
+                                      "the connect attempt may have expired, please try again.")
+    try:
+        credentials = base64.b64encode(
+            f"{config.TWITTER_CLIENT_ID}:{config.TWITTER_CLIENT_SECRET}".encode()
+        ).decode()
+        resp = requests.post(
+            "https://api.twitter.com/2/oauth2/token",
+            headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/x-www-form-urlencoded"},
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": config.TWITTER_REDIRECT_URI,
+                "code_verifier": verifier,
+            },
+        )
+        if resp.status_code != 200:
+            return _oauth_fail("twitter", f"Token exchange failed ({resp.status_code}): {resp.text[:200]}")
+        tokens = resp.json()
+        access_token = tokens.get("access_token")
+        # Fetch user profile
+        me = requests.get(
+            "https://api.twitter.com/2/users/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"user.fields": "name,username,public_metrics"},
+        ).json().get("data", {})
+        db.upsert_account(
+            user_id=current_user.id, platform="twitter",
+            platform_user_id=me.get("id", ""),
+            username=me.get("username", ""),
+            display_name=me.get("name", ""),
+            access_token=access_token,
+            refresh_token=tokens.get("refresh_token", ""),
+            followers=me.get("public_metrics", {}).get("followers_count", 0),
+        )
+    except Exception as e:
+        return _oauth_fail("twitter", str(e))
+    return redirect("/accounts?connected=twitter")
 
 
 # ── Threads OAuth ─────────────────────────────────────────────────────────────
@@ -1827,40 +1881,43 @@ def oauth_threads_start():
 def oauth_threads_callback():
     code = request.args.get("code")
     if not code:
-        return redirect(url_for("accounts_page"))
-    # Exchange code for short-lived token
-    resp = requests.post("https://graph.threads.net/oauth/access_token", data={
-        "client_id": config.THREADS_APP_ID,
-        "client_secret": config.THREADS_APP_SECRET,
-        "grant_type": "authorization_code",
-        "redirect_uri": config.THREADS_REDIRECT_URI,
-        "code": code,
-    })
-    if resp.status_code != 200:
-        return redirect(url_for("accounts_page"))
-    short = resp.json()
-    # Exchange for long-lived token (60 days)
-    long_resp = requests.get("https://graph.threads.net/access_token", params={
-        "grant_type": "th_exchange_token",
-        "client_secret": config.THREADS_APP_SECRET,
-        "access_token": short.get("access_token"),
-    })
-    access_token = long_resp.json().get("access_token", short.get("access_token"))
-    user_id_threads = short.get("user_id", "")
-    # Fetch profile
-    me = requests.get(
-        f"https://graph.threads.net/v1.0/{user_id_threads}",
-        params={"fields": "id,username,name,threads_profile_picture_url,threads_biography",
-                "access_token": access_token},
-    ).json()
-    db.upsert_account(
-        user_id=current_user.id, platform="threads",
-        platform_user_id=str(me.get("id", user_id_threads)),
-        username=me.get("username", ""),
-        display_name=me.get("name", ""),
-        access_token=access_token,
-    )
-    return redirect(url_for("accounts_page"))
+        return _oauth_fail("threads", "Threads did not return an authorization code.")
+    try:
+        # Exchange code for short-lived token
+        resp = requests.post("https://graph.threads.net/oauth/access_token", data={
+            "client_id": config.THREADS_APP_ID,
+            "client_secret": config.THREADS_APP_SECRET,
+            "grant_type": "authorization_code",
+            "redirect_uri": config.THREADS_REDIRECT_URI,
+            "code": code,
+        })
+        if resp.status_code != 200:
+            return _oauth_fail("threads", f"Token exchange failed ({resp.status_code}): {resp.text[:200]}")
+        short = resp.json()
+        # Exchange for long-lived token (60 days)
+        long_resp = requests.get("https://graph.threads.net/access_token", params={
+            "grant_type": "th_exchange_token",
+            "client_secret": config.THREADS_APP_SECRET,
+            "access_token": short.get("access_token"),
+        })
+        access_token = long_resp.json().get("access_token", short.get("access_token"))
+        user_id_threads = short.get("user_id", "")
+        # Fetch profile
+        me = requests.get(
+            f"https://graph.threads.net/v1.0/{user_id_threads}",
+            params={"fields": "id,username,name,threads_profile_picture_url,threads_biography",
+                    "access_token": access_token},
+        ).json()
+        db.upsert_account(
+            user_id=current_user.id, platform="threads",
+            platform_user_id=str(me.get("id", user_id_threads)),
+            username=me.get("username", ""),
+            display_name=me.get("name", ""),
+            access_token=access_token,
+        )
+    except Exception as e:
+        return _oauth_fail("threads", str(e))
+    return redirect("/accounts?connected=threads")
 
 
 # ── Twitch OAuth ──────────────────────────────────────────────────────────────
@@ -1889,34 +1946,38 @@ def oauth_twitch_start():
 def oauth_twitch_callback():
     code = request.args.get("code")
     if not code:
-        return redirect(url_for("accounts_page"))
-    resp = requests.post("https://id.twitch.tv/oauth2/token", data={
-        "client_id": config.TWITCH_CLIENT_ID,
-        "client_secret": config.TWITCH_CLIENT_SECRET,
-        "code": code,
-        "grant_type": "authorization_code",
-        "redirect_uri": config.TWITCH_REDIRECT_URI,
-    })
-    if resp.status_code != 200:
-        return redirect(url_for("accounts_page"))
-    tokens = resp.json()
-    access_token = tokens.get("access_token")
-    # Fetch user info
-    me_resp = requests.get(
-        "https://api.twitch.tv/helix/users",
-        headers={"Authorization": f"Bearer {access_token}", "Client-Id": config.TWITCH_CLIENT_ID},
-    )
-    me = me_resp.json().get("data", [{}])[0]
-    db.upsert_account(
-        user_id=current_user.id, platform="twitch",
-        platform_user_id=me.get("id", ""),
-        username=me.get("login", ""),
-        display_name=me.get("display_name", ""),
-        access_token=access_token,
-        refresh_token=tokens.get("refresh_token", ""),
-        avatar_url=me.get("profile_image_url", ""),
-    )
-    return redirect(url_for("accounts_page"))
+        return _oauth_fail("twitch", "Twitch did not return an authorization code.")
+    try:
+        resp = requests.post("https://id.twitch.tv/oauth2/token", data={
+            "client_id": config.TWITCH_CLIENT_ID,
+            "client_secret": config.TWITCH_CLIENT_SECRET,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": config.TWITCH_REDIRECT_URI,
+        })
+        if resp.status_code != 200:
+            return _oauth_fail("twitch", f"Token exchange failed ({resp.status_code}): {resp.text[:200]}")
+        tokens = resp.json()
+        access_token = tokens.get("access_token")
+        # Fetch user info
+        me_resp = requests.get(
+            "https://api.twitch.tv/helix/users",
+            headers={"Authorization": f"Bearer {access_token}", "Client-Id": config.TWITCH_CLIENT_ID},
+        )
+        me_list = me_resp.json().get("data") or [{}]
+        me = me_list[0]
+        db.upsert_account(
+            user_id=current_user.id, platform="twitch",
+            platform_user_id=me.get("id", ""),
+            username=me.get("login", ""),
+            display_name=me.get("display_name", ""),
+            access_token=access_token,
+            refresh_token=tokens.get("refresh_token", ""),
+            avatar_url=me.get("profile_image_url", ""),
+        )
+    except Exception as e:
+        return _oauth_fail("twitch", str(e))
+    return redirect("/accounts?connected=twitch")
 
 
 # ── Snapchat OAuth ────────────────────────────────────────────────────────────
@@ -1945,36 +2006,39 @@ def oauth_snapchat_start():
 def oauth_snapchat_callback():
     code = request.args.get("code")
     if not code:
-        return redirect(url_for("accounts_page"))
-    resp = requests.post(
-        "https://accounts.snapchat.com/accounts/oauth2/token",
-        auth=(config.SNAP_CLIENT_ID, config.SNAP_CLIENT_SECRET),
-        data={
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": config.SNAP_REDIRECT_URI,
-        },
-    )
-    if resp.status_code != 200:
-        return redirect(url_for("accounts_page"))
-    tokens = resp.json()
-    access_token = tokens.get("access_token")
-    # Fetch user info from Snapchat Marketing API
-    me_resp = requests.get(
-        "https://adsapi.snapchat.com/v1/me",
-        headers={"Authorization": f"Bearer {access_token}"},
-    )
-    me = me_resp.json().get("me", {})
-    display_name = me.get("display_name") or me.get("email", "Snapchat User")
-    db.upsert_account(
-        user_id=current_user.id, platform="snapchat",
-        platform_user_id=me.get("id", ""),
-        username=display_name.lower().replace(" ", ""),
-        display_name=display_name,
-        access_token=access_token,
-        refresh_token=tokens.get("refresh_token", ""),
-    )
-    return redirect(url_for("accounts_page"))
+        return _oauth_fail("snapchat", "Snapchat did not return an authorization code.")
+    try:
+        resp = requests.post(
+            "https://accounts.snapchat.com/accounts/oauth2/token",
+            auth=(config.SNAP_CLIENT_ID, config.SNAP_CLIENT_SECRET),
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": config.SNAP_REDIRECT_URI,
+            },
+        )
+        if resp.status_code != 200:
+            return _oauth_fail("snapchat", f"Token exchange failed ({resp.status_code}): {resp.text[:200]}")
+        tokens = resp.json()
+        access_token = tokens.get("access_token")
+        # Fetch user info from Snapchat Marketing API
+        me_resp = requests.get(
+            "https://adsapi.snapchat.com/v1/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        me = me_resp.json().get("me", {})
+        display_name = me.get("display_name") or me.get("email", "Snapchat User")
+        db.upsert_account(
+            user_id=current_user.id, platform="snapchat",
+            platform_user_id=me.get("id", ""),
+            username=display_name.lower().replace(" ", ""),
+            display_name=display_name,
+            access_token=access_token,
+            refresh_token=tokens.get("refresh_token", ""),
+        )
+    except Exception as e:
+        return _oauth_fail("snapchat", str(e))
+    return redirect("/accounts?connected=snapchat")
 
 
 # ── Higgsfield OAuth (MCP PKCE — no client_secret) ───────────────────────────
