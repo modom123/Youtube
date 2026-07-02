@@ -9257,7 +9257,8 @@ def agency_page():
     clients = db.get_agency_clients(current_user.id)
     deals = db.get_agency_deals(current_user.id)
     projects = db.get_agency_projects(current_user.id)
-    return render_template("agency.html", stats=stats, clients=clients, deals=deals, projects=projects)
+    return render_template("agency.html", stats=stats, clients=clients, deals=deals, projects=projects,
+                           studios=config.STUDIOS)
 
 @app.route("/api/agency/clients", methods=["GET"])
 @login_required

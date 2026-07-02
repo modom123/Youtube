@@ -89,6 +89,19 @@
 
 /* Revenue chart */
 .ag-chart-bar { height: 20px; border-radius: 4px; background: var(--ag-purple); margin-bottom: 4px; transition: width .3s; }
+
+/* Studio Guide */
+.ag-guide-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.ag-guide-card { background: var(--ag-panel); border: 1px solid var(--ag-border); border-radius: 12px; padding: 16px; }
+.ag-guide-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.ag-guide-icon { font-size: 26px; line-height: 1; }
+.ag-guide-name { font-weight: 700; font-size: 15px; color: var(--ag-text); }
+.ag-guide-link { font-size: 12px; color: var(--ag-purple); text-decoration: none; font-weight: 600; }
+.ag-guide-link:hover { text-decoration: underline; }
+.ag-guide-purpose { font-size: 13px; color: var(--ag-muted); line-height: 1.5; margin-bottom: 12px; }
+.ag-guide-howto-label { font-size: 11px; font-weight: 700; color: var(--ag-text); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.ag-guide-steps { margin: 0; padding-left: 18px; font-size: 12px; color: var(--ag-text); line-height: 1.7; }
+.ag-guide-steps li { margin-bottom: 2px; }
 </style>
 
 <div class="ag-wrap">
@@ -140,6 +153,7 @@
     <button class="ag-tab" onclick="switchTab('assets')">Assets</button>
     <button class="ag-tab" onclick="switchTab('followups')">Follow-ups</button>
     <button class="ag-tab" onclick="switchTab('revenue')">Revenue</button>
+    <button class="ag-tab" onclick="switchTab('guide')">Studio Guide</button>
   </div>
 
   <!-- Pipeline Tab -->
@@ -269,6 +283,33 @@
         <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--ag-muted);">Loading follow-ups...</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <!-- Studio Guide Tab -->
+  <div class="ag-tab-content" id="tab-guide">
+    <p style="color:var(--ag-muted);font-size:13px;margin:0 0 16px;">
+      What each studio is for and how to use it — share this with clients who ask "what does this tool actually do?"
+    </p>
+    <div class="ag-guide-grid">
+      {% for s in studios %}
+      <div class="ag-guide-card">
+        <div class="ag-guide-head">
+          <span class="ag-guide-icon">{{ s.icon }}</span>
+          <div>
+            <div class="ag-guide-name">{{ s.name }}</div>
+            <a href="{{ s.path }}" class="ag-guide-link">Open studio →</a>
+          </div>
+        </div>
+        <div class="ag-guide-purpose">{{ s.purpose }}</div>
+        <div class="ag-guide-howto-label">How to use it</div>
+        <ol class="ag-guide-steps">
+          {% for step in s.how_to %}
+          <li>{{ step }}</li>
+          {% endfor %}
+        </ol>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 
 </div>
