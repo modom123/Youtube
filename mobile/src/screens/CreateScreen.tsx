@@ -9,13 +9,17 @@ import { COLORS } from '../constants';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
+// ids must match the platform keys social_optimize.py's publish step
+// switches on (youtube/tiktok/instagram/facebook/twitter/linkedin/...) --
+// display-only labels like "YT Shorts" are fine, but the id itself has to
+// be a real platform key or publishing silently never happens.
 const PLATFORMS = [
   { id: 'tiktok', name: 'TikTok', icon: '🎵' },
-  { id: 'youtube_shorts', name: 'YT Shorts', icon: '▶️' },
-  { id: 'instagram_reels', name: 'IG Reels', icon: '📸' },
+  { id: 'youtube', name: 'YT Shorts', icon: '▶️' },
+  { id: 'instagram', name: 'IG Reels', icon: '📸' },
   { id: 'linkedin', name: 'LinkedIn', icon: '💼' },
   { id: 'facebook', name: 'Facebook', icon: '📘' },
-  { id: 'x_twitter', name: 'X / Twitter', icon: '🐦' },
+  { id: 'twitter', name: 'X / Twitter', icon: '🐦' },
 ];
 
 const STYLES = [
@@ -135,8 +139,8 @@ export function CreateScreen() {
       <Text style={[styles.sectionLabel, { marginTop: 32 }]}>Quick Templates</Text>
       {[
         { topic: '5 productivity hacks for entrepreneurs', platform: 'tiktok' },
-        { topic: 'Behind the scenes of running a small business', platform: 'instagram_reels' },
-        { topic: 'How AI is changing content creation in 2026', platform: 'youtube_shorts' },
+        { topic: 'Behind the scenes of running a small business', platform: 'instagram' },
+        { topic: 'How AI is changing content creation in 2026', platform: 'youtube' },
         { topic: 'Customer testimonial showcase', platform: 'linkedin' },
       ].map((t, i) => (
         <Card key={i} onPress={() => { setTopic(t.topic); setPlatform(t.platform); }}>

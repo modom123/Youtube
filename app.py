@@ -26,7 +26,8 @@ from werkzeug.utils import secure_filename
 import requests
 import database as db
 import config
-from auth import auth_bp, make_user
+from auth import auth_bp, make_user, user_to_dict
+import mobile_auth
 from billing import billing_bp, check_usage_gate
 from admin import admin_bp
 from notifications import send_notification
@@ -80,6 +81,21 @@ def _unauthorized():
 @login_manager.user_loader
 def load_user(user_id):
     data = db.get_user_by_id(int(user_id))
+    return make_user(data) if data else None
+
+
+@login_manager.request_loader
+def load_user_from_bearer_token(req):
+    # The mobile app can't reliably read the Set-Cookie header from fetch,
+    # so it authenticates with a signed bearer token instead of the browser
+    # session cookie -- this lets @login_required routes accept either.
+    auth_header = req.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    user_id = mobile_auth.verify_token(auth_header[7:])
+    if not user_id:
+        return None
+    data = db.get_user_by_id(user_id)
     return make_user(data) if data else None
 
 from sales_channels import sales_bp
@@ -701,6 +717,58 @@ def dashboard():
 @app.route("/home")
 def home_redirect():
     return redirect(url_for("dashboard"))
+
+
+# ── Mobile app JSON API ───────────────────────────────────────────────────────
+# The mobile app (mobile/) authenticates via a bearer token (see
+# mobile_auth.py + the request_loader above) rather than the browser
+# session cookie, then talks to these plain-JSON endpoints -- the rest of
+# the site's routes render HTML templates and aren't meant for a native
+# client to consume directly.
+
+@app.route("/api/profile")
+@login_required
+def api_profile():
+    return jsonify(user_to_dict(current_user))
+
+
+@app.route("/api/dashboard")
+@login_required
+def api_dashboard():
+    db.reset_usage_if_new_period(current_user.id)
+    stats = db.get_stats(user_id=current_user.id)
+    tier = config.TIERS.get(current_user.subscription_tier, config.TIERS["free"])
+    return jsonify({
+        **stats,
+        "subscription_tier": current_user.subscription_tier,
+        "videos_used": current_user.videos_used,
+        "credits_used": current_user.credits_used,
+        "tier_video_limit": tier.get("videos_per_month"),
+    })
+
+
+def _job_to_mobile_dict(job: dict) -> dict:
+    platforms = job.get("platforms") or []
+    return {
+        "id": job["id"],
+        "topic": job.get("topic", ""),
+        "status": job.get("status", ""),
+        "progress": job.get("progress", 0),
+        "platform": platforms[0] if platforms else "",
+        "style": job.get("style", ""),
+        "video_url": f"/api/jobs/{job['id']}/video" if job.get("video_path") else None,
+        "created_at": (
+            job["created_at"].isoformat() if hasattr(job.get("created_at"), "isoformat")
+            else job.get("created_at")
+        ),
+    }
+
+
+@app.route("/api/jobs")
+@login_required
+def api_jobs_list():
+    jobs = db.get_jobs(limit=50, user_id=current_user.id)
+    return jsonify({"jobs": [_job_to_mobile_dict(j) for j in jobs]})
 
 
 @app.route("/create")
