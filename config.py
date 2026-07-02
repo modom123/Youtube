@@ -298,6 +298,20 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # "Adam" — deep male narrator
 
+# Google Cloud Storage — used ONLY as a scratch pad for audio files that
+# exceed Speech-to-Text's ~10MB inline-content limit (a real podcast episode
+# at 16kHz mono routinely does: that ceiling is only ~5 minutes of audio).
+# Requires a SEPARATE credential from GOOGLE_API_KEY: GCS write access needs
+# a service account (API keys can't authorize bucket writes), created in
+# Google Cloud Console > IAM & Admin > Service Accounts, granted the
+# "Storage Object Admin" role on the target bucket, with a JSON key
+# generated and pasted whole (including newlines) into
+# GOOGLE_SERVICE_ACCOUNT_JSON. Leave GCS_BUCKET_NAME unset to keep this
+# disabled — long-episode transcription will just raise a clear error
+# instead of silently truncating.
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "")
+GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+
 # Anthropic Admin API — a SEPARATE key from ANTHROPIC_API_KEY, generated in
 # the Anthropic Console under Settings > Admin API Keys (requires an org
 # admin role). The regular API key used for actual Claude calls has no way

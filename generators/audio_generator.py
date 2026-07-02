@@ -391,6 +391,61 @@ def get_audio_duration(audio_path: Path) -> float:
     return duration
 
 
+_gcs_credentials = None
+
+
+def _get_gcs_token() -> str:
+    """Return a fresh OAuth2 access token for the configured service account.
+    GCS bucket writes need real IAM authorization, not the plain API key
+    used everywhere else in this file — a service account is the only
+    practical way to get that from a headless server."""
+    global _gcs_credentials
+    import json as _json
+    from google.oauth2 import service_account
+    from google.auth.transport.requests import Request as _AuthRequest
+
+    if _gcs_credentials is None:
+        info = _json.loads(config.GOOGLE_SERVICE_ACCOUNT_JSON)
+        _gcs_credentials = service_account.Credentials.from_service_account_info(
+            info, scopes=["https://www.googleapis.com/auth/devstorage.read_write"]
+        )
+    if not _gcs_credentials.valid:
+        _gcs_credentials.refresh(_AuthRequest())
+    return _gcs_credentials.token
+
+
+def _gcs_upload(bucket: str, object_name: str, data: bytes) -> None:
+    import requests
+
+    token = _get_gcs_token()
+    resp = requests.post(
+        f"https://storage.googleapis.com/upload/storage/v1/b/{bucket}/o",
+        params={"uploadType": "media", "name": object_name},
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "audio/wav"},
+        data=data,
+        timeout=60,
+    )
+    resp.raise_for_status()
+    print(f"[audio] Uploaded {len(data)} bytes to gs://{bucket}/{object_name}")
+
+
+def _gcs_delete(bucket: str, object_name: str) -> None:
+    if not bucket:
+        return
+    import requests
+    from urllib.parse import quote
+    try:
+        token = _get_gcs_token()
+        requests.delete(
+            f"https://storage.googleapis.com/storage/v1/b/{bucket}/o/{quote(object_name, safe='')}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+        )
+    except Exception as e:
+        # Not fatal to transcription itself, but don't pretend it succeeded.
+        print(f"[audio] Failed to clean up gs://{bucket}/{object_name}: {e}")
+
+
 def transcribe_audio(audio_path, language_code: str = "en-US") -> str:
     """Real speech-to-text transcription via Google Cloud Speech-to-Text v1,
     using the same GOOGLE_API_KEY already configured for TTS.
@@ -402,14 +457,18 @@ def transcribe_audio(audio_path, language_code: str = "en-US") -> str:
     Uses the asynchronous longrunningrecognize endpoint since podcast
     episodes routinely exceed the synchronous recognize endpoint's ~1-minute
     cap. Inline (non-GCS) audio content has a real ~10MB request-size
-    ceiling on Google's side — there's no GCS bucket wired into this app to
-    work around it for very long episodes, so this raises (rather than
-    silently truncating) if a file is too large; callers already treat a
-    failed transcription as non-fatal.
+    ceiling on Google's side, which at 16kHz mono is only ~5 minutes of
+    audio — well under a typical podcast episode. If GCS_BUCKET_NAME and
+    GOOGLE_SERVICE_ACCOUNT_JSON are configured, audio over that threshold is
+    uploaded to GCS first and referenced by gs:// URI instead (then deleted
+    once transcription completes); otherwise this raises a clear error
+    rather than silently truncating, which callers already treat as
+    non-fatal.
     """
     import base64
     import subprocess
     import time
+    import uuid as _uuid
     import imageio_ffmpeg
     import requests
 
@@ -433,55 +492,75 @@ def transcribe_audio(audio_path, language_code: str = "en-US") -> str:
             )
         audio_bytes = wav_path.read_bytes()
 
+    gcs_object_name = None
+    audio_field: dict
+
     if len(audio_bytes) > 9_500_000:
-        raise RuntimeError(
-            f"Audio too large for inline transcription ({len(audio_bytes) / 1e6:.1f}MB, "
-            "~10MB limit without a GCS bucket) — transcription skipped."
-        )
+        bucket = getattr(config, "GCS_BUCKET_NAME", "")
+        if not bucket or not getattr(config, "GOOGLE_SERVICE_ACCOUNT_JSON", ""):
+            raise RuntimeError(
+                f"Audio too large for inline transcription ({len(audio_bytes) / 1e6:.1f}MB, "
+                "~10MB limit) and GCS_BUCKET_NAME / GOOGLE_SERVICE_ACCOUNT_JSON aren't both "
+                "configured — transcription skipped."
+            )
+        gcs_object_name = f"stt-scratch/{_uuid.uuid4()}.wav"
+        _gcs_upload(bucket, gcs_object_name, audio_bytes)
+        audio_field = {"uri": f"gs://{bucket}/{gcs_object_name}"}
+    else:
+        audio_field = {"content": base64.b64encode(audio_bytes).decode()}
 
-    audio_b64 = base64.b64encode(audio_bytes).decode()
-
-    start_resp = requests.post(
-        f"https://speech.googleapis.com/v1/speech:longrunningrecognize?key={api_key}",
-        json={
-            "config": {
-                "encoding": "LINEAR16",
-                "sampleRateHertz": 16000,
-                "languageCode": language_code,
-                "enableAutomaticPunctuation": True,
+    try:
+        start_resp = requests.post(
+            f"https://speech.googleapis.com/v1/speech:longrunningrecognize?key={api_key}",
+            json={
+                "config": {
+                    "encoding": "LINEAR16",
+                    "sampleRateHertz": 16000,
+                    "languageCode": language_code,
+                    "enableAutomaticPunctuation": True,
+                },
+                "audio": audio_field,
             },
-            "audio": {"content": audio_b64},
-        },
-        timeout=30,
-    )
-    start_resp.raise_for_status()
-    operation_name = start_resp.json().get("name")
-    if not operation_name:
-        raise RuntimeError(f"Google Speech-to-Text did not return an operation name: {start_resp.json()}")
-
-    # Poll until done — long episodes can take a few minutes to transcribe.
-    for _ in range(60):  # up to ~5 minutes
-        time.sleep(5)
-        poll_resp = requests.get(
-            f"https://speech.googleapis.com/v1/operations/{operation_name}",
-            params={"key": api_key},
             timeout=30,
         )
-        poll_resp.raise_for_status()
-        data = poll_resp.json()
-        if data.get("done"):
-            if "error" in data:
-                raise RuntimeError(f"Google Speech-to-Text failed: {data['error']}")
-            results = data.get("response", {}).get("results", [])
-            transcript = " ".join(
-                r["alternatives"][0]["transcript"]
-                for r in results
-                if r.get("alternatives")
-            )
-            print(f"[audio] Transcribed {len(transcript)} chars via Google Speech-to-Text")
-            return transcript.strip()
+        start_resp.raise_for_status()
+        operation_name = start_resp.json().get("name")
+        if not operation_name:
+            raise RuntimeError(f"Google Speech-to-Text did not return an operation name: {start_resp.json()}")
+    except Exception:
+        if gcs_object_name:
+            _gcs_delete(getattr(config, "GCS_BUCKET_NAME", ""), gcs_object_name)
+        raise
 
-    raise TimeoutError("Google Speech-to-Text did not complete within 5 minutes")
+    try:
+        # Poll until done — long episodes can take a few minutes to transcribe.
+        for _ in range(60):  # up to ~5 minutes
+            time.sleep(5)
+            poll_resp = requests.get(
+                f"https://speech.googleapis.com/v1/operations/{operation_name}",
+                params={"key": api_key},
+                timeout=30,
+            )
+            poll_resp.raise_for_status()
+            data = poll_resp.json()
+            if data.get("done"):
+                if "error" in data:
+                    raise RuntimeError(f"Google Speech-to-Text failed: {data['error']}")
+                results = data.get("response", {}).get("results", [])
+                transcript = " ".join(
+                    r["alternatives"][0]["transcript"]
+                    for r in results
+                    if r.get("alternatives")
+                )
+                print(f"[audio] Transcribed {len(transcript)} chars via Google Speech-to-Text")
+                return transcript.strip()
+
+        raise TimeoutError("Google Speech-to-Text did not complete within 5 minutes")
+    finally:
+        # Scratch object served its purpose the moment the request was
+        # accepted — never leave it in the bucket accumulating storage cost.
+        if gcs_object_name:
+            _gcs_delete(getattr(config, "GCS_BUCKET_NAME", ""), gcs_object_name)
 
 
 async def list_voices() -> list:
