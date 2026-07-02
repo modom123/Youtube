@@ -5235,9 +5235,21 @@ SCRIPT_SECTIONS:
             keywords, out_dir, video_count=6, is_portrait=True,
         )
 
+        # Always include the customer's own uploaded product media -- it was
+        # already read and analyzed above, so it's guaranteed to exist and be
+        # directly relevant, unlike a stock search that can legitimately come
+        # back empty (no PEXELS_API_KEY, an unusual product niche, ...).
+        # Without this, a stock-search miss hard-failed the whole commercial
+        # even though the customer's own photo/video was sitting right there.
+        own_video_clips = [Path(m["path"]) for m in video_media if Path(m["path"]).exists()]
+        own_image_clips = [Path(m["path"]) for m in image_media if Path(m["path"]).exists()]
+        video_clips = list(video_clips) + own_video_clips
+        image_clips = own_image_clips + list(image_clips)
+
         if not video_clips and not image_clips:
             raise RuntimeError(
-                "Couldn't find stock clips matching your product. Try a more descriptive brand/description."
+                "Couldn't find any visuals for your commercial — no stock clips matched and "
+                "no product photo/video was available."
             )
 
         step("Assembling your commercial...", 80)
