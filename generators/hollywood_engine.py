@@ -743,17 +743,28 @@ class HollywoodEngine:
 # ── Blank fallback constructors ──────────────────────────────────────────────
 
 def _blank_blueprint(topic: str) -> dict:
+    # VideoBlueprint requires >=3 keywords -- a single-item list here would
+    # itself fail pydantic validation and crash this failure-recovery path.
     return {
         "title": topic, "hook": "", "core_angle": "", "target_audience": "general",
         "content_type": "story", "tone": "dramatic",
-        "estimated_ctr": 0.06, "trend_score": 7.0, "keywords": [topic],
+        "estimated_ctr": 0.06, "trend_score": 7.0,
+        "keywords": [topic, "video", "content"],
         "thumbnail_concept": "", "rationale": "",
     }
 
 
 def _blank_script(title: str) -> dict:
+    # FullScript requires >=1 hashtag and >=1 section (with its own required
+    # fields) -- empty lists here would themselves fail validation and crash
+    # this failure-recovery path with the very error it's meant to recover from.
     return {
-        "title": title, "description": "", "hashtags": [], "sections": [],
+        "title": title, "description": "", "hashtags": ["#content"],
+        "sections": [{
+            "section_id": 1, "label": "N/A", "narration": "",
+            "visual_direction": "", "b_roll_keywords": [title],
+            "duration_seconds": 3, "emotional_beat": "reflection",
+        }],
         "total_duration_seconds": 0, "narration_full": "",
         "thumbnail_prompt": "", "chapter_timestamps": [],
     }
@@ -767,9 +778,12 @@ def _blank_asset_plan() -> OptimizedAssetPlan:
 
 
 def _blank_seo(title: str) -> dict:
+    # SEOPackage requires >=10 tags and >=2 ab_title_variants -- short lists
+    # here would themselves fail validation and crash this failure-recovery path.
     return {
-        "title_final": title, "description_full": "", "tags": [],
+        "title_final": title, "description_full": "",
+        "tags": [title] + [f"tag{i}" for i in range(1, 10)],
         "thumbnail_text": "", "end_screen_cta": "Subscribe for more!",
         "pinned_comment": "", "upload_timing": "Tuesday 14:00 UTC",
-        "predicted_views_30d": 0, "ab_title_variants": [title],
+        "predicted_views_30d": 0, "ab_title_variants": [title, title],
     }

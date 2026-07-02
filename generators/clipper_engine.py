@@ -421,7 +421,7 @@ def _identify_moments(
     prompt = _build_analysis_prompt(metadata, scenes, silences, subtitle_text, clip_count, clip_length)
     clips = _analyze_with_claude(prompt)
 
-    if clips is None:
+    if not clips:  # None (API/parse failure) or [] (valid but empty) both need the fallback
         _progress(cb, "analyzing", 40, "Using scene-based detection (AI unavailable)...")
         clips = _fallback_moment_detection(metadata, scenes, silences, clip_count, clip_length)
 

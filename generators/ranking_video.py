@@ -79,20 +79,40 @@ Response format (JSON only, no markdown fence):
 """
     import anthropic
     client = anthropic.Anthropic(api_key=api_key)
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4096,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    text = response.content[0].text.strip()
-    if text.startswith("```"):
-        text = re.sub(r"^```\w*\n?", "", text)
-        text = re.sub(r"\n?```$", "", text)
-    data = json.loads(text)
-    items = data.get("items", [])
-    if len(items) != count:
-        raise RuntimeError(f"Expected {count} ranked items from Claude, got {len(items)}")
-    return items
+
+    messages = [{"role": "user", "content": prompt}]
+    last_error: Exception | None = None
+    for attempt in range(3):
+        response = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=4096,
+            messages=messages,
+        )
+        raw = response.content[0].text.strip()
+        text = raw
+        if text.startswith("```"):
+            text = re.sub(r"^```\w*\n?", "", text)
+            text = re.sub(r"\n?```$", "", text)
+        try:
+            data = json.loads(text)
+            items = data.get("items", [])
+            if len(items) != count:
+                raise ValueError(f"Expected {count} ranked items, got {len(items)}")
+            return items
+        except (json.JSONDecodeError, ValueError) as e:
+            last_error = e
+            if attempt < 2:
+                messages = [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": raw},
+                    {"role": "user", "content": (
+                        f"Your previous response was invalid: {e}\n\n"
+                        f"Return exactly {count} items in the 'items' array — no more, no fewer. "
+                        "Pure JSON only, no markdown fence."
+                    )},
+                ]
+
+    raise RuntimeError(f"Failed to get {count} valid ranked items from Claude after 3 attempts: {last_error}")
 
 
 def _build_gamma_input_text(topic: str, items: list[dict]) -> str:

@@ -164,6 +164,62 @@ def _attach_seo_data(script: "ContentScript") -> None:
         print(f"[script] SEO extraction failed ({e})")
 
 
+def _validate_script(script: "ContentScript") -> None:
+    """A script with no sections can't become a video — fail loudly and
+    immediately here rather than letting an empty list silently ride all the
+    way into video assembly, where it fails later with a far less clear
+    error (or produces a broken/empty video)."""
+    if not script.sections:
+        raise ValueError(
+            "Generated script has an empty 'sections' list — a video needs at least one section."
+        )
+    if not script.hashtags:
+        # Non-fatal: fall back to generic tags rather than retrying an
+        # otherwise-good script over a cosmetic field.
+        script.hashtags = ["#" + w for w in script.title.split()[:3] if w.isalnum()] or ["#content"]
+
+
+def _dispatch_script_model(
+    ai_model: str, topic: str, content_type: str, target_duration: int, audience: str,
+    custom_instructions: Optional[str], research_context: str, subscription_tier: str,
+) -> "ContentScript":
+    if ai_model == "deepseek" and getattr(config, "DEEPSEEK_API_KEY", ""):
+        return _generate_script_deepseek(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    if ai_model == "qwen" and getattr(config, "QWEN_API_KEY", ""):
+        return _generate_script_qwen(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    if ai_model == "groq" and getattr(config, "GROQ_API_KEY", ""):
+        return _generate_script_groq(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    if ai_model == "openrouter" and getattr(config, "OPENROUTER_API_KEY", ""):
+        return _generate_script_openrouter(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    if ai_model == "gemini" and getattr(config, "GOOGLE_API_KEY", ""):
+        return generate_script_gemini(
+            topic=topic, content_type=content_type, target_duration=target_duration,
+            audience=audience, custom_instructions=custom_instructions,
+            research_context=research_context,
+        )
+    return _generate_script_claude(
+        topic=topic, content_type=content_type, target_duration=target_duration,
+        audience=audience, custom_instructions=custom_instructions,
+        research_context=research_context, subscription_tier=subscription_tier,
+    )
+
+
 def generate_script(
     topic: str,
     content_type: str = "short",
@@ -199,65 +255,31 @@ def generate_script(
             audience=audience, custom_instructions=custom_instructions,
             research_context=research_context, subscription_tier=subscription_tier,
         )
-    if ai_model == "deepseek" and getattr(config, "DEEPSEEK_API_KEY", ""):
-        script = _generate_script_deepseek(
-            topic=topic,
-            content_type=content_type,
-            target_duration=target_duration,
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
-    elif ai_model == "qwen" and getattr(config, "QWEN_API_KEY", ""):
-        script = _generate_script_qwen(
-            topic=topic,
-            content_type=content_type,
-            target_duration=target_duration,
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
-    elif ai_model == "groq" and getattr(config, "GROQ_API_KEY", ""):
-        script = _generate_script_groq(
-            topic=topic,
-            content_type=content_type,
-            target_duration=target_duration,
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
-    elif ai_model == "openrouter" and getattr(config, "OPENROUTER_API_KEY", ""):
-        script = _generate_script_openrouter(
-            topic=topic,
-            content_type=content_type,
-            target_duration=target_duration,
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
-    elif ai_model == "gemini" and getattr(config, "GOOGLE_API_KEY", ""):
-        script = generate_script_gemini(
-            topic=topic,
-            content_type=content_type,
-            target_duration=target_duration,
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-        )
-    else:
-        script = _generate_script_claude(
-            topic=topic,
-            content_type=content_type,
-            target_duration=target_duration,
-            audience=audience,
-            custom_instructions=custom_instructions,
-            research_context=research_context,
-            subscription_tier=subscription_tier,
-        )
 
-    # Attach NLP SEO data regardless of which model was used
-    _attach_seo_data(script)
-    return script
+    attempt_instructions = custom_instructions
+    last_error: Optional[Exception] = None
+    for attempt in range(3):
+        script = _dispatch_script_model(
+            ai_model, topic, content_type, target_duration, audience,
+            attempt_instructions, research_context, subscription_tier,
+        )
+        try:
+            _validate_script(script)
+        except ValueError as e:
+            last_error = e
+            print(f"[script] attempt {attempt + 1}/3 produced an invalid script: {e}")
+            note = (
+                "\n\nIMPORTANT: your previous attempt returned a script with an empty or "
+                "missing 'sections' array. You MUST return a 'sections' array with at least "
+                "3 items, each with real narration content — never leave it empty."
+            )
+            attempt_instructions = (attempt_instructions + note) if attempt_instructions else note
+            continue
+        # Attach NLP SEO data regardless of which model was used
+        _attach_seo_data(script)
+        return script
+
+    raise last_error
 
 
 def generate_script_parallel(
