@@ -1503,14 +1503,40 @@ def _oauth_fail(platform: str, detail: str):
     provider API change, or a missing scope shows the user an actionable
     message on /accounts instead of a blank crash page."""
     print(f"[oauth] {platform} connection failed: {detail}")
+    session.pop("oauth_return_to", None)
     from urllib.parse import quote
     return redirect(f"/accounts?error={platform}&detail={quote(str(detail)[:200])}")
+
+
+def _oauth_remember_return_to():
+    """Call at the top of every /oauth/<platform>/start route. If the
+    connect attempt was triggered from inside a studio (via ?next=<path>)
+    rather than from /accounts directly, remember where to send the user
+    back afterward — so 'connect' always visually happens in the one place
+    (Accounts) but doesn't strand the user away from what they were doing."""
+    next_path = request.args.get("next")
+    if next_path and next_path.startswith("/") and not next_path.startswith("//"):
+        session["oauth_return_to"] = next_path
+    else:
+        session.pop("oauth_return_to", None)
+
+
+def _oauth_success(platform: str):
+    """Every OAuth callback calls this on success instead of hardcoding
+    /accounts?connected=<platform>, so a studio-initiated connect (see
+    _oauth_remember_return_to) bounces the user back to that studio."""
+    return_to = session.pop("oauth_return_to", None)
+    if return_to:
+        sep = "&" if "?" in return_to else "?"
+        return redirect(f"{return_to}{sep}connected={platform}")
+    return redirect(f"/accounts?connected={platform}")
 
 
 @app.route("/oauth/youtube/start")
 def oauth_youtube_start():
     if not config.YOUTUBE_CLIENT_ID:
         return jsonify({"error": "YouTube credentials not configured in .env"}), 400
+    _oauth_remember_return_to()
     from google_auth_oauthlib.flow import Flow
     flow = Flow.from_client_config(
         {"web": {
@@ -1581,7 +1607,7 @@ def oauth_youtube_callback():
         )
     except Exception as e:
         return _oauth_fail("youtube", str(e))
-    return redirect("/accounts?connected=youtube")
+    return _oauth_success("youtube")
 
 
 @app.route("/oauth/tiktok/start")
@@ -1589,6 +1615,7 @@ def oauth_youtube_callback():
 def oauth_tiktok_start():
     if not config.TIKTOK_CLIENT_KEY:
         return jsonify({"error": "TikTok credentials not configured in .env"}), 400
+    _oauth_remember_return_to()
     redirect_uri = config.APP_BASE_URL + "/oauth/tiktok/callback"
     auth_url = (
         f"https://www.tiktok.com/v2/auth/authorize/"
@@ -1633,7 +1660,7 @@ def oauth_tiktok_callback():
         )
     except Exception as e:
         return _oauth_fail("tiktok", str(e))
-    return redirect("/accounts?connected=tiktok")
+    return _oauth_success("tiktok")
 
 
 # ── Meta OAuth (Facebook + Instagram) ────────────────────────────────────────
@@ -1643,6 +1670,7 @@ def oauth_tiktok_callback():
 def oauth_facebook_start():
     if not config.FACEBOOK_APP_ID:
         return redirect("/accounts?error=facebook_not_configured")
+    _oauth_remember_return_to()
     redirect_uri = config.APP_BASE_URL + "/oauth/facebook/callback"
     scope = "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish"
     auth_url = (
@@ -1728,7 +1756,7 @@ def oauth_facebook_callback():
     except Exception as e:
         return _oauth_fail("facebook", str(e))
 
-    return redirect("/accounts?connected=facebook")
+    return _oauth_success("facebook")
 
 
 # ── LinkedIn OAuth ────────────────────────────────────────────────────────────
@@ -1738,6 +1766,7 @@ def oauth_facebook_callback():
 def oauth_linkedin_start():
     if not config.LINKEDIN_CLIENT_ID:
         return redirect("/accounts?error=linkedin_not_configured")
+    _oauth_remember_return_to()
     redirect_uri = config.APP_BASE_URL + "/oauth/linkedin/callback"
     scope = "openid profile email w_member_social"
     auth_url = (
@@ -1783,13 +1812,13 @@ def oauth_linkedin_callback():
         )
     except Exception as e:
         return _oauth_fail("linkedin", str(e))
-    return redirect("/accounts?connected=linkedin")
+    return _oauth_success("linkedin")
 
 
 @app.route("/oauth/instagram/start")
 @login_required
 def oauth_instagram_start():
-    return redirect(url_for("oauth_facebook_start"))
+    return redirect(url_for("oauth_facebook_start", next=request.args.get("next")))
 
 
 # ── X (Twitter) OAuth 2.0 ─────────────────────────────────────────────────────
@@ -1802,6 +1831,7 @@ def oauth_twitter_start():
     import base64
     if not config.TWITTER_CLIENT_ID:
         return redirect(url_for("accounts_page"))
+    _oauth_remember_return_to()
     verifier = secrets.token_urlsafe(32)
     session["twitter_verifier"] = verifier
     challenge = base64.urlsafe_b64encode(
@@ -1864,7 +1894,7 @@ def oauth_twitter_callback():
         )
     except Exception as e:
         return _oauth_fail("twitter", str(e))
-    return redirect("/accounts?connected=twitter")
+    return _oauth_success("twitter")
 
 
 # ── Threads OAuth ─────────────────────────────────────────────────────────────
@@ -1875,6 +1905,7 @@ def oauth_threads_start():
     import secrets
     if not config.THREADS_APP_ID:
         return redirect(url_for("accounts_page"))
+    _oauth_remember_return_to()
     state = secrets.token_hex(16)
     session["threads_state"] = state
     from urllib.parse import urlencode
@@ -1929,7 +1960,7 @@ def oauth_threads_callback():
         )
     except Exception as e:
         return _oauth_fail("threads", str(e))
-    return redirect("/accounts?connected=threads")
+    return _oauth_success("threads")
 
 
 # ── Twitch OAuth ──────────────────────────────────────────────────────────────
@@ -1940,6 +1971,7 @@ def oauth_twitch_start():
     import secrets
     if not config.TWITCH_CLIENT_ID:
         return redirect(url_for("accounts_page"))
+    _oauth_remember_return_to()
     state = secrets.token_hex(16)
     session["twitch_state"] = state
     from urllib.parse import urlencode
@@ -1989,7 +2021,7 @@ def oauth_twitch_callback():
         )
     except Exception as e:
         return _oauth_fail("twitch", str(e))
-    return redirect("/accounts?connected=twitch")
+    return _oauth_success("twitch")
 
 
 # ── Snapchat OAuth ────────────────────────────────────────────────────────────
@@ -2000,6 +2032,7 @@ def oauth_snapchat_start():
     import secrets
     if not config.SNAP_CLIENT_ID:
         return redirect(url_for("accounts_page"))
+    _oauth_remember_return_to()
     state = secrets.token_hex(16)
     session["snap_state"] = state
     from urllib.parse import urlencode
@@ -2050,7 +2083,7 @@ def oauth_snapchat_callback():
         )
     except Exception as e:
         return _oauth_fail("snapchat", str(e))
-    return redirect("/accounts?connected=snapchat")
+    return _oauth_success("snapchat")
 
 
 # ── Higgsfield OAuth (MCP PKCE — no client_secret) ───────────────────────────
@@ -2114,10 +2147,12 @@ def oauth_higgsfield_start():
     ).rstrip(b"=").decode()
     state = _sec.token_urlsafe(16)
 
+    next_path = request.args.get("next")
     _hf_pkce_store[state] = {
         "code_verifier": verifier,
         "token_endpoint": disc.get("token_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/token"),
         "user_id": current_user.id,
+        "return_to": next_path if next_path and next_path.startswith("/") and not next_path.startswith("//") else None,
     }
 
     callback_uri = _public_callback_base() + "/oauth/higgsfield/callback"
@@ -2181,6 +2216,10 @@ def oauth_higgsfield_callback():
         refresh_token=tokens.get("refresh_token", ""),
         is_active=True,
     )
+    return_to = pkce.get("return_to")
+    if return_to:
+        sep = "&" if "?" in return_to else "?"
+        return redirect(f"{return_to}{sep}connected=higgsfield")
     return redirect(url_for("accounts_page") + "?connected=higgsfield")
 
 

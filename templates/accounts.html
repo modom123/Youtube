@@ -37,6 +37,9 @@
   {% if error_detail %}<div class="detail">{{ error_detail }}</div>{% endif %}
 </div>
 {% endif %}
+<div class="oauth-banner ok" id="returnToBanner" style="display:none;">
+  Connect below — you'll be sent right back to where you were.
+</div>
 
 <!-- Platform Connection Grid -->
 <div class="section-header mb-16">
@@ -712,5 +715,37 @@ async function runEngagementAutomationNow(platform) {
 }
 
 loadAutomationPlatforms();
+
+// If a studio sent the user here to connect a platform (e.g. Ad Lab
+// hitting a 401 mid-broadcast), carry that through to every connect
+// button so /oauth/<platform>/start bounces them back afterward instead
+// of stranding them on this generic Accounts page.
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get('next');
+  const highlight = params.get('highlight');
+
+  if (next) {
+    document.getElementById('returnToBanner').style.display = 'block';
+    document.querySelectorAll('.platform-tile button[onclick*="/oauth/"]').forEach(btn => {
+      const onclick = btn.getAttribute('onclick') || '';
+      const m = onclick.match(/window\.location\.href='(\/oauth\/[a-z]+\/start)'/);
+      if (m) {
+        btn.setAttribute('onclick', `window.location.href='${m[1]}?next=${encodeURIComponent(next)}'`);
+      }
+    });
+  }
+
+  if (highlight) {
+    document.querySelectorAll('.platform-tile').forEach(tile => {
+      const nameEl = tile.querySelector('.pt-name');
+      if (nameEl && nameEl.textContent.trim().toLowerCase() === highlight.toLowerCase()) {
+        tile.style.outline = '2px solid var(--accent, #d4a017)';
+        tile.style.outlineOffset = '2px';
+        tile.scrollIntoView({behavior: 'smooth', block: 'center'});
+      }
+    });
+  }
+})();
 </script>
 {% endblock %}

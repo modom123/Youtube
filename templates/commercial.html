@@ -809,7 +809,7 @@ async function launchToTV() {
           showTvDistResult('youtube', d.url, 'YouTube — ' + title);
         } else if (d.needs_auth) {
           setTvRowError('youtube', 'Not connected');
-          if (confirm('Connect YouTube account?')) window.location.href = d.auth_url;
+          window.location.href = `/accounts?next=${encodeURIComponent(window.location.pathname)}&highlight=youtube`;
         } else {
           setTvRowError('youtube', d.error || 'Upload failed');
           errors.push('YouTube: ' + (d.error || 'Upload failed'));
@@ -837,7 +837,7 @@ async function launchToTV() {
           showTvDistResult('twitch', d.channel_url, 'Twitch — Live Now');
         } else if (d.needs_auth) {
           setTvRowError('twitch', 'Not connected');
-          if (confirm('Connect Twitch account?')) window.location.href = d.auth_url;
+          window.location.href = `/accounts?next=${encodeURIComponent(window.location.pathname)}&highlight=twitch`;
         } else {
           setTvRowError('twitch', d.error || 'Broadcast failed');
           errors.push('Twitch: ' + (d.error || 'Broadcast failed'));
@@ -860,5 +860,17 @@ async function launchToTV() {
 document.getElementById('tvModal').addEventListener('click', function(e) {
   if (e.target === this) closeLaunchModal();
 });
+
+// Landed back here after connecting a platform via /accounts?next=...
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const connected = params.get('connected');
+  if (connected) {
+    toast('success', `${connected.charAt(0).toUpperCase() + connected.slice(1)} connected`, 'Try broadcasting again.');
+    params.delete('connected');
+    const clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+    window.history.replaceState({}, '', clean);
+  }
+})();
 </script>
 {% endblock %}
