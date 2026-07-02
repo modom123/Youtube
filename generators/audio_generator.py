@@ -391,6 +391,99 @@ def get_audio_duration(audio_path: Path) -> float:
     return duration
 
 
+def transcribe_audio(audio_path, language_code: str = "en-US") -> str:
+    """Real speech-to-text transcription via Google Cloud Speech-to-Text v1,
+    using the same GOOGLE_API_KEY already configured for TTS.
+
+    Converts to 16kHz mono LINEAR16 WAV first — the most reliably-supported
+    STT input — rather than sending the source MP3 directly, since exact
+    MP3 sample-rate/encoding handling varies by API version.
+
+    Uses the asynchronous longrunningrecognize endpoint since podcast
+    episodes routinely exceed the synchronous recognize endpoint's ~1-minute
+    cap. Inline (non-GCS) audio content has a real ~10MB request-size
+    ceiling on Google's side — there's no GCS bucket wired into this app to
+    work around it for very long episodes, so this raises (rather than
+    silently truncating) if a file is too large; callers already treat a
+    failed transcription as non-fatal.
+    """
+    import base64
+    import subprocess
+    import time
+    import imageio_ffmpeg
+    import requests
+
+    api_key = getattr(config, "GOOGLE_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY is not configured — cannot transcribe audio")
+
+    audio_path = Path(audio_path)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        wav_path = Path(tmpdir) / "for_stt.wav"
+        ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
+        result = subprocess.run(
+            [ffmpeg_bin, "-y", "-i", str(audio_path), "-ac", "1", "-ar", "16000",
+             "-sample_fmt", "s16", str(wav_path)],
+            capture_output=True,
+        )
+        if result.returncode != 0 or not wav_path.exists():
+            raise RuntimeError(
+                f"Failed to convert audio for transcription: "
+                f"{result.stderr.decode('utf-8', errors='replace')[-300:]}"
+            )
+        audio_bytes = wav_path.read_bytes()
+
+    if len(audio_bytes) > 9_500_000:
+        raise RuntimeError(
+            f"Audio too large for inline transcription ({len(audio_bytes) / 1e6:.1f}MB, "
+            "~10MB limit without a GCS bucket) — transcription skipped."
+        )
+
+    audio_b64 = base64.b64encode(audio_bytes).decode()
+
+    start_resp = requests.post(
+        f"https://speech.googleapis.com/v1/speech:longrunningrecognize?key={api_key}",
+        json={
+            "config": {
+                "encoding": "LINEAR16",
+                "sampleRateHertz": 16000,
+                "languageCode": language_code,
+                "enableAutomaticPunctuation": True,
+            },
+            "audio": {"content": audio_b64},
+        },
+        timeout=30,
+    )
+    start_resp.raise_for_status()
+    operation_name = start_resp.json().get("name")
+    if not operation_name:
+        raise RuntimeError(f"Google Speech-to-Text did not return an operation name: {start_resp.json()}")
+
+    # Poll until done — long episodes can take a few minutes to transcribe.
+    for _ in range(60):  # up to ~5 minutes
+        time.sleep(5)
+        poll_resp = requests.get(
+            f"https://speech.googleapis.com/v1/operations/{operation_name}",
+            params={"key": api_key},
+            timeout=30,
+        )
+        poll_resp.raise_for_status()
+        data = poll_resp.json()
+        if data.get("done"):
+            if "error" in data:
+                raise RuntimeError(f"Google Speech-to-Text failed: {data['error']}")
+            results = data.get("response", {}).get("results", [])
+            transcript = " ".join(
+                r["alternatives"][0]["transcript"]
+                for r in results
+                if r.get("alternatives")
+            )
+            print(f"[audio] Transcribed {len(transcript)} chars via Google Speech-to-Text")
+            return transcript.strip()
+
+    raise TimeoutError("Google Speech-to-Text did not complete within 5 minutes")
+
+
 async def list_voices() -> list:
     """List all available edge-tts voices."""
     voices = await edge_tts.list_voices()
