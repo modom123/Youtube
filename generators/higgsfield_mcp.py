@@ -34,6 +34,16 @@ def _token() -> str:
     return tok
 
 
+def has_key() -> bool:
+    """True if this thread has a connected user's token OR the global system
+    token is configured. Callers must check this instead of
+    config.HIGGSFIELD_MCP_TOKEN directly -- otherwise a customer who
+    connected their own Higgsfield account still gets skipped whenever the
+    system-wide token isn't set."""
+    tok = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN or ""
+    return bool(tok) and not tok.startswith(("http://", "https://"))
+
+
 class _MCPSession:
     """Minimal MCP over Streamable HTTP session."""
 

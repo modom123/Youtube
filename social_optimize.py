@@ -453,7 +453,7 @@ def run(
     ai_clips = []
     _use_ai_video = ai_video_provider and ai_video_provider != "none"
     # Auto-enable Higgsfield when no stock media and token is available
-    if not _use_ai_video and not video_clips and not image_clips and config.HIGGSFIELD_MCP_TOKEN:
+    if not _use_ai_video and not video_clips and not image_clips and ai_video_generator.has_higgsfield_key():
         _use_ai_video = True
         ai_video_provider = "higgsville"
         print("[pipeline] No stock media — auto-enabling Higgsfield AI visuals")
@@ -486,7 +486,7 @@ def run(
                 _blog("error", f"AI video generation failed: {e}", exc=e)
 
         # If AI video clips failed, try generating AI images as backgrounds
-        if not ai_clips and config.HIGGSFIELD_MCP_TOKEN:
+        if not ai_clips and ai_video_generator.has_higgsfield_key():
             _push_progress(58, "Generating AI background images...")
             with logger.spinner("Generating AI background images via Higgsfield..."):
                 try:

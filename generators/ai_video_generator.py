@@ -61,6 +61,15 @@ def _higgsville_headers() -> dict:
     }
 
 
+def has_higgsfield_key() -> bool:
+    """True if this thread has a connected user's token OR the global system
+    token is configured. Gates that only check config.HIGGSFIELD_MCP_TOKEN
+    silently skip AI visual generation for every customer who connected
+    their own Higgsfield account but relies on no system-wide token being
+    set -- always check this instead."""
+    return bool(getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN)
+
+
 def _higgsville_generate(model_id: str, prompt: str, params: dict) -> Optional[str]:
     """Submit a generation job. Returns job_id or None on failure."""
     try:
@@ -409,7 +418,7 @@ def generate_ai_clips(
     clips = []
 
     if provider in ("higgsville", "both"):
-        if config.HIGGSFIELD_MCP_TOKEN:
+        if has_higgsfield_key():
             hv_clips = _generate_higgsville_with_mcp_fallback(
                 prompts=prompts,
                 output_dir=output_dir / "higgsville",
@@ -418,7 +427,7 @@ def generate_ai_clips(
             )
             clips.extend(hv_clips)
         else:
-            print("[ai_video] HIGGSFIELD_MCP_TOKEN not set — skipping Higgsville")
+            print("[ai_video] No Higgsfield token (user or system) — skipping Higgsville")
 
     if provider in ("google_flow", "both"):
         if config.GOOGLE_API_KEY:

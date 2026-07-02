@@ -3054,7 +3054,16 @@ def _push_studio_event(job_id: str, data: dict):
 
 def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
     from generators.production_engine import ProductionStudioEngine
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
     niche = params["niche"]
+
+    if user_id:
+        try:
+            _tok = _get_user_higgsfield_token(user_id)
+            _avg._session_token.value = _tok
+            _hmcp._session_token.value = _tok
+        except Exception as e:
+            print(f"[studio] Higgsfield token setup failed (non-fatal): {e}")
 
     # Create a DB job record so the output appears in the Jobs list
     db_job_id = db.create_job(
@@ -4052,6 +4061,15 @@ def _push_batch_event(batch_id: str, data: dict):
 
 
 def _run_batch_thread(batch_id: str, topics: list, common_config: dict, user_id: int):
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
+    if user_id:
+        try:
+            _tok = _get_user_higgsfield_token(user_id)
+            _avg._session_token.value = _tok
+            _hmcp._session_token.value = _tok
+        except Exception as e:
+            print(f"[batch] Higgsfield token setup failed (non-fatal): {e}")
+
     total = len(topics)
     completed = 0
     failed = 0
@@ -8748,7 +8766,16 @@ def _push_editing_event(job_id: str, data: dict):
 
 def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
     from generators.editing_room import produce, STUDIO_PRESETS
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
     from pathlib import Path as P
+
+    if user_id:
+        try:
+            _tok = _get_user_higgsfield_token(user_id)
+            _avg._session_token.value = _tok
+            _hmcp._session_token.value = _tok
+        except Exception as e:
+            print(f"[editing] Higgsfield token setup failed (non-fatal): {e}")
 
     def _cb(msg, pct):
         with _editing_lock:
