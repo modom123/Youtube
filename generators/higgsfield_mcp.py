@@ -161,6 +161,131 @@ def _download(url: str, path: Path) -> None:
             f.write(chunk)
 
 
+def _find_upload_url(text: str) -> Optional[str]:
+    for pat in [
+        r'"upload_url"\s*:\s*"(https?://[^"]+)"',
+        r'"url"\s*:\s*"(https?://[^"]+)"',
+        r'"presigned_url"\s*:\s*"(https?://[^"]+)"',
+    ]:
+        m = re.search(pat, text)
+        if m:
+            return m.group(1)
+    return None
+
+
+def _find_media_id(text: str) -> Optional[str]:
+    for pat in [
+        r'"media_id"\s*:\s*"([^"]+)"',
+        r'"id"\s*:\s*"([a-f0-9]{8}-[a-f0-9-]{27,})"',
+    ]:
+        m = re.search(pat, text)
+        if m:
+            return m.group(1)
+    return None
+
+
+def upload_media_via_mcp(session: "_MCPSession", file_path: Path, media_type: str) -> Optional[str]:
+    """Upload a local file (image/video/audio) to Higgsfield storage and
+    return a confirmed media_id, or None on failure. media_type is one of
+    'image' | 'video' | 'audio'."""
+    file_path = Path(file_path)
+    content_types = {
+        "video": "video/mp4", "image": "image/jpeg", "audio": "audio/mpeg",
+    }
+    try:
+        up = session.call("media_upload", {
+            "filename": file_path.name,
+            "content_type": content_types.get(media_type, "application/octet-stream"),
+        })
+        up_text = _text(up)
+        upload_url = _find_upload_url(up_text)
+        media_id = _find_media_id(up_text)
+        if not upload_url or not media_id:
+            print(f"[higgsfield_mcp] media_upload response missing upload_url/media_id: {up_text[:300]}")
+            return None
+
+        put_resp = requests.put(upload_url, data=file_path.read_bytes(), timeout=300)
+        put_resp.raise_for_status()
+
+        confirm = session.call("media_confirm", {"media_id": media_id, "type": media_type})
+        confirm_text = _text(confirm)
+        if any(s in confirm_text.lower() for s in ("error", "failed")):
+            print(f"[higgsfield_mcp] media_confirm failed: {confirm_text[:300]}")
+            return None
+        return media_id
+    except Exception as e:
+        print(f"[higgsfield_mcp] Media upload failed: {e}")
+        return None
+
+
+def generate_dubbing_via_mcp(
+    video_path: Path,
+    target_language: str,
+    output_path: Path,
+    max_poll: int = 600,
+) -> Optional[Path]:
+    """Dub a local video into another language via the Higgsfield MCP
+    'dubbing' tool. Uploads the video, submits the dubbing job, polls until
+    done, and downloads the result. target_language must be one of the MCP
+    dubbing tool's 3-letter codes (eng, cmn, fra, hin, ita, jpn, kor, por,
+    rus, tur, spa, deu, ara, pol, ind, fil, swe, fin). Returns the downloaded
+    path, or None on failure -- never raises."""
+    video_path = Path(video_path)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    session = _MCPSession()
+    try:
+        session.initialize()
+    except Exception as e:
+        print(f"[higgsfield_mcp] Session init failed: {e}")
+        return None
+
+    media_id = upload_media_via_mcp(session, video_path, "video")
+    if not media_id:
+        return None
+
+    try:
+        gen = session.call("dubbing", {
+            "params": {"video_id": media_id, "target_language": target_language}
+        })
+        text = _text(gen)
+
+        video_url = _find_video_url(text)
+        if not video_url:
+            job_id = _find_job_id(text)
+            if not job_id:
+                print(f"[higgsfield_mcp] Dubbing: no job_id in response: {text[:300]}")
+                return None
+            elapsed, wait = 0, 15
+            while elapsed < max_poll:
+                time.sleep(wait)
+                elapsed += wait
+                try:
+                    poll = session.call("job_display", {"id": job_id})
+                    pt = _text(poll)
+                    video_url = _find_video_url(pt)
+                    if video_url:
+                        break
+                    if any(s in pt for s in ('"failed"', '"error"', '"cancelled"')):
+                        print(f"[higgsfield_mcp] Dubbing job {job_id} failed")
+                        return None
+                except Exception as pe:
+                    print(f"[higgsfield_mcp] Dubbing poll error: {pe}")
+
+        if not video_url:
+            print(f"[higgsfield_mcp] Dubbing timed out after {max_poll}s")
+            return None
+
+        _download(video_url, output_path)
+        if output_path.exists() and output_path.stat().st_size > 10_000:
+            return output_path
+        return None
+    except Exception as e:
+        print(f"[higgsfield_mcp] Dubbing error: {e}")
+        return None
+
+
 # ── public API ────────────────────────────────────────────────────────────────
 
 def generate_clips_via_mcp(

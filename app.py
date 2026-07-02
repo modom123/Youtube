@@ -4379,30 +4379,51 @@ def api_use_template(tmpl_id):
 
 # ── Feature 5: Multi-language Auto-Dub ───────────────────────────────────────
 
+# Codes match the Higgsfield MCP "dubbing" tool's supported target_language
+# values exactly -- these are NOT arbitrary ISO-639-1 codes (e.g. Chinese is
+# "cmn", not "zh"; there is no Dutch support at all), so don't "fix" these to
+# look like standard 2-letter codes without checking against the tool first.
 DUB_LANGUAGES = {
-    "es": "Spanish", "fr": "French", "de": "German", "pt": "Portuguese",
-    "ja": "Japanese", "ko": "Korean", "zh": "Chinese (Mandarin)",
-    "ar": "Arabic", "hi": "Hindi", "it": "Italian", "ru": "Russian", "nl": "Dutch",
+    "eng": "English", "cmn": "Chinese (Mandarin)", "fra": "French", "hin": "Hindi",
+    "ita": "Italian", "jpn": "Japanese", "kor": "Korean", "por": "Portuguese",
+    "rus": "Russian", "tur": "Turkish", "spa": "Spanish", "deu": "German",
+    "ara": "Arabic", "pol": "Polish", "ind": "Indonesian", "fil": "Filipino",
+    "swe": "Swedish", "fin": "Finnish",
 }
 
 
 def _run_dub_thread(dub_id: str, video_path: str, target_language: str, user_id: int, source_job_id: int):
-    import subprocess
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
+    if user_id:
+        try:
+            _tok = _get_user_higgsfield_token(user_id)
+            _avg._session_token.value = _tok
+            _hmcp._session_token.value = _tok
+        except Exception as e:
+            print(f"[dub] Higgsfield token setup failed (non-fatal): {e}")
+
     try:
         db.update_dub_job(dub_id, status="running")
-        result = subprocess.run(
-            ["higgsfield", "generate", "workflow", "dubbing",
-             "--video", video_path, "--target-language", target_language,
-             "--wait", "--json"],
-            capture_output=True, text=True, timeout=600,
+
+        if not _hmcp.has_key():
+            db.update_dub_job(
+                dub_id, status="error",
+                output_path="Higgsfield not connected — connect your account on the Accounts page.",
+            )
+            return
+
+        out_dir = Path(config.OUTPUT_DIR) / "dubs" / dub_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        output_path = out_dir / f"dubbed_{target_language}.mp4"
+
+        result_path = _hmcp.generate_dubbing_via_mcp(
+            video_path=video_path,
+            target_language=target_language,
+            output_path=output_path,
         )
-        if result.returncode == 0:
-            try:
-                out = json.loads(result.stdout)
-                output_path = out.get("output_path") or out.get("url", "")
-            except Exception:
-                output_path = result.stdout.strip()
-            db.update_dub_job(dub_id, status="done", output_path=output_path)
+
+        if result_path:
+            db.update_dub_job(dub_id, status="done", output_path=str(result_path))
             try:
                 from notifications import send_notification
                 lang_name = DUB_LANGUAGES.get(target_language, target_language)
@@ -4412,7 +4433,10 @@ def _run_dub_thread(dub_id: str, video_path: str, target_language: str, user_id:
             except Exception:
                 pass
         else:
-            db.update_dub_job(dub_id, status="error", output_path=result.stderr[:500])
+            db.update_dub_job(
+                dub_id, status="error",
+                output_path="Dubbing failed — the Higgsfield dubbing job did not complete successfully.",
+            )
     except Exception as e:
         db.update_dub_job(dub_id, status="error", output_path=str(e))
 
