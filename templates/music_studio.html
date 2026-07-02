@@ -2287,6 +2287,7 @@ input[type=range]::-webkit-slider-thumb {
               <div class="progress-bar-fill" id="progressFill"></div>
             </div>
             <div class="progress-label" id="progressLabel">Starting…</div>
+            <span class="so-brand-counter" id="musicBrand"></span>
           </div>
 
           <!-- Empty state / player area -->
@@ -3237,6 +3238,7 @@ function generateSong() {
   progressArea.classList.add('active');
   document.getElementById('progressFill').style.width = '0%';
   document.getElementById('progressLabel').textContent = 'Starting…';
+  soBrandCounterRender('musicBrand', 0);
 
   clearLog();
   log('info', `Starting generation: "${title}" · ${genre || 'any genre'} · ${bpm} BPM`);
@@ -3282,6 +3284,7 @@ function _streamJob(jobId, title, meta) {
       if (d.type === 'progress') {
         document.getElementById('progressFill').style.width = (d.pct || 0) + '%';
         document.getElementById('progressLabel').textContent = d.message || '';
+        soBrandCounterRender('musicBrand', d.pct || 0);
         log('info', d.message || '');
       }
       if (d.type === 'lyrics') {
@@ -3291,6 +3294,7 @@ function _streamJob(jobId, title, meta) {
       if (d.type === 'complete') {
         document.getElementById('progressFill').style.width = '100%';
         document.getElementById('progressLabel').textContent = 'Complete!';
+        soBrandCounterRender('musicBrand', 100);
         const metaStr = [meta.genre, meta.mood, meta.bpm + ' BPM', meta.key].filter(Boolean).join(' · ');
         loadTrack(d.audio_url, title, metaStr, d.lyrics, jobId);
         log('ok', 'Track ready: ' + (d.provider || 'AI'));

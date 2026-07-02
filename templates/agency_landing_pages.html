@@ -64,6 +64,9 @@
     {% endif %}
     <button class="lp-submit" id="lp-submit" onclick="createLandingPage()">Generate Landing Page</button>
     <div class="lp-error" id="lp-error"></div>
+    <div id="lp-progress" style="display:none;text-align:center;margin-top:12px;">
+      <span class="so-brand-counter" id="lpBrand"></span>
+    </div>
   </div>
 
   <div class="lp-card">
@@ -99,6 +102,8 @@ async function createLandingPage() {
   btn.disabled = true;
   btn.textContent = 'Generating (this can take a minute)...';
   document.getElementById('lp-error').style.display = 'none';
+  document.getElementById('lp-progress').style.display = 'block';
+  soBrandCounterRender('lpBrand', 0);
 
   const clientEl = document.getElementById('lp-client');
   const payload = {
@@ -126,6 +131,7 @@ async function pollLandingPage(pageId) {
     const resp = await fetch(`/api/agency/landing-pages/${pageId}/status`);
     const page = await resp.json();
     if (page.status === 'done' || page.status === 'error') {
+      if (page.status === 'done') soBrandCounterRender('lpBrand', 100);
       resetLpBtn();
       location.reload();
       return;

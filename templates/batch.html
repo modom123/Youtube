@@ -96,6 +96,7 @@
     <div class="b-card" id="activeBatchCard" style="display:none;">
       <h2>Running Batch — <span id="batchProgressLabel">0 / 0 complete</span></h2>
       <div id="batchTopicRows"></div>
+      <div style="margin-top:12px;text-align:center;"><span class="so-brand-counter" id="batchBrand"></span></div>
     </div>
 
     <!-- Batch history -->
@@ -151,6 +152,7 @@ async function batchRun() {
 function showActiveBatch(topics) {
   const card = document.getElementById('activeBatchCard');
   card.style.display = '';
+  soBrandCounterRender('batchBrand', 0);
   const rows = document.getElementById('batchTopicRows');
   rows.innerHTML = `
     <table class="batch-table">
@@ -184,10 +186,12 @@ function subscribeToStream(batchId) {
       const pr = document.getElementById(`bprog-${idx}`);
       if (pr) pr.style.width = d.success ? '100%' : '0%';
       document.getElementById('batchProgressLabel').textContent = `${d.completed} / ${d.total} complete`;
+      soBrandCounterRender('batchBrand', d.total > 0 ? (d.completed / d.total * 100) : 0);
     } else if (d.type === 'batch_done') {
       batchES.close();
       document.getElementById('batchRunBtn').disabled = false;
       document.getElementById('batchRunBtn').textContent = 'Run Batch Pipeline';
+      soBrandCounterRender('batchBrand', 100);
       loadHistory();
     }
   };

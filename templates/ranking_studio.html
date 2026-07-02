@@ -75,6 +75,7 @@
   <div class="rk-card rk-progress" id="rk-progress">
     <div class="rk-step-label" id="rk-step-label">Starting...</div>
     <div class="rk-progress-bar"><div class="rk-progress-fill" id="rk-progress-fill"></div></div>
+    <div style="text-align:center;"><span class="so-brand-counter" id="rkBrand"></span></div>
   </div>
 
   <div class="rk-card rk-result" id="rk-result">
@@ -98,6 +99,7 @@ async function createRanking() {
   document.getElementById('rk-error').style.display = 'none';
   document.getElementById('rk-result').style.display = 'none';
   document.getElementById('rk-progress').style.display = 'block';
+  soBrandCounterRender('rkBrand', 0);
 
   const payload = {
     topic,
@@ -128,10 +130,12 @@ async function pollStatus() {
     if (job.progress !== undefined) {
       document.getElementById('rk-progress-fill').style.width = Math.min(job.progress, 99) + '%';
       document.getElementById('rk-step-label').textContent = job.step_label || 'Processing...';
+      soBrandCounterRender('rkBrand', Math.min(job.progress, 99));
     }
 
     if (job.status === 'done') {
       document.getElementById('rk-progress-fill').style.width = '100%';
+      soBrandCounterRender('rkBrand', 100);
       document.getElementById('rk-video').src = `/api/ranking/${_rkJobId}/video`;
       document.getElementById('rk-download').href = `/api/ranking/${_rkJobId}/video`;
       let itemsHtml = '';

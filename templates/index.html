@@ -131,7 +131,10 @@
       <div class="progress-track">
         <div class="progress-bar" id="qp-bar" style="width:0%"></div>
       </div>
-      <div class="text-sm text-dim mt-8" id="qp-step">Starting...</div>
+      <div class="flex-between mt-8">
+        <span class="text-sm text-dim" id="qp-step">Starting...</span>
+        <span class="so-brand-counter" id="qpBrand"></span>
+      </div>
       <div class="job-log" id="qp-log"></div>
       <div class="flex gap-12 mt-12" id="qp-actions" style="display:none!important">
         <a href="#" class="btn btn-green btn-sm" id="qp-download">⬇ Download</a>
@@ -275,6 +278,7 @@ async function quickCreate() {
   document.getElementById('qp-status').className = 'pill pill-running';
   document.getElementById('qp-status').textContent = 'Running';
   document.getElementById('qp-actions').style.setProperty('display','none','important');
+  soBrandCounterRender('qpBrand', 0);
 
   const resp = await fetch('/api/create', {
     method: 'POST',
@@ -292,7 +296,10 @@ async function quickCreate() {
 
   es.onmessage = (e) => {
     const d = JSON.parse(e.data);
-    if (d.progress) document.getElementById('qp-bar').style.width = d.progress + '%';
+    if (d.progress) {
+      document.getElementById('qp-bar').style.width = d.progress + '%';
+      soBrandCounterRender('qpBrand', d.progress);
+    }
     if (d.step) document.getElementById('qp-step').textContent = d.step;
     if (d.log) {
       const line = document.createElement('span');
@@ -306,6 +313,7 @@ async function quickCreate() {
       document.getElementById('qp-status').className = 'pill pill-done';
       document.getElementById('qp-status').textContent = 'Done!';
       document.getElementById('qp-bar').className = 'progress-bar green';
+      soBrandCounterRender('qpBrand', 100);
       const acts = document.getElementById('qp-actions');
       acts.style.removeProperty('display');
       document.getElementById('qp-download').href = `/api/jobs/${job_id}/download`;

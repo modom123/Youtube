@@ -481,7 +481,10 @@
       <div class="pod-step" id="step-video"><span class="step-icon">📺</span> Building audiogram video</div>
       <div class="pod-step" id="step-done"><span class="step-icon">✅</span> Finalizing episode</div>
       <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
-      <div style="margin-top:8px;font-size:12px;color:var(--muted);" id="progressMsg">Starting...</div>
+      <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--muted);" id="progressMsg">Starting...</span>
+        <span class="so-brand-counter" id="podBrand"></span>
+      </div>
     </div>
 
     <!-- Audio Player -->
@@ -676,6 +679,7 @@ function updateProgress(data) {
   const pct = data.progress || 0;
   document.getElementById('progressFill').style.width = pct + '%';
   document.getElementById('progressMsg').textContent = data.step || '...';
+  soBrandCounterRender('podBrand', pct);
 
   const steps = ['step-script','step-audio','step-notes','step-video','step-done'];
   const thresholds = [10, 35, 60, 80, 98];
@@ -720,6 +724,7 @@ function showResults(data) {
 function showProgress() {
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('progressCard').style.display = 'block';
+  soBrandCounterRender('podBrand', 0);
   document.getElementById('audioCard').style.display = 'none';
   document.getElementById('audiogramCard').style.display = 'none';
   document.getElementById('notesCard').style.display = 'none';
