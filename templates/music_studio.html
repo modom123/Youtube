@@ -3215,6 +3215,32 @@ function loadTrack(url, title, meta, lyrics, jobId) {
 let _jobId = null;
 let _evtSource = null;
 
+// ── Resume an in-progress track after leaving/returning to this page ───────
+// _run_music_thread keeps generating server-side regardless of this tab, but
+// _jobId only ever lived in this local variable -- navigating away and back
+// showed the idle Generate button with no way to tell a track was still
+// being produced.
+const SO_JOB_KEY = 'so_music_active_job';
+const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+
+function saveActiveJob(jobId, title, meta) {
+  localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, title, meta, startedAt: Date.now() }));
+}
+function clearActiveJob() {
+  localStorage.removeItem(SO_JOB_KEY);
+}
+function getResumableJob() {
+  try {
+    const raw = localStorage.getItem(SO_JOB_KEY);
+    if (!raw) return null;
+    const { jobId, title, meta, startedAt } = JSON.parse(raw);
+    if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) { clearActiveJob(); return null; }
+    return { jobId, title, meta };
+  } catch (e) {
+    return null;
+  }
+}
+
 function generateSong() {
   const title  = document.getElementById('songTitle').value.trim() || 'Untitled Track';
   const genre  = document.getElementById('songGenre').value;
@@ -3264,6 +3290,7 @@ function generateSong() {
   .then(data => {
     if (!data.job_id) throw new Error(data.error || 'No job_id returned');
     _jobId = data.job_id;
+    saveActiveJob(_jobId, title, { genre, mood, bpm, key, vocals });
     log('ok', `Job ${_jobId} queued`);
     _streamJob(_jobId, title, { genre, mood, bpm, key, vocals });
   })
@@ -3299,12 +3326,14 @@ function _streamJob(jobId, title, meta) {
         loadTrack(d.audio_url, title, metaStr, d.lyrics, jobId);
         log('ok', 'Track ready: ' + (d.provider || 'AI'));
         _evtSource.close();
+        clearActiveJob();
         _resetGenBtn();
         document.getElementById('progressArea').classList.remove('active');
       }
       if (d.type === 'error') {
         log('err', d.message || 'Generation failed');
         _evtSource.close();
+        clearActiveJob();
         _resetGenBtn();
         document.getElementById('progressArea').classList.remove('active');
       }
@@ -3327,10 +3356,12 @@ function _streamJob(jobId, title, meta) {
             }
             loadTrack(audio_url, title, metaStr, result.lyrics || '', jobId);
             log('ok', 'Track ready: ' + (result.provider || 'AI'));
+            clearActiveJob();
             document.getElementById('progressArea').classList.remove('active');
             _resetGenBtn();
           } else if (d.status === 'error') {
             log('err', d.step || 'Generation failed');
+            clearActiveJob();
             _resetGenBtn();
             document.getElementById('progressArea').classList.remove('active');
           } else {
@@ -3350,6 +3381,59 @@ function _resetGenBtn() {
   document.getElementById('genBtnIcon').textContent = '✨';
   document.getElementById('genBtnText').textContent = 'Generate Song';
 }
+
+(function resumeActiveJob() {
+  const resumable = getResumableJob();
+  if (!resumable) return;
+  const { jobId, title, meta } = resumable;
+  fetch(`/api/music/status/${jobId}`)
+    .then(r => r.json())
+    .then(d => {
+      if (!d || !d.status) { clearActiveJob(); return; }
+
+      const studioTab = document.querySelector('.ms-main-tab');
+      switchMainTab('studio', studioTab);
+      _jobId = jobId;
+      document.getElementById('genBtn').disabled = true;
+      document.getElementById('genBtnIcon').textContent = '⏳';
+      document.getElementById('genBtnText').textContent = 'Generating…';
+      const progressArea = document.getElementById('progressArea');
+      progressArea.classList.add('active');
+      clearLog();
+      log('info', 'Reconnecting to in-progress track: "' + (title || 'Untitled Track') + '"...');
+
+      if (d.status === 'done') {
+        clearActiveJob();
+        document.getElementById('progressFill').style.width = '100%';
+        document.getElementById('progressLabel').textContent = 'Complete!';
+        soBrandCounterRender('musicBrand', 100);
+        const result = d.result || {};
+        const metaStr = [result.genre, result.mood, (result.bpm ? result.bpm + ' BPM' : ''), result.key].filter(Boolean).join(' · ');
+        const audioUrl = d.audio_url || `/api/music/download/${jobId}`;
+        loadTrack(audioUrl, result.title || title || 'Untitled Track', metaStr, result.lyrics || '', jobId);
+        log('ok', 'Track ready: ' + (result.provider || 'AI'));
+        progressArea.classList.remove('active');
+        _resetGenBtn();
+        return;
+      }
+      if (d.status === 'error') {
+        clearActiveJob();
+        log('err', d.step || 'Generation failed');
+        progressArea.classList.remove('active');
+        _resetGenBtn();
+        return;
+      }
+
+      // Still running
+      document.getElementById('progressFill').style.width = (d.progress || 0) + '%';
+      document.getElementById('progressLabel').textContent = d.step || '';
+      soBrandCounterRender('musicBrand', d.progress || 0);
+      _streamJob(jobId, title || 'Untitled Track', meta || {});
+    })
+    .catch(() => {
+      // Network hiccup -- leave stored job in place, next load retries.
+    });
+})();
 
 /* ═══════════════════════ LOG ═══════════════════════════════════════════════ */
 function log(type, msg) {

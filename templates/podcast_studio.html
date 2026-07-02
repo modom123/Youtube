@@ -555,6 +555,26 @@ let _pollInterval = null;
 let _podFmt = 'solo';
 let _podDur = 1800;
 
+const SO_JOB_KEY = 'so_podcast_active_job';
+const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000;
+function saveActiveJob(jobId) {
+  localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, startedAt: Date.now() }));
+}
+function clearActiveJob() {
+  localStorage.removeItem(SO_JOB_KEY);
+}
+function getResumableJob() {
+  try {
+    const raw = localStorage.getItem(SO_JOB_KEY);
+    if (!raw) return null;
+    const { jobId, startedAt } = JSON.parse(raw);
+    if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) { clearActiveJob(); return null; }
+    return jobId;
+  } catch (e) {
+    return null;
+  }
+}
+
 function switchTab(tab, btn) {
   document.querySelectorAll('.pod-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.pod-panel').forEach(p => p.classList.remove('active'));
@@ -621,6 +641,7 @@ async function generatePodcast() {
     const data = await resp.json();
     if (data.error) { showError(data.error); return; }
     _podJobId = data.job_id;
+    saveActiveJob(_podJobId);
     _pollInterval = setInterval(pollStatus, 2000);
   } catch(e) {
     showError(e.message);
@@ -650,6 +671,7 @@ async function processUpload() {
     const data = await resp.json();
     if (data.error) { showError(data.error); return; }
     _podJobId = data.job_id;
+    saveActiveJob(_podJobId);
     _pollInterval = setInterval(pollStatus, 2000);
   } catch(e) {
     showError(e.message);
@@ -667,9 +689,11 @@ async function pollStatus() {
 
     if (data.status === 'done') {
       clearInterval(_pollInterval);
+      clearActiveJob();
       showResults(data);
     } else if (data.status === 'error') {
       clearInterval(_pollInterval);
+      clearActiveJob();
       showError(data.error || 'Generation failed');
     }
   } catch(e) {}
@@ -794,5 +818,32 @@ async function publishTo(platform, btn) {
     alert('Error: ' + e.message);
   }
 }
+
+(function resumeActiveJob() {
+  const jobId = getResumableJob();
+  if (!jobId) return;
+  fetch(`/api/podcast/${jobId}/status`)
+    .then(r => { if (!r.ok) { clearActiveJob(); return null; } return r.json(); })
+    .then(data => {
+      if (!data || data.error) { clearActiveJob(); return; }
+      _podJobId = jobId;
+      showProgress();
+      const btn = document.getElementById('genBtn');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Starting...'; }
+      updateProgress(data);
+      if (data.status === 'done') {
+        clearActiveJob();
+        showResults(data);
+      } else if (data.status === 'error') {
+        clearActiveJob();
+        showError(data.error || 'Generation failed');
+      } else {
+        _pollInterval = setInterval(pollStatus, 2000);
+      }
+    })
+    .catch(() => {
+      // Network hiccup -- leave stored job in place, next load retries.
+    });
+})();
 </script>
 {% endblock %}
