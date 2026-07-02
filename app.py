@@ -1565,7 +1565,6 @@ def oauth_youtube_start():
 @login_required
 def oauth_youtube_callback():
     from google_auth_oauthlib.flow import Flow
-    import googleapiclient.discovery
     try:
         flow = Flow.from_client_config(
             {"web": {
@@ -1584,10 +1583,25 @@ def oauth_youtube_callback():
         # Google never associated with this authorization code, causing
         # "invalid_grant (Missing code verifier)" on every single attempt.
         flow.code_verifier = session.get("youtube_code_verifier")
-        flow.fetch_token(authorization_response=request.url)
+        # Explicit timeouts throughout: neither requests_oauthlib's fetch_token
+        # nor googleapiclient's default transport set one on their own, so a
+        # slow/hung network call here would tie up the request indefinitely
+        # (gunicorn's own worker timeout is disabled for the long video-render
+        # routes) — the user just sees an endless spinner with no way out.
+        flow.fetch_token(authorization_response=request.url, timeout=30)
         creds = flow.credentials
-        yt = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
-        channels = yt.channels().list(part="snippet,statistics", mine=True).execute()
+
+        # Plain REST call instead of googleapiclient.discovery.build(), which
+        # has no straightforward per-call timeout — this matches every other
+        # platform's OAuth callback in this file and lets us bound it explicitly.
+        resp = requests.get(
+            "https://www.googleapis.com/youtube/v3/channels",
+            params={"part": "snippet,statistics", "mine": "true"},
+            headers={"Authorization": f"Bearer {creds.token}"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        channels = resp.json()
         channel = channels["items"][0] if channels.get("items") else {}
         if not channel:
             return _oauth_fail("youtube", "No YouTube channel found on that Google account — "
