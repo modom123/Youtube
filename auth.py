@@ -252,7 +252,7 @@ class _UserObj:
     @property
     def assistant_enabled(self): return self._d.get("assistant_enabled") != 0
     @property
-    def default_voice(self): return self._d.get("default_voice") or "en-US-Studio-O"
+    def default_voice(self): return self._d.get("default_voice") or "en-US-Journey-D"
 
     def refresh(self):
         self._d = db.get_user_by_id(self._d["id"])

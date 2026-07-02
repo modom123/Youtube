@@ -407,7 +407,7 @@ PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID", "")
 
 # Video settings
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en-US")
-DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "en-US-Studio-O")
+DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "en-US-Journey-D")
 VIDEO_WIDTH = int(os.getenv("DEFAULT_VIDEO_WIDTH", "1280"))
 VIDEO_HEIGHT = int(os.getenv("DEFAULT_VIDEO_HEIGHT", "720"))
 SHORT_WIDTH = int(os.getenv("SHORT_VIDEO_WIDTH", "720"))
@@ -560,7 +560,7 @@ TWILIO_AUTH_TOKEN   = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER  = os.getenv("TWILIO_FROM_NUMBER", "")
 
 # Google Cloud TTS voice (Studio > Journey > Neural2 quality order)
-GOOGLE_TTS_VOICE = os.getenv("GOOGLE_TTS_VOICE", "en-US-Studio-O")
+GOOGLE_TTS_VOICE = os.getenv("GOOGLE_TTS_VOICE", "en-US-Journey-D")
 GOOGLE_TTS_VOICES = VOICE_CATALOG  # back-compat alias — single source of truth
 
 # Cloud Translation supported languages
