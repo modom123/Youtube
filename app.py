@@ -3509,6 +3509,24 @@ def _run_music_thread(job_id: str, params: dict, user_id: int = None):
 
         audio_url = f"/api/music/download/{job_id}" if result.get("audio_path") else None
 
+        # Every provider (Suno, Replicate, HuggingFace, ElevenLabs) can fail
+        # or simply not be configured -- when that happens result["audio_path"]
+        # is None and there is no track to give the customer. Reporting
+        # "done" and charging credits in that case would bill someone for a
+        # song that doesn't exist.
+        if not result.get("audio_path"):
+            with _music_lock:
+                _music_jobs[job_id].update({
+                    "status": "error",
+                    "step": "No music provider produced audio — check Suno/Replicate/"
+                            "ElevenLabs configuration. No credits were charged.",
+                })
+            _push_music_event(job_id, {
+                "type": "error",
+                "message": "No music provider produced audio. No credits were charged.",
+            })
+            return
+
         # Emit lyrics event if we have them
         if result.get("lyrics"):
             _push_music_event(job_id, {"type": "lyrics", "lyrics": result["lyrics"]})
