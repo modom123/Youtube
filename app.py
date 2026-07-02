@@ -8099,18 +8099,25 @@ def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
         _push({"progress": 90, "step": "Finalising…"})
 
         # ── 4. Persist job ─────────────────────────────────────────────────
+        # create_job() requires platforms/audience/voice/style/privacy (no
+        # defaults) and has no status/title kwargs at all -- those are set
+        # afterward via update_job(), same as every other studio's pattern.
         db_job_id = db.create_job(
+            topic=topic, format="podcast", platforms=[],
+            audience=audience, voice=voice_id or config.DEFAULT_VOICE,
+            style=style, privacy="private",
             user_id=user_id,
-            topic=topic,
-            format="podcast",
-            status="done",
-            title=title,
         )
         db.update_job(
             db_job_id,
-            video_path=video_path or audio_path,
             status="done",
-            description=description,
+            progress=100,
+            title=title,
+            # jobs has no description column -- that only lives in the
+            # in-memory _podcast_jobs status dict pushed below, which is
+            # what actually feeds the UI's show notes/description display.
+            video_path=video_path or audio_path,
+            audio_path=audio_path,
         )
 
         if user_id:
@@ -8183,8 +8190,13 @@ def _run_podcast_upload_thread(pod_job_id: str, params: dict, audio_path: str, u
 
         _push({"progress": 90, "step": "Saving…"})
 
-        db_job_id = db.create_job(user_id=user_id, topic=topic, format="podcast", status="done", title=topic)
-        db.update_job(db_job_id, video_path=video_path or audio_path, status="done")
+        db_job_id = db.create_job(
+            topic=topic, format="podcast", platforms=[],
+            audience="general public", voice=config.DEFAULT_VOICE,
+            style="fire", privacy="private", user_id=user_id,
+        )
+        db.update_job(db_job_id, status="done", progress=100, title=topic,
+                      video_path=video_path or audio_path, audio_path=audio_path)
 
         _push({
             "status": "done", "progress": 100, "step": "Done!",
@@ -8292,9 +8304,12 @@ def api_podcast_publish(pod_job_id):
     video_path = job.get("video_path") or job.get("audio_path")
 
     if schedule:
-        stub_id  = db.create_job(user_id=current_user.id, topic=caption, format="podcast",
-                                 status="done", title=caption)
-        db.update_job(stub_id, video_path=video_path, status="done")
+        stub_id  = db.create_job(
+            topic=caption, format="podcast", platforms=[platform] if platform else [],
+            audience="general public", voice=config.DEFAULT_VOICE,
+            style="fire", privacy="private", user_id=current_user.id,
+        )
+        db.update_job(stub_id, status="done", progress=100, title=caption, video_path=video_path)
         post_id  = db.create_scheduled_post(user_id=current_user.id, job_id=stub_id,
                                             platform=platform, scheduled_at=schedule)
         return jsonify({"ok": True, "scheduled": True, "post_id": post_id})
