@@ -8851,18 +8851,19 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
         use_ai_clips = params.get("use_ai_clips", False)
         custom_bgm = params.get("custom_bgm_path")
         section_media = params.get("section_media", {})
+        voice = params.get("voice") or config.DEFAULT_VOICE
         result = produce(
             studio=studio, topic=topic, sections=sections,
             output_dir=output_dir, subtitle=subtitle, progress_cb=_cb,
             use_ai_clips=use_ai_clips, custom_bgm_path=custom_bgm,
-            section_media=section_media,
+            section_media=section_media, voice=voice,
         )
 
         # Create a job record in the DB so it shows in /jobs and can be remixed
         db_job_id = db.create_job(
             topic=topic, format=f"editing_{studio}",
             platforms=[], audience="general public",
-            voice="espeak", style=studio, privacy="private",
+            voice=voice, style=studio, privacy="private",
             user_id=user_id,
         )
         db.update_job(
@@ -8908,7 +8909,8 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
 @login_required
 def editing_room_page():
     jobs = db.get_jobs(limit=50, user_id=current_user.id)
-    return render_template("editing_room.html", jobs=jobs, active_page="editing-room")
+    return render_template("editing_room.html", jobs=jobs, active_page="editing-room",
+                           voices=config.VOICE_CATALOG, user_default_voice=current_user.default_voice)
 
 
 @app.route("/editing-room/remix/<int:job_id>")
@@ -8918,7 +8920,8 @@ def editing_room_remix(job_id):
     if not job:
         return redirect("/editing-room")
     jobs = db.get_jobs(limit=50, user_id=current_user.id)
-    return render_template("editing_room.html", jobs=jobs, remix_job=job, active_page="editing-room")
+    return render_template("editing_room.html", jobs=jobs, remix_job=job, active_page="editing-room",
+                           voices=config.VOICE_CATALOG, user_default_voice=current_user.default_voice)
 
 
 @app.route("/api/editing-room/produce", methods=["POST"])
@@ -8972,6 +8975,7 @@ def api_editing_room_produce():
         "source_job_id": data.get("source_job_id"),
         "use_ai_clips": bool(data.get("use_ai_clips", False)),
         "custom_bgm_path": custom_bgm_path,
+        "voice": data.get("voice") or current_user.default_voice or config.DEFAULT_VOICE,
         "section_media": data.get("section_media", {}),
     }
 

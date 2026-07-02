@@ -56,10 +56,19 @@
           <input type="text" id="video-title" placeholder="Enter video title..." value="{{ remix_job.topic if remix_job else '' }}"
             style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
         </label>
-        <label style="display:block;">
+        <label style="display:block;margin-bottom:10px;">
           <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">Subtitle</span>
           <input type="text" id="video-subtitle" placeholder="Optional subtitle or tagline..."
             style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+        </label>
+        <label style="display:block;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">Narration Voice</span>
+          <select id="video-voice"
+            style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+            {% for v in voices %}
+            <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
+            {% endfor %}
+          </select>
         </label>
       </div>
 
@@ -367,6 +376,7 @@ function startProduction() {
       use_ai_clips: visualMode === 'ai',
       bgm_track_id: bgmTrackId,
       bgm_type: bgmType,
+      voice: document.getElementById('video-voice').value,
       section_media: sectionMedia,
     })
   })
