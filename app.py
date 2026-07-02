@@ -1314,7 +1314,9 @@ def api_job_update(job_id):
     if not job:
         return jsonify({"error": "Job not found"}), 404
     data = request.json or {}
-    allowed = {"format", "title", "description", "privacy", "platforms"}
+    # "description" was listed here but jobs has no such column -- would
+    # crash with UndefinedColumn the moment anything actually sent it.
+    allowed = {"format", "title", "privacy", "platforms"}
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "No valid fields provided"}), 400
