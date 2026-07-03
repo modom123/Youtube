@@ -18,7 +18,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for,
-    send_file, Response, stream_with_context, session
+    send_file, Response, stream_with_context, session, abort
 )
 from flask_login import LoginManager, login_required, current_user
 from werkzeug.utils import secure_filename
@@ -172,6 +172,19 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
     print(f"[router] Job #{job_id} format={params.get('format')} tier={tier} "
           f"requested={raw_model} → using={routed_model}")
     blog.info(f"AI model routed: {raw_model} → {routed_model}", tier=tier, format=params.get("format"))
+
+    # Feedback loop: steer the script with what actually performs on this account
+    if user_id:
+        try:
+            from generators.performance_insights import insights_prompt
+            tip = insights_prompt(user_id)
+            if tip:
+                params["custom_instructions"] = (
+                    (params.get("custom_instructions") or "") + "\n\n" + tip
+                ).strip()
+                blog.info("Injected audience performance insights into script prompt")
+        except Exception as e:
+            blog.warn(f"Performance insights unavailable: {e}")
 
     # Hard watchdog: mark job as failed if thread runs longer than 15 minutes
     _WATCHDOG_SECONDS = 900
@@ -3700,42 +3713,22 @@ def analytics_page():
 @login_required
 def api_analytics_refresh():
     try:
-        published = db.get_published_videos(user_id=current_user.id)
-        if not published:
+        from generators.performance_insights import refresh_user_analytics
+        refreshed = refresh_user_analytics(current_user.id)
+        if refreshed == 0 and not db.get_published_videos(user_id=current_user.id):
             return jsonify({"status": "no_videos", "refreshed": 0})
-        accounts = db.get_accounts(user_id=current_user.id)
-        account = next((a for a in accounts if a["platform"] == "youtube" and a.get("access_token")), None)
-        if not account:
-            return jsonify({"error": "No YouTube account connected"}), 400
-        refreshed = 0
-        try:
-            from google.oauth2.credentials import Credentials
-            import googleapiclient.discovery
-            creds = Credentials(
-                token=account["access_token"], refresh_token=account.get("refresh_token"),
-                client_id=config.YOUTUBE_CLIENT_ID, client_secret=config.YOUTUBE_CLIENT_SECRET,
-                token_uri="https://oauth2.googleapis.com/token",
-            )
-            yt = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
-            yt_videos = [v for v in published if v["platform"] == "youtube" and v.get("video_id")]
-            for chunk_start in range(0, len(yt_videos), 50):
-                chunk = yt_videos[chunk_start:chunk_start + 50]
-                ids = ",".join(v["video_id"] for v in chunk)
-                resp = yt.videos().list(part="statistics,contentDetails", id=ids).execute()
-                for item in resp.get("items", []):
-                    stats = item.get("statistics", {})
-                    views = int(stats.get("viewCount", 0))
-                    likes = int(stats.get("likeCount", 0))
-                    comments = int(stats.get("commentCount", 0))
-                    revenue = round(views / 1000 * 2.0, 2)
-                    db.upsert_analytics(
-                        user_id=current_user.id, video_id=item["id"], platform="youtube",
-                        views=views, likes=likes, comments=comments, revenue_estimate=revenue,
-                    )
-                    refreshed += 1
-        except Exception as e:
-            return jsonify({"error": f"YouTube API error: {e}"}), 500
         return jsonify({"status": "ok", "refreshed": refreshed})
+    except Exception as e:
+        return jsonify({"error": f"YouTube API error: {e}"}), 500
+
+
+@app.route("/api/analytics/insights")
+@login_required
+def api_analytics_insights():
+    """What this account has learned from its published performance."""
+    try:
+        from generators.performance_insights import compute_insights
+        return jsonify(compute_insights(current_user.id) or {"status": "not_enough_data"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -4452,6 +4445,122 @@ def api_competitor_inspire(comp_id):
     })
 
 
+# ── Autopilot ─────────────────────────────────────────────────────────────────
+
+@app.route("/autopilot")
+@login_required
+def autopilot_page():
+    channels = db.get_autopilot_channels(current_user.id)
+    return render_template("autopilot.html", channels=channels)
+
+
+@app.route("/api/autopilot/channels", methods=["GET"])
+@login_required
+def api_autopilot_list():
+    return jsonify(db.get_autopilot_channels(current_user.id))
+
+
+@app.route("/api/autopilot/channels", methods=["POST"])
+@login_required
+def api_autopilot_create():
+    data = request.json or {}
+    name = (data.get("name") or "").strip()
+    niche = (data.get("niche") or "").strip()
+    if not name or not niche:
+        return jsonify({"error": "Name and niche are required"}), 400
+    platforms = data.get("platforms") or ["youtube"]
+    channel_id = db.create_autopilot_channel(
+        user_id=current_user.id, name=name, niche=niche,
+        format=data.get("format", "short"),
+        platforms=json.dumps(platforms),
+        voice=(data.get("voice") or "").strip() or None,
+        style=data.get("style", "fire"),
+        audience=(data.get("audience") or "general public").strip(),
+        cadence_hours=max(1, int(data.get("cadence_hours") or 24)),
+        topic_source=data.get("topic_source", "auto"),
+        rss_url=(data.get("rss_url") or "").strip() or None,
+        privacy=data.get("privacy", "public"),
+        enabled=1 if data.get("enabled", True) else 0,
+    )
+    return jsonify({"ok": True, "channel_id": channel_id})
+
+
+@app.route("/api/autopilot/channels/<int:channel_id>", methods=["PATCH"])
+@login_required
+def api_autopilot_update(channel_id):
+    if not db.get_autopilot_channel(channel_id, user_id=current_user.id):
+        return jsonify({"error": "Channel not found"}), 404
+    data = request.json or {}
+    fields = {}
+    for key in ("name", "niche", "format", "voice", "style", "audience",
+                "topic_source", "rss_url", "privacy"):
+        if key in data:
+            fields[key] = data[key]
+    if "platforms" in data:
+        fields["platforms"] = json.dumps(data["platforms"])
+    if "cadence_hours" in data:
+        fields["cadence_hours"] = max(1, int(data["cadence_hours"]))
+    if "enabled" in data:
+        fields["enabled"] = 1 if data["enabled"] else 0
+    db.update_autopilot_channel(channel_id, user_id=current_user.id, **fields)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/autopilot/channels/<int:channel_id>", methods=["DELETE"])
+@login_required
+def api_autopilot_delete(channel_id):
+    db.delete_autopilot_channel(channel_id, user_id=current_user.id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/autopilot/channels/<int:channel_id>/run-now", methods=["POST"])
+@login_required
+def api_autopilot_run_now(channel_id):
+    channel = db.get_autopilot_channel(channel_id, user_id=current_user.id)
+    if not channel:
+        return jsonify({"error": "Channel not found"}), 404
+    try:
+        _run_autopilot_channel(channel)
+        updated = db.get_autopilot_channel(channel_id, user_id=current_user.id)
+        if updated.get("last_error"):
+            return jsonify({"error": updated["last_error"]}), 400
+        return jsonify({"ok": True, "job_id": updated.get("last_job_id")})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── Media serving ─────────────────────────────────────────────────────────────
+
+def _safe_output_path(relpath: str) -> Path:
+    """Resolve a path relative to OUTPUT_DIR, rejecting traversal outside it."""
+    base = Path(config.OUTPUT_DIR).resolve()
+    full = (base / relpath).resolve()
+    if base not in full.parents and full != base:
+        abort(404)
+    if not full.is_file():
+        abort(404)
+    return full
+
+
+@app.route("/public/media/<sig>/<path:relpath>")
+def public_media(sig, relpath):
+    """Unauthenticated, HMAC-signed media URLs so platforms (Instagram/Threads)
+    can fetch videos for ingestion. Only files under OUTPUT_DIR are servable."""
+    from media_host import verify_media_sig
+    if not verify_media_sig(relpath, sig):
+        abort(403)
+    full = _safe_output_path(relpath)
+    mime = "video/mp4" if full.suffix.lower() in (".mp4", ".m4v") else None
+    return send_file(str(full), mimetype=mime, conditional=True)
+
+
+@app.route("/output/<path:relpath>")
+@login_required
+def serve_output(relpath):
+    full = _safe_output_path(relpath)
+    return send_file(str(full), conditional=True)
+
+
 # ── The Scalpel ───────────────────────────────────────────────────────────────
 
 _clip_jobs: dict = {}
@@ -4465,35 +4574,62 @@ def clipper_page():
     return render_template("clipper.html", completed_jobs=completed_jobs)
 
 
+def _as_bool(val, default=True):
+    if isinstance(val, bool):
+        return val
+    if val is None:
+        return default
+    return str(val).lower() not in ("false", "0", "no", "off", "")
+
+
 @app.route("/api/clipper/create", methods=["POST"])
 @login_required
 def api_clipper_create():
-    data = request.json
-    source = data.get("source", "url")
     clip_job_id = str(uuid.uuid4())[:8]
+
+    is_upload = request.content_type and "multipart/form-data" in request.content_type
+    data = request.form if is_upload else (request.json or {})
+    source = "upload" if is_upload else data.get("source", "url")
 
     clip_config = {
         "source": source,
         "url": data.get("url"),
         "job_id": data.get("job_id"),
-        "clip_count": int(data.get("clip_count", 5)),
-        "clip_length": int(data.get("clip_length", 30)),
+        "clip_count": int(data.get("clip_count") or 5),
+        "clip_length": int(data.get("clip_length") or 30),
         "ratio": data.get("ratio", "9:16"),
         "style": data.get("style", "viral"),
-        "captions": data.get("captions", True),
-        "hook_overlay": data.get("hook_overlay", True),
+        "captions": _as_bool(data.get("captions")),
+        "hook_overlay": _as_bool(data.get("hook_overlay")),
         "user_id": current_user.id,
     }
 
-    # If source is a completed job, get the video path
-    if source == "job" and data.get("job_id"):
+    if is_upload:
+        f = request.files.get("file")
+        if not f or not f.filename:
+            return jsonify({"error": "No video file uploaded"}), 400
+        ext = Path(f.filename).suffix.lower()
+        if ext not in (".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi"):
+            return jsonify({"error": "Unsupported video format"}), 400
+        upload_dir = Path(config.OUTPUT_DIR) / "clips" / clip_job_id
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        upload_path = upload_dir / f"source{ext}"
+        f.save(str(upload_path))
+        clip_config["video_path"] = str(upload_path)
+    elif source == "job" and data.get("job_id"):
         job = db.get_job(int(data["job_id"]), user_id=current_user.id)
         if not job or not job.get("video_path"):
             return jsonify({"error": "Job not found or has no video"}), 400
         clip_config["video_path"] = job["video_path"]
+        clip_config["source"] = "file"
+    elif not data.get("url"):
+        return jsonify({"error": "Provide a video URL, file, or completed job"}), 400
 
     with _clip_lock:
-        _clip_jobs[clip_job_id] = {"status": "processing", "config": clip_config, "clips": []}
+        _clip_jobs[clip_job_id] = {
+            "status": "processing", "progress": 0, "step": "downloading",
+            "step_label": "Starting...", "config": clip_config, "clips": [],
+        }
 
     t = threading.Thread(target=_run_clipper_thread, args=(clip_job_id, clip_config), daemon=True)
     t.start()
@@ -4501,72 +4637,122 @@ def api_clipper_create():
     return jsonify({"clip_job_id": clip_job_id})
 
 
+def _get_clip_job(clip_job_id):
+    """Fetch a clip job, enforcing ownership."""
+    with _clip_lock:
+        job = _clip_jobs.get(clip_job_id)
+    if not job or job.get("config", {}).get("user_id") != current_user.id:
+        return None
+    return job
+
+
 @app.route("/api/clipper/<clip_job_id>/status")
 @login_required
 def api_clipper_status(clip_job_id):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
+    job = _get_clip_job(clip_job_id)
     if not job:
         return jsonify({"error": "Clip job not found"}), 404
-    return jsonify(job)
+    return jsonify({k: v for k, v in job.items() if k != "config"})
+
+
+# Map engine progress statuses onto the UI's step keys
+_CLIP_STEP_KEYS = {
+    "downloading": "downloading", "analyzing": "analyzing",
+    "clipping": "cutting", "captioning": "captions",
+    "hook": "captions", "finalizing": "finalizing",
+}
 
 
 def _run_clipper_thread(clip_job_id: str, clip_config: dict):
-    import random
-    time.sleep(3)
+    from generators import clipper_engine
 
-    clip_count = clip_config["clip_count"]
-    clip_length = clip_config["clip_length"]
-    style = clip_config["style"]
+    def progress_cb(status, progress, step):
+        with _clip_lock:
+            job = _clip_jobs.get(clip_job_id)
+            if job is not None and job.get("status") == "processing":
+                job["progress"] = progress
+                job["step"] = _CLIP_STEP_KEYS.get(status, status)
+                job["step_label"] = step
 
-    hook_templates = {
-        "viral": ["Wait for it...", "Nobody talks about this", "This changes everything",
-                   "You won't believe this", "Here's what they don't tell you"],
-        "highlights": ["Key takeaway", "The main point", "Critical insight",
-                       "Don't miss this", "Here's the bottom line"],
-        "quotes": ["Best quote", "Mic drop moment", "This hit different",
-                   "Words to live by", "Pure gold"],
-        "tutorial": ["Step by step", "Here's how", "Watch closely",
-                     "Pro tip", "The secret trick"],
-    }
-    hooks = hook_templates.get(style, hook_templates["viral"])
-
-    clips = []
-    total_duration = clip_count * clip_length * 3
-    for i in range(clip_count):
-        start_sec = random.randint(0, max(1, total_duration - clip_length))
-        start_min = start_sec // 60
-        start_s = start_sec % 60
-        end_sec = start_sec + clip_length
-        end_min = end_sec // 60
-        end_s = end_sec % 60
-        virality = random.randint(65, 98)
-
-        clips.append({
-            "title": f"Clip {i+1} — {random.choice(hooks)}",
-            "start_time": f"{start_min}:{start_s:02d}",
-            "end_time": f"{end_min}:{end_s:02d}",
-            "virality_score": virality,
-            "hook": random.choice(hooks),
-            "download_url": None,
-        })
-        time.sleep(1)
-
-    clips.sort(key=lambda c: c["virality_score"], reverse=True)
+    try:
+        result = clipper_engine.run_clipper(clip_job_id, clip_config, progress_callback=progress_cb)
+    except Exception as e:
+        result = {"status": "error", "error": str(e), "clips": []}
 
     with _clip_lock:
-        _clip_jobs[clip_job_id] = {
-            "status": "done",
-            "clips": clips,
-            "config": clip_config,
-        }
+        job = _clip_jobs.setdefault(clip_job_id, {"config": clip_config})
+        if result.get("status") == "done" and result.get("clips"):
+            job.update(
+                status="done", progress=100, step="finalizing", step_label="Done",
+                clips=result["clips"],
+                source_duration=result.get("source_duration", 0),
+                transcript_preview=result.get("transcript_preview", ""),
+                source_path=result.get("source_path", clip_config.get("video_path", "")),
+            )
+        else:
+            job.update(
+                status="error",
+                error=result.get("error") or "Clipping produced no clips",
+                clips=[],
+            )
+
+
+@app.route("/api/clipper/<clip_job_id>/source-video")
+@login_required
+def api_clipper_source_video(clip_job_id):
+    job = _get_clip_job(clip_job_id)
+    if not job:
+        return jsonify({"error": "Clip job not found"}), 404
+    path = job.get("source_path") or job.get("config", {}).get("video_path")
+    if not path or not Path(path).is_file():
+        return jsonify({"error": "Source video not available"}), 404
+    return send_file(str(path), mimetype="video/mp4", conditional=True)
+
+
+@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/video")
+@login_required
+def api_clipper_clip_video(clip_job_id, clip_idx):
+    job = _get_clip_job(clip_job_id)
+    if not job or clip_idx >= len(job.get("clips", [])):
+        return jsonify({"error": "Clip not found"}), 404
+    path = job["clips"][clip_idx].get("file_path")
+    if not path or not Path(path).is_file():
+        return jsonify({"error": "Clip file not available"}), 404
+    return send_file(str(path), mimetype="video/mp4", conditional=True)
+
+
+@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/thumbnail")
+@login_required
+def api_clipper_clip_thumbnail(clip_job_id, clip_idx):
+    job = _get_clip_job(clip_job_id)
+    if not job or clip_idx >= len(job.get("clips", [])):
+        return jsonify({"error": "Clip not found"}), 404
+    path = job["clips"][clip_idx].get("thumbnail_path")
+    if not path or not Path(path).is_file():
+        return jsonify({"error": "Thumbnail not available"}), 404
+    return send_file(str(path), mimetype="image/jpeg", conditional=True)
+
+
+@app.route("/api/clipper/<clip_job_id>/download-all")
+@login_required
+def api_clipper_download_all(clip_job_id):
+    job = _get_clip_job(clip_job_id)
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Clip job not ready"}), 400
+    import zipfile
+    zip_path = Path(config.OUTPUT_DIR) / "clips" / clip_job_id / "all_clips.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zf:
+        for i, clip in enumerate(job.get("clips", [])):
+            path = clip.get("file_path")
+            if path and Path(path).is_file():
+                zf.write(path, f"clip_{i+1}.mp4")
+    return send_file(str(zip_path), as_attachment=True, download_name=f"clips_{clip_job_id}.zip")
 
 
 @app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/publish", methods=["POST"])
 @login_required
 def api_clipper_clip_publish(clip_job_id, clip_idx):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
+    job = _get_clip_job(clip_job_id)
     if not job or job.get("status") != "done":
         return jsonify({"error": "Clip job not ready"}), 400
     clips = job.get("clips", [])
@@ -4577,24 +4763,36 @@ def api_clipper_clip_publish(clip_job_id, clip_idx):
     platform = data.get("platform", "youtube")
     caption  = data.get("caption", "")
 
-    video_path = job.get("config", {}).get("video_path")
+    clip = clips[clip_idx]
+    video_path = clip.get("file_path")
     if not video_path or not Path(video_path).exists():
-        return jsonify({"error": "No source video available for this clip job. Download the clip and upload manually."}), 400
+        return jsonify({"error": "Clip file not found — regenerate the clips and try again."}), 400
 
     import social_optimize as _so
-    clip = clips[clip_idx]
     title = (clip.get("title") or f"Clip {clip_idx+1}")[:100]
     try:
         results = _so.publish_to_platforms(
             video_path=video_path,
             title=title,
             description=caption or title,
-            hashtags=[],
+            hashtags=[t for t in (clip.get("hook") or "").split() if t.startswith("#")],
             keywords=[],
             platforms=[platform],
             privacy="public",
+            is_short=True,
         )
-        return jsonify({"ok": True, "result": results.get(platform, {})})
+        result = results.get(platform, {})
+        # Record the publish so analytics can track clip performance
+        video_id = result.get("video_id") or result.get("media_id") or result.get("publish_id")
+        if video_id:
+            try:
+                db.add_published_video(
+                    user_id=current_user.id, job_id=None, platform=platform,
+                    video_id=str(video_id), video_url=result.get("url", ""), title=title,
+                )
+            except Exception:
+                pass
+        return jsonify({"ok": True, "result": result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -4602,8 +4800,7 @@ def api_clipper_clip_publish(clip_job_id, clip_idx):
 @app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/trim", methods=["POST"])
 @login_required
 def api_clipper_clip_trim(clip_job_id, clip_idx):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
+    job = _get_clip_job(clip_job_id)
     if not job or job.get("status") != "done":
         return jsonify({"error": "Clip job not ready"}), 400
     clips = job.get("clips", [])
@@ -5491,6 +5688,78 @@ def _engagement_automation_thread():
             pass
 
 
+def _analytics_refresh_thread():
+    """Refresh published-video performance metrics for every connected account
+    every 6 hours, feeding the performance-insights loop."""
+    while True:
+        time.sleep(6 * 3600)
+        try:
+            from generators.performance_insights import refresh_user_analytics
+            for uid in db.get_user_ids_with_platform_account("youtube"):
+                try:
+                    refresh_user_analytics(uid)
+                except Exception as e:
+                    print(f"[analytics] refresh failed for user {uid}: {e}")
+        except Exception:
+            pass
+
+
+def _run_autopilot_channel(channel: dict) -> None:
+    """Run one due autopilot channel: pick topic → create job → let the
+    pipeline generate and publish. Always reschedules the channel."""
+    from generators import autopilot
+
+    channel_id = channel["id"]
+    user_id = channel["user_id"]
+    db.update_autopilot_channel(
+        channel_id,
+        last_run_at=datetime.utcnow().isoformat(),
+        next_run_at=autopilot.compute_next_run(channel),
+        last_error=None,
+    )
+
+    allowed, err = check_usage_gate(user_id)
+    if not allowed:
+        db.update_autopilot_channel(channel_id, last_error=f"Usage limit: {err}")
+        return
+
+    topic = autopilot.pick_topic(channel)
+    if not topic:
+        db.update_autopilot_channel(channel_id, last_error="No fresh topic found")
+        return
+
+    tier = (db.get_user_by_id(user_id) or {}).get("subscription_tier", "starter")
+    params = autopilot.build_job_params(channel, topic, tier)
+    job_id = db.create_job(
+        topic=topic, format=params["format"], platforms=params["platforms"],
+        audience=params["audience"], voice=params["voice"],
+        style=params["thumbnail_style"], privacy=params["privacy"],
+        skip_research=False, user_id=user_id,
+    )
+    db.update_autopilot_channel(channel_id, last_job_id=job_id)
+    print(f"[autopilot] Channel #{channel_id} ({channel['name']}) → job #{job_id}: {topic}")
+    t = threading.Thread(target=_run_job_thread, args=(job_id, params, user_id), daemon=True)
+    t.start()
+
+
+def _autopilot_thread():
+    """Run due autopilot channels every 5 minutes."""
+    while True:
+        time.sleep(300)
+        try:
+            for channel in db.get_due_autopilot_channels():
+                try:
+                    _run_autopilot_channel(channel)
+                except Exception as e:
+                    print(f"[autopilot] Channel #{channel.get('id')} failed: {e}")
+                    try:
+                        db.update_autopilot_channel(channel["id"], last_error=str(e))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+
 def start_background_threads():
     global _bg_threads_started
     with _bg_threads_lock:
@@ -5507,6 +5776,10 @@ def start_background_threads():
     t4.start()
     t5 = threading.Thread(target=_engagement_automation_thread, daemon=True, name="engagement_automation")
     t5.start()
+    t6 = threading.Thread(target=_analytics_refresh_thread, daemon=True, name="analytics_refresh")
+    t6.start()
+    t7 = threading.Thread(target=_autopilot_thread, daemon=True, name="autopilot")
+    t7.start()
 
 
 # ── RSS Feeds ────────────────────────────────────────────────────────────────

@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% set active_page = "autopilot" %}
+{% block title %}Autopilot — Social Optimize{% endblock %}
+{% block topbar_title %}Autopilot{% endblock %}
+{% block topbar_sub %}Channels that create, publish, and learn on their own{% endblock %}
+{% block topbar_actions %}
+<button class="btn btn-green btn-sm" onclick="openCreate()">＋ New Autopilot Channel</button>
+{% endblock %}
+
+{% block content %}
+<style>
+  .ap-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:18px; }
+  .ap-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; }
+  .ap-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .ap-name { font-size:16px; font-weight:800; }
+  .ap-niche { font-size:12px; color:var(--muted); margin-bottom:12px; }
+  .ap-meta { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .ap-pill { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:2px 9px; font-size:11px; font-weight:600; color:var(--muted); }
+  .ap-status { font-size:12px; margin-bottom:14px; }
+  .ap-status .ok { color:#30d158; }
+  .ap-status .err { color:var(--accent); }
+  .ap-actions { display:flex; gap:8px; }
+  .ap-toggle { margin-left:auto; }
+  .ap-empty { text-align:center; padding:60px 20px; color:var(--muted); }
+  .ap-empty h2 { color:var(--text); }
+  .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100; align-items:center; justify-content:center; }
+  .modal { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; width:440px; max-width:92vw; max-height:88vh; overflow:auto; }
+  .modal h3 { margin:0 0 16px; }
+  .form-row { margin-bottom:13px; }
+  .form-row label { display:block; font-size:11px; font-weight:600; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.06em; }
+  .form-row select, .form-row input { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:9px 12px; font-size:13px; font-family:inherit; box-sizing:border-box; }
+  .plat-row { display:flex; flex-wrap:wrap; gap:8px; }
+  .plat-chip { border:1px solid var(--border); border-radius:16px; padding:5px 12px; font-size:12px; cursor:pointer; user-select:none; }
+  .plat-chip.on { border-color:#30d158; color:#30d158; background:rgba(48,209,88,.1); }
+</style>
+
+{% if channels %}
+<div class="ap-grid" id="apGrid"></div>
+{% else %}
+<div class="ap-empty" id="apEmpty">
+  <h2>🛫 Put a channel on Autopilot</h2>
+  <p>Pick a niche, cadence, and platforms. Autopilot finds trending topics,<br>
+     generates the video, publishes everywhere, and learns from what performs.</p>
+  <button class="btn btn-green" onclick="openCreate()">Create your first Autopilot channel</button>
+</div>
+<div class="ap-grid" id="apGrid" style="display:none"></div>
+{% endif %}
+
+<div class="modal-bg" id="apModal">
+  <div class="modal">
+    <h3 id="apModalTitle">New Autopilot Channel</h3>
+    <div class="form-row"><label>Channel name</label><input id="f_name" placeholder="e.g. Daily AI News"></div>
+    <div class="form-row"><label>Niche / topic area</label><input id="f_niche" placeholder="e.g. artificial intelligence"></div>
+    <div class="form-row"><label>Audience</label><input id="f_audience" placeholder="general public"></div>
+    <div class="form-row"><label>Format</label>
+      <select id="f_format">
+        <option value="short">Short (9:16, ~55s)</option>
+        <option value="reel">Reel (9:16, ~30s)</option>
+        <option value="long">Long (16:9, ~8min)</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Cadence</label>
+      <select id="f_cadence">
+        <option value="6">Every 6 hours</option>
+        <option value="12">Every 12 hours</option>
+        <option value="24" selected>Daily</option>
+        <option value="48">Every 2 days</option>
+        <option value="168">Weekly</option>
+      </select>
+    </div>
+    <div class="form-row"><label>Platforms</label>
+      <div class="plat-row" id="f_platforms">
+        <span class="plat-chip on" data-p="youtube">YouTube</span>
+        <span class="plat-chip" data-p="tiktok">TikTok</span>
+        <span class="plat-chip" data-p="instagram">Instagram</span>
+        <span class="plat-chip" data-p="facebook">Facebook</span>
+        <span class="plat-chip" data-p="twitter">X</span>
+        <span class="plat-chip" data-p="linkedin">LinkedIn</span>
+        <span class="plat-chip" data-p="pinterest">Pinterest</span>
+        <span class="plat-chip" data-p="threads">Threads</span>
+      </div>
+    </div>
+    <div class="form-row"><label>Topic source</label>
+      <select id="f_source">
+        <option value="auto" selected>Auto (trends + RSS + performance insights)</option>
+        <option value="trends">Google Trends only</option>
+        <option value="rss">RSS feed only</option>
+      </select>
+    </div>
+    <div class="form-row"><label>RSS feed URL (optional)</label><input id="f_rss" placeholder="https://example.com/feed.xml"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-green btn-sm" id="apSaveBtn" onclick="saveChannel()">Launch Autopilot</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let _channels = {{ channels | tojson }};
+
+  function fmtWhen(iso){
+    if(!iso) return '—';
+    const d = new Date(iso + (iso.endsWith('Z') ? '' : 'Z'));
+    return d.toLocaleString();
+  }
+
+  function render(){
+    const grid = document.getElementById('apGrid');
+    const empty = document.getElementById('apEmpty');
+    if(_channels.length){ grid.style.display=''; if(empty) empty.style.display='none'; }
+    grid.innerHTML = _channels.map(c => {
+      let platforms = [];
+      try { platforms = JSON.parse(c.platforms || '[]'); } catch(e){}
+      return `
+      <div class="ap-card">
+        <div class="ap-head">
+          <span class="ap-name">${esc(c.name)}</span>
+          <label class="ap-toggle" title="${c.enabled ? 'Enabled' : 'Paused'}">
+            <input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="toggleChannel(${c.id}, this.checked)"> ${c.enabled ? 'On' : 'Off'}
+          </label>
+        </div>
+        <div class="ap-niche">${esc(c.niche)} · ${esc(c.audience || 'general public')}</div>
+        <div class="ap-meta">
+          <span class="ap-pill">${esc(c.format)}</span>
+          <span class="ap-pill">every ${c.cadence_hours}h</span>
+          ${platforms.map(p => `<span class="ap-pill">${esc(p)}</span>`).join('')}
+        </div>
+        <div class="ap-status">
+          Next run: <b>${fmtWhen(c.next_run_at)}</b><br>
+          Last run: ${fmtWhen(c.last_run_at)}
+          ${c.last_job_id ? ` · <a href="/jobs/${c.last_job_id}">job #${c.last_job_id}</a>` : ''}
+          ${c.last_error ? `<br><span class="err">⚠ ${esc(c.last_error)}</span>` : (c.last_run_at ? '<br><span class="ok">✓ running smoothly</span>' : '')}
+        </div>
+        <div class="ap-actions">
+          <button class="btn btn-sm btn-green" onclick="runNow(${c.id}, this)">▶ Run now</button>
+          <button class="btn btn-sm btn-ghost" onclick="deleteChannel(${c.id})">Delete</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+  async function refresh(){
+    const r = await fetch('/api/autopilot/channels');
+    _channels = await r.json();
+    render();
+  }
+
+  function openCreate(){ document.getElementById('apModal').style.display = 'flex'; }
+  function closeModal(){ document.getElementById('apModal').style.display = 'none'; }
+
+  document.querySelectorAll('.plat-chip').forEach(ch => {
+    ch.addEventListener('click', () => ch.classList.toggle('on'));
+  });
+
+  async function saveChannel(){
+    const name = document.getElementById('f_name').value.trim();
+    const niche = document.getElementById('f_niche').value.trim();
+    if(!name || !niche){ alert('Name and niche are required.'); return; }
+    const platforms = [...document.querySelectorAll('.plat-chip.on')].map(c => c.dataset.p);
+    if(!platforms.length){ alert('Pick at least one platform.'); return; }
+    const btn = document.getElementById('apSaveBtn');
+    btn.disabled = true;
+    const resp = await fetch('/api/autopilot/channels', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        name, niche,
+        audience: document.getElementById('f_audience').value.trim() || 'general public',
+        format: document.getElementById('f_format').value,
+        cadence_hours: parseInt(document.getElementById('f_cadence').value, 10),
+        platforms,
+        topic_source: document.getElementById('f_source').value,
+        rss_url: document.getElementById('f_rss').value.trim(),
+      }),
+    });
+    btn.disabled = false;
+    const data = await resp.json();
+    if(!resp.ok){ alert(data.error || 'Failed to create channel'); return; }
+    closeModal();
+    refresh();
+  }
+
+  async function toggleChannel(id, enabled){
+    await fetch('/api/autopilot/channels/' + id, {
+      method:'PATCH', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ enabled }),
+    });
+    refresh();
+  }
+
+  async function runNow(id, btn){
+    btn.disabled = true; btn.textContent = '⏳ Starting...';
+    const resp = await fetch('/api/autopilot/channels/' + id + '/run-now', { method:'POST' });
+    const data = await resp.json();
+    btn.disabled = false; btn.textContent = '▶ Run now';
+    if(!resp.ok){ alert(data.error || 'Run failed'); }
+    refresh();
+  }
+
+  async function deleteChannel(id){
+    if(!confirm('Delete this Autopilot channel? Scheduled runs will stop.')) return;
+    await fetch('/api/autopilot/channels/' + id, { method:'DELETE' });
+    refresh();
+  }
+
+  render();
+</script>
+{% endblock %}

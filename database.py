@@ -380,6 +380,29 @@ def init_db():
         )
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS autopilot_channels (
+            id             SERIAL PRIMARY KEY,
+            user_id        INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name           TEXT NOT NULL,
+            niche          TEXT NOT NULL,
+            format         TEXT DEFAULT 'short',
+            platforms      TEXT DEFAULT '["youtube"]',
+            voice          TEXT,
+            style          TEXT DEFAULT 'fire',
+            audience       TEXT DEFAULT 'general public',
+            cadence_hours  INTEGER DEFAULT 24,
+            topic_source   TEXT DEFAULT 'auto',
+            rss_url        TEXT,
+            privacy        TEXT DEFAULT 'public',
+            enabled        INTEGER DEFAULT 1,
+            last_run_at    TIMESTAMP,
+            next_run_at    TIMESTAMP DEFAULT NOW(),
+            last_job_id    INTEGER,
+            last_error     TEXT,
+            created_at     TIMESTAMP DEFAULT NOW()
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS batch_jobs (
             id              TEXT PRIMARY KEY,
             user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -1778,6 +1801,36 @@ def get_analytics(user_id: int):
     return [row_to_dict(r) for r in rows]
 
 
+def get_analytics_joined(user_id: int, limit: int = 200):
+    """Analytics rows enriched with the originating job's topic/format so the
+    feedback loop can learn which content angles perform."""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT * FROM (
+                SELECT DISTINCT ON (a.id) a.*, pv.job_id, j.topic, j.format
+                FROM analytics_cache a
+                LEFT JOIN published_videos pv
+                       ON pv.video_id = a.video_id AND pv.platform = a.platform AND pv.user_id = a.user_id
+                LEFT JOIN jobs j ON j.id = pv.job_id
+                WHERE a.user_id=%s
+                ORDER BY a.id, pv.id DESC
+            ) sub
+            ORDER BY sub.views DESC
+            LIMIT %s
+        """, (user_id, limit)).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_user_ids_with_platform_account(platform: str = "youtube"):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT user_id FROM social_accounts "
+            "WHERE platform=%s AND access_token IS NOT NULL AND user_id IS NOT NULL",
+            (platform,)
+        ).fetchall()
+    return [r["user_id"] for r in rows]
+
+
 def add_published_video(user_id: int, job_id, platform: str, video_id: str,
                         video_url: str, title: str):
     with get_conn() as conn:
@@ -1854,6 +1907,87 @@ def get_due_scheduled_posts():
             WHERE sp.status = 'pending' AND sp.scheduled_at <= %s
         """, (now,)).fetchall()
     return [row_to_dict(r) for r in rows]
+
+
+# ── Autopilot Channels ────────────────────────────────────────────────────────
+
+_AUTOPILOT_FIELDS = {
+    "name", "niche", "format", "platforms", "voice", "style", "audience",
+    "cadence_hours", "topic_source", "rss_url", "privacy", "enabled",
+    "last_run_at", "next_run_at", "last_job_id", "last_error",
+}
+
+
+def create_autopilot_channel(user_id: int, name: str, niche: str, **kwargs) -> int:
+    fields = {k: v for k, v in kwargs.items() if k in _AUTOPILOT_FIELDS}
+    cols = ["user_id", "name", "niche"] + list(fields.keys())
+    vals = [user_id, name, niche] + list(fields.values())
+    placeholders = ",".join(["%s"] * len(cols))
+    with get_conn() as conn:
+        cur = conn.execute(
+            f"INSERT INTO autopilot_channels ({','.join(cols)}) VALUES ({placeholders}) RETURNING id",
+            vals,
+        )
+        return cur.fetchone()["id"]
+
+
+def get_autopilot_channels(user_id: int):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM autopilot_channels WHERE user_id=%s ORDER BY created_at DESC",
+            (user_id,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_autopilot_channel(channel_id: int, user_id: int = None):
+    query = "SELECT * FROM autopilot_channels WHERE id=%s"
+    params = [channel_id]
+    if user_id is not None:
+        query += " AND user_id=%s"
+        params.append(user_id)
+    with get_conn() as conn:
+        row = conn.execute(query, params).fetchone()
+    return row_to_dict(row) if row else None
+
+
+def update_autopilot_channel(channel_id: int, user_id: int = None, **kwargs):
+    fields = {k: v for k, v in kwargs.items() if k in _AUTOPILOT_FIELDS}
+    if not fields:
+        return
+    sets = ", ".join(f"{k}=%s" for k in fields)
+    query = f"UPDATE autopilot_channels SET {sets} WHERE id=%s"
+    params = list(fields.values()) + [channel_id]
+    if user_id is not None:
+        query += " AND user_id=%s"
+        params.append(user_id)
+    with get_conn() as conn:
+        conn.execute(query, params)
+
+
+def delete_autopilot_channel(channel_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM autopilot_channels WHERE id=%s AND user_id=%s",
+            (channel_id, user_id)
+        )
+
+
+def get_due_autopilot_channels():
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM autopilot_channels WHERE enabled=1 AND next_run_at <= NOW()"
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_recent_job_topics(user_id: int, limit: int = 40):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT topic FROM jobs WHERE user_id=%s ORDER BY id DESC LIMIT %s",
+            (user_id, limit)
+        ).fetchall()
+    return [r["topic"] for r in rows]
 
 
 # ── Feature 3: Batch Mode ────────────────────────────────────────────────────
