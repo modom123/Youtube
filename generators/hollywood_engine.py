@@ -610,7 +610,7 @@ class HollywoodEngine:
                     result = higgsfield_mcp.generate_image_via_mcp(
                         prompt=img_prompt[:400],
                         output_path=img_path,
-                        model_id="nano_banana_pro",
+                        model_id="flux_2",
                         aspect_ratio=aspect,
                     )
                     if result and result.exists():
@@ -630,7 +630,7 @@ class HollywoodEngine:
                 result_path = higgsfield_mcp.generate_image_via_mcp(
                     prompt=script.thumbnail_prompt,
                     output_path=ai_thumb_path,
-                    model_id="nano_banana_pro",
+                    model_id="flux_2",
                     aspect_ratio="16:9",
                 )
                 if result_path and result_path.exists() and result_path.stat().st_size > 1_000:

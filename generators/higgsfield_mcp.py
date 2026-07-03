@@ -378,7 +378,7 @@ def generate_clips_via_mcp(
 def generate_image_via_mcp(
     prompt: str,
     output_path: Path,
-    model_id: str = "nano_banana_pro",
+    model_id: str = "flux_2",
     aspect_ratio: str = "16:9",
 ) -> Optional[Path]:
     """Generate a single image via Higgsfield MCP. Returns path or None."""

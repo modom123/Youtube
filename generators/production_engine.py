@@ -375,7 +375,7 @@ class ProductionStudioEngine:
                 result_path = higgsfield_mcp.generate_image_via_mcp(
                     prompt=script.thumbnail_prompt,
                     output_path=ai_thumb_path,
-                    model_id="nano_banana_pro",
+                    model_id="flux_2",
                     aspect_ratio="16:9",
                 )
                 if result_path and result_path.exists() and result_path.stat().st_size > 1_000:
