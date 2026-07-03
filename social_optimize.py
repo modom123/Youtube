@@ -12,7 +12,7 @@ from generators import graphics_generator
 from generators import ai_video_generator
 from publishers import (
     youtube_publisher, tiktok_publisher, facebook_publisher, twitter_publisher, linkedin_publisher,
-    pinterest_publisher, threads_publisher,
+    pinterest_publisher, threads_publisher, instagram_publisher,
 )
 from utils import file_manager, logger
 from utils.build_log import BuildLog
@@ -648,12 +648,28 @@ def run(
                     logger.success(f"TikTok: {result.get('publish_id')}")
 
                 elif platform == "instagram":
-                    logger.warn("Instagram requires a publicly hosted video URL.")
-                    manifest["publish_results"]["instagram"] = {
-                        "status": "skipped",
-                        "reason": "Instagram requires a public CDN URL. Upload the video manually or host it first.",
-                        "video_path": str(video_path),
-                    }
+                    import media_host
+                    public_url = manifest.get("files", {}).get("cdn_url", "") or media_host.get_public_url(video_path)
+                    if not public_url:
+                        logger.warn("Instagram requires a publicly hosted video URL and none could be created.")
+                        manifest["publish_results"]["instagram"] = {
+                            "status": "skipped",
+                            "reason": "Could not create a public URL for the video (set APP_BASE_URL or S3_* config).",
+                            "video_path": str(video_path),
+                        }
+                    else:
+                        with logger.spinner("Uploading to Instagram Reels..."):
+                            result = instagram_publisher.upload_reel(
+                                video_url=public_url,
+                                title=script.title,
+                                description=script.description,
+                                tags=script.hashtags,
+                            )
+                        manifest["publish_results"]["instagram"] = result
+                        if result.get("media_id"):
+                            logger.success(f"Instagram: {result.get('url')}")
+                        else:
+                            logger.warn(f"Instagram: {result.get('reason') or result.get('error')}")
 
                 elif platform == "facebook":
                     with logger.spinner("Uploading to Facebook..."):
@@ -712,13 +728,14 @@ def run(
                         logger.warn(f"Pinterest: {result.get('reason') or result.get('error')}")
 
                 elif platform == "threads":
-                    # Threads requires a CDN URL — check manifest for a cdn_url or skip
-                    cdn_url = manifest.get("files", {}).get("cdn_url", "")
+                    # Threads requires a public URL — use manifest cdn_url or host the file
+                    import media_host
+                    cdn_url = manifest.get("files", {}).get("cdn_url", "") or media_host.get_public_url(video_path)
                     if not cdn_url:
-                        logger.warn("Threads requires a public CDN URL — skipping (no cdn_url in manifest).")
+                        logger.warn("Threads requires a public URL and none could be created — skipping.")
                         manifest["publish_results"]["threads"] = {
                             "status": "skipped",
-                            "reason": "Threads requires a public CDN URL. No cdn_url found in manifest.",
+                            "reason": "Could not create a public URL for the video (set APP_BASE_URL or S3_* config).",
                             "video_path": str(video_path),
                         }
                     else:
@@ -787,11 +804,19 @@ def publish_to_platforms(
                 )
                 results["tiktok"] = result
             elif platform == "instagram":
-                results["instagram"] = {
-                    "status": "skipped",
-                    "reason": "Instagram requires a public CDN URL. Host the video first.",
-                    "video_path": str(video_path),
-                }
+                import media_host
+                public_url = cdn_url or media_host.get_public_url(video_path)
+                if not public_url:
+                    results["instagram"] = {
+                        "status": "skipped",
+                        "reason": "Could not create a public URL for the video (set APP_BASE_URL or S3_* config).",
+                        "video_path": str(video_path),
+                    }
+                else:
+                    result = instagram_publisher.upload_reel(
+                        video_url=public_url, title=title, description=description, tags=hashtags,
+                    )
+                    results["instagram"] = result
             elif platform == "facebook":
                 result = facebook_publisher.upload_video(
                     video_path=video_path, title=title, description=description,
@@ -816,15 +841,17 @@ def publish_to_platforms(
                 )
                 results["pinterest"] = result
             elif platform == "threads":
-                if not cdn_url:
+                import media_host
+                public_url = cdn_url or media_host.get_public_url(video_path)
+                if not public_url:
                     results["threads"] = {
                         "status": "skipped",
-                        "reason": "Threads requires a public CDN URL. No cdn_url found.",
+                        "reason": "Could not create a public URL for the video (set APP_BASE_URL or S3_* config).",
                         "video_path": str(video_path),
                     }
                 else:
                     result = threads_publisher.upload_video(
-                        video_url=cdn_url, title=title, description=description, tags=hashtags,
+                        video_url=public_url, title=title, description=description, tags=hashtags,
                     )
                     results["threads"] = result
         except Exception as e:

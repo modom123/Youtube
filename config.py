@@ -7,6 +7,17 @@ load_dotenv()
 # ── App ───────────────────────────────────────────────────────────────────────
 APP_BASE_URL = os.getenv("APP_BASE_URL", "https://socialoptimize.online")
 
+# ── Public media hosting (Instagram/Threads need a public video URL) ──────────
+# Optional S3-compatible storage (AWS S3, Cloudflare R2, Backblaze B2).
+# When unset, the app serves media itself at signed URLs under APP_BASE_URL.
+S3_BUCKET             = os.getenv("S3_BUCKET", "")
+S3_ACCESS_KEY_ID      = os.getenv("S3_ACCESS_KEY_ID", os.getenv("AWS_ACCESS_KEY_ID", ""))
+S3_SECRET_ACCESS_KEY  = os.getenv("S3_SECRET_ACCESS_KEY", os.getenv("AWS_SECRET_ACCESS_KEY", ""))
+S3_REGION             = os.getenv("S3_REGION", "auto")
+S3_ENDPOINT_URL       = os.getenv("S3_ENDPOINT_URL", "")      # e.g. R2 account endpoint
+S3_PUBLIC_BASE_URL    = os.getenv("S3_PUBLIC_BASE_URL", "")   # CDN / public bucket base
+MEDIA_PUBLIC_BASE_URL = os.getenv("MEDIA_PUBLIC_BASE_URL", APP_BASE_URL)
+
 # ── Persistent data directory ─────────────────────────────────────────────────
 # Locally this is the project root; on Render it's the mounted disk at /data
 DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).parent))

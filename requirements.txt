@@ -35,3 +35,4 @@ cryptography>=43.0.0
 cffi>=1.17.0
 yt-dlp>=2024.1.0
 whop-sdk>=0.0.40
+boto3>=1.34.0

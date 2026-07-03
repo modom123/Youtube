@@ -1936,6 +1936,36 @@ def get_analytics(user_id: int):
     return [row_to_dict(r) for r in rows]
 
 
+def get_analytics_joined(user_id: int, limit: int = 200):
+    """Analytics rows enriched with the originating job's topic/format so the
+    feedback loop can learn which content angles perform."""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT * FROM (
+                SELECT DISTINCT ON (a.id) a.*, pv.job_id, j.topic, j.format
+                FROM analytics_cache a
+                LEFT JOIN published_videos pv
+                       ON pv.video_id = a.video_id AND pv.platform = a.platform AND pv.user_id = a.user_id
+                LEFT JOIN jobs j ON j.id = pv.job_id
+                WHERE a.user_id=%s
+                ORDER BY a.id, pv.id DESC
+            ) sub
+            ORDER BY sub.views DESC
+            LIMIT %s
+        """, (user_id, limit)).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_user_ids_with_platform_account(platform: str = "youtube"):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT user_id FROM social_accounts "
+            "WHERE platform=%s AND access_token IS NOT NULL AND user_id IS NOT NULL",
+            (platform,)
+        ).fetchall()
+    return [r["user_id"] for r in rows]
+
+
 def add_published_video(user_id: int, job_id, platform: str, video_id: str,
                         video_url: str, title: str):
     with get_conn() as conn:

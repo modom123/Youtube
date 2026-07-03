@@ -82,6 +82,12 @@ def upload_reel(
     NOTE: The video must be publicly accessible via URL (CDN/hosting required).
     Instagram Graph API does not accept local file uploads directly.
     """
+    if not config.INSTAGRAM_ACCESS_TOKEN or not config.INSTAGRAM_ACCOUNT_ID:
+        return {
+            "platform": "instagram",
+            "status": "skipped",
+            "reason": "INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_ACCOUNT_ID are required for Instagram.",
+        }
     tag_str = " ".join(f"#{t.replace(' ', '').replace('#', '')}" for t in tags[:30])
     caption = f"{title}\n\n{description}\n\n{tag_str}"
 

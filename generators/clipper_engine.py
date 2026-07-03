@@ -765,6 +765,10 @@ def run_clipper(clip_job_id: str, clip_config: dict, progress_callback: Progress
         # ── Step 1: Acquire video ───────────────────────────────────────────
         _progress(cb, "downloading", 2, "Acquiring source video...")
         video_path = _acquire_video(clip_config, work_dir, cb)
+        # Downloaded sources land in work_dir, which is deleted on completion.
+        # Move them to clips_dir so the player and publishing can use them after.
+        if work_dir in video_path.parents:
+            video_path = video_path.rename(clips_dir / f"source{video_path.suffix}")
         _progress(cb, "downloading", 10, "Video acquired")
 
         # ── Step 2: Get metadata ────────────────────────────────────────────
@@ -878,6 +882,7 @@ def run_clipper(clip_job_id: str, clip_config: dict, progress_callback: Progress
             "clips": output_clips,
             "source_duration": metadata["duration"],
             "transcript_preview": transcript_preview,
+            "source_path": str(video_path),
         }
 
     except Exception as e:

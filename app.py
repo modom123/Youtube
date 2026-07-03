@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from urllib.parse import urlparse
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for,
-    send_file, Response, stream_with_context, session
+    send_file, Response, stream_with_context, session, abort
 )
 from flask_login import LoginManager, login_required, current_user
 from werkzeug.utils import secure_filename
@@ -209,6 +209,19 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
     print(f"[router] Job #{job_id} format={params.get('format')} tier={tier} "
           f"requested={raw_model} → using={routed_model}")
     blog.info(f"AI model routed: {raw_model} → {routed_model}", tier=tier, format=params.get("format"))
+
+    # Feedback loop: steer the script with what actually performs on this account
+    if user_id:
+        try:
+            from generators.performance_insights import insights_prompt
+            tip = insights_prompt(user_id)
+            if tip:
+                params["custom_instructions"] = (
+                    (params.get("custom_instructions") or "") + "\n\n" + tip
+                ).strip()
+                blog.info("Injected audience performance insights into script prompt")
+        except Exception as e:
+            blog.warn(f"Performance insights unavailable: {e}")
 
     # Hard watchdog: mark job as failed if thread runs longer than 15 minutes
     _WATCHDOG_SECONDS = 900
@@ -4050,42 +4063,22 @@ def analytics_page():
 @login_required
 def api_analytics_refresh():
     try:
-        published = db.get_published_videos(user_id=current_user.id)
-        if not published:
+        from generators.performance_insights import refresh_user_analytics
+        refreshed = refresh_user_analytics(current_user.id)
+        if refreshed == 0 and not db.get_published_videos(user_id=current_user.id):
             return jsonify({"status": "no_videos", "refreshed": 0})
-        accounts = db.get_accounts(user_id=current_user.id)
-        account = next((a for a in accounts if a["platform"] == "youtube" and a.get("access_token")), None)
-        if not account:
-            return jsonify({"error": "No YouTube account connected"}), 400
-        refreshed = 0
-        try:
-            from google.oauth2.credentials import Credentials
-            import googleapiclient.discovery
-            creds = Credentials(
-                token=account["access_token"], refresh_token=account.get("refresh_token"),
-                client_id=config.YOUTUBE_CLIENT_ID, client_secret=config.YOUTUBE_CLIENT_SECRET,
-                token_uri="https://oauth2.googleapis.com/token",
-            )
-            yt = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
-            yt_videos = [v for v in published if v["platform"] == "youtube" and v.get("video_id")]
-            for chunk_start in range(0, len(yt_videos), 50):
-                chunk = yt_videos[chunk_start:chunk_start + 50]
-                ids = ",".join(v["video_id"] for v in chunk)
-                resp = yt.videos().list(part="statistics,contentDetails", id=ids).execute()
-                for item in resp.get("items", []):
-                    stats = item.get("statistics", {})
-                    views = int(stats.get("viewCount", 0))
-                    likes = int(stats.get("likeCount", 0))
-                    comments = int(stats.get("commentCount", 0))
-                    revenue = round(views / 1000 * 2.0, 2)
-                    db.upsert_analytics(
-                        user_id=current_user.id, video_id=item["id"], platform="youtube",
-                        views=views, likes=likes, comments=comments, revenue_estimate=revenue,
-                    )
-                    refreshed += 1
-        except Exception as e:
-            return jsonify({"error": f"YouTube API error: {e}"}), 500
         return jsonify({"status": "ok", "refreshed": refreshed})
+    except Exception as e:
+        return jsonify({"error": f"YouTube API error: {e}"}), 500
+
+
+@app.route("/api/analytics/insights")
+@login_required
+def api_analytics_insights():
+    """What this account has learned from its published performance."""
+    try:
+        from generators.performance_insights import compute_insights
+        return jsonify(compute_insights(current_user.id) or {"status": "not_enough_data"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -4839,6 +4832,38 @@ def api_competitor_inspire(comp_id):
     })
 
 
+# ── Media serving ─────────────────────────────────────────────────────────────
+
+def _safe_output_path(relpath: str) -> Path:
+    """Resolve a path relative to OUTPUT_DIR, rejecting traversal outside it."""
+    base = Path(config.OUTPUT_DIR).resolve()
+    full = (base / relpath).resolve()
+    if base not in full.parents and full != base:
+        abort(404)
+    if not full.is_file():
+        abort(404)
+    return full
+
+
+@app.route("/public/media/<sig>/<path:relpath>")
+def public_media(sig, relpath):
+    """Unauthenticated, HMAC-signed media URLs so platforms (Instagram/Threads)
+    can fetch videos for ingestion. Only files under OUTPUT_DIR are servable."""
+    from media_host import verify_media_sig
+    if not verify_media_sig(relpath, sig):
+        abort(403)
+    full = _safe_output_path(relpath)
+    mime = "video/mp4" if full.suffix.lower() in (".mp4", ".m4v") else None
+    return send_file(str(full), mimetype=mime, conditional=True)
+
+
+@app.route("/output/<path:relpath>")
+@login_required
+def serve_output(relpath):
+    full = _safe_output_path(relpath)
+    return send_file(str(full), conditional=True)
+
+
 # ── The Scalpel ───────────────────────────────────────────────────────────────
 
 _clip_jobs: dict = {}
@@ -4875,8 +4900,8 @@ def api_clipper_create():
         "source": source,
         "url": data.get("url"),
         "job_id": data.get("job_id"),
-        "clip_count": int(data.get("clip_count", 5)),
-        "clip_length": int(data.get("clip_length", 30)),
+        "clip_count": int(data.get("clip_count") or 5),
+        "clip_length": int(data.get("clip_length") or 30),
         "ratio": data.get("ratio", "9:16"),
         "style": data.get("style", "viral"),
         "captions": _truthy(data.get("captions")),
@@ -4897,9 +4922,15 @@ def api_clipper_create():
         if not job or not job.get("video_path"):
             return jsonify({"error": "Job not found or has no video"}), 400
         clip_config["video_path"] = job["video_path"]
+        clip_config["source"] = "file"
+    elif not data.get("url"):
+        return jsonify({"error": "Provide a video URL, file, or completed job"}), 400
 
     with _clip_lock:
-        _clip_jobs[clip_job_id] = {"status": "processing", "progress": 0, "config": clip_config, "clips": []}
+        _clip_jobs[clip_job_id] = {
+            "status": "processing", "progress": 0, "step": "downloading",
+            "step_label": "Starting...", "config": clip_config, "clips": [],
+        }
 
     t = threading.Thread(target=_run_clipper_thread, args=(clip_job_id, clip_config), daemon=True)
     t.start()
@@ -4907,60 +4938,122 @@ def api_clipper_create():
     return jsonify({"clip_job_id": clip_job_id})
 
 
+def _get_clip_job(clip_job_id):
+    """Fetch a clip job, enforcing ownership."""
+    with _clip_lock:
+        job = _clip_jobs.get(clip_job_id)
+    if not job or job.get("config", {}).get("user_id") != current_user.id:
+        return None
+    return job
+
+
 @app.route("/api/clipper/<clip_job_id>/status")
 @login_required
 def api_clipper_status(clip_job_id):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
+    job = _get_clip_job(clip_job_id)
     if not job:
         return jsonify({"error": "Clip job not found"}), 404
-    return jsonify(job)
+    return jsonify({k: v for k, v in job.items() if k != "config"})
 
 
-_CLIPPER_STEP_MAP = {
-    "downloading": "downloading",
-    "analyzing": "analyzing",
-    "clipping": "cutting",
-    "captioning": "captions",
-    "hook": "captions",
-    "finalizing": "finalizing",
-    "done": "finalizing",
+# Map engine progress statuses onto the UI's step keys
+_CLIP_STEP_KEYS = {
+    "downloading": "downloading", "analyzing": "analyzing",
+    "clipping": "cutting", "captioning": "captions",
+    "hook": "captions", "finalizing": "finalizing",
 }
 
 
 def _run_clipper_thread(clip_job_id: str, clip_config: dict):
-    from generators.clipper_engine import run_clipper
+    from generators import clipper_engine
 
-    def on_progress(status: str, progress: int, step_label: str):
+    def progress_cb(status, progress, step):
         with _clip_lock:
             job = _clip_jobs.get(clip_job_id)
-            if job is None:
-                return
-            job.update({
-                "status": "processing",
-                "progress": progress,
-                "step": _CLIPPER_STEP_MAP.get(status, status),
-                "step_label": step_label,
-            })
+            if job is not None and job.get("status") == "processing":
+                job["progress"] = progress
+                job["step"] = _CLIP_STEP_KEYS.get(status, status)
+                job["step_label"] = step
 
-    result = run_clipper(clip_job_id, clip_config, progress_callback=on_progress)
+    try:
+        result = clipper_engine.run_clipper(clip_job_id, clip_config, progress_callback=progress_cb)
+    except Exception as e:
+        result = {"status": "error", "error": str(e), "clips": []}
 
     with _clip_lock:
-        _clip_jobs[clip_job_id] = {
-            "status": result["status"],
-            "error": result.get("error", ""),
-            "clips": result.get("clips", []),
-            "source_duration": result.get("source_duration", 0),
-            "transcript_preview": result.get("transcript_preview", ""),
-            "config": clip_config,
-        }
+        job = _clip_jobs.setdefault(clip_job_id, {"config": clip_config})
+        if result.get("status") == "done" and result.get("clips"):
+            job.update(
+                status="done", progress=100, step="finalizing", step_label="Done",
+                clips=result["clips"],
+                source_duration=result.get("source_duration", 0),
+                transcript_preview=result.get("transcript_preview", ""),
+                source_path=result.get("source_path", clip_config.get("video_path", "")),
+            )
+        else:
+            job.update(
+                status="error",
+                error=result.get("error") or "Clipping produced no clips",
+                clips=[],
+            )
+
+
+@app.route("/api/clipper/<clip_job_id>/source-video")
+@login_required
+def api_clipper_source_video(clip_job_id):
+    job = _get_clip_job(clip_job_id)
+    if not job:
+        return jsonify({"error": "Clip job not found"}), 404
+    path = job.get("source_path") or job.get("config", {}).get("video_path")
+    if not path or not Path(path).is_file():
+        return jsonify({"error": "Source video not available"}), 404
+    return send_file(str(path), mimetype="video/mp4", conditional=True)
+
+
+@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/video")
+@login_required
+def api_clipper_clip_video(clip_job_id, clip_idx):
+    job = _get_clip_job(clip_job_id)
+    if not job or clip_idx >= len(job.get("clips", [])):
+        return jsonify({"error": "Clip not found"}), 404
+    path = job["clips"][clip_idx].get("file_path")
+    if not path or not Path(path).is_file():
+        return jsonify({"error": "Clip file not available"}), 404
+    return send_file(str(path), mimetype="video/mp4", conditional=True)
+
+
+@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/thumbnail")
+@login_required
+def api_clipper_clip_thumbnail(clip_job_id, clip_idx):
+    job = _get_clip_job(clip_job_id)
+    if not job or clip_idx >= len(job.get("clips", [])):
+        return jsonify({"error": "Clip not found"}), 404
+    path = job["clips"][clip_idx].get("thumbnail_path")
+    if not path or not Path(path).is_file():
+        return jsonify({"error": "Thumbnail not available"}), 404
+    return send_file(str(path), mimetype="image/jpeg", conditional=True)
+
+
+@app.route("/api/clipper/<clip_job_id>/download-all")
+@login_required
+def api_clipper_download_all(clip_job_id):
+    job = _get_clip_job(clip_job_id)
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Clip job not ready"}), 400
+    import zipfile
+    zip_path = Path(config.OUTPUT_DIR) / "clips" / clip_job_id / "all_clips.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zf:
+        for i, clip in enumerate(job.get("clips", [])):
+            path = clip.get("file_path")
+            if path and Path(path).is_file():
+                zf.write(path, f"clip_{i+1}.mp4")
+    return send_file(str(zip_path), as_attachment=True, download_name=f"clips_{clip_job_id}.zip")
 
 
 @app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/publish", methods=["POST"])
 @login_required
 def api_clipper_clip_publish(clip_job_id, clip_idx):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
+    job = _get_clip_job(clip_job_id)
     if not job or job.get("status") != "done":
         return jsonify({"error": "Clip job not ready"}), 400
     clips = job.get("clips", [])
@@ -4983,77 +5076,32 @@ def api_clipper_clip_publish(clip_job_id, clip_idx):
             video_path=video_path,
             title=title,
             description=caption or title,
-            hashtags=[],
+            hashtags=[t for t in (clip.get("hook") or "").split() if t.startswith("#")],
             keywords=[],
             platforms=[platform],
             privacy="public",
+            is_short=True,
         )
-        return jsonify({"ok": True, "result": results.get(platform, {})})
+        result = results.get(platform, {})
+        # Record the publish so analytics can track clip performance
+        video_id = result.get("video_id") or result.get("media_id") or result.get("publish_id")
+        if video_id:
+            try:
+                db.add_published_video(
+                    user_id=current_user.id, job_id=None, platform=platform,
+                    video_id=str(video_id), video_url=result.get("url", ""), title=title,
+                )
+            except Exception:
+                pass
+        return jsonify({"ok": True, "result": result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/video")
-@login_required
-def api_clipper_clip_video(clip_job_id, clip_idx):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
-    if not job or job.get("status") != "done":
-        return jsonify({"error": "Clip job not ready"}), 400
-    clips = job.get("clips", [])
-    if clip_idx >= len(clips):
-        return jsonify({"error": "Clip index out of range"}), 400
-    file_path = clips[clip_idx].get("file_path")
-    if not file_path or not Path(file_path).is_file():
-        return jsonify({"error": "Clip file not found"}), 404
-    return send_file(file_path, mimetype="video/mp4", as_attachment=True,
-                      download_name=f"clip-{clip_idx+1}.mp4")
-
-
-@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/thumbnail")
-@login_required
-def api_clipper_clip_thumbnail(clip_job_id, clip_idx):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
-    if not job:
-        return jsonify({"error": "Clip job not found"}), 404
-    clips = job.get("clips", [])
-    if clip_idx >= len(clips):
-        return jsonify({"error": "Clip index out of range"}), 400
-    thumb_path = clips[clip_idx].get("thumbnail_path")
-    if not thumb_path or not Path(thumb_path).is_file():
-        return jsonify({"error": "Thumbnail not available"}), 404
-    return send_file(thumb_path, mimetype="image/jpeg", conditional=True)
-
-
-@app.route("/api/clipper/<clip_job_id>/download-all")
-@login_required
-def api_clipper_download_all(clip_job_id):
-    import zipfile
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
-    if not job or job.get("status") != "done":
-        return jsonify({"error": "Clip job not ready"}), 400
-    clips = job.get("clips", [])
-    if not clips:
-        return jsonify({"error": "No clips available"}), 404
-
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for i, clip in enumerate(clips):
-            file_path = clip.get("file_path")
-            if file_path and Path(file_path).is_file():
-                zf.write(file_path, arcname=f"clip-{i+1}.mp4")
-    buf.seek(0)
-    return send_file(buf, mimetype="application/zip", as_attachment=True,
-                      download_name=f"clips-{clip_job_id}.zip")
 
 
 @app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/trim", methods=["POST"])
 @login_required
 def api_clipper_clip_trim(clip_job_id, clip_idx):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
+    job = _get_clip_job(clip_job_id)
     if not job or job.get("status") != "done":
         return jsonify({"error": "Clip job not ready"}), 400
     clips = job.get("clips", [])
@@ -5957,6 +6005,22 @@ def _engagement_automation_thread():
             pass
 
 
+def _analytics_refresh_thread():
+    """Refresh published-video performance metrics for every connected account
+    every 6 hours, feeding the performance-insights loop."""
+    while True:
+        time.sleep(6 * 3600)
+        try:
+            from generators.performance_insights import refresh_user_analytics
+            for uid in db.get_user_ids_with_platform_account("youtube"):
+                try:
+                    refresh_user_analytics(uid)
+                except Exception as e:
+                    print(f"[analytics] refresh failed for user {uid}: {e}")
+        except Exception:
+            pass
+
+
 def start_background_threads():
     global _bg_threads_started
     with _bg_threads_lock:
@@ -5975,6 +6039,8 @@ def start_background_threads():
     t5.start()
     t6 = threading.Thread(target=_autopilot_thread, daemon=True, name="autopilot")
     t6.start()
+    t7 = threading.Thread(target=_analytics_refresh_thread, daemon=True, name="analytics_refresh")
+    t7.start()
 
 
 # ── RSS Feeds ────────────────────────────────────────────────────────────────
