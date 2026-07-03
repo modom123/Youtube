@@ -4898,6 +4898,26 @@ def api_competitor_inspire(comp_id):
     })
 
 
+# ── Studio hubs: 4 consolidated entry points over the existing tools ─────────
+
+@app.route("/video-studio")
+@login_required
+def video_studio_hub():
+    return render_template("video_studio.html")
+
+
+@app.route("/clip-studio")
+@login_required
+def clip_studio_hub():
+    return render_template("clip_studio.html")
+
+
+@app.route("/images")
+@login_required
+def image_studio_hub():
+    return render_template("image_hub.html")
+
+
 # ── Image Studio ──────────────────────────────────────────────────────────────
 
 IMAGE_STUDIO_DIR = Path(config.OUTPUT_DIR) / "images"

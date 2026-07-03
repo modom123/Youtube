@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% set active_page = "image-studio" %}
+{% block title %}Image Studio — Social Optimize{% endblock %}
+{% block topbar_title %}🎨 Image Studio{% endblock %}
+{% block topbar_sub %}Generate images or post your own — captioned and published anywhere{% endblock %}
+
+{% block content %}
+<style>
+.hub-wrap { display: flex; flex-direction: column; height: calc(100vh - 116px); min-height: 540px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.hub-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 16px; gap: 4px; flex-shrink: 0; }
+.hub-tab { padding: 14px 16px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; transition: color .2s, background .2s; display: flex; align-items: center; gap: 6px; }
+.hub-tab:hover { color: var(--text); background: rgba(212,160,23,.08); }
+.hub-tab.active { color: var(--accent, #d4a017); border-bottom-color: var(--accent, #d4a017); background: rgba(212,160,23,.08); }
+.hub-body { flex: 1; min-height: 0; position: relative; }
+.hub-pane { display: none; width: 100%; height: 100%; }
+.hub-pane.active { display: block; }
+.hub-pane iframe { width: 100%; height: 100%; border: none; display: block; }
+</style>
+
+<div class="hub-wrap">
+  <div class="hub-tabs">
+    <button class="hub-tab active" data-tab="generate" onclick="switchHubTab('generate', this)">🎨 Generate</button>
+    <button class="hub-tab" data-tab="quickpost" onclick="switchHubTab('quickpost', this)">📸 Quick Post</button>
+  </div>
+  <div class="hub-body">
+    <div class="hub-pane active" id="hub-pane-generate"><iframe src="/image-studio?embed=1" loading="lazy"></iframe></div>
+    <div class="hub-pane" id="hub-pane-quickpost"><iframe data-src="/quickpost?embed=1" loading="lazy"></iframe></div>
+  </div>
+</div>
+
+<script>
+function switchHubTab(id, btn) {
+  document.querySelectorAll('.hub-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.hub-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const pane = document.getElementById('hub-pane-' + id);
+  pane.classList.add('active');
+  const iframe = pane.querySelector('iframe');
+  if (iframe.dataset.src && !iframe.src) iframe.src = iframe.dataset.src;
+}
+const _t = new URLSearchParams(location.search).get('tab');
+if (_t) { const b = document.querySelector(`.hub-tab[data-tab="${_t}"]`); if (b) switchHubTab(_t, b); }
+</script>
+{% endblock %}

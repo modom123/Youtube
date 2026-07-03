@@ -55,41 +55,17 @@
       </a>
 
       <span class="sidebar-section-label">Studios</span>
-      <a href="/create" class="nav-item {% if active_page=='create' %}active{% endif %}">
-        <span class="icon">🚀</span> Create Content
+      <a href="/video-studio" class="nav-item {% if active_page in ('video-studio','create','studio','batch','hollywood','podcast','music','ranking') %}active{% endif %}" title="Video Studio — Shorts, longs, documentaries, podcasts, rankings &amp; soundtracks in one place">
+        <span class="icon">🎬</span> Video Studio
       </a>
-      <a href="/quickpost" class="nav-item {% if active_page=='quickpost' %}active{% endif %}">
-        <span class="icon">📸</span> Quick Post
+      <a href="/commercial" class="nav-item {% if active_page=='commercial' %}active{% endif %}" title="Ad Studio — Scroll-stopping product ads">
+        <span class="icon">📢</span> Ad Studio
       </a>
-      <a href="/studio" class="nav-item {% if active_page=='studio' %}active{% endif %}" title="The Forge — Premium YouTube video production">
-        <span class="icon">🔥</span> The Forge
+      <a href="/clip-studio" class="nav-item {% if active_page in ('clip-studio','clipper','editing-room') %}active{% endif %}" title="Clip &amp; Edit Studio — Turn footage you already have into more content">
+        <span class="icon">✂️</span> Clip &amp; Edit
       </a>
-      <a href="/batch" class="nav-item {% if active_page=='batch' %}active{% endif %}">
-        <span class="icon">📦</span> The Forge Batch
-      </a>
-      <a href="/commercial" class="nav-item {% if active_page=='commercial' %}active{% endif %}" title="Ad Lab — Scroll-stopping product ads">
-        <span class="icon">📢</span> Ad Lab
-      </a>
-      <a href="/hollywood" class="nav-item {% if active_page=='hollywood' %}active{% endif %}" title="Cinema House — Documentary-grade storytelling">
-        <span class="icon">🎬</span> Cinema House
-      </a>
-      <a href="/music-studio" class="nav-item {% if active_page=='music' %}active{% endif %}" title="Hit Factory — Beats that sound radio-ready">
-        <span class="icon">🎵</span> Hit Factory
-      </a>
-      <a href="/podcast-studio" class="nav-item {% if active_page=='podcast' %}active{% endif %}" title="Podcast Studio — Record, edit, and publish episodes">
-        <span class="icon">🎙️</span> Podcast Studio
-      </a>
-      <a href="/image-studio" class="nav-item {% if active_page=='image-studio' %}active{% endif %}" title="Image Studio — Generate scroll-stopping images and post them anywhere">
+      <a href="/images" class="nav-item {% if active_page in ('image-studio','quickpost') %}active{% endif %}" title="Image Studio — Generate images or post your own, published anywhere">
         <span class="icon">🎨</span> Image Studio
-      </a>
-      <a href="/clipper" class="nav-item {% if active_page=='clipper' %}active{% endif %}">
-        <span class="icon">✂️</span> The Scalpel
-      </a>
-      <a href="/editing-room" class="nav-item {% if active_page=='editing-room' %}active{% endif %}">
-        <span class="icon">🎛️</span> The Cut
-      </a>
-      <a href="/ranking-studio" class="nav-item {% if active_page=='ranking' %}active{% endif %}" title="Ranking Studio — Top N / listicle videos via Gamma slide decks">
-        <span class="icon">🏆</span> Ranking Studio
       </a>
       {% if current_user.is_authenticated and (current_user.is_admin or current_user.subscription_tier in ('pro','agency')) %}
       <a href="/autopilot" class="nav-item {% if active_page=='autopilot' %}active{% endif %}" title="Autopilot — Pro &amp; Agency: fully automated recurring content generation and posting">
