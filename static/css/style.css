@@ -227,6 +227,33 @@ body {
 
 .content { padding: 28px; flex: 1; }
 
+/* ── Embedded mode (page shown inside a Studio hub iframe) ──────────────────
+   No sidebar/topbar: collapse the grid to a single full-width column so the
+   page uses the whole hub area instead of being crammed into the 240px track.
+   The hub already provides the title bar and tabs, and its iframe scrolls,
+   so drop the redundant chrome, min-heights, and outer scrollbar. */
+.layout.embed { grid-template-columns: 1fr; min-height: auto; }
+.layout.embed .main { min-height: auto; }
+.layout.embed .content { padding: 24px; }
+body.embedded { background: transparent; }
+/* The hub page already shows the assistant bubble — hide the duplicate that
+   each embedded iframe would otherwise stack on top of it. */
+body.embedded #hermesBubble,
+body.embedded #hermesPanel { display: none !important; }
+/* Full-height pages subtract a topbar (80/116px) that no longer exists in
+   embed mode — inside the iframe the whole area is theirs. Reclaim it, and
+   zero the surrounding content padding so their edge-to-edge grids don't sit
+   inside a second scroll box. Normal card pages keep the 24px padding above. */
+.layout.embed .content:has(.clipper-layout),
+.layout.embed .content:has(.pod-layout),
+.layout.embed .content:has(.ms-wrap) { padding: 0; }
+.layout.embed .clipper-layout { min-height: 100vh; }
+.layout.embed .panel-left,
+.layout.embed .panel-center,
+.layout.embed .panel-right { max-height: 100vh; }
+.layout.embed .pod-layout,
+.layout.embed .ms-wrap { height: 100vh; }
+
 /* ── Cards ───────────────────────────────────────────────── */
 .card {
   background: var(--bg-card);

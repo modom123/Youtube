@@ -13,28 +13,31 @@
 {% block content %}
 <style>
 /* ── Variables ──────────────────────────────────────────────────────────────── */
+/* Mapped to the app's dark theme so the studio matches the rest of the app.
+   Structural colors use the global dark palette; the purple accent maps to
+   the app's gold. Section-tint backgrounds become dark translucent overlays. */
 :root {
-  --c-bg:       #e8f0fe;
-  --c-panel:    #ffffff;
-  --c-elevated: #f0f4fa;
-  --c-border:   rgba(0,0,0,.1);
-  --c-purple:   #7c3aed;
-  --c-purple2:  #6d28d9;
-  --c-cyan:     #0891b2;
-  --c-green:    #059669;
-  --c-red:      #dc2626;
-  --c-text:     #1e293b;
-  --c-muted:    #64748b;
-  --c-glow:     rgba(124,58,237,.12);
+  --c-bg:       #0a0a0a;
+  --c-panel:    #141414;
+  --c-elevated: #242424;
+  --c-border:   #2a2a2a;
+  --c-purple:   #d4a017;
+  --c-purple2:  #8a6910;
+  --c-cyan:     #3b82f6;
+  --c-green:    #22c55e;
+  --c-red:      #e62020;
+  --c-text:     #f5f5f5;
+  --c-muted:    #cccccc;
+  --c-glow:     rgba(212,160,23,.15);
 
-  --c-pastel-purple:      #a78bfa;
-  --c-pastel-purple-bg:   #f1ebfe;
-  --c-pastel-blue:        #60a5fa;
-  --c-pastel-blue-bg:     #e8f1fe;
-  --c-pastel-green:       #34d399;
-  --c-pastel-green-bg:    #e6faf1;
+  --c-pastel-purple:      #d4a017;
+  --c-pastel-purple-bg:   rgba(212,160,23,.12);
+  --c-pastel-blue:        #3b82f6;
+  --c-pastel-blue-bg:     rgba(59,130,246,.12);
+  --c-pastel-green:       #22c55e;
+  --c-pastel-green-bg:    rgba(34,197,94,.12);
   --c-pastel-orange:      #fb923c;
-  --c-pastel-orange-bg:   #fef1e6;
+  --c-pastel-orange-bg:   rgba(251,146,60,.12);
 }
 
 /* ── Layout ─────────────────────────────────────────────────────────────────── */
@@ -109,7 +112,7 @@
 .ms-gen-btn {
   width: 100%;
   padding: 14px;
-  background: linear-gradient(135deg, #7c3aed, #a78bfa);
+  background: linear-gradient(135deg, #d4a017, #8a6910);
   color: #fff;
   border: none;
   border-radius: 10px;
@@ -213,7 +216,7 @@
   border-color: var(--c-purple);
 }
 .field textarea { resize: vertical; min-height: 70px; }
-.field select option { background: #fff; color: #1e293b; }
+.field select option { background: #141414; color: #f5f5f5; }
 
 /* BPM row */
 .bpm-row { display: flex; gap: 8px; align-items: flex-end; }
@@ -280,7 +283,7 @@
   position: absolute;
   inset: 0;
   border-radius: 20px;
-  background: #cbd5e1;
+  background: #3d3d3d;
   transition: background .2s;
 }
 .toggle input:checked + .toggle-track { background: var(--c-purple); }
@@ -1373,8 +1376,8 @@ input[type=range]::-webkit-slider-thumb {
   cursor: pointer;
 }
 .btn-kill {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
+  background: rgba(230,32,32,.12);
+  border: 1px solid rgba(230,32,32,.4);
   color: var(--c-red);
   font-size: 9px;
   font-weight: 700;
@@ -1383,7 +1386,7 @@ input[type=range]::-webkit-slider-thumb {
   cursor: pointer;
   transition: background .1s;
 }
-.btn-kill:hover { background: #fee2e2; }
+.btn-kill:hover { background: rgba(230,32,32,.22); }
 .btn-kill.kill-active { background: var(--c-red); color: #fff; border-color: var(--c-red); }
 
 /* VU METERS */
@@ -4419,7 +4422,7 @@ function _bmDrawChopWave() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const data = bmChopBuffer.getChannelData(0);
   const step = Math.ceil(data.length / canvas.width);
-  ctx.strokeStyle = '#8b5cf6'; ctx.lineWidth = 1;
+  ctx.strokeStyle = '#d4a017'; ctx.lineWidth = 1;
   ctx.beginPath();
   for (let i = 0; i < canvas.width; i++) {
     const v = data[i * step] || 0;
@@ -4739,7 +4742,7 @@ async function searchLoops() {
       return;
     }
     list.innerHTML = results.map((s,i) => {
-      const bpmTag = s.bpm ? `<span style="background:rgba(139,92,246,.15);color:#a78bfa;padding:1px 5px;border-radius:3px;font-size:9px;margin-right:4px;">${s.bpm} BPM</span>` : '';
+      const bpmTag = s.bpm ? `<span style="background:rgba(212,160,23,.15);color:#d4a017;padding:1px 5px;border-radius:3px;font-size:9px;margin-right:4px;">${s.bpm} BPM</span>` : '';
       const keyTag = s.key && s.key !== '—' ? `<span style="background:rgba(20,184,166,.15);color:#5eead4;padding:1px 5px;border-radius:3px;font-size:9px;margin-right:4px;">${s.key}</span>` : '';
       const tags = (s.tags||[]).slice(0,4).join(' · ');
       const dur = s.duration ? Math.round(s.duration) + 's' : '';
@@ -4813,7 +4816,7 @@ function useLoop(idx, name) {
   if (btn && btn.dataset.playing !== '1') btn.click();
   // Show feedback
   const fb = document.createElement('div');
-  fb.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#7c3aed;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.15)';
+  fb.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#d4a017;color:#0a0a0a;padding:10px 18px;border-radius:10px;font-size:13px;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.15)';
   fb.textContent = `✓ "${name}" — BPM and key applied to song settings`;
   document.body.appendChild(fb);
   setTimeout(() => fb.remove(), 3000);

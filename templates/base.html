@@ -31,8 +31,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-<div class="layout">
+<body{% if request.args.get('embed') %} class="embedded"{% endif %}>
+<div class="layout{% if request.args.get('embed') %} embed{% endif %}">
 
   <!-- Sidebar -->
   {% if not request.args.get('embed') %}
