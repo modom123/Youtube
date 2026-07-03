@@ -18,4 +18,9 @@ keepalive = 65       # must be > Render's 60s idle timeout
 loglevel = "info"
 accesslog = "-"
 errorlog = "-"
-preload_app = True   # load app once before forking (no fork here but good practice)
+# preload_app must be False: gunicorn always forks the worker process, and
+# with preload the app imports in the MASTER — every background thread
+# (scheduler, autopilot, agents, the DB-outage retry loop) would live in the
+# master while the forked worker that actually serves requests has none of
+# them and never sees their state updates.
+preload_app = False

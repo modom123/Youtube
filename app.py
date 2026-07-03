@@ -111,10 +111,69 @@ app.register_blueprint(monetizer_bp)
 app.register_blueprint(sales_bp)
 app.register_blueprint(hermes_bp)
 
-db.init_db()
+# ── Database boot: never let a down/slow database kill the web process ───────
+# If init fails, the app still binds and serves a clear 503 while a background
+# thread retries — instead of the worker dying and Render returning a bare 502
+# for every request with no self-recovery.
+_db_ready = False
 
-from admin import load_env_from_db
-load_env_from_db()
+
+def _finish_db_dependent_boot():
+    from admin import load_env_from_db
+    load_env_from_db()
+
+
+def _init_db_with_retry():
+    global _db_ready
+    delay = 2
+    while True:
+        try:
+            db.init_db()
+            break
+        except Exception as e:
+            print(f"[boot] Database still unavailable ({e}) — retrying in {delay}s")
+            time.sleep(delay)
+            delay = min(delay * 2, 60)
+    # Wait for the module import to finish so the deferred startup hooks exist
+    while "_post_db_startup" not in globals():
+        time.sleep(1)
+    try:
+        _finish_db_dependent_boot()
+        globals()["_post_db_startup"]()
+    except Exception as e:
+        print(f"[boot] Post-DB startup error (continuing anyway): {e}")
+    _db_ready = True
+    print("[boot] Database connected — leaving degraded mode")
+
+
+try:
+    db.init_db()
+    _finish_db_dependent_boot()
+    _db_ready = True
+except Exception as _boot_err:
+    print(f"[boot] DATABASE UNAVAILABLE AT STARTUP: {_boot_err}")
+    print("[boot] Serving in degraded mode; retrying connection in background")
+    threading.Thread(target=_init_db_with_retry, daemon=True, name="db_boot_retry").start()
+
+
+@app.before_request
+def _guard_db_not_ready():
+    if _db_ready:
+        return None
+    # Keep the process visibly alive for Render's health check and static assets
+    if request.path == "/health" or request.path.startswith("/static/"):
+        return None
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Service is starting up — database not ready. Try again shortly."}), 503
+    return (
+        "<html><body style='font-family:sans-serif;background:#111;color:#eee;"
+        "display:flex;align-items:center;justify-content:center;height:100vh;text-align:center'>"
+        "<div><h1>Social Optimize is starting up</h1>"
+        "<p>We're reconnecting to the database. This page will work again in a moment — "
+        "please refresh in ~30 seconds.</p></div></body></html>",
+        503,
+        {"Retry-After": "30"},
+    )
 
 @app.errorhandler(500)
 def _handle_500(e):
@@ -5752,7 +5811,11 @@ def commercial_download(job_id):
 @app.route("/health")
 def health():
     from generators.higgsfield_cli import is_authenticated as hf_cli_ok
-    return jsonify({"status": "ok", "version": "1.0", "higgsfield_cli": hf_cli_ok()})
+    # Always 200 while the process is alive: with the degraded-mode boot the app
+    # recovers from a DB outage on its own, and a failing health check would
+    # just make Render kill it back into a 502 loop. "database" tells you which.
+    return jsonify({"status": "ok", "version": "1.0",
+                    "database": _db_ready, "higgsfield_cli": hf_cli_ok()})
 
 
 @app.route("/api/admin/higgsfield-token", methods=["POST"])
@@ -9308,12 +9371,6 @@ def api_rate_job(job_id):
     return jsonify({"ok": True, "rating": rating})
 
 
-# ── Startup ───────────────────────────────────────────────────────────────────
-
-init_monetizer_tables()
-from generators.studio_intelligence import init_intelligence_tables
-init_intelligence_tables()
-_load_platform_creds_from_db()
 # ── Agency Command Center ─────────────────────────────────────────────────────
 
 @app.route("/agency")
@@ -9587,41 +9644,59 @@ Return JSON with "subject" and "body" keys only."""
         return jsonify({"error": str(e)}), 500
 
 
-start_background_threads()
+# ── Startup ───────────────────────────────────────────────────────────────────
+# Everything below touches the database (DDL, credential loads) or starts
+# worker threads that assume the database exists. It must only run once the
+# database is confirmed reachable — inline on a normal boot, or from the
+# background retry thread after an outage. If any of this ran unconditionally
+# at import time, a database blip at deploy would kill the gunicorn worker and
+# Render would serve a bare 502 for every request until a human intervened.
 
-# Start the job monitor agent (auto-resets stuck jobs every 5 min)
-from agents.job_monitor import start as _start_monitor  # noqa: E402
-_start_monitor()
+def _post_db_startup():
+    init_monetizer_tables()
+    from generators.studio_intelligence import init_intelligence_tables
+    init_intelligence_tables()
+    _load_platform_creds_from_db()
 
-# Start agency workers
-from agents.followup_agent import start as _start_followup  # noqa: E402
-_start_followup()
-from agents.asset_tracker import start as _start_asset_tracker  # noqa: E402
-_start_asset_tracker()
+    start_background_threads()
 
-# Start executive C-suite agents (IEBC Consultants)
-from agents.executive_bus import init_bus_tables as _init_bus  # noqa: E402
-_init_bus()
-from agents.marcus_growth import start as _start_marcus  # noqa: E402
-_start_marcus()
-from agents.elena_enterprise import start as _start_elena  # noqa: E402
-_start_elena()
-from agents.julian_retention import start as _start_julian  # noqa: E402
-_start_julian()
-from agents.sterling_business import start as _start_sterling  # noqa: E402
-_start_sterling()
-from agents.vivian_finance import start as _start_vivian  # noqa: E402
-_start_vivian()
-from agents.nova_product import start as _start_nova  # noqa: E402
-_start_nova()
-from agents.rex_revops import start as _start_rex  # noqa: E402
-_start_rex()
-from agents.aria_success import start as _start_aria  # noqa: E402
-_start_aria()
-from agents.isabella_email import start as _start_isabella  # noqa: E402
-_start_isabella()
-from agents.sterling_pierce import start as _start_sterling_pierce  # noqa: E402
-_start_sterling_pierce()
+    # Job monitor agent (auto-resets stuck jobs every 5 min)
+    from agents.job_monitor import start as _start_monitor
+    _start_monitor()
+
+    # Agency workers
+    from agents.followup_agent import start as _start_followup
+    _start_followup()
+    from agents.asset_tracker import start as _start_asset_tracker
+    _start_asset_tracker()
+
+    # Executive C-suite agents (IEBC Consultants)
+    from agents.executive_bus import init_bus_tables as _init_bus
+    _init_bus()
+    from agents.marcus_growth import start as _start_marcus
+    _start_marcus()
+    from agents.elena_enterprise import start as _start_elena
+    _start_elena()
+    from agents.julian_retention import start as _start_julian
+    _start_julian()
+    from agents.sterling_business import start as _start_sterling
+    _start_sterling()
+    from agents.vivian_finance import start as _start_vivian
+    _start_vivian()
+    from agents.nova_product import start as _start_nova
+    _start_nova()
+    from agents.rex_revops import start as _start_rex
+    _start_rex()
+    from agents.aria_success import start as _start_aria
+    _start_aria()
+    from agents.isabella_email import start as _start_isabella
+    _start_isabella()
+    from agents.sterling_pierce import start as _start_sterling_pierce
+    _start_sterling_pierce()
+
+
+if _db_ready:
+    _post_db_startup()
 
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")

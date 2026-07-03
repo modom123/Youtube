@@ -32,7 +32,14 @@ def _get_pool():
                 f"Got: {_DATABASE_URL!r}. "
                 f"It must start with postgresql:// — e.g. postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres"
             )
-        _pool = psycopg2.pool.ThreadedConnectionPool(2, 20, _ensure_ssl(_DATABASE_URL))
+        # connect_timeout: an unreachable DB must fail fast (seconds), not hang
+        # the gunicorn worker at boot for minutes — Render shows that as a 502.
+        # keepalives: detect connections the Supabase pooler silently drops.
+        _pool = psycopg2.pool.ThreadedConnectionPool(
+            2, 20, _ensure_ssl(_DATABASE_URL),
+            connect_timeout=10,
+            keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3,
+        )
     return _pool
 
 
