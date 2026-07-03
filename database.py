@@ -837,6 +837,10 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_engagement_actions_user ON engagement_actions(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_clients_user ON agency_clients(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_deals_user ON agency_deals(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_projects_user ON agency_projects(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_assets_user ON agency_assets(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_followups_user ON agency_followups(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_revenue_user ON agency_revenue(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_logs_agent ON agent_logs(agent_id)")
 
         conn.execute("""
@@ -3067,22 +3071,35 @@ def create_agency_revenue(user_id, data):
              data.get("type","recurring"), data.get("description",""), data.get("period","")))
 
 def get_agency_stats(user_id):
+    # Collapsed from 11 sequential round trips to 5 -- each one crosses the
+    # Render(Oregon)-to-Supabase(us-east-1) network hop, so round-trip count
+    # directly drives page latency. FILTER lets one query per table compute
+    # every aggregate that table needs instead of one query per condition.
     with get_conn() as conn:
-        clients_total = conn.execute("SELECT COUNT(*) AS cnt FROM agency_clients WHERE user_id=%s", (user_id,)).fetchone()["cnt"]
-        clients_active = conn.execute("SELECT COUNT(*) AS cnt FROM agency_clients WHERE user_id=%s AND status='active'", (user_id,)).fetchone()["cnt"]
-        leads = conn.execute("SELECT COUNT(*) AS cnt FROM agency_clients WHERE user_id=%s AND status='lead'", (user_id,)).fetchone()["cnt"]
-        deals_open = conn.execute("SELECT COUNT(*) AS cnt FROM agency_deals WHERE user_id=%s AND stage NOT IN ('won','lost')", (user_id,)).fetchone()["cnt"]
-        pipeline_value = conn.execute("SELECT COALESCE(SUM(value),0) AS val FROM agency_deals WHERE user_id=%s AND stage NOT IN ('won','lost')", (user_id,)).fetchone()["val"]
-        deals_won = conn.execute("SELECT COALESCE(SUM(value),0) AS val FROM agency_deals WHERE user_id=%s AND stage='won'", (user_id,)).fetchone()["val"]
-        mrr = conn.execute("SELECT COALESCE(SUM(monthly_fee),0) AS val FROM agency_projects WHERE user_id=%s AND status='active'", (user_id,)).fetchone()["val"]
+        clients = conn.execute(
+            "SELECT COUNT(*) AS total, "
+            "COUNT(*) FILTER (WHERE status='active') AS active, "
+            "COUNT(*) FILTER (WHERE status='lead') AS leads "
+            "FROM agency_clients WHERE user_id=%s", (user_id,)
+        ).fetchone()
+        deals = conn.execute(
+            "SELECT COUNT(*) FILTER (WHERE stage NOT IN ('won','lost')) AS open_cnt, "
+            "COALESCE(SUM(value) FILTER (WHERE stage NOT IN ('won','lost')),0) AS pipeline_value, "
+            "COALESCE(SUM(value) FILTER (WHERE stage='won'),0) AS won_value "
+            "FROM agency_deals WHERE user_id=%s", (user_id,)
+        ).fetchone()
+        projects = conn.execute(
+            "SELECT COUNT(*) FILTER (WHERE status='active') AS active_cnt, "
+            "COALESCE(SUM(monthly_fee) FILTER (WHERE status='active'),0) AS mrr "
+            "FROM agency_projects WHERE user_id=%s", (user_id,)
+        ).fetchone()
         total_revenue = conn.execute("SELECT COALESCE(SUM(amount),0) AS val FROM agency_revenue WHERE user_id=%s", (user_id,)).fetchone()["val"]
-        projects_active = conn.execute("SELECT COUNT(*) AS cnt FROM agency_projects WHERE user_id=%s AND status='active'", (user_id,)).fetchone()["cnt"]
         assets_total = conn.execute("SELECT COUNT(*) AS cnt FROM agency_assets WHERE user_id=%s", (user_id,)).fetchone()["cnt"]
         followups_pending = conn.execute("SELECT COUNT(*) AS cnt FROM agency_followups WHERE user_id=%s AND status='scheduled'", (user_id,)).fetchone()["cnt"]
         return {
-            "clients_total": clients_total, "clients_active": clients_active, "leads": leads,
-            "deals_open": deals_open, "pipeline_value": pipeline_value, "deals_won": deals_won,
-            "mrr": mrr, "total_revenue": total_revenue, "projects_active": projects_active,
+            "clients_total": clients["total"], "clients_active": clients["active"], "leads": clients["leads"],
+            "deals_open": deals["open_cnt"], "pipeline_value": deals["pipeline_value"], "deals_won": deals["won_value"],
+            "mrr": projects["mrr"], "total_revenue": total_revenue, "projects_active": projects["active_cnt"],
             "assets_total": assets_total, "followups_pending": followups_pending
         }
 
