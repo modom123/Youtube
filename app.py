@@ -575,7 +575,14 @@ def _quickpost_publish_image(platform: str, media_path: str, caption: str, user_
         resp.raise_for_status()
         return {"platform": "facebook", "post_id": resp.json().get("id")}
 
-    # Platforms requiring CDN URL (Instagram, TikTok, Threads, etc.)
+    if platform == "instagram":
+        import media_host
+        from publishers import instagram_publisher
+        public_url = media_host.get_public_url(media_path)
+        if public_url:
+            return instagram_publisher.upload_photo(image_url=public_url, caption=caption)
+
+    # Platforms requiring CDN URL (TikTok, Threads, etc.)
     return {
         "platform": platform,
         "status": "manual_required",
@@ -4889,6 +4896,152 @@ def api_competitor_inspire(comp_id):
         "niche": comp["channel_name"], "topic": top_video.get("title", ""),
         "views": top_video.get("views", 0), "video_url": top_video.get("video_url", ""),
     })
+
+
+# ── Image Studio ──────────────────────────────────────────────────────────────
+
+IMAGE_STUDIO_DIR = Path(config.OUTPUT_DIR) / "images"
+_imgstudio_jobs: dict = {}
+_imgstudio_lock = threading.Lock()
+
+_IMG_STYLE_PROMPTS = {
+    "photo": "photorealistic, natural lighting, shot on a professional camera, high detail",
+    "cinematic": "cinematic still, dramatic lighting, shallow depth of field, film grain, moody color grade",
+    "illustration": "flat vector illustration, bold shapes, clean lines, vibrant palette",
+    "3d": "3D render, octane, soft studio lighting, high polish",
+    "anime": "anime style, detailed line art, vibrant cel shading",
+    "minimal": "minimalist composition, generous negative space, single subject, muted palette",
+}
+
+
+@app.route("/image-studio")
+@login_required
+def image_studio_page():
+    accounts = db.get_accounts(user_id=current_user.id)
+    connected = {a["platform"] for a in accounts if a["is_active"]}
+    return render_template("image_studio.html", connected_platforms=sorted(connected))
+
+
+def _run_imgstudio_thread(img_job_id: str, params: dict, user_id: int):
+    from generators import higgsfield_mcp as _hmcp
+
+    def update(**kw):
+        with _imgstudio_lock:
+            job = _imgstudio_jobs.get(img_job_id)
+            if job is not None:
+                job.update(kw)
+
+    try:
+        tok = _get_user_higgsfield_token(user_id)
+        _hmcp._session_token.value = tok
+        if not tok:
+            update(status="error",
+                   error="Higgsfield isn't connected. Go to Social Accounts and click 'Connect Higgsfield'.")
+            return
+
+        out_dir = IMAGE_STUDIO_DIR / img_job_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        prompt = params["prompt"]
+        style_suffix = _IMG_STYLE_PROMPTS.get(params["style"], "")
+        full_prompt = f"{prompt}. {style_suffix}" if style_suffix else prompt
+
+        images = []
+        count = params["count"]
+        for i in range(count):
+            update(step=f"Generating image {i+1}/{count}...", progress=int(100 * i / count) or 5)
+            out_path = out_dir / f"img_{i+1}.png"
+            result = _hmcp.generate_image_via_mcp(
+                prompt=full_prompt,
+                output_path=out_path,
+                model_id=params["model"],
+                aspect_ratio=params["aspect"],
+            )
+            if result:
+                images.append(f"images/{img_job_id}/{out_path.name}")
+
+        if images:
+            update(status="done", progress=100, step="Done", images=images)
+        else:
+            update(status="error",
+                   error="Image generation returned nothing — check your Higgsfield connection and credits.")
+    except Exception as e:
+        update(status="error", error=str(e))
+
+
+@app.route("/api/image-studio/generate", methods=["POST"])
+@login_required
+def api_imgstudio_generate():
+    data = request.json or {}
+    prompt = (data.get("prompt") or "").strip()
+    if not prompt:
+        return jsonify({"error": "Describe the image you want"}), 400
+
+    img_job_id = str(uuid.uuid4())[:8]
+    params = {
+        "prompt": prompt[:2000],
+        "style": data.get("style", "photo"),
+        "aspect": data.get("aspect") if data.get("aspect") in ("9:16", "1:1", "16:9", "4:5", "3:4") else "1:1",
+        "count": min(max(int(data.get("count") or 1), 1), 4),
+        "model": data.get("model") or "flux_2",
+    }
+    with _imgstudio_lock:
+        _imgstudio_jobs[img_job_id] = {
+            "status": "running", "progress": 0, "step": "Starting...",
+            "images": [], "user_id": current_user.id, "prompt": prompt,
+        }
+    threading.Thread(target=_run_imgstudio_thread, args=(img_job_id, params, current_user.id),
+                     daemon=True).start()
+    return jsonify({"img_job_id": img_job_id})
+
+
+@app.route("/api/image-studio/<img_job_id>/status")
+@login_required
+def api_imgstudio_status(img_job_id):
+    with _imgstudio_lock:
+        job = _imgstudio_jobs.get(img_job_id)
+    if not job or job.get("user_id") != current_user.id:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify({k: v for k, v in job.items() if k != "user_id"})
+
+
+@app.route("/api/image-studio/publish", methods=["POST"])
+@login_required
+def api_imgstudio_publish():
+    data = request.json or {}
+    rel = (data.get("image") or "").strip()
+    platform = data.get("platform", "")
+    caption = (data.get("caption") or "").strip()
+    if not rel or not platform:
+        return jsonify({"error": "image and platform are required"}), 400
+
+    # Only allow files inside this user's image-studio jobs
+    parts = Path(rel).parts
+    if len(parts) != 3 or parts[0] != "images":
+        return jsonify({"error": "Invalid image path"}), 400
+    with _imgstudio_lock:
+        owner_job = _imgstudio_jobs.get(parts[1])
+    if not owner_job or owner_job.get("user_id") != current_user.id:
+        return jsonify({"error": "Image not found"}), 404
+
+    full = Path(config.OUTPUT_DIR) / rel
+    if not full.is_file():
+        return jsonify({"error": "Image file not found"}), 404
+
+    try:
+        result = _quickpost_publish_image(platform, str(full), caption, current_user.id)
+        post_id = result.get("media_id") or result.get("tweet_id") or result.get("post_id")
+        if post_id:
+            try:
+                db.add_published_video(
+                    user_id=current_user.id, job_id=None, platform=platform,
+                    video_id=str(post_id), video_url=result.get("url", ""),
+                    title=caption[:120] or owner_job.get("prompt", "")[:120],
+                )
+            except Exception:
+                pass
+        return jsonify({"ok": True, "result": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ── Media serving ─────────────────────────────────────────────────────────────

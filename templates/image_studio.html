@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% set active_page = "image-studio" %}
+
+{% block title %}Image Studio — Social Optimize{% endblock %}
+{% block topbar_title %}🎨 Image Studio{% endblock %}
+{% block topbar_sub %}Generate scroll-stopping images and post them anywhere{% endblock %}
+
+{% block content %}
+<style>
+.is-wrap { max-width: 1100px; margin: 0 auto; padding: 24px; }
+.is-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 20px; }
+.is-field { margin-bottom: 14px; }
+.is-field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .06em; }
+.is-field textarea, .is-field select, .is-field input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; color: var(--text); font-size: 14px; font-family: inherit; box-sizing: border-box;
+}
+.is-field textarea { min-height: 72px; resize: vertical; }
+.is-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.is-row > .is-field { flex: 1; min-width: 140px; }
+.is-generate { background: var(--accent, #d4a017); color: #000; border: none; border-radius: 8px;
+  padding: 12px 24px; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; }
+.is-generate:disabled { opacity: .6; cursor: not-allowed; }
+.is-progress { display: none; margin-top: 14px; font-size: 13px; color: var(--muted); }
+.is-error { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
+.is-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.is-img-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.is-img-card img { width: 100%; display: block; aspect-ratio: 1; object-fit: cover; background: #000; }
+.is-img-actions { display: flex; gap: 8px; padding: 10px; }
+.is-btn { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px;
+  font-size: 12px; font-weight: 600; color: var(--text); cursor: pointer; text-align: center; text-decoration: none; }
+.is-btn.primary { background: var(--accent, #d4a017); color: #000; border-color: transparent; }
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; align-items: center; justify-content: center; }
+.modal { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 420px; max-width: 92vw; }
+.modal h3 { margin: 0 0 14px; }
+</style>
+
+<div class="is-wrap">
+  <div class="is-card">
+    <div class="is-field">
+      <label>Describe your image</label>
+      <textarea id="is-prompt" placeholder="e.g. A minimalist workspace at golden hour with a laptop showing analytics charts, plant in the corner"></textarea>
+    </div>
+    <div class="is-row">
+      <div class="is-field">
+        <label>Style</label>
+        <select id="is-style">
+          <option value="photo">Photorealistic</option>
+          <option value="cinematic">Cinematic</option>
+          <option value="illustration">Illustration</option>
+          <option value="3d">3D Render</option>
+          <option value="anime">Anime</option>
+          <option value="minimal">Minimalist</option>
+          <option value="none">No style (raw prompt)</option>
+        </select>
+      </div>
+      <div class="is-field">
+        <label>Format</label>
+        <select id="is-aspect">
+          <option value="1:1">1:1 — Feed post</option>
+          <option value="9:16">9:16 — Story / Reel cover</option>
+          <option value="16:9">16:9 — Thumbnail / X</option>
+          <option value="4:5">4:5 — Portrait feed</option>
+          <option value="3:4">3:4 — Pinterest</option>
+        </select>
+      </div>
+      <div class="is-field">
+        <label>Variations</label>
+        <select id="is-count">
+          <option value="1">1</option>
+          <option value="2" selected>2</option>
+          <option value="4">4</option>
+        </select>
+      </div>
+    </div>
+    <button class="is-generate" id="is-generate" onclick="generateImages()">✨ Generate</button>
+    <div class="is-progress" id="is-progress"></div>
+    <div class="is-error" id="is-err"></div>
+  </div>
+
+  <div class="is-grid" id="is-grid"></div>
+</div>
+
+<div class="modal-bg" id="pubModal">
+  <div class="modal">
+    <h3>Publish image</h3>
+    <div class="is-field">
+      <label>Platform</label>
+      <select id="pub-platform">
+        <option value="instagram">Instagram</option>
+        <option value="twitter">X (Twitter)</option>
+        <option value="facebook">Facebook</option>
+      </select>
+    </div>
+    <div class="is-field">
+      <label>Caption</label>
+      <textarea id="pub-caption" placeholder="Write a caption..."></textarea>
+    </div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="is-btn" style="flex:0 0 auto;" onclick="closePub()">Cancel</button>
+      <button class="is-btn primary" style="flex:0 0 auto;" id="pub-go" onclick="confirmPublish()">🚀 Publish</button>
+    </div>
+    <div class="is-error" id="pub-err"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let _pubImage = null;
+
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.style.display = msg ? 'block' : 'none';
+}
+
+async function generateImages() {
+  const prompt = document.getElementById('is-prompt').value.trim();
+  if (!prompt) { showErr('is-err', 'Describe the image you want first.'); return; }
+  showErr('is-err', '');
+  const btn = document.getElementById('is-generate');
+  const prog = document.getElementById('is-progress');
+  btn.disabled = true; btn.textContent = '⏳ Generating...';
+  prog.style.display = 'block'; prog.textContent = 'Starting...';
+
+  try {
+    const resp = await fetch('/api/image-studio/generate', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        prompt,
+        style: document.getElementById('is-style').value,
+        aspect: document.getElementById('is-aspect').value,
+        count: parseInt(document.getElementById('is-count').value, 10),
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Generation failed');
+
+    const jobId = data.img_job_id;
+    while (true) {
+      await new Promise(r => setTimeout(r, 2500));
+      const sr = await fetch('/api/image-studio/' + jobId + '/status');
+      const sd = await sr.json();
+      if (sd.error && sr.status !== 200) throw new Error(sd.error);
+      prog.textContent = sd.step || 'Working...';
+      if (sd.status === 'done') { renderImages(sd.images); break; }
+      if (sd.status === 'error') throw new Error(sd.error || 'Generation failed');
+    }
+  } catch (e) {
+    showErr('is-err', e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '✨ Generate';
+    prog.style.display = 'none';
+  }
+}
+
+function renderImages(images) {
+  const grid = document.getElementById('is-grid');
+  const cards = images.map(rel => `
+    <div class="is-img-card">
+      <img src="/output/${rel}" loading="lazy" alt="">
+      <div class="is-img-actions">
+        <a class="is-btn" href="/output/${rel}" download>⬇ Download</a>
+        <button class="is-btn primary" onclick="openPub('${rel}')">🚀 Publish</button>
+      </div>
+    </div>`).join('');
+  grid.insertAdjacentHTML('afterbegin', cards);
+}
+
+function openPub(rel) {
+  _pubImage = rel;
+  showErr('pub-err', '');
+  document.getElementById('pubModal').style.display = 'flex';
+}
+function closePub() { document.getElementById('pubModal').style.display = 'none'; _pubImage = null; }
+
+async function confirmPublish() {
+  if (!_pubImage) return;
+  const btn = document.getElementById('pub-go');
+  btn.disabled = true; btn.textContent = '⏳ Publishing...';
+  try {
+    const resp = await fetch('/api/image-studio/publish', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        image: _pubImage,
+        platform: document.getElementById('pub-platform').value,
+        caption: document.getElementById('pub-caption').value.trim(),
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Publish failed');
+    const r = data.result || {};
+    if (r.status === 'manual_required' || r.status === 'skipped') {
+      showErr('pub-err', r.reason || 'This platform needs manual upload.');
+    } else {
+      closePub();
+      alert('Published!' + (r.url ? '\n' + r.url : ''));
+    }
+  } catch (e) {
+    showErr('pub-err', e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '🚀 Publish';
+  }
+}
+</script>
+{% endblock %}

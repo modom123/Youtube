@@ -112,6 +112,46 @@ def upload_reel(
     }
 
 
+def upload_photo(image_url: str, caption: str, tags: list[str] = None) -> dict:
+    """
+    Post a single photo to Instagram.
+
+    NOTE: The image must be publicly accessible via URL (Instagram Graph API
+    does not accept direct file uploads).
+    """
+    if not config.INSTAGRAM_ACCESS_TOKEN or not config.INSTAGRAM_ACCOUNT_ID:
+        return {
+            "platform": "instagram",
+            "status": "skipped",
+            "reason": "INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_ACCOUNT_ID are required for Instagram.",
+        }
+    tag_str = " ".join(f"#{t.replace(' ', '').replace('#', '')}" for t in (tags or [])[:30])
+    full_caption = f"{caption}\n\n{tag_str}".strip()[:2200]
+
+    resp = requests.post(
+        f"{GRAPH_URL}/{config.INSTAGRAM_ACCOUNT_ID}/media",
+        params={
+            "image_url": image_url,
+            "caption": full_caption,
+            "access_token": config.INSTAGRAM_ACCESS_TOKEN,
+        },
+        timeout=30,
+    )
+    resp.raise_for_status()
+    container_id = resp.json()["id"]
+
+    if not _wait_for_container(container_id, max_wait=120):
+        raise RuntimeError("[instagram] Photo container timed out waiting for FINISHED status")
+
+    media_id = _publish_container(container_id)
+    return {
+        "platform": "instagram",
+        "media_id": media_id,
+        "container_id": container_id,
+        "url": f"https://www.instagram.com/p/{media_id}/",
+    }
+
+
 def get_account_info() -> dict:
     """Verify Instagram account credentials."""
     resp = requests.get(
