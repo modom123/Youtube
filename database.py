@@ -32,7 +32,14 @@ def _get_pool():
                 f"Got: {_DATABASE_URL!r}. "
                 f"It must start with postgresql:// — e.g. postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres"
             )
-        _pool = psycopg2.pool.ThreadedConnectionPool(2, 20, _ensure_ssl(_DATABASE_URL))
+        # connect_timeout: an unreachable DB must fail fast (seconds), not hang
+        # the gunicorn worker at boot for minutes — Render shows that as a 502.
+        # keepalives: detect connections the Supabase pooler silently drops.
+        _pool = psycopg2.pool.ThreadedConnectionPool(
+            2, 20, _ensure_ssl(_DATABASE_URL),
+            connect_timeout=10,
+            keepalives=1, keepalives_idle=30, keepalives_interval=10, keepalives_count=3,
+        )
     return _pool
 
 
@@ -151,12 +158,19 @@ def init_db():
             subscription_external_id TEXT DEFAULT '',
             referred_by             TEXT DEFAULT '',
             assistant_enabled       INTEGER DEFAULT 1,
-            default_voice           TEXT DEFAULT 'en-US-Studio-O',
+            default_voice           TEXT DEFAULT 'en-US-Journey-D',
             created_at              TIMESTAMP DEFAULT NOW()
         )
         """)
         conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_enabled INTEGER DEFAULT 1")
-        conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS default_voice TEXT DEFAULT 'en-US-Studio-O'")
+        conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS default_voice TEXT DEFAULT 'en-US-Journey-D'")
+        # ADD COLUMN IF NOT EXISTS only runs once -- on a database where this
+        # column already exists (i.e. every real deployment so far), it never
+        # re-applies, so the column's actual DEFAULT stays whatever it was
+        # first created with. This explicitly updates it so new signups
+        # going forward get the current default, not a stale one baked in
+        # from months ago.
+        conn.execute("ALTER TABLE users ALTER COLUMN default_voice SET DEFAULT 'en-US-Journey-D'")
         conn.execute("""
         CREATE TABLE IF NOT EXISTS social_accounts (
             id          SERIAL PRIMARY KEY,
@@ -171,6 +185,17 @@ def init_db():
             followers   INTEGER DEFAULT 0,
             connected_at TIMESTAMP DEFAULT NOW(),
             is_active   INTEGER DEFAULT 1
+        )
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS contact_messages (
+            id          SERIAL PRIMARY KEY,
+            name        TEXT NOT NULL,
+            email       TEXT NOT NULL,
+            subject     TEXT,
+            message     TEXT NOT NULL,
+            status      TEXT DEFAULT 'new',
+            created_at  TIMESTAMP DEFAULT NOW()
         )
         """)
         conn.execute("""
@@ -381,6 +406,29 @@ def init_db():
         )
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS autopilot_configs (
+            id              SERIAL PRIMARY KEY,
+            user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name            TEXT NOT NULL,
+            niche           TEXT NOT NULL,
+            format          TEXT DEFAULT 'short',
+            audience        TEXT DEFAULT 'general public',
+            voice           TEXT,
+            style           TEXT DEFAULT 'fire',
+            platforms       TEXT DEFAULT '[]',
+            days_of_week    TEXT DEFAULT '[]',
+            post_time       TEXT DEFAULT '09:00',
+            lead_minutes    INTEGER DEFAULT 45,
+            active          BOOLEAN DEFAULT TRUE,
+            next_run_at     TEXT,
+            last_run_at     TEXT,
+            last_job_id     INTEGER,
+            last_error      TEXT,
+            recent_topics   TEXT DEFAULT '[]',
+            created_at      TIMESTAMP DEFAULT NOW()
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS batch_jobs (
             id              TEXT PRIMARY KEY,
             user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -400,6 +448,19 @@ def init_db():
             description TEXT,
             config_json TEXT DEFAULT '{}',
             use_count   INTEGER DEFAULT 0,
+            created_at  TIMESTAMP DEFAULT NOW()
+        )
+        """)
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS saved_loops (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name        TEXT NOT NULL,
+            bpm         INTEGER DEFAULT 90,
+            bars        INTEGER DEFAULT 2,
+            kit         TEXT DEFAULT '',
+            duration    REAL DEFAULT 0,
+            file_path   TEXT NOT NULL,
             created_at  TIMESTAMP DEFAULT NOW()
         )
         """)
@@ -692,6 +753,20 @@ def init_db():
         )
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS agency_landing_pages (
+            id                SERIAL PRIMARY KEY,
+            user_id           INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            client_id         INTEGER REFERENCES agency_clients(id),
+            title             TEXT NOT NULL,
+            prompt            TEXT DEFAULT '',
+            url               TEXT DEFAULT '',
+            gamma_generation_id TEXT DEFAULT '',
+            status            TEXT DEFAULT 'processing',
+            error             TEXT DEFAULT '',
+            created_at        TIMESTAMP DEFAULT NOW()
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS agency_followups (
             id           SERIAL PRIMARY KEY,
             user_id      INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -783,6 +858,10 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_engagement_actions_user ON engagement_actions(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_clients_user ON agency_clients(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_deals_user ON agency_deals(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_projects_user ON agency_projects(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_assets_user ON agency_assets(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_followups_user ON agency_followups(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_agency_revenue_user ON agency_revenue(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_agent_logs_agent ON agent_logs(agent_id)")
 
         conn.execute("""
@@ -1028,6 +1107,27 @@ def init_db():
             acknowledged BOOLEAN DEFAULT FALSE,
             created_at   TIMESTAMP DEFAULT NOW()
         )""")
+        # A second, wider CREATE TABLE IF NOT EXISTS for this same table used
+        # to live in monetizer.py's init — since this one runs first at
+        # startup, that one was always a no-op and metric_name/metric_value/
+        # threshold never actually existed, silently breaking every alert
+        # insert that included them. Add the missing columns directly, plus
+        # the columns needed to make this a real actionable task queue
+        # (status/suggested_action/source_agent/resolved_at) rather than
+        # just a message + acknowledged flag.
+        for col_def in [
+            "metric_name TEXT",
+            "metric_value NUMERIC(14,4)",
+            "threshold NUMERIC(14,4)",
+            "status TEXT DEFAULT 'open'",
+            "suggested_action TEXT",
+            "source_agent TEXT",
+            "resolved_at TIMESTAMP",
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE monetizer_alerts ADD COLUMN IF NOT EXISTS {col_def}")
+            except Exception:
+                pass
         conn.execute("""
         CREATE TABLE IF NOT EXISTS monetizer_kpi_snapshots (
             id              SERIAL PRIMARY KEY,
@@ -1078,15 +1178,43 @@ def init_db():
             active      BOOLEAN DEFAULT TRUE,
             created_at  TIMESTAMP DEFAULT NOW()
         )""")
-        # Seed default packages
+        # De-duplicate rows accumulated from past runs (no unique constraint
+        # existed before, and this INSERT ran on every app start via
+        # ON CONFLICT DO NOTHING with no real conflict target — it always
+        # inserted fresh duplicates instead of updating).
+        conn.execute("""
+            DELETE FROM so_credit_packages a USING so_credit_packages b
+            WHERE a.id < b.id AND a.name = b.name
+        """)
+        # Check existence first rather than try/except-around-DDL: Postgres
+        # aborts the whole transaction on a real error (e.g. "constraint
+        # already exists" on redeploy), and catching the Python exception
+        # does NOT un-poison that transaction — every statement after it in
+        # this same init_db() transaction would then fail with
+        # InFailedSqlTransaction. This is what took production down.
+        existing_constraint = conn.execute(
+            "SELECT 1 FROM information_schema.table_constraints "
+            "WHERE table_name='so_credit_packages' AND constraint_name='so_credit_packages_name_key'"
+        ).fetchone()
+        if not existing_constraint:
+            conn.execute(
+                "ALTER TABLE so_credit_packages ADD CONSTRAINT so_credit_packages_name_key UNIQUE (name)"
+            )
+        # Seed/update default packages — credit amounts sized to roughly
+        # protect gross margin against real Higgsfield cost ($0.0556/credit
+        # base rate, see config.HIGGSFIELD_COST_PER_CREDIT_BASE). Pro/Agency
+        # Pack sizes are a deliberate business call (69%/67% margin, below
+        # the 75% target but still solidly profitable) rather than the
+        # strict 75%-margin-derived amount. Same price points as before.
         conn.execute("""
         INSERT INTO so_credit_packages (name, credits, price_usd, bonus_pct)
         VALUES
-            ('Starter Pack',  500,   4.99, 0),
-            ('Growth Pack',  2000,  14.99, 0),
-            ('Pro Pack',     5000,  29.99, 10),
-            ('Agency Pack', 15000,  79.99, 20)
-        ON CONFLICT DO NOTHING
+            ('Starter Pack',  25,   4.99, 0),
+            ('Growth Pack',   70,  14.99, 0),
+            ('Pro Pack',     150,  29.99, 10),
+            ('Agency Pack',  400,  79.99, 20)
+        ON CONFLICT (name) DO UPDATE SET
+            credits=EXCLUDED.credits, price_usd=EXCLUDED.price_usd, bonus_pct=EXCLUDED.bonus_pct
         """)
 
         _seed_agents(conn)
@@ -1124,9 +1252,17 @@ def _seed_agents(conn):
 
 # ── Social Optimize Credits helpers ──────────────────────────────────────────
 
-# How many credits each action costs
+# How many credits each action costs. At $0.2224/credit (so_credit_packages'
+# rate, sized to protect 75% margin against real Higgsfield cost — see
+# config.HIGGSFIELD_COST_PER_CREDIT_BASE), video_generate and image_generate
+# below are corrected to match REAL observed costs: video_generate averages
+# ~13 real Higgsfield credits + Claude + TTS ~= $0.78 (see
+# agents/sterling_business.py COST_PER_VIDEO); image_generate is a confirmed
+# real 2 Higgsfield credits (Nano Banana Pro) ~= $0.11. The rest below are
+# NOT yet backed by measured real costs — still rough estimates pending
+# verification against actual Suno/TTS/Claude usage per action.
 SO_CREDIT_COSTS = {
-    "video_generate":   10,
+    "video_generate":   14,
     "audio_generate":   3,
     "image_generate":   2,
     "podcast_generate": 8,
@@ -1145,7 +1281,7 @@ def get_user_credits(user_id: int) -> dict:
         ).fetchone()
         if row is None:
             # Lazy init for existing users
-            monthly = _TIER_MONTHLY_CREDITS.get("free", 100)
+            monthly = _tier_monthly_credits("free")
             conn.execute(
                 """INSERT INTO so_credits (user_id, balance, rollover_balance, monthly_allocation, lifetime_earned)
                    VALUES (%s,%s,0,%s,%s) ON CONFLICT (user_id) DO NOTHING""",
@@ -1222,7 +1358,7 @@ def rollover_credits(user_id: int) -> dict:
     with get_conn() as conn:
         user_row = conn.execute("SELECT subscription_tier FROM users WHERE id=%s", (user_id,)).fetchone()
         tier = (user_row["subscription_tier"] if user_row else "free") or "free"
-        monthly = _TIER_MONTHLY_CREDITS.get(tier, 100)
+        monthly = _tier_monthly_credits(tier)
         old_balance = float(wallet.get("balance", 0))
         # Add unused balance into rollover, set new monthly balance
         conn.execute(
@@ -1244,6 +1380,22 @@ def rollover_credits(user_id: int) -> dict:
         return {"ok": True, "new_balance": monthly, "rollover": float(wallet.get("rollover_balance", 0)) + old_balance}
 
 
+def get_users_due_for_rollover(days: int = 30) -> list:
+    """Safety net for automated rollover: users whose credits haven't rolled
+    over in >= `days` (or never have). Real per-customer billing-cycle
+    triggers (Stripe invoice.payment_succeeded, Whop/etc membership renewal)
+    call rollover_credits() directly and reset last_rollover_at, so this
+    only catches users on channels that don't fire a reliable renewal event."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT c.user_id FROM so_credits c JOIN users u ON u.id = c.user_id "
+            "WHERE (c.last_rollover_at IS NULL AND u.created_at <= NOW() - (%s || ' days')::interval) "
+            "OR c.last_rollover_at <= NOW() - (%s || ' days')::interval",
+            (days, days),
+        ).fetchall()
+        return [r["user_id"] for r in rows]
+
+
 def get_credit_txns(user_id: int, limit: int = 50) -> list:
     with get_conn() as conn:
         return [dict(r) for r in conn.execute(
@@ -1257,6 +1409,34 @@ def get_credit_packages() -> list:
         return [dict(r) for r in conn.execute(
             "SELECT * FROM so_credit_packages WHERE active=TRUE ORDER BY price_usd"
         ).fetchall()]
+
+
+def save_contact_message(name: str, email: str, subject: str, message: str) -> int:
+    with get_conn() as conn:
+        row = conn.execute(
+            "INSERT INTO contact_messages (name, email, subject, message) "
+            "VALUES (%s,%s,%s,%s) RETURNING id",
+            (name, email, subject, message),
+        ).fetchone()
+        return row["id"]
+
+
+def log_revenue_event(user_id, event_type: str, amount: float = 0, currency: str = "usd",
+                       tier: str = None, stripe_event_id: str = None, notes: str = None):
+    """Record a real subscription lifecycle event (new_subscription, upgrade,
+    downgrade, cancel, payment_received) so Monetizer's revenue overview
+    reflects actual webhook activity instead of sitting empty. Called from
+    billing.py (Stripe) and sales_channels.py (Whop/Gumroad/LemonSqueezy/
+    AppSumo/PayPal) at the point each event is confirmed real."""
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO monetizer_revenue_log (user_id, event_type, amount, currency, tier, stripe_event_id, notes) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                (user_id, event_type, amount, currency, tier, stripe_event_id, notes),
+            )
+    except Exception:
+        pass
 
 
 def row_to_dict(row):
@@ -1274,13 +1454,11 @@ def row_to_dict(row):
 
 # ── Users ─────────────────────────────────────────────────────────────────────
 
-_TIER_MONTHLY_CREDITS = {
-    "free": 100,
-    "starter": 500,
-    "growth": 2000,
-    "pro": 5000,
-    "agency": 15000,
-}
+def _tier_monthly_credits(tier: str) -> float:
+    """Single source of truth for tier -> monthly credit grant: config.TIERS."""
+    import config
+    return config.TIERS.get(tier, config.TIERS["free"]).get("higgsfield_credits", 10)
+
 
 def create_user(email: str, password_hash: str, name: str = "", tier: str = "free") -> int:
     with get_conn() as conn:
@@ -1289,7 +1467,7 @@ def create_user(email: str, password_hash: str, name: str = "", tier: str = "fre
             (email.lower().strip(), password_hash, name),
         )
         user_id = cur.fetchone()["id"]
-        monthly = _TIER_MONTHLY_CREDITS.get(tier, 100)
+        monthly = _tier_monthly_credits(tier)
         conn.execute(
             """INSERT INTO so_credits (user_id, balance, rollover_balance, monthly_allocation, lifetime_earned)
                VALUES (%s,%s,0,%s,%s)
@@ -1779,6 +1957,36 @@ def get_analytics(user_id: int):
     return [row_to_dict(r) for r in rows]
 
 
+def get_analytics_joined(user_id: int, limit: int = 200):
+    """Analytics rows enriched with the originating job's topic/format so the
+    feedback loop can learn which content angles perform."""
+    with get_conn() as conn:
+        rows = conn.execute("""
+            SELECT * FROM (
+                SELECT DISTINCT ON (a.id) a.*, pv.job_id, j.topic, j.format
+                FROM analytics_cache a
+                LEFT JOIN published_videos pv
+                       ON pv.video_id = a.video_id AND pv.platform = a.platform AND pv.user_id = a.user_id
+                LEFT JOIN jobs j ON j.id = pv.job_id
+                WHERE a.user_id=%s
+                ORDER BY a.id, pv.id DESC
+            ) sub
+            ORDER BY sub.views DESC
+            LIMIT %s
+        """, (user_id, limit)).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_user_ids_with_platform_account(platform: str = "youtube"):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT user_id FROM social_accounts "
+            "WHERE platform=%s AND access_token IS NOT NULL AND user_id IS NOT NULL",
+            (platform,)
+        ).fetchall()
+    return [r["user_id"] for r in rows]
+
+
 def add_published_video(user_id: int, job_id, platform: str, video_id: str,
                         video_url: str, title: str):
     with get_conn() as conn:
@@ -1799,6 +2007,41 @@ def get_published_videos(user_id: int):
 
 
 # ── Feature 2: Content Calendar / Scheduler ───────────────────────────────────
+
+def create_saved_loop(user_id: int, name: str, file_path: str, bpm: int = 90,
+                       bars: int = 2, kit: str = "", duration: float = 0) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO saved_loops (user_id, name, file_path, bpm, bars, kit, duration)
+            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (user_id, name, file_path, bpm, bars, kit, duration))
+        return cur.fetchone()["id"]
+
+
+def get_saved_loops(user_id: int):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM saved_loops WHERE user_id=%s ORDER BY created_at DESC",
+            (user_id,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_saved_loop(loop_id: int, user_id: int = None):
+    query = "SELECT * FROM saved_loops WHERE id=%s"
+    params = [loop_id]
+    if user_id is not None:
+        query += " AND user_id=%s"
+        params.append(user_id)
+    with get_conn() as conn:
+        row = conn.execute(query, params).fetchone()
+    return row_to_dict(row) if row else None
+
+
+def delete_saved_loop(loop_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM saved_loops WHERE id=%s AND user_id=%s", (loop_id, user_id))
+
 
 def create_scheduled_post(user_id: int, job_id: int, platform: str, scheduled_at: str) -> int:
     with get_conn() as conn:
@@ -1854,6 +2097,68 @@ def get_due_scheduled_posts():
             LEFT JOIN jobs j ON j.id = sp.job_id
             WHERE sp.status = 'pending' AND sp.scheduled_at <= %s
         """, (now,)).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+# ── Autopilot: fully automated recurring content generation + posting ───────
+
+def create_autopilot_config(user_id: int, name: str, niche: str, format: str, audience: str,
+                             voice: str, style: str, platforms: list, days_of_week: list,
+                             post_time: str, lead_minutes: int, next_run_at: str) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO autopilot_configs
+                (user_id, name, niche, format, audience, voice, style, platforms,
+                 days_of_week, post_time, lead_minutes, next_run_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (user_id, name, niche, format, audience, voice, style, json.dumps(platforms),
+              json.dumps(days_of_week), post_time, lead_minutes, next_run_at))
+        return cur.fetchone()["id"]
+
+
+def get_autopilot_configs(user_id: int) -> list:
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM autopilot_configs WHERE user_id=%s ORDER BY created_at DESC", (user_id,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_autopilot_config(config_id: int, user_id: int = None) -> dict:
+    with get_conn() as conn:
+        if user_id is not None:
+            row = conn.execute(
+                "SELECT * FROM autopilot_configs WHERE id=%s AND user_id=%s", (config_id, user_id)
+            ).fetchone()
+        else:
+            row = conn.execute("SELECT * FROM autopilot_configs WHERE id=%s", (config_id,)).fetchone()
+    return row_to_dict(row)
+
+
+def update_autopilot_config(config_id: int, **kwargs):
+    if not kwargs:
+        return
+    for k in ("platforms", "days_of_week", "recent_topics"):
+        if k in kwargs and isinstance(kwargs[k], (list, dict)):
+            kwargs[k] = json.dumps(kwargs[k])
+    cols = ", ".join(f"{k}=%s" for k in kwargs)
+    vals = list(kwargs.values()) + [config_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE autopilot_configs SET {cols} WHERE id=%s", vals)
+
+
+def delete_autopilot_config(config_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM autopilot_configs WHERE id=%s AND user_id=%s", (config_id, user_id))
+
+
+def get_due_autopilot_configs() -> list:
+    """Active autopilot configs whose next generation run is due now."""
+    now = datetime.utcnow().isoformat()
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM autopilot_configs WHERE active=TRUE AND next_run_at <= %s", (now,)
+        ).fetchall()
     return [row_to_dict(r) for r in rows]
 
 
@@ -2286,7 +2591,7 @@ def get_admin_stats():
     """Return MRR, tier counts, and status counts for the admin dashboard."""
     tier_prices = {"starter": 9.99, "creator": 29.99, "pro": 79.99, "agency": 199.99}
     with get_conn() as conn:
-        rows = conn.execute("SELECT subscription_tier, subscription_status FROM users").fetchall()
+        rows = conn.execute("SELECT subscription_tier, subscription_status, is_admin FROM users").fetchall()
     total = len(rows)
     tier_counts = {"free": 0, "starter": 0, "creator": 0, "pro": 0, "agency": 0}
     status_counts = {"active": 0, "canceled": 0, "past_due": 0, "suspended": 0}
@@ -2296,7 +2601,7 @@ def get_admin_stats():
         status = r["subscription_status"] or "active"
         tier_counts[tier] = tier_counts.get(tier, 0) + 1
         status_counts[status] = status_counts.get(status, 0) + 1
-        if status == "active" and tier in tier_prices:
+        if status == "active" and tier in tier_prices and not r["is_admin"]:
             mrr += tier_prices[tier]
     return {
         "total_users": total,
@@ -2852,22 +3157,35 @@ def create_agency_revenue(user_id, data):
              data.get("type","recurring"), data.get("description",""), data.get("period","")))
 
 def get_agency_stats(user_id):
+    # Collapsed from 11 sequential round trips to 5 -- each one crosses the
+    # Render(Oregon)-to-Supabase(us-east-1) network hop, so round-trip count
+    # directly drives page latency. FILTER lets one query per table compute
+    # every aggregate that table needs instead of one query per condition.
     with get_conn() as conn:
-        clients_total = conn.execute("SELECT COUNT(*) AS cnt FROM agency_clients WHERE user_id=%s", (user_id,)).fetchone()["cnt"]
-        clients_active = conn.execute("SELECT COUNT(*) AS cnt FROM agency_clients WHERE user_id=%s AND status='active'", (user_id,)).fetchone()["cnt"]
-        leads = conn.execute("SELECT COUNT(*) AS cnt FROM agency_clients WHERE user_id=%s AND status='lead'", (user_id,)).fetchone()["cnt"]
-        deals_open = conn.execute("SELECT COUNT(*) AS cnt FROM agency_deals WHERE user_id=%s AND stage NOT IN ('won','lost')", (user_id,)).fetchone()["cnt"]
-        pipeline_value = conn.execute("SELECT COALESCE(SUM(value),0) AS val FROM agency_deals WHERE user_id=%s AND stage NOT IN ('won','lost')", (user_id,)).fetchone()["val"]
-        deals_won = conn.execute("SELECT COALESCE(SUM(value),0) AS val FROM agency_deals WHERE user_id=%s AND stage='won'", (user_id,)).fetchone()["val"]
-        mrr = conn.execute("SELECT COALESCE(SUM(monthly_fee),0) AS val FROM agency_projects WHERE user_id=%s AND status='active'", (user_id,)).fetchone()["val"]
+        clients = conn.execute(
+            "SELECT COUNT(*) AS total, "
+            "COUNT(*) FILTER (WHERE status='active') AS active, "
+            "COUNT(*) FILTER (WHERE status='lead') AS leads "
+            "FROM agency_clients WHERE user_id=%s", (user_id,)
+        ).fetchone()
+        deals = conn.execute(
+            "SELECT COUNT(*) FILTER (WHERE stage NOT IN ('won','lost')) AS open_cnt, "
+            "COALESCE(SUM(value) FILTER (WHERE stage NOT IN ('won','lost')),0) AS pipeline_value, "
+            "COALESCE(SUM(value) FILTER (WHERE stage='won'),0) AS won_value "
+            "FROM agency_deals WHERE user_id=%s", (user_id,)
+        ).fetchone()
+        projects = conn.execute(
+            "SELECT COUNT(*) FILTER (WHERE status='active') AS active_cnt, "
+            "COALESCE(SUM(monthly_fee) FILTER (WHERE status='active'),0) AS mrr "
+            "FROM agency_projects WHERE user_id=%s", (user_id,)
+        ).fetchone()
         total_revenue = conn.execute("SELECT COALESCE(SUM(amount),0) AS val FROM agency_revenue WHERE user_id=%s", (user_id,)).fetchone()["val"]
-        projects_active = conn.execute("SELECT COUNT(*) AS cnt FROM agency_projects WHERE user_id=%s AND status='active'", (user_id,)).fetchone()["cnt"]
         assets_total = conn.execute("SELECT COUNT(*) AS cnt FROM agency_assets WHERE user_id=%s", (user_id,)).fetchone()["cnt"]
         followups_pending = conn.execute("SELECT COUNT(*) AS cnt FROM agency_followups WHERE user_id=%s AND status='scheduled'", (user_id,)).fetchone()["cnt"]
         return {
-            "clients_total": clients_total, "clients_active": clients_active, "leads": leads,
-            "deals_open": deals_open, "pipeline_value": pipeline_value, "deals_won": deals_won,
-            "mrr": mrr, "total_revenue": total_revenue, "projects_active": projects_active,
+            "clients_total": clients["total"], "clients_active": clients["active"], "leads": clients["leads"],
+            "deals_open": deals["open_cnt"], "pipeline_value": deals["pipeline_value"], "deals_won": deals["won_value"],
+            "mrr": projects["mrr"], "total_revenue": total_revenue, "projects_active": projects["active_cnt"],
             "assets_total": assets_total, "followups_pending": followups_pending
         }
 
@@ -2921,6 +3239,49 @@ def update_agency_asset(user_id, asset_id, data):
 def link_job_to_client(job_id, client_id, project_id=None):
     with get_conn() as conn:
         conn.execute("UPDATE jobs SET client_id=%s, project_id=%s WHERE id=%s", (client_id, project_id, job_id))
+
+
+# ── Agency Landing Pages (Gamma-generated) ────────────────────────────────────
+
+def create_landing_page(user_id, title, prompt, client_id=None):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO agency_landing_pages (user_id, client_id, title, prompt, status) "
+            "VALUES (%s,%s,%s,%s,'processing') RETURNING id",
+            (user_id, client_id, title, prompt),
+        )
+        return cur.fetchone()["id"]
+
+
+def update_landing_page(page_id, **fields):
+    allowed = {"url", "gamma_generation_id", "status", "error"}
+    keys = [k for k in fields if k in allowed]
+    if not keys:
+        return
+    sets = ", ".join(f"{k}=%s" for k in keys)
+    vals = [fields[k] for k in keys] + [page_id]
+    with get_conn() as conn:
+        conn.execute(f"UPDATE agency_landing_pages SET {sets} WHERE id=%s", vals)
+
+
+def get_landing_pages(user_id, client_id=None):
+    with get_conn() as conn:
+        q = ("SELECT lp.*, c.name as client_name FROM agency_landing_pages lp "
+             "LEFT JOIN agency_clients c ON lp.client_id=c.id WHERE lp.user_id=%s")
+        params = [user_id]
+        if client_id:
+            q += " AND lp.client_id=%s"
+            params.append(client_id)
+        q += " ORDER BY lp.created_at DESC"
+        return [row_to_dict(r) for r in conn.execute(q, params).fetchall()]
+
+
+def get_landing_page(user_id, page_id):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM agency_landing_pages WHERE user_id=%s AND id=%s", (user_id, page_id)
+        ).fetchone()
+        return row_to_dict(row) if row else None
 
 
 # ── Agency Follow-ups ────────────────────────────────────────────────────────

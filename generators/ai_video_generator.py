@@ -78,6 +78,17 @@ def _higgsville_headers() -> dict:
     }
 
 
+def has_higgsfield_key() -> bool:
+    """Backward-compatible alias for is_connected().
+
+    True if this thread has a connected user's token OR the global system
+    token is configured. Gates that only check config.HIGGSFIELD_MCP_TOKEN
+    silently skip AI visual generation for every customer who connected
+    their own Higgsfield account but relies on no system-wide token being
+    set -- always check this instead."""
+    return is_connected()
+
+
 def _higgsville_generate(model_id: str, prompt: str, params: dict) -> Optional[str]:
     """Submit a generation job. Returns job_id or None on failure."""
     try:

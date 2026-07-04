@@ -24,6 +24,7 @@ TIER_ORDER = ["free", "starter", "creator", "pro", "agency"]
 def _product_to_tier(channel: str, product_id: str) -> str | None:
     mapping = {
         "whop": {
+            config.WHOP_PLAN_FREE: "free",
             config.WHOP_PLAN_STARTER: "starter",
             config.WHOP_PLAN_CREATOR: "creator",
             config.WHOP_PLAN_PRO: "pro",
@@ -54,17 +55,38 @@ def _product_to_tier(channel: str, product_id: str) -> str | None:
 
 def _activate_subscription(email: str, tier: str, channel: str, external_id: str = ""):
     user = db.get_user_by_email(email)
+    is_new_user = not user
     if not user:
         log.warning(f"[{channel}] No user found for {email} — creating account")
         password_hash = hashlib.sha256(uuid.uuid4().hex.encode()).hexdigest()
         user_id = db.create_user(email=email, password_hash=password_hash, name=email.split("@")[0])
         user = db.get_user_by_id(user_id)
+
+    old_tier = (user.get("subscription_tier") or "free") if not is_new_user else "free"
     db.update_user(user["id"],
                    subscription_tier=tier,
                    subscription_status="active",
                    subscription_channel=channel,
                    subscription_external_id=external_id)
     log.info(f"[{channel}] Activated {tier} for {email} (ext: {external_id})")
+
+    if is_new_user or old_tier == "free":
+        event_type = "new_subscription"
+    elif old_tier in TIER_ORDER and tier in TIER_ORDER and TIER_ORDER.index(tier) > TIER_ORDER.index(old_tier):
+        event_type = "upgrade"
+    elif old_tier in TIER_ORDER and tier in TIER_ORDER and TIER_ORDER.index(tier) < TIER_ORDER.index(old_tier):
+        event_type = "downgrade"
+    else:
+        event_type = "new_subscription"
+    amount = config.TIERS.get(tier, {}).get("price_monthly", 0)
+    db.log_revenue_event(user["id"], event_type, amount=amount, tier=tier,
+                          notes=f"{channel}:{external_id}")
+
+    try:
+        db.rollover_credits(user["id"])
+    except Exception as exc:
+        log.warning(f"[{channel}] Credit rollover failed for {email}: {exc}")
+
     return user
 
 
@@ -79,6 +101,8 @@ def _cancel_subscription(email: str = None, external_id: str = "", channel: str 
                        subscription_tier="free",
                        subscription_status="cancelled")
         log.info(f"[{channel}] Cancelled subscription for {user['email']}")
+        db.log_revenue_event(user["id"], "cancel", amount=0,
+                              tier=user.get("subscription_tier"), notes=f"{channel}:{external_id}")
     else:
         log.warning(f"[{channel}] Cancel: no user found (email={email}, ext={external_id})")
 
@@ -93,7 +117,10 @@ def _find_user_by_external_id(external_id: str, channel: str):
 
 def _verify_hmac(payload: bytes, signature: str, secret: str, algo="sha256") -> bool:
     if not secret:
-        return True
+        log.error("Webhook secret not configured — rejecting webhook (fail closed).")
+        return False
+    if not signature:
+        return False
     expected = hmac.new(secret.encode(), payload, getattr(hashlib, algo)).hexdigest()
     return hmac.compare_digest(expected, signature)
 
@@ -106,23 +133,43 @@ def _verify_hmac(payload: bytes, signature: str, secret: str, algo="sha256") -> 
 def whop_webhook():
     payload = request.get_data()
     sig = request.headers.get("Whop-Signature", "")
-    if config.WHOP_WEBHOOK_SECRET and not _verify_hmac(payload, sig, config.WHOP_WEBHOOK_SECRET):
+    if not _verify_hmac(payload, sig, config.WHOP_WEBHOOK_SECRET):
         return jsonify({"error": "invalid signature"}), 401
 
     data = request.get_json(silent=True) or {}
-    event = data.get("event", "")
-    membership = data.get("data", {})
-    email = membership.get("email", "") or membership.get("user", {}).get("email", "")
-    plan_id = membership.get("plan_id", "") or membership.get("product_id", "")
-    membership_id = membership.get("id", "")
+    event = data.get("event", "") or data.get("type", "") or data.get("action", "")
+    obj = data.get("data", {})
+    email = obj.get("email", "") or obj.get("user", {}).get("email", "") or obj.get("member", {}).get("email", "")
+    plan_id = obj.get("plan_id", "") or obj.get("product_id", "")
+    membership_id = obj.get("membership_id", "") or obj.get("id", "")
 
-    if event in ("membership.went_valid", "membership.created"):
+    if event in ("membership.went_valid", "membership_went_valid", "membership.created", "membership_created"):
         tier = _product_to_tier("whop", plan_id) or "starter"
         _activate_subscription(email, tier, "whop", membership_id)
-    elif event in ("membership.went_invalid", "membership.cancelled"):
+    elif event in ("membership.went_invalid", "membership_went_invalid",
+                    "membership.cancelled", "membership_cancelled"):
         _cancel_subscription(email=email, external_id=membership_id, channel="whop")
+    elif event in ("payment.succeeded", "payment_succeeded"):
+        user = db.get_user_by_email(email) if email else None
+        if not user and membership_id:
+            user = _find_user_by_external_id(membership_id, "whop")
+        if user:
+            db.reset_monthly_usage(user["id"])
+            db.update_user(user["id"], subscription_status="active")
+            log.info(f"[whop] Payment succeeded for {user['email']} — usage reset")
+        else:
+            log.warning(f"[whop] payment.succeeded but no user matched (email={email}, membership={membership_id})")
+    elif event in ("payment.failed", "payment_failed"):
+        user = db.get_user_by_email(email) if email else None
+        if not user and membership_id:
+            user = _find_user_by_external_id(membership_id, "whop")
+        if user:
+            db.update_user(user["id"], subscription_status="past_due")
+            log.info(f"[whop] Payment failed for {user['email']} — marked past_due")
+        else:
+            log.warning(f"[whop] payment.failed but no user matched (email={email}, membership={membership_id})")
     else:
-        log.info(f"[whop] Unhandled event: {event}")
+        log.info(f"[whop] Unhandled event: {event} | payload: {data}")
 
     return jsonify({"ok": True})
 
@@ -158,7 +205,7 @@ def gumroad_webhook():
 def lemonsqueezy_webhook():
     payload = request.get_data()
     sig = request.headers.get("X-Signature", "")
-    if config.LEMONSQUEEZY_WEBHOOK_SECRET and not _verify_hmac(payload, sig, config.LEMONSQUEEZY_WEBHOOK_SECRET):
+    if not _verify_hmac(payload, sig, config.LEMONSQUEEZY_WEBHOOK_SECRET):
         return jsonify({"error": "invalid signature"}), 401
 
     data = request.get_json(silent=True) or {}
@@ -192,7 +239,7 @@ APPSUMO_TIER_MAP = {1: "starter", 2: "creator", 3: "pro", 4: "agency", 5: "agenc
 def appsumo_webhook():
     payload = request.get_data()
     sig = request.headers.get("X-AppSumo-Signature", "")
-    if config.APPSUMO_WEBHOOK_SECRET and not _verify_hmac(payload, sig, config.APPSUMO_WEBHOOK_SECRET):
+    if not _verify_hmac(payload, sig, config.APPSUMO_WEBHOOK_SECRET):
         return jsonify({"error": "invalid signature"}), 401
 
     data = request.get_json(silent=True) or {}
@@ -230,7 +277,8 @@ def _paypal_base_url():
 
 def _paypal_verify_webhook(headers: dict, body: bytes) -> bool:
     if not config.PAYPAL_WEBHOOK_ID:
-        return True
+        log.error("PAYPAL_WEBHOOK_ID is not configured — rejecting webhook (fail closed).")
+        return False
     import requests as _req
     try:
         token_resp = _req.post(f"{_paypal_base_url()}/v1/oauth2/token",
@@ -408,7 +456,8 @@ def sales_channels_status():
         "whop": {
             "configured": bool(config.WHOP_WEBHOOK_SECRET),
             "webhook_url": f"{config.APP_BASE_URL}/whop/webhook",
-            "plans": {"starter": config.WHOP_PLAN_STARTER, "creator": config.WHOP_PLAN_CREATOR,
+            "plans": {"free": config.WHOP_PLAN_FREE, "starter": config.WHOP_PLAN_STARTER,
+                      "creator": config.WHOP_PLAN_CREATOR,
                       "pro": config.WHOP_PLAN_PRO, "agency": config.WHOP_PLAN_AGENCY},
         },
         "stripe": {

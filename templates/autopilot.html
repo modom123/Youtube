@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% set active_page = "autopilot" %}
+
+{% block title %}Autopilot — Social Optimize{% endblock %}
+{% block topbar_title %}🤖 Autopilot{% endblock %}
+{% block topbar_sub %}Pro & Agency — fully automated recurring content generation and posting{% endblock %}
+
+{% block content %}
+<style>
+.ap-wrap { max-width: 900px; margin: 0 auto; padding: 24px; }
+.ap-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 20px; }
+.ap-field { margin-bottom: 16px; }
+.ap-field label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.ap-field .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.ap-field input[type="text"], .ap-field textarea, .ap-field select, .ap-field input[type="time"] {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; color: var(--text); font-size: 14px; font-family: inherit;
+}
+.ap-field textarea { min-height: 80px; resize: vertical; }
+.ap-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.ap-row > .ap-field { flex: 1; min-width: 180px; }
+.ap-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ap-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--text); cursor: pointer; user-select: none; }
+.ap-chip input { accent-color: var(--accent, #d4a017); }
+.ap-submit { background: var(--accent, #d4a017); color: #000; border: none; border-radius: 8px;
+  padding: 12px 24px; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%; }
+.ap-submit:disabled { opacity: .6; cursor: not-allowed; }
+.ap-error { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
+.ap-config { border-bottom: 1px solid var(--border); padding: 16px 0; }
+.ap-config:last-child { border-bottom: none; }
+.ap-config-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ap-config-name { font-weight: 700; color: var(--text); font-size: 15px; }
+.ap-config-niche { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.ap-config-meta { color: var(--muted); font-size: 12px; margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; }
+.ap-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.ap-badge.active { background: rgba(34,197,94,.15); color: #22c55e; }
+.ap-badge.paused { background: rgba(148,163,184,.15); color: var(--muted); }
+.ap-err-banner { color: #ef4444; font-size: 12px; margin-top: 6px; }
+.ap-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.ap-btn { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px;
+  font-size: 12px; font-weight: 600; color: var(--text); cursor: pointer; }
+.ap-btn.danger { color: #ef4444; }
+</style>
+
+<div class="ap-wrap">
+
+  {% if not connected_platforms %}
+  <div class="ap-card" style="border-color:#f59e0b;">
+    <strong style="color:#f59e0b;">Connect at least one platform first.</strong>
+    <div class="hint" style="margin-top:6px;">Autopilot posts to your connected accounts — head to
+      <a href="/accounts" style="color:var(--accent,#d4a017);">Accounts</a> to connect YouTube, TikTok, Instagram, etc.
+      before setting up a campaign.</div>
+  </div>
+  {% endif %}
+
+  <div class="ap-card">
+    <h3 style="margin-top:0;">New Autopilot Campaign</h3>
+    <div class="ap-field">
+      <label>Campaign name</label>
+      <input type="text" id="ap-name" placeholder="e.g. Daily Personal Finance Tips">
+    </div>
+    <div class="ap-field">
+      <label>Describe the niche / channel</label>
+      <textarea id="ap-niche" placeholder="e.g. Quick personal finance tips for people in their 20s — budgeting, saving, avoiding debt traps. Upbeat, practical, no jargon."></textarea>
+      <div class="hint">Claude picks a fresh, specific, non-repeating topic from this description every time it runs — you never have to feed it topics.</div>
+    </div>
+    <div class="ap-row">
+      <div class="ap-field">
+        <label>Format</label>
+        <select id="ap-format">
+          <option value="short">Short-form (~55s)</option>
+          <option value="long">Long-form</option>
+        </select>
+      </div>
+      <div class="ap-field">
+        <label>Audience</label>
+        <input type="text" id="ap-audience" value="general public">
+      </div>
+    </div>
+
+    <div class="ap-field">
+      <label>Post to</label>
+      <div class="ap-chips">
+        {% for p in connected_platforms %}
+        <label class="ap-chip"><input type="checkbox" class="ap-platform" value="{{ p }}"> {{ p|capitalize }}</label>
+        {% endfor %}
+      </div>
+      {% if not connected_platforms %}<div class="hint">No platforms connected yet.</div>{% endif %}
+    </div>
+
+    <div class="ap-field">
+      <label>Days of week (UTC)</label>
+      <div class="ap-chips">
+        {% for d in day_names %}
+        <label class="ap-chip"><input type="checkbox" class="ap-day" value="{{ loop.index0 }}"> {{ d }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="ap-row">
+      <div class="ap-field">
+        <label>Post time (UTC, 24h)</label>
+        <input type="time" id="ap-post-time" value="09:00">
+      </div>
+    </div>
+
+    <button class="ap-submit" id="ap-submit" onclick="createAutopilot()">Launch Campaign</button>
+    <div class="ap-error" id="ap-error"></div>
+  </div>
+
+  <div class="ap-card">
+    <h3 style="margin-top:0;">Your Campaigns</h3>
+    {% for c in configs %}
+    <div class="ap-config" data-id="{{ c.id }}">
+      <div class="ap-config-top">
+        <div>
+          <div class="ap-config-name">{{ c.name }}</div>
+          <div class="ap-config-niche">{{ c.niche }}</div>
+        </div>
+        <div class="ap-actions">
+          <span class="ap-badge {{ 'active' if c.active else 'paused' }}">{{ 'Active' if c.active else 'Paused' }}</span>
+          <button class="ap-btn" onclick="toggleAutopilot({{ c.id }})">{{ 'Pause' if c.active else 'Resume' }}</button>
+          <button class="ap-btn danger" onclick="deleteAutopilot({{ c.id }})">Delete</button>
+        </div>
+      </div>
+      <div class="ap-config-meta">
+        <span>📅 {{ c.days_of_week|length }} day(s)/week @ {{ c.post_time }} UTC</span>
+        <span>📡 {{ c.platforms|join(', ') }}</span>
+        {% if c.last_run_at %}<span>🕓 Last ran {{ c.last_run_at|datefmt }}</span>{% endif %}
+      </div>
+      {% if c.last_error %}<div class="ap-err-banner">⚠ {{ c.last_error }}</div>{% endif %}
+    </div>
+    {% else %}
+    <div style="color:var(--muted);padding:12px 0;">No campaigns yet — set one up above.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+async function createAutopilot() {
+  const name = document.getElementById('ap-name').value.trim();
+  const niche = document.getElementById('ap-niche').value.trim();
+  const platforms = Array.from(document.querySelectorAll('.ap-platform:checked')).map(el => el.value);
+  const days_of_week = Array.from(document.querySelectorAll('.ap-day:checked')).map(el => parseInt(el.value));
+  const post_time = document.getElementById('ap-post-time').value;
+  const format = document.getElementById('ap-format').value;
+  const audience = document.getElementById('ap-audience').value.trim();
+
+  if (!name || !niche) { showApError('Campaign name and niche description are required.'); return; }
+  if (!platforms.length) { showApError('Select at least one platform.'); return; }
+  if (!days_of_week.length) { showApError('Select at least one day of the week.'); return; }
+
+  const btn = document.getElementById('ap-submit');
+  btn.disabled = true;
+  btn.textContent = 'Launching...';
+  document.getElementById('ap-error').style.display = 'none';
+
+  try {
+    const resp = await fetch('/api/autopilot', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ name, niche, platforms, days_of_week, post_time, format, audience }),
+    });
+    const result = await resp.json();
+    if (!resp.ok) { showApError(result.error || 'Failed to create campaign.'); btn.disabled = false; btn.textContent = 'Launch Campaign'; return; }
+    location.reload();
+  } catch (e) {
+    showApError('Network error: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Launch Campaign';
+  }
+}
+
+async function toggleAutopilot(id) {
+  await fetch(`/api/autopilot/${id}/toggle`, { method: 'POST' });
+  location.reload();
+}
+
+async function deleteAutopilot(id) {
+  if (!confirm('Delete this Autopilot campaign?')) return;
+  await fetch(`/api/autopilot/${id}`, { method: 'DELETE' });
+  location.reload();
+}
+
+function showApError(msg) {
+  const el = document.getElementById('ap-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+</script>
+{% endblock %}

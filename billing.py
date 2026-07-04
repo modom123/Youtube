@@ -1,10 +1,12 @@
 """Billing Blueprint — Stripe checkout, portal, webhook."""
-import json
+import logging
 import stripe
 from flask import Blueprint, request, redirect, render_template, url_for, jsonify
 from flask_login import login_required, current_user
 import config
 import database as db
+
+log = logging.getLogger(__name__)
 
 billing_bp = Blueprint("billing", __name__, url_prefix="/billing")
 
@@ -94,6 +96,40 @@ def checkout(tier_name):
     return redirect(session.url, code=303)
 
 
+@billing_bp.route("/checkout/credits/<int:package_id>")
+@login_required
+def checkout_credits(package_id):
+    packages = {int(p["id"]): p for p in db.get_credit_packages()}
+    pkg = packages.get(package_id)
+    if not pkg:
+        return redirect(url_for("credits_page"))
+
+    customer_id = current_user.stripe_customer_id
+    if not customer_id:
+        customer = stripe.Customer.create(email=current_user.email, name=current_user.name)
+        customer_id = customer.id
+        db.update_user(current_user.id, stripe_customer_id=customer_id)
+
+    session = stripe.checkout.Session.create(
+        customer=customer_id,
+        payment_method_types=["card"],
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "product_data": {"name": f"{pkg['name']} — Credit Pack"},
+                "unit_amount": int(round(float(pkg["price_usd"]) * 100)),
+            },
+            "quantity": 1,
+        }],
+        success_url=config.APP_BASE_URL + url_for("credits_page") + "?purchase=success",
+        cancel_url=config.APP_BASE_URL + url_for("credits_page"),
+        client_reference_id=str(current_user.id),
+        metadata={"user_id": str(current_user.id), "credit_package_id": str(package_id)},
+    )
+    return redirect(session.url, code=303)
+
+
 @billing_bp.route("/success")
 @login_required
 def checkout_success():
@@ -152,16 +188,15 @@ def webhook():
     payload = request.get_data()
     sig = request.headers.get("Stripe-Signature", "")
 
-    if config.STRIPE_WEBHOOK_SECRET:
-        try:
-            event = stripe.Webhook.construct_event(payload, sig, config.STRIPE_WEBHOOK_SECRET)
-        except (ValueError, stripe.error.SignatureVerificationError):
-            return jsonify({"error": "Invalid signature"}), 400
-    else:
-        try:
-            event = json.loads(payload)
-        except Exception:
-            return jsonify({"error": "Bad payload"}), 400
+    if not config.STRIPE_WEBHOOK_SECRET:
+        log.error("STRIPE_WEBHOOK_SECRET is not set — rejecting webhook (fail closed). "
+                  "Set STRIPE_WEBHOOK_SECRET to accept real Stripe events.")
+        return jsonify({"error": "Webhook not configured"}), 503
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig, config.STRIPE_WEBHOOK_SECRET)
+    except (ValueError, stripe.error.SignatureVerificationError):
+        return jsonify({"error": "Invalid signature"}), 400
 
     etype = event["type"]
     data  = event["data"]["object"]
@@ -193,16 +228,29 @@ def _handle_subscription(sub):
         # Infer from price ID
         price_id = sub["items"]["data"][0]["price"]["id"] if sub.get("items") else None
         tier_name = _price_to_tier(price_id)
+    tier_name = tier_name or user["subscription_tier"]
 
     status = sub.get("status", "active")
     sub_status = "active" if status in ("active", "trialing") else "inactive"
 
+    old_tier = user.get("subscription_tier") or "free"
     db.update_user(
         user["id"],
-        subscription_tier=tier_name or user["subscription_tier"],
+        subscription_tier=tier_name,
         subscription_status=sub_status,
         stripe_subscription_id=sub["id"],
     )
+
+    if old_tier != tier_name and sub_status == "active":
+        if old_tier == "free" or old_tier not in TIER_ORDER:
+            event_type = "new_subscription"
+        elif tier_name in TIER_ORDER and TIER_ORDER.index(tier_name) > TIER_ORDER.index(old_tier):
+            event_type = "upgrade"
+        else:
+            event_type = "downgrade"
+        amount = config.TIERS.get(tier_name, {}).get("price_monthly", 0)
+        db.log_revenue_event(user["id"], event_type, amount=amount, tier=tier_name,
+                              stripe_event_id=sub.get("id"))
 
 
 def _handle_subscription_deleted(sub):
@@ -210,23 +258,53 @@ def _handle_subscription_deleted(sub):
     if user:
         db.update_user(user["id"], subscription_tier="free", subscription_status="inactive",
                        stripe_subscription_id=None)
+        db.log_revenue_event(user["id"], "cancel", amount=0,
+                              tier=user.get("subscription_tier"), stripe_event_id=sub.get("id"))
 
 
 def _handle_checkout_completed(session):
-    tier_name = session.get("metadata", {}).get("tier")
+    metadata = session.get("metadata", {}) or {}
+    uid = metadata.get("user_id")
+    if not uid:
+        return
+
+    credit_package_id = metadata.get("credit_package_id")
+    if credit_package_id:
+        if session.get("payment_status") != "paid":
+            return
+        packages = {int(p["id"]): p for p in db.get_credit_packages()}
+        pkg = packages.get(int(credit_package_id))
+        if not pkg:
+            return
+        credits = float(pkg["credits"])
+        bonus = credits * float(pkg.get("bonus_pct", 0)) / 100
+        total = credits + bonus
+        db.add_credits(int(uid), total, "purchase",
+                       f"Purchased {pkg['name']} ({total:.0f} credits)")
+        return
+
+    tier_name = metadata.get("tier")
     sub_id = session.get("subscription")
-    uid = session.get("metadata", {}).get("user_id")
-    if uid and tier_name:
+    if tier_name:
         db.update_user(
             int(uid),
             subscription_tier=tier_name,
             subscription_status="active",
             stripe_subscription_id=sub_id,
         )
+        amount = config.TIERS.get(tier_name, {}).get("price_monthly", 0)
+        db.log_revenue_event(int(uid), "new_subscription", amount=amount, tier=tier_name,
+                              stripe_event_id=session.get("id"))
+        try:
+            db.rollover_credits(int(uid))
+        except Exception:
+            pass
 
 
 def _handle_payment_succeeded(invoice):
-    """Reset monthly usage on a successful subscription payment (new billing period)."""
+    """Reset monthly usage and roll over credits on a successful subscription
+    payment (new billing period) — this is the precise per-customer renewal
+    signal, fired exactly on their own billing anniversary."""
     cid = invoice.get("customer")
     if not cid:
         return
@@ -236,7 +314,14 @@ def _handle_payment_succeeded(invoice):
     # Only reset for subscription invoices
     if invoice.get("subscription"):
         db.reset_monthly_usage(user["id"])
+        try:
+            db.rollover_credits(user["id"])
+        except Exception:
+            pass
     db.update_user(user["id"], subscription_status="active")
+    amount = float(invoice.get("amount_paid", 0)) / 100
+    db.log_revenue_event(user["id"], "payment_received", amount=amount,
+                          tier=user.get("subscription_tier"), stripe_event_id=invoice.get("id"))
 
 
 def _handle_payment_failed(invoice):

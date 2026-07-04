@@ -32,6 +32,8 @@ from moviepy import (
 )
 from moviepy.video.fx import FadeIn, FadeOut
 
+from generators import audio_generator
+
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT_PATH_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
@@ -484,6 +486,7 @@ def produce(
     use_ai_clips: bool = False,
     custom_bgm_path: Optional[str] = None,
     section_media: Optional[dict] = None,
+    voice: Optional[str] = None,
 ) -> dict:
     """
     Produce a complete enhanced video.
@@ -497,6 +500,9 @@ def produce(
         progress_cb: Optional callback(message, percent)
         clip_paths: Optional dict {section_index: Path} of pre-generated video clips
         use_ai_clips: If True, generate AI clips via Higgsfield before assembly
+        voice: Voice catalog id for narration -- routed through the same
+            ElevenLabs -> Google Neural2 -> edge-tts -> espeak-ng cascade
+            every other studio uses, instead of always using espeak-ng.
 
     Returns:
         dict with output path, duration, resolution, etc.
@@ -525,7 +531,7 @@ def produce(
     _progress("Generating voiceover...", 10)
     full_narration = " ".join(s["narration"] for s in sections)
     voice_path = output_dir / "voiceover.mp3"
-    _tts_espeak(full_narration, voice_path)
+    audio_generator.generate_audio(full_narration, voice_path, voice=voice)
     voice_clip = AudioFileClip(str(voice_path))
     voice_dur = voice_clip.duration
 

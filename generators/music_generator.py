@@ -308,7 +308,15 @@ def _try_elevenlabs(
     duration_seconds: int,
     job_dir: Path,
 ) -> Optional[str]:
-    """Generate via ElevenLabs Sound Generation. Returns local file path or None."""
+    """Generate via ElevenLabs Sound Generation. Returns local file path or None.
+
+    This endpoint's real max is 22 seconds (it's an SFX/ambience generator,
+    not a song generator) — the previous 30s clamp exceeded that on every
+    call above ~22s, so ElevenLabs rejected the request every time and this
+    "last resort" fallback silently never worked. Even fixed, this can only
+    ever return a short clip, not a full track — it's a bed/texture layer,
+    not a substitute for a real music-generation provider (Suno/Replicate).
+    """
     key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
     if not key:
         log.info("ElevenLabs: ELEVENLABS_API_KEY not set, skipping")
@@ -320,7 +328,7 @@ def _try_elevenlabs(
             headers={"xi-api-key": key, "Content-Type": "application/json"},
             json={
                 "text": description[:500],
-                "duration_seconds": min(duration_seconds, 30),
+                "duration_seconds": min(max(duration_seconds, 1), 22),
                 "prompt_influence": 0.3,
             },
             timeout=60,

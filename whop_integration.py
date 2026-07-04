@@ -306,7 +306,7 @@ def whop_webhook():
     payload = request.get_data()
     signature = request.headers.get("X-Whop-Signature", "")
 
-    if WHOP_WEBHOOK_SECRET and not _verify_webhook(payload, signature):
+    if not _verify_webhook(payload, signature):
         return jsonify({"error": "Invalid signature"}), 401
 
     try:
@@ -334,7 +334,8 @@ def whop_webhook():
 def _verify_webhook(payload: bytes, signature: str) -> bool:
     """Verify Whop webhook signature."""
     if not WHOP_WEBHOOK_SECRET:
-        return True
+        logger.error("WHOP_WEBHOOK_SECRET is not configured — rejecting webhook (fail closed).")
+        return False
     expected = hmac.HMAC(
         WHOP_WEBHOOK_SECRET.encode(),
         payload,

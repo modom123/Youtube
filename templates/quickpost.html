@@ -206,6 +206,26 @@ let currentJobId = null;
 let pollInterval = null;
 let generatedData = null;
 
+const SO_JOB_KEY = 'so_quickpost_active_job';
+const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000;
+function saveActiveJob(jobId) {
+  localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, startedAt: Date.now() }));
+}
+function clearActiveJob() {
+  localStorage.removeItem(SO_JOB_KEY);
+}
+function getResumableJob() {
+  try {
+    const raw = localStorage.getItem(SO_JOB_KEY);
+    if (!raw) return null;
+    const { jobId, startedAt } = JSON.parse(raw);
+    if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) { clearActiveJob(); return null; }
+    return jobId;
+  } catch (e) {
+    return null;
+  }
+}
+
 function previewMedia(input) {
   const file = input.files[0];
   if (!file) return;
@@ -260,6 +280,7 @@ async function generatePost() {
     const data = await resp.json();
     if (data.error) { showError(data.error); return; }
     currentJobId = data.job_id;
+    saveActiveJob(currentJobId);
     pollInterval = setInterval(pollStatus, 1200);
   } catch(e) {
     showError(e.message);
@@ -275,12 +296,14 @@ async function pollStatus() {
 
     if (data.status === 'done') {
       clearInterval(pollInterval);
+      clearActiveJob();
       generatedData = data;
       showResults(data);
       const btn = document.getElementById('generateBtn');
       btn.disabled = false; btn.textContent = '✨ Generate Captions';
     } else if (data.status === 'error') {
       clearInterval(pollInterval);
+      clearActiveJob();
       showError(data.error || 'Generation failed');
       const btn = document.getElementById('generateBtn');
       btn.disabled = false; btn.textContent = '✨ Generate Captions';
@@ -437,5 +460,38 @@ function showError(msg) {
   showState('spinner');
   document.getElementById('spinnerMsg').textContent = '❌ ' + msg;
 }
+
+(function resumeActiveJob() {
+  const jobId = getResumableJob();
+  if (!jobId) return;
+  fetch(`/api/quickpost/${jobId}/status`)
+    .then(r => r.json())
+    .then(d => {
+      if (!d || d.status === 'pending') { clearActiveJob(); return; }
+
+      if (d.status === 'done') {
+        clearActiveJob();
+        generatedData = d;
+        showResults(d);
+        return;
+      }
+      if (d.status === 'error') {
+        clearActiveJob();
+        showError(d.error || 'Generation failed');
+        return;
+      }
+
+      // Still running -- reconnect
+      currentJobId = jobId;
+      const btn = document.getElementById('generateBtn');
+      btn.disabled = true; btn.textContent = '⏳ Generating...';
+      showState('spinner');
+      document.getElementById('spinnerMsg').textContent = d.step || 'Reconnecting…';
+      pollInterval = setInterval(pollStatus, 1200);
+    })
+    .catch(() => {
+      // Network hiccup -- leave stored job in place, next load retries.
+    });
+})();
 </script>
 {% endblock %}

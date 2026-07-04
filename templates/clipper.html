@@ -478,6 +478,89 @@
   let _activeClipIdx = -1;
   let _editIdx = -1;
   window._editIdx = -1;
+  let _clipCurrentStepIdx = 0;
+
+  const SO_JOB_KEY = 'so_clipper_active_job';
+  const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000;
+  function saveActiveJob(jobId) {
+    localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, startedAt: Date.now() }));
+  }
+  function clearActiveJob() {
+    localStorage.removeItem(SO_JOB_KEY);
+  }
+  function getResumableJob() {
+    try {
+      const raw = localStorage.getItem(SO_JOB_KEY);
+      if (!raw) return null;
+      const { jobId, startedAt } = JSON.parse(raw);
+      if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) { clearActiveJob(); return null; }
+      return jobId;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setProgressStep(idx, pct){
+    _clipCurrentStepIdx = idx;
+    const steps = $('progress-steps').children;
+    for(let i=0; i<steps.length; i++){
+      steps[i].classList.remove('active','done');
+      if(i < idx) steps[i].classList.add('done');
+      else if(i === idx) steps[i].classList.add('active');
+    }
+    const circle = $('progress-circle');
+    const offset = 326.7 - (326.7 * pct / 100);
+    circle.style.strokeDashoffset = offset;
+    $('progress-pct').textContent = Math.round(pct) + '%';
+    soBrandCounterRender('clipBrand', pct);
+  }
+
+  async function pollClipStatus(startTime){
+    try {
+      const sr = await fetch('/api/clipper/' + _clipJobId + '/status');
+      const sd = await sr.json();
+
+      // Update progress from server
+      if(sd.progress !== undefined){
+        const pct = Math.min(sd.progress, 99);
+        const stepMap = { downloading:0, analyzing:1, detecting:2, scoring:3, cutting:4, captions:5, finalizing:6 };
+        const si = stepMap[sd.step] !== undefined ? stepMap[sd.step] : _clipCurrentStepIdx;
+        setProgressStep(si, pct);
+
+        // ETA
+        const elapsed = (Date.now() - startTime) / 1000;
+        if(pct > 5){
+          const total = elapsed / (pct/100);
+          const remaining = Math.max(0, total - elapsed);
+          $('progress-eta').textContent = 'About ' + Math.ceil(remaining/60) + ' min remaining';
+        }
+        $('progress-title').textContent = sd.step_label || 'Processing...';
+      }
+
+      if(sd.status === 'done'){
+        setProgressStep(7, 100);
+        _sourceDuration = sd.source_duration || 0;
+        clearActiveJob();
+        setTimeout(() => {
+          $('clipProgress').style.display = 'none';
+          $('playerSection').style.display = '';
+          renderClips(sd.clips || []);
+          loadSourceVideo();
+          resetBtn();
+          toast('success','Clips Ready!', (sd.clips||[]).length + ' viral clips generated');
+        }, 600);
+        return;
+      }
+      if(sd.status === 'error'){
+        clearActiveJob();
+        toast('error','Clipping Failed', sd.error || 'Unknown error');
+        resetBtn(); return;
+      }
+      setTimeout(() => pollClipStatus(startTime), 2500);
+    } catch(e){
+      setTimeout(() => pollClipStatus(startTime), 4000);
+    }
+  }
 
   // ---- Helpers ----
   function $(id){ return document.getElementById(id); }
@@ -590,23 +673,6 @@
     $('emptyHero').style.display = 'none';
     $('playerSection').style.display = 'none';
 
-    const stepNames = ['download','analyze','scenes','scoring','cutting','captions','finalize'];
-    let currentStepIdx = 0;
-
-    function setProgressStep(idx, pct){
-      const steps = $('progress-steps').children;
-      for(let i=0; i<steps.length; i++){
-        steps[i].classList.remove('active','done');
-        if(i < idx) steps[i].classList.add('done');
-        else if(i === idx) steps[i].classList.add('active');
-      }
-      const circle = $('progress-circle');
-      const offset = 326.7 - (326.7 * pct / 100);
-      circle.style.strokeDashoffset = offset;
-      $('progress-pct').textContent = Math.round(pct) + '%';
-      soBrandCounterRender('clipBrand', pct);
-    }
-
     try {
       // Build form data for upload, or JSON for other sources
       let resp;
@@ -630,58 +696,12 @@
       }
 
       _clipJobId = result.clip_job_id;
+      saveActiveJob(_clipJobId);
       const startTime = Date.now();
-
-      // Poll for status
-      const poll = async () => {
-        try {
-          const sr = await fetch('/api/clipper/' + _clipJobId + '/status');
-          const sd = await sr.json();
-
-          // Update progress from server
-          if(sd.progress !== undefined){
-            const pct = Math.min(sd.progress, 99);
-            const stepMap = { downloading:0, analyzing:1, detecting:2, scoring:3, cutting:4, captions:5, finalizing:6 };
-            const si = stepMap[sd.step] !== undefined ? stepMap[sd.step] : currentStepIdx;
-            currentStepIdx = si;
-            setProgressStep(si, pct);
-
-            // ETA
-            const elapsed = (Date.now() - startTime) / 1000;
-            if(pct > 5){
-              const total = elapsed / (pct/100);
-              const remaining = Math.max(0, total - elapsed);
-              $('progress-eta').textContent = 'About ' + Math.ceil(remaining/60) + ' min remaining';
-            }
-            $('progress-title').textContent = sd.step_label || 'Processing...';
-          }
-
-          if(sd.status === 'done'){
-            setProgressStep(7, 100);
-            _sourceDuration = sd.source_duration || 0;
-            setTimeout(() => {
-              $('clipProgress').style.display = 'none';
-              $('playerSection').style.display = '';
-              renderClips(sd.clips || []);
-              loadSourceVideo();
-              resetBtn();
-              toast('success','Clips Ready!', (sd.clips||[]).length + ' viral clips generated');
-            }, 600);
-            return;
-          }
-          if(sd.status === 'error'){
-            toast('error','Clipping Failed', sd.error || 'Unknown error');
-            resetBtn(); return;
-          }
-          setTimeout(poll, 2500);
-        } catch(e){
-          setTimeout(poll, 4000);
-        }
-      };
 
       // Start simulated progress while waiting for first poll
       setProgressStep(0, 5);
-      setTimeout(poll, 3000);
+      setTimeout(() => pollClipStatus(startTime), 3000);
 
     } catch(e){
       toast('error','Network Error', e.message);
@@ -1036,6 +1056,52 @@
       if(document.getElementById('pubModal').style.display === 'flex') closePubModal();
     }
   });
+
+  (function resumeActiveJob(){
+    const jobId = getResumableJob();
+    if(!jobId) return;
+    fetch('/api/clipper/' + jobId + '/status')
+      .then(r => { if(!r.ok){ clearActiveJob(); return null; } return r.json(); })
+      .then(sd => {
+        if(!sd || sd.error){ clearActiveJob(); return; }
+        _clipJobId = jobId;
+
+        const btn = $('clip-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="shimmer" style="display:inline-block;width:18px;height:18px;border-radius:50%;"></span> Processing...';
+        $('clipProgress').style.display = '';
+        $('emptyHero').style.display = 'none';
+        $('playerSection').style.display = 'none';
+
+        if(sd.status === 'done'){
+          clearActiveJob();
+          _sourceDuration = sd.source_duration || 0;
+          setProgressStep(7, 100);
+          $('clipProgress').style.display = 'none';
+          $('playerSection').style.display = '';
+          renderClips(sd.clips || []);
+          loadSourceVideo();
+          resetBtn();
+          return;
+        }
+        if(sd.status === 'error'){
+          clearActiveJob();
+          toast('error','Clipping Failed', sd.error || 'Unknown error');
+          resetBtn();
+          return;
+        }
+
+        // Still running -- restore progress and resume polling
+        const stepMap = { downloading:0, analyzing:1, detecting:2, scoring:3, cutting:4, captions:5, finalizing:6 };
+        const si = stepMap[sd.step] !== undefined ? stepMap[sd.step] : 0;
+        setProgressStep(si, Math.min(sd.progress || 0, 99));
+        $('progress-title').textContent = sd.step_label || 'Processing...';
+        pollClipStatus(Date.now());
+      })
+      .catch(() => {
+        // Network hiccup -- leave stored job in place, next load retries.
+      });
+  })();
 
 })();
 </script>

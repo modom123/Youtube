@@ -135,122 +135,11 @@
   <p>Tips, guides, and insights on AI video creation, content strategy, and growing your audience.</p>
 </section>
 
-<!-- CONTROLS -->
-<div class="blog-controls">
-  <div class="blog-search">
-    <input type="text" id="searchInput" placeholder="Search articles..." onkeyup="filterPosts()">
-  </div>
-  <div class="blog-filters">
-    <button class="filter-btn active" onclick="filterByCategory('all'); event.target.classList.add('active'); document.querySelectorAll('.filter-btn').forEach(b => { if(b !== event.target) b.classList.remove('active'); })">All</button>
-    <button class="filter-btn" onclick="filterByCategory('how-to'); event.target.classList.add('active'); document.querySelectorAll('.filter-btn').forEach(b => { if(b !== event.target) b.classList.remove('active'); })">How-To</button>
-    <button class="filter-btn" onclick="filterByCategory('case-study'); event.target.classList.add('active'); document.querySelectorAll('.filter-btn').forEach(b => { if(b !== event.target) b.classList.remove('active'); })">Case Studies</button>
-    <button class="filter-btn" onclick="filterByCategory('update'); event.target.classList.add('active'); document.querySelectorAll('.filter-btn').forEach(b => { if(b !== event.target) b.classList.remove('active'); })">Updates</button>
-  </div>
-</div>
-
-<!-- GRID -->
-<div class="blog-grid" id="blogGrid">
-  <!-- Post 1 -->
-  <a href="#" class="blog-post" data-category="how-to" data-title="How to Create Viral Shorts in 5 Minutes" onclick="return false;">
-    <div class="blog-post-thumb">🎬</div>
-    <div class="blog-post-content">
-      <div class="blog-post-meta">
-        <span class="blog-post-category">How-To</span>
-        <span>Jun 20, 2026</span>
-        <span class="read-time">5 min read</span>
-      </div>
-      <h3 class="blog-post-title">How to Create Viral Shorts in 5 Minutes</h3>
-      <p class="blog-post-excerpt">Master the hook, open loop, and CTA formula that keeps viewers watching past 3 seconds. Real examples from trending creators.</p>
-      <div class="blog-post-footer">
-        <span>By Alex Chen</span>
-      </div>
-    </div>
-  </a>
-
-  <!-- Post 2 -->
-  <a href="#" class="blog-post" data-category="how-to" data-title="Podcast to Social Media: The Repurposing Guide" onclick="return false;">
-    <div class="blog-post-thumb">🎙</div>
-    <div class="blog-post-content">
-      <div class="blog-post-meta">
-        <span class="blog-post-category">How-To</span>
-        <span>Jun 18, 2026</span>
-        <span class="read-time">8 min read</span>
-      </div>
-      <h3 class="blog-post-title">Podcast to Social Media: The Repurposing Guide</h3>
-      <p class="blog-post-excerpt">Turn one 60-minute podcast episode into 20+ social media videos. The complete workflow from The Forge to publishing.</p>
-      <div class="blog-post-footer">
-        <span>By Sarah Williams</span>
-      </div>
-    </div>
-  </a>
-
-  <!-- Post 3 -->
-  <a href="#" class="blog-post" data-category="how-to" data-title="Product Ads That Sell: 6-Second Bumpers That Work" onclick="return false;">
-    <div class="blog-post-thumb">🛍</div>
-    <div class="blog-post-content">
-      <div class="blog-post-meta">
-        <span class="blog-post-category">How-To</span>
-        <span>Jun 15, 2026</span>
-        <span class="read-time">6 min read</span>
-      </div>
-      <h3 class="blog-post-title">Product Ads That Sell: 6-Second Bumpers That Work</h3>
-      <p class="blog-post-excerpt">Proven formula for short-form ads with high CTR. How to structure your message, hook your audience, and drive conversions.</p>
-      <div class="blog-post-footer">
-        <span>By Jane Smith</span>
-      </div>
-    </div>
-  </a>
-
-  <!-- Post 4 -->
-  <a href="#" class="blog-post" data-category="how-to" data-title="Using Google Trends to Find Your Next Video Topic" onclick="return false;">
-    <div class="blog-post-thumb">📈</div>
-    <div class="blog-post-content">
-      <div class="blog-post-meta">
-        <span class="blog-post-category">How-To</span>
-        <span>Jun 12, 2026</span>
-        <span class="read-time">7 min read</span>
-      </div>
-      <h3 class="blog-post-title">Using Google Trends to Find Your Next Video Topic</h3>
-      <p class="blog-post-excerpt">How our Research Agent finds trending topics before they peak. Data-driven content strategy that keeps you ahead of competitors.</p>
-      <div class="blog-post-footer">
-        <span>By Alex Chen</span>
-      </div>
-    </div>
-  </a>
-
-  <!-- Post 5 -->
-  <a href="#" class="blog-post" data-category="update" data-title="Hollywood Agent: Your AI Content Manager" onclick="return false;">
-    <div class="blog-post-thumb">🎭</div>
-    <div class="blog-post-content">
-      <div class="blog-post-meta">
-        <span class="blog-post-category">Product Update</span>
-        <span>Jun 10, 2026</span>
-        <span class="read-time">5 min read</span>
-      </div>
-      <h3 class="blog-post-title">Introducing Hollywood Agent: Your AI Content Manager</h3>
-      <p class="blog-post-excerpt">Automate engagement, track competitors, optimize posting times, and manage comments across all platforms from one dashboard.</p>
-      <div class="blog-post-footer">
-        <span>By Sarah Williams</span>
-      </div>
-    </div>
-  </a>
-
-  <!-- Post 6 -->
-  <a href="#" class="blog-post" data-category="case-study" data-title="From Solo Creator to Agency: Scaling with Social Optimize" onclick="return false;">
-    <div class="blog-post-thumb">🚀</div>
-    <div class="blog-post-content">
-      <div class="blog-post-meta">
-        <span class="blog-post-category">Case Study</span>
-        <span>Jun 8, 2026</span>
-        <span class="read-time">10 min read</span>
-      </div>
-      <h3 class="blog-post-title">From Solo Creator to Agency: Scaling with Social Optimize</h3>
-      <p class="blog-post-excerpt">How @CreativeStudio went from 1 creator to a 5-person agency using batch creation, team seats, and the Hollywood Agent.</p>
-      <div class="blog-post-footer">
-        <span>By John Doe</span>
-      </div>
-    </div>
-  </a>
+<!-- COMING SOON -->
+<div class="blog-empty" style="max-width:560px;margin:40px auto 120px;text-align:center;padding:0 20px;">
+  <div style="font-size:48px;margin-bottom:16px;">✍️</div>
+  <h2 style="margin-bottom:12px;">Articles coming soon</h2>
+  <p style="color:var(--muted);">We're writing our first guides on AI video creation and content strategy. Check back soon, or <a href="/contact">get in touch</a> if you have a topic you'd like us to cover.</p>
 </div>
 
 <!-- FOOTER -->
@@ -264,8 +153,8 @@
     <a href="/about">About</a>
     <a href="/blog">Blog</a>
     <a href="/contact">Contact</a>
-    <a href="/legal/privacy">Privacy</a>
-    <a href="/legal/terms">Terms</a>
+    <a href="/privacy">Privacy</a>
+    <a href="/terms">Terms</a>
   </div>
 </div>
 
@@ -275,29 +164,6 @@ window.addEventListener('scroll', () => {
   nav.classList.toggle('scrolled', window.scrollY > 0);
 });
 
-function filterByCategory(category) {
-  const posts = document.querySelectorAll('.blog-post');
-  posts.forEach(post => {
-    if (category === 'all' || post.dataset.category === category) {
-      post.style.display = '';
-    } else {
-      post.style.display = 'none';
-    }
-  });
-}
-
-function filterPosts() {
-  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-  const posts = document.querySelectorAll('.blog-post');
-  posts.forEach(post => {
-    const title = post.dataset.title.toLowerCase();
-    if (searchTerm === '' || title.includes(searchTerm)) {
-      post.style.display = '';
-    } else {
-      post.style.display = 'none';
-    }
-  });
-}
 </script>
 
 </body>

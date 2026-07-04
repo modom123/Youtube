@@ -30,7 +30,7 @@ const STUDIOS = [
     name: 'Commercial Studio',
     icon: '📺',
     desc: 'Create professional brand advertisements and promotional content.',
-    path: '/commercial-studio',
+    path: '/commercial',
     color: '#f59e0b',
     features: ['Brand Ads', 'Product Demos', 'Social Ads', 'Templates'],
   },

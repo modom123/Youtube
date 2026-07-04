@@ -384,7 +384,8 @@ def admin_revenue():
     tier_prices = {"free": 0, "starter": 9.99, "creator": 29.99, "pro": 79.99, "agency": 199.99}
     with db.get_conn() as conn:
         rows = conn.execute(
-            "SELECT COALESCE(subscription_tier,'free') AS tier, COUNT(*) AS cnt FROM users GROUP BY tier"
+            "SELECT COALESCE(subscription_tier,'free') AS tier, COUNT(*) AS cnt FROM users "
+            "WHERE COALESCE(is_admin,0)=0 GROUP BY tier"
         ).fetchall()
     breakdown = {}
     mrr = 0

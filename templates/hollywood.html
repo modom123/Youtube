@@ -735,6 +735,31 @@ let _hwDbJobId = null;
 let _hwStepStartTimes = {};
 let _hwActiveStepIdx = -1;
 
+// ── Resume an in-progress job after leaving/returning to this page ──────────
+// _run_hw_thread keeps producing server-side regardless of this tab, but
+// _hwJobId only ever lived in this local variable -- navigating away and
+// back showed the idle panel with no way to tell a production was running.
+const SO_JOB_KEY = 'so_hollywood_active_job';
+const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+
+function saveActiveJob(jobId) {
+  localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, startedAt: Date.now() }));
+}
+function clearActiveJob() {
+  localStorage.removeItem(SO_JOB_KEY);
+}
+function getResumableJob() {
+  try {
+    const raw = localStorage.getItem(SO_JOB_KEY);
+    if (!raw) return null;
+    const { jobId, startedAt } = JSON.parse(raw);
+    if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) { clearActiveJob(); return null; }
+    return jobId;
+  } catch (e) {
+    return null;
+  }
+}
+
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
 function _hwNow() {
@@ -887,6 +912,7 @@ function hwHandleEvent(d) {
     hwMarkAllDone();
     if (_hwEs) { _hwEs.close(); _hwEs = null; }
     hwStopPoll();
+    clearActiveJob();
     hwAddLog('Production complete!', '');
     document.getElementById('hw-progress-fill').style.width = '100%';
     document.getElementById('hw-progress-pct').innerHTML = hwBrandCounterHtml(100);
@@ -904,6 +930,7 @@ function hwHandleEvent(d) {
     hwMarkActiveFailed();
     if (_hwEs) { _hwEs.close(); _hwEs = null; }
     hwStopPoll();
+    clearActiveJob();
     const errMsg = step || 'Unknown pipeline error';
     document.getElementById('hw-error-banner').classList.add('visible');
     document.getElementById('hw-error-text').textContent = errMsg;
@@ -1014,6 +1041,7 @@ function hwStart() {
       return;
     }
     _hwJobId = data.hw_job_id;
+    saveActiveJob(_hwJobId);
     hwAddLog('Job started: ' + _hwJobId);
     hwStream(_hwJobId);
   })
@@ -1119,5 +1147,30 @@ function hwReassemble() {
   })
   .catch(function(e) { alert('Network error: ' + e.message); });
 }
+
+// Reconnect to a production that was still running when this page was
+// last left. A bare {"error": "Not found"} means the server has no memory
+// of this id (e.g. it restarted since), so it's discarded silently.
+(function resumeActiveJob() {
+  const jobId = getResumableJob();
+  if (!jobId) return;
+  fetch('/api/hollywood/status/' + jobId)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data || data.error) { clearActiveJob(); return; }
+      _hwJobId = jobId;
+      hwShowRunning();
+      document.getElementById('hw-run-btn').disabled = true;
+      document.getElementById('hw-run-btn').textContent = 'Production in Progress…';
+      hwAddLog('Reconnected to production still in progress...');
+      hwHandleEvent(data);
+      if (data.status !== 'done' && data.status !== 'error') {
+        hwStream(jobId);
+      }
+    })
+    .catch(function() {
+      // Network hiccup -- leave the stored job id in place, next load retries.
+    });
+})();
 </script>
 {% endblock %}

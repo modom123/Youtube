@@ -157,11 +157,11 @@ def _email_churn_high(user: dict) -> tuple[str, str]:
     html = f"""
 <p>Hi {name},</p>
 <p>Quick heads up — content creators in your space are publishing 3–5 videos per week right now.</p>
-<p>This week's top-performing formats:</p>
+<p>Popular formats worth trying:</p>
 <ol>
-  <li>"Day in the Life" series — 4.2× engagement</li>
-  <li>"Behind the Scenes" reels — 3.8× engagement</li>
-  <li>"Quick Tips" shorts — 5.1× engagement</li>
+  <li>"Day in the Life" series</li>
+  <li>"Behind the Scenes" reels</li>
+  <li>"Quick Tips" shorts</li>
 </ol>
 <p>You can create any of these in under 2 minutes with Social Optimize.</p>
 <p><a href="{config.APP_BASE_URL}/create" style="background:#7c3aed;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">Create Now →</a></p>
@@ -245,6 +245,10 @@ def _handle_churn_risk(sender: str, payload: dict):
         return
     user = {"id": user_id, "email": email, "name": payload.get("name", ""), "subscription_tier": payload.get("tier", "")}
     if risk == "critical":
+        try:
+            db.add_credits(user_id, 50, "retention_bonus", "Win-back bonus credits")
+        except Exception:
+            pass
         subject, html = _email_churn_critical(user)
     elif risk == "high":
         subject, html = _email_churn_high(user)

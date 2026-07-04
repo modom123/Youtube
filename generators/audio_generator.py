@@ -1,4 +1,21 @@
-"""Text-to-speech audio generation — ElevenLabs primary, Google Cloud TTS Neural2 secondary, edge-tts tertiary, pyttsx3/espeak-ng last-resort fallback."""
+"""Text-to-speech audio generation — ElevenLabs primary, Google Cloud TTS
+Neural2 secondary, edge-tts tertiary, pyttsx3/espeak-ng last-resort fallback.
+
+ElevenLabs goes first because it's the highest quality of the four AND the
+most reliable to actually reach from a cloud server: edge-tts calls
+Microsoft's consumer endpoint, which frequently blocks datacenter/cloud IP
+ranges (Render, AWS, GCP, ...) with 403s — so on a server, edge-tts can fail
+silently far more often than it does on a home connection, and Google Cloud
+TTS requires the API key to have the Cloud Text-to-Speech API specifically
+enabled (a separate scope from Vision/Translate/NLP, easy to miss). When
+both of those fail, this used to fall all the way to espeak-ng/pyttsx3 —
+robotic, 1990s-sounding synthesis — for real customer-facing videos.
+
+Voice selection is centralized in config.resolve_voice(), which maps any
+identifier (a curated ElevenLabs catalog id, a friendly name, or a legacy
+Google/edge id) to a {elevenlabs, google, edge} triple so every fallback
+layer stays the SAME gender the user picked.
+"""
 import asyncio
 import base64
 import re
@@ -215,8 +232,25 @@ def _generate_google_tts(text: str, output_path: Path, voice: str) -> bool:
         return False
 
 
+def _resolve_edge_voice(voice: str) -> str:
+    """Resolve a Social Optimize voice-catalog id (e.g. 'en-US-Studio-O') or a
+    Google Neural2 name to a real edge-tts voice name (e.g. 'en-US-AriaNeural').
+
+    edge-tts has its own naming scheme, distinct from both the app's catalog
+    ids and Google Cloud TTS's Neural2/Studio names — passing either of those
+    straight through fails with "Invalid voice" every time. Every catalog
+    entry already carries the correct edge-tts name in its 'edge' field."""
+    if voice.endswith("Neural") or voice.endswith("Neural2"):
+        return voice
+    catalog_entry = next((v for v in config.VOICE_CATALOG if v["id"] == voice), None)
+    if catalog_entry and catalog_entry.get("edge"):
+        return catalog_entry["edge"]
+    return "en-US-AriaNeural"
+
+
 async def _generate_speech(text: str, output_path: Path, voice: str, rate: str, pitch: str) -> None:
-    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch)
+    edge_voice = _resolve_edge_voice(voice)
+    communicate = edge_tts.Communicate(text, edge_voice, rate=rate, pitch=pitch)
     await communicate.save(str(output_path))
 
 
@@ -293,7 +327,8 @@ def generate_audio(
     """Convert text to speech and save as MP3.
 
     Priority (each fallback stays the SAME gender the user selected):
-    1. ElevenLabs (if ELEVENLABS_API_KEY set) — premium AI voices
+    1. ElevenLabs (if ELEVENLABS_API_KEY set) — highest quality, most
+       reliable to reach from a cloud server
     2. Google Cloud TTS Neural2 (if GOOGLE_API_KEY set)
     3. edge-tts
     4. espeak-ng / pyttsx3 fallback
@@ -304,26 +339,34 @@ def generate_audio(
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
+    def _has_real_audio() -> bool:
+        # edge-tts (and some failure paths) can leave a 0-byte file behind
+        # when the connection drops mid-write — exists() alone would treat
+        # that empty stub as a successful result.
+        return output_path.exists() and output_path.stat().st_size > 0
+
     # 1. Try ElevenLabs — the primary, highest-quality source
     if _generate_elevenlabs(clean_text, output_path, resolved["elevenlabs"]):
-        if output_path.exists():
+        if _has_real_audio():
             return output_path
 
     # 2. Try Google Cloud TTS Neural2 (gender-matched fallback voice)
     if getattr(config, "GOOGLE_API_KEY", ""):
         if _generate_google_tts(clean_text, output_path, resolved["google"]):
-            if output_path.exists():
+            if _has_real_audio():
                 return output_path
 
     # 3. Try edge-tts (gender-matched fallback voice — never a raw Google id,
     #    which edge-tts would reject and drop us to the robotic espeak voice)
     try:
         asyncio.run(_generate_speech(clean_text, output_path, resolved["edge"], rate, pitch))
+        if not _has_real_audio():
+            raise RuntimeError("edge-tts produced no audio content")
     except Exception as e:
         print(f"[audio] edge-tts failed ({e}) — using fallback TTS")
         _tts_fallback(clean_text, output_path)
 
-    if not output_path.exists():
+    if not _has_real_audio():
         raise RuntimeError(f"Audio generation failed — no output at {output_path}")
 
     return output_path
@@ -336,6 +379,178 @@ def get_audio_duration(audio_path: Path) -> float:
     duration = float(clip.duration)  # cast numpy.float64 → plain float so DB drivers don't choke
     clip.close()
     return duration
+
+
+_gcs_credentials = None
+
+
+def _get_gcs_token() -> str:
+    """Return a fresh OAuth2 access token for the configured service account.
+    GCS bucket writes need real IAM authorization, not the plain API key
+    used everywhere else in this file — a service account is the only
+    practical way to get that from a headless server."""
+    global _gcs_credentials
+    import json as _json
+    from google.oauth2 import service_account
+    from google.auth.transport.requests import Request as _AuthRequest
+
+    if _gcs_credentials is None:
+        info = _json.loads(config.GOOGLE_SERVICE_ACCOUNT_JSON)
+        _gcs_credentials = service_account.Credentials.from_service_account_info(
+            info, scopes=["https://www.googleapis.com/auth/devstorage.read_write"]
+        )
+    if not _gcs_credentials.valid:
+        _gcs_credentials.refresh(_AuthRequest())
+    return _gcs_credentials.token
+
+
+def _gcs_upload(bucket: str, object_name: str, data: bytes) -> None:
+    import requests
+
+    token = _get_gcs_token()
+    resp = requests.post(
+        f"https://storage.googleapis.com/upload/storage/v1/b/{bucket}/o",
+        params={"uploadType": "media", "name": object_name},
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "audio/wav"},
+        data=data,
+        timeout=60,
+    )
+    resp.raise_for_status()
+    print(f"[audio] Uploaded {len(data)} bytes to gs://{bucket}/{object_name}")
+
+
+def _gcs_delete(bucket: str, object_name: str) -> None:
+    if not bucket:
+        return
+    import requests
+    from urllib.parse import quote
+    try:
+        token = _get_gcs_token()
+        requests.delete(
+            f"https://storage.googleapis.com/storage/v1/b/{bucket}/o/{quote(object_name, safe='')}",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+        )
+    except Exception as e:
+        # Not fatal to transcription itself, but don't pretend it succeeded.
+        print(f"[audio] Failed to clean up gs://{bucket}/{object_name}: {e}")
+
+
+def transcribe_audio(audio_path, language_code: str = "en-US") -> str:
+    """Real speech-to-text transcription via Google Cloud Speech-to-Text v1,
+    using the same GOOGLE_API_KEY already configured for TTS.
+
+    Converts to 16kHz mono LINEAR16 WAV first — the most reliably-supported
+    STT input — rather than sending the source MP3 directly, since exact
+    MP3 sample-rate/encoding handling varies by API version.
+
+    Uses the asynchronous longrunningrecognize endpoint since podcast
+    episodes routinely exceed the synchronous recognize endpoint's ~1-minute
+    cap. Inline (non-GCS) audio content has a real ~10MB request-size
+    ceiling on Google's side, which at 16kHz mono is only ~5 minutes of
+    audio — well under a typical podcast episode. If GCS_BUCKET_NAME and
+    GOOGLE_SERVICE_ACCOUNT_JSON are configured, audio over that threshold is
+    uploaded to GCS first and referenced by gs:// URI instead (then deleted
+    once transcription completes); otherwise this raises a clear error
+    rather than silently truncating, which callers already treat as
+    non-fatal.
+    """
+    import base64
+    import subprocess
+    import time
+    import uuid as _uuid
+    import imageio_ffmpeg
+    import requests
+
+    api_key = getattr(config, "GOOGLE_API_KEY", "")
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY is not configured — cannot transcribe audio")
+
+    audio_path = Path(audio_path)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        wav_path = Path(tmpdir) / "for_stt.wav"
+        ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
+        result = subprocess.run(
+            [ffmpeg_bin, "-y", "-i", str(audio_path), "-ac", "1", "-ar", "16000",
+             "-sample_fmt", "s16", str(wav_path)],
+            capture_output=True,
+        )
+        if result.returncode != 0 or not wav_path.exists():
+            raise RuntimeError(
+                f"Failed to convert audio for transcription: "
+                f"{result.stderr.decode('utf-8', errors='replace')[-300:]}"
+            )
+        audio_bytes = wav_path.read_bytes()
+
+    gcs_object_name = None
+    audio_field: dict
+
+    if len(audio_bytes) > 9_500_000:
+        bucket = getattr(config, "GCS_BUCKET_NAME", "")
+        if not bucket or not getattr(config, "GOOGLE_SERVICE_ACCOUNT_JSON", ""):
+            raise RuntimeError(
+                f"Audio too large for inline transcription ({len(audio_bytes) / 1e6:.1f}MB, "
+                "~10MB limit) and GCS_BUCKET_NAME / GOOGLE_SERVICE_ACCOUNT_JSON aren't both "
+                "configured — transcription skipped."
+            )
+        gcs_object_name = f"stt-scratch/{_uuid.uuid4()}.wav"
+        _gcs_upload(bucket, gcs_object_name, audio_bytes)
+        audio_field = {"uri": f"gs://{bucket}/{gcs_object_name}"}
+    else:
+        audio_field = {"content": base64.b64encode(audio_bytes).decode()}
+
+    try:
+        start_resp = requests.post(
+            f"https://speech.googleapis.com/v1/speech:longrunningrecognize?key={api_key}",
+            json={
+                "config": {
+                    "encoding": "LINEAR16",
+                    "sampleRateHertz": 16000,
+                    "languageCode": language_code,
+                    "enableAutomaticPunctuation": True,
+                },
+                "audio": audio_field,
+            },
+            timeout=30,
+        )
+        start_resp.raise_for_status()
+        operation_name = start_resp.json().get("name")
+        if not operation_name:
+            raise RuntimeError(f"Google Speech-to-Text did not return an operation name: {start_resp.json()}")
+    except Exception:
+        if gcs_object_name:
+            _gcs_delete(getattr(config, "GCS_BUCKET_NAME", ""), gcs_object_name)
+        raise
+
+    try:
+        # Poll until done — long episodes can take a few minutes to transcribe.
+        for _ in range(60):  # up to ~5 minutes
+            time.sleep(5)
+            poll_resp = requests.get(
+                f"https://speech.googleapis.com/v1/operations/{operation_name}",
+                params={"key": api_key},
+                timeout=30,
+            )
+            poll_resp.raise_for_status()
+            data = poll_resp.json()
+            if data.get("done"):
+                if "error" in data:
+                    raise RuntimeError(f"Google Speech-to-Text failed: {data['error']}")
+                results = data.get("response", {}).get("results", [])
+                transcript = " ".join(
+                    r["alternatives"][0]["transcript"]
+                    for r in results
+                    if r.get("alternatives")
+                )
+                print(f"[audio] Transcribed {len(transcript)} chars via Google Speech-to-Text")
+                return transcript.strip()
+
+        raise TimeoutError("Google Speech-to-Text did not complete within 5 minutes")
+    finally:
+        # Scratch object served its purpose the moment the request was
+        # accepted — never leave it in the bucket accumulating storage cost.
+        if gcs_object_name:
+            _gcs_delete(getattr(config, "GCS_BUCKET_NAME", ""), gcs_object_name)
 
 
 async def list_voices() -> list:

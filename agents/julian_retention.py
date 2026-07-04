@@ -8,11 +8,9 @@ Runs every 10 minutes. Monitors user activity, detects churn signals,
 triggers win-back campaigns and engagement strategies.
 """
 import threading
-import json
 from datetime import datetime, timezone, timedelta
 
 import database as db
-import config
 from agents import executive_bus as bus
 
 AGENT_NAME = "julian_vance"
@@ -96,91 +94,22 @@ def _detect_churn_risks():
                        {"risk_level": risk_level, "recent": recent, "previous": previous, "tier": user.get("subscription_tier")},
                        f"{risk_level.upper()} churn risk: {user.get('email')} ({recent} vs {previous} videos)")
 
-        _execute_retention_play(user, risk_level, recent, previous)
-
     return at_risk
-
-
-def _execute_retention_play(user, risk_level, recent, previous):
-    """Execute targeted retention strategy based on risk level."""
-    email = user.get("email")
-    if not email:
-        return
-
-    if risk_level == "critical":
-        subject = "We miss you — here's a free bonus to get you creating again"
-        body = f"""Hi {(user.get('name') or 'Creator').split()[0]},
-
-We noticed you haven't created any content recently, and we want to make sure everything's okay.
-
-As a valued {user.get('subscription_tier', '').title()} member, here's what we've added since you were last active:
-- Cinema House for cinematic content
-- Hit Factory with AI beat generation
-- Ad Lab for brand ads
-
-To welcome you back, we're adding 50 bonus credits to your account.
-
-Jump back in: {config.APP_BASE_URL}/create
-
-If something isn't working right, reply to this email — our team will personally help you.
-
-Best,
-Dr. Julian Vance
-Customer Success, Social Optimize"""
-
-    elif risk_level == "high":
-        subject = f"Trending templates in your niche — your competitors are posting daily"
-        body = f"""Hi {(user.get('name') or 'Creator').split()[0]},
-
-Quick heads up — we're seeing a surge in content creation in your space. Your competitors are posting 3-5 videos per week.
-
-Here are this week's top-performing templates:
-1. "Day in the Life" series — 4.2x engagement
-2. "Behind the Scenes" reels — 3.8x engagement
-3. "Quick Tips" shorts — 5.1x engagement
-
-You can create any of these in under 2 minutes with our AI.
-
-Create now: {config.APP_BASE_URL}/create
-
-Stay ahead,
-Social Optimize Team"""
-
-    else:
-        subject = "Pro tip: Here's how our top creators use Social Optimize"
-        body = f"""Hi {(user.get('name') or 'Creator').split()[0]},
-
-Our most successful creators share a few habits:
-- They batch-create 5-10 videos at once (try Batch Mode)
-- They use the Content Calendar to schedule a week ahead
-- They repurpose one idea across 3-4 platforms
-
-Try it: {config.APP_BASE_URL}/batch
-
-Keep growing,
-Social Optimize Team"""
-
-    try:
-        db.create_agency_followup(user["id"], {
-            "type": "email", "subject": subject, "body": body,
-            "scheduled_at": datetime.now(timezone.utc).isoformat(),
-            "template": f"retention_{risk_level}"
-        })
-    except Exception:
-        pass
 
 
 def _compute_retention_metrics():
     """Compute and publish retention KPIs."""
     with db.get_conn() as conn:
         total_paying = conn.execute(
-            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL"
+            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') "
+            "AND subscription_tier IS NOT NULL AND COALESCE(is_admin,0)=0"
         ).fetchone()[0]
         week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         active_paying = conn.execute("""
             SELECT COUNT(DISTINCT u.id) FROM users u
             JOIN jobs j ON u.id = j.user_id
             WHERE u.subscription_tier NOT IN ('free','') AND u.subscription_tier IS NOT NULL
+            AND COALESCE(u.is_admin,0)=0
             AND j.created_at >= ?
         """, (week_ago,)).fetchone()[0]
 

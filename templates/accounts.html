@@ -22,7 +22,24 @@
   .pt-status.off { background: rgba(255,255,255,.06); color: var(--muted); }
   .pt-status.cfg { background: rgba(212,160,23,.12); color: var(--accent); }
   .connected-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .oauth-banner { border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; font-size: 14px; }
+  .oauth-banner.ok { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3); color: #4ade80; }
+  .oauth-banner.err { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3); color: #f87171; }
+  .oauth-banner .detail { color: var(--muted); font-size: 12px; margin-top: 4px; }
 </style>
+
+{% if connected_platform %}
+<div class="oauth-banner ok">✅ {{ connected_platform|capitalize }} connected successfully.</div>
+{% endif %}
+{% if error_platform %}
+<div class="oauth-banner err">
+  ⚠️ Couldn't connect {{ error_platform|capitalize }}.
+  {% if error_detail %}<div class="detail">{{ error_detail }}</div>{% endif %}
+</div>
+{% endif %}
+<div class="oauth-banner ok" id="returnToBanner" style="display:none;">
+  Connect below — you'll be sent right back to where you were.
+</div>
 
 <!-- Platform Connection Grid -->
 <div class="section-header mb-16">
@@ -698,5 +715,37 @@ async function runEngagementAutomationNow(platform) {
 }
 
 loadAutomationPlatforms();
+
+// If a studio sent the user here to connect a platform (e.g. Ad Lab
+// hitting a 401 mid-broadcast), carry that through to every connect
+// button so /oauth/<platform>/start bounces them back afterward instead
+// of stranding them on this generic Accounts page.
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get('next');
+  const highlight = params.get('highlight');
+
+  if (next) {
+    document.getElementById('returnToBanner').style.display = 'block';
+    document.querySelectorAll('.platform-tile button[onclick*="/oauth/"]').forEach(btn => {
+      const onclick = btn.getAttribute('onclick') || '';
+      const m = onclick.match(/window\.location\.href='(\/oauth\/[a-z]+\/start)'/);
+      if (m) {
+        btn.setAttribute('onclick', `window.location.href='${m[1]}?next=${encodeURIComponent(next)}'`);
+      }
+    });
+  }
+
+  if (highlight) {
+    document.querySelectorAll('.platform-tile').forEach(tile => {
+      const nameEl = tile.querySelector('.pt-name');
+      if (nameEl && nameEl.textContent.trim().toLowerCase() === highlight.toLowerCase()) {
+        tile.style.outline = '2px solid var(--accent, #d4a017)';
+        tile.style.outlineOffset = '2px';
+        tile.scrollIntoView({behavior: 'smooth', block: 'center'});
+      }
+    });
+  }
+})();
 </script>
 {% endblock %}

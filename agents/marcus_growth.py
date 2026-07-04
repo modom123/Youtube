@@ -124,7 +124,10 @@ def _compute_growth_metrics():
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         new_this_week = conn.execute("SELECT COUNT(*) FROM users WHERE created_at>=?", (week_ago,)).fetchone()[0]
-        paying = conn.execute("SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL").fetchone()[0]
+        paying = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') "
+            "AND subscription_tier IS NOT NULL AND COALESCE(is_admin,0)=0"
+        ).fetchone()[0]
         free = total_users - paying
         conversion_rate = (paying / total_users * 100) if total_users > 0 else 0
         videos_this_week = conn.execute("SELECT COUNT(*) FROM jobs WHERE created_at>=? AND status='done'", (week_ago,)).fetchone()[0]

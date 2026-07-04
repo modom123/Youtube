@@ -96,6 +96,143 @@ def _total_monthly_revenue():
 
 # ── Analysis cycles ───────────────────────────────────────────────────────────
 
+def _process_credit_rollovers():
+    """Safety-net sweep: roll over any customer whose credits haven't
+    refreshed in 30+ days. Real billing-cycle events (Stripe
+    invoice.payment_succeeded, Whop/Gumroad/etc membership renewal) already
+    trigger rollover_credits() directly and reset the timer — this only
+    catches accounts on channels that don't fire a reliable renewal event,
+    so it should rarely find anything to do in normal operation."""
+    try:
+        due = db.get_users_due_for_rollover()
+    except Exception as exc:
+        bus.log_msg(AGENT_NAME, f"Rollover sweep query failed: {exc}", "warning")
+        return
+    if not due:
+        return
+    processed = 0
+    for uid in due:
+        try:
+            result = db.rollover_credits(uid)
+            if result.get("ok"):
+                processed += 1
+        except Exception:
+            pass
+    if processed:
+        bus.log_msg(AGENT_NAME, f"💳  Rollover sweep: refreshed credits for {processed} user(s)")
+
+
+def _sync_higgsfield_balance():
+    """Pull the real Higgsfield credit balance and upsert it into
+    finance_provider_credits, so _check_credits() alerts on real data
+    instead of a manually-typed-in number."""
+    try:
+        from generators import higgsfield_mcp
+        bal = higgsfield_mcp.get_balance()
+    except Exception as exc:
+        bus.log_msg(AGENT_NAME, f"Higgsfield balance check failed: {exc}", "warning")
+        return
+
+    if not bal:
+        return
+
+    credits = float(bal.get("credits", 0))
+    cap = config.HIGGSFIELD_MONTHLY_BASE_CREDITS
+    with db.get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM finance_provider_credits WHERE provider=?", ("Higgsfield",)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE finance_provider_credits SET balance=?, credit_cap=?, unit=?, "
+                "last_updated=NOW() WHERE provider=?",
+                (credits, cap, "credits", "Higgsfield"),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO finance_provider_credits (provider, balance, credit_cap, unit, notes) "
+                "VALUES (?,?,?,?,?)",
+                ("Higgsfield", credits, cap, "credits",
+                 f"Auto-synced from Higgsfield API ({bal.get('subscription_plan_type', '')} plan)"),
+            )
+
+
+def _sync_elevenlabs_balance():
+    """Pull the real ElevenLabs remaining-character quota and upsert it into
+    finance_provider_credits, same pattern as Higgsfield — so _check_credits()
+    alerts before narration silently degrades to a fallback voice."""
+    if not config.ELEVENLABS_API_KEY:
+        return
+    try:
+        from generators import elevenlabs_client
+        info = elevenlabs_client.get_subscription_info()
+    except Exception as exc:
+        bus.log_msg(AGENT_NAME, f"ElevenLabs subscription check failed: {exc}", "warning")
+        return
+
+    limit = float(info.get("character_limit", 0))
+    used = float(info.get("character_count", 0))
+    if limit <= 0:
+        return
+    remaining = max(0.0, limit - used)
+    with db.get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM finance_provider_credits WHERE provider=?", ("ElevenLabs",)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE finance_provider_credits SET balance=?, credit_cap=?, unit=?, "
+                "last_updated=NOW() WHERE provider=?",
+                (remaining, limit, "characters", "ElevenLabs"),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO finance_provider_credits (provider, balance, credit_cap, unit, notes) "
+                "VALUES (?,?,?,?,?)",
+                ("ElevenLabs", remaining, limit, "characters",
+                 f"Auto-synced from ElevenLabs API ({info.get('tier', '')} plan)"),
+            )
+
+
+def _sync_anthropic_budget():
+    """Track Anthropic spend against a user-configured monthly budget.
+    Unlike Higgsfield/ElevenLabs, Anthropic has no fixed monthly credit cap
+    (pay-as-you-go), so there's nothing real to sync unless the user has set
+    BOTH ANTHROPIC_ADMIN_KEY (a separate key from the one Claude calls use)
+    and a real ANTHROPIC_MONTHLY_BUDGET — otherwise this is a no-op rather
+    than a fabricated number."""
+    if not config.ANTHROPIC_ADMIN_KEY or config.ANTHROPIC_MONTHLY_BUDGET <= 0:
+        return
+    try:
+        from generators import anthropic_admin
+        spent = anthropic_admin.get_month_to_date_cost_usd()
+    except Exception as exc:
+        bus.log_msg(AGENT_NAME, f"Anthropic cost report check failed: {exc}", "warning")
+        return
+
+    budget = config.ANTHROPIC_MONTHLY_BUDGET
+    remaining = max(0.0, budget - spent)
+    with db.get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM finance_provider_credits WHERE provider=?", ("Anthropic",)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE finance_provider_credits SET balance=?, credit_cap=?, unit=?, "
+                "monthly_spend=?, last_updated=NOW() WHERE provider=?",
+                (remaining, budget, "USD", spent, "Anthropic"),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO finance_provider_credits "
+                "(provider, balance, credit_cap, unit, monthly_spend, notes) "
+                "VALUES (?,?,?,?,?,?)",
+                ("Anthropic", remaining, budget, "USD", spent,
+                 "Auto-synced from the Anthropic Admin API cost report against "
+                 "ANTHROPIC_MONTHLY_BUDGET — the system's own spend cap, not a real Anthropic limit."),
+            )
+
+
 def _check_credits():
     """Alert when any provider credit balance is < 20% of its cap."""
     credits = _get_provider_credits()
@@ -117,6 +254,16 @@ def _check_credits():
                 "cap":      cap,
                 "pct":      round(pct, 1),
             })
+            try:
+                from monetizer import create_alert
+                create_alert("provider_credit_low",
+                              f"{cr['provider']} credits at {pct:.0f}% ({bal:.0f}/{cap:.0f})",
+                              severity=severity, metric_name=f"{cr['provider']}_credit_pct",
+                              metric_value=round(pct, 1), threshold=20,
+                              suggested_action=f"Buy a {cr['provider']} credit top-up or special before it runs out.",
+                              source_agent=AGENT_NAME)
+            except Exception:
+                pass
 
 
 def _check_renewals():
@@ -205,6 +352,10 @@ def _run_cycle():
     bus.log_msg(AGENT_NAME, "Vivian Cross (CFO) — running IEBC efficiency audit")
     try:
         _efficiency_report()
+        _process_credit_rollovers()
+        _sync_higgsfield_balance()
+        _sync_elevenlabs_balance()
+        _sync_anthropic_budget()
         _check_credits()
         _check_renewals()
         _check_inactive_subscriptions()

@@ -1193,7 +1193,7 @@
       {% for tier_key, tier in tiers.items() %}
       <div class="pricing-card {% if tier_key == 'creator' %}featured{% endif %}">
         {% if tier_key == 'creator' %}<div class="pricing-popular">Most Popular</div>
-        {% elif tier_key == 'starter' %}<div class="pricing-popular" style="background:#30d158;">14-Day Free Trial</div>
+        {% elif tier_key == 'starter' %}<div class="pricing-popular" style="background:#30d158;">{{ tier.trial_days }}-Day Free Trial</div>
         {% endif %}
         <div class="pricing-tier">{{ tier.label }}</div>
         <div class="pricing-price">
