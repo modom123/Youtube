@@ -3984,6 +3984,81 @@ def serve_generated_loop(loop_id):
                      download_name=f"{loop_id}.mp3")
 
 
+# ── Beat Maker: saved loops ───────────────────────────────────────────────────
+
+SAVED_LOOPS_DIR = Path(config.OUTPUT_DIR) / "saved_loops"
+
+
+@app.route("/api/music/loops/save", methods=["POST"])
+@login_required
+def api_save_loop():
+    """Persist a rendered beat pattern (WAV) as a reusable loop in the library."""
+    f = request.files.get("audio")
+    if not f or not f.filename:
+        return jsonify({"error": "No audio uploaded"}), 400
+    name = (request.form.get("name") or "Untitled Loop").strip()[:120]
+    try:
+        bpm = int(float(request.form.get("bpm") or 90))
+        bars = int(float(request.form.get("bars") or 2))
+        duration = float(request.form.get("duration") or 0)
+    except ValueError:
+        bpm, bars, duration = 90, 2, 0
+    kit = (request.form.get("kit") or "").strip()[:60]
+
+    user_dir = SAVED_LOOPS_DIR / str(current_user.id)
+    user_dir.mkdir(parents=True, exist_ok=True)
+    loop_uuid = str(uuid.uuid4())[:12]
+    path = user_dir / f"{loop_uuid}.wav"
+    f.save(str(path))
+    # Reject empties / oversized (a 4-bar loop is well under 10MB)
+    size = path.stat().st_size
+    if size < 44 or size > 15 * 1024 * 1024:
+        path.unlink(missing_ok=True)
+        return jsonify({"error": "Invalid audio size"}), 400
+
+    loop_id = db.create_saved_loop(
+        user_id=current_user.id, name=name, file_path=str(path),
+        bpm=bpm, bars=bars, kit=kit, duration=duration,
+    )
+    return jsonify({"ok": True, "loop": {
+        "id": loop_id, "name": name, "bpm": bpm, "bars": bars,
+        "kit": kit, "duration": duration,
+    }})
+
+
+@app.route("/api/music/loops/mine")
+@login_required
+def api_my_loops():
+    loops = db.get_saved_loops(current_user.id)
+    return jsonify([{
+        "id": l["id"], "name": l["name"], "bpm": l["bpm"], "bars": l["bars"],
+        "kit": l["kit"], "duration": l["duration"], "created_at": str(l["created_at"]),
+    } for l in loops])
+
+
+@app.route("/api/music/loops/file/<int:loop_id>")
+@login_required
+def api_loop_file(loop_id):
+    loop = db.get_saved_loop(loop_id, user_id=current_user.id)
+    if not loop or not Path(loop["file_path"]).is_file():
+        return jsonify({"error": "Loop not found"}), 404
+    return send_file(loop["file_path"], mimetype="audio/wav", conditional=True,
+                     download_name=f"{loop['name']}.wav")
+
+
+@app.route("/api/music/loops/<int:loop_id>", methods=["DELETE"])
+@login_required
+def api_delete_loop(loop_id):
+    loop = db.get_saved_loop(loop_id, user_id=current_user.id)
+    if loop:
+        try:
+            Path(loop["file_path"]).unlink(missing_ok=True)
+        except Exception:
+            pass
+        db.delete_saved_loop(loop_id, current_user.id)
+    return jsonify({"ok": True})
+
+
 # ── YouTube Audio for Music Library ───────────────────────────────────────────
 
 @app.route("/api/music/youtube-search")

@@ -2367,6 +2367,7 @@ input[type=range]::-webkit-slider-thumb {
             <button class="bm-tbtn" id="bmRecBtn" onclick="bmToggleRec()" title="Record">⏺</button>
             <button class="bm-tbtn" onclick="bmClear()" title="Clear pattern" style="font-size:11px">CLR</button>
             <button class="bm-tbtn" onclick="bmRandom()" title="Random pattern">🎲</button>
+            <button class="bm-tbtn" id="bmSaveBtn" onclick="bmSaveLoop()" title="Render this beat and save it to your Library">💾</button>
             <div class="bm-sep"></div>
             <button class="bm-tbtn bm-mode-btn active" id="bmLiteBtn" onclick="bmSetMode('lite')" title="Lite mode">LITE</button>
             <button class="bm-tbtn bm-mode-btn" id="bmAdvBtn" onclick="bmSetMode('adv')" title="Advanced mode">ADV</button>
@@ -2452,7 +2453,21 @@ input[type=range]::-webkit-slider-thumb {
       <!-- ── LIBRARY TAB ────────────────────────────────────────────────── -->
       <div id="mpane-library" class="ms-main-pane">
         <div class="lib-wrap" id="libWrap" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <!-- My Loops — beats rendered from the Beat Maker -->
+          <div id="myLoopsSection">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <h3 style="margin:0;font-size:16px;color:var(--c-text);">🥁 My Loops</h3>
+              <span id="myLoopsCount" style="font-size:12px;color:var(--c-muted);"></span>
+              <div style="flex:1;"></div>
+              <button onclick="switchMainTab('beat', document.querySelectorAll('.ms-main-tab')[1])"
+                style="padding:5px 11px;border:1px solid var(--c-border);border-radius:6px;background:var(--c-elevated);color:var(--c-text);font-size:12px;font-weight:600;cursor:pointer;">＋ Make a beat</button>
+            </div>
+            <div id="myLoopsList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;">
+              <div style="color:var(--c-muted);font-size:13px;padding:12px 0;">Loading your loops…</div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--c-border);padding-top:14px;">
             <h3 style="margin:0;font-size:16px;color:var(--c-text);">🎵 Music Library</h3>
             <span id="libTrackCount" style="font-size:12px;color:var(--c-muted);"></span>
             <div style="flex:1;"></div>
@@ -2517,6 +2532,7 @@ function switchMainTab(id, btn) {
   document.querySelectorAll('.ms-main-pane').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('mpane-' + id).classList.add('active');
+  if (id === 'library' && typeof libLoadMyLoops === 'function') libLoadMyLoops();
 }
 
 /* ═══════════════════════ MOOD CHIPS ════════════════════════════════════════ */
@@ -3033,6 +3049,54 @@ function addToLibrary(title, meta, url, jobId) {
   _library.unshift(item);
   if (_library.length > 50) _library.pop();
   localStorage.setItem('ms_library', JSON.stringify(_library));
+}
+
+/* ── My Loops (beats rendered from the Beat Maker) ─────────────────────────── */
+let _myLoopAudio = null;
+async function libLoadMyLoops() {
+  const list = document.getElementById('myLoopsList');
+  const count = document.getElementById('myLoopsCount');
+  if (!list) return;
+  try {
+    const r = await fetch('/api/music/loops/mine');
+    const loops = await r.json();
+    if (count) count.textContent = loops.length ? `${loops.length} loop${loops.length === 1 ? '' : 's'}` : '';
+    if (!loops.length) {
+      list.innerHTML = '<div style="color:var(--c-muted);font-size:13px;padding:12px 0;grid-column:1/-1;">'
+        + 'No loops yet. Open <b>Beat Maker</b>, build a pattern, and hit 💾 to save it here.</div>';
+      return;
+    }
+    list.innerHTML = loops.map(l => {
+      const dur = l.duration ? `${l.duration.toFixed(1)}s` : '';
+      const meta = [l.kit, l.bpm ? l.bpm + ' BPM' : '', dur].filter(Boolean).join(' · ');
+      const nm = (l.name || 'Untitled').replace(/</g, '&lt;');
+      return `<div style="background:var(--c-elevated);border:1px solid var(--c-border);border-radius:10px;padding:12px;">
+        <div style="font-weight:700;font-size:13px;color:var(--c-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nm}</div>
+        <div style="font-size:11px;color:var(--c-muted);margin:3px 0 10px;">${meta}</div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="libPlayLoop(${l.id})" style="flex:1;padding:6px;border:1px solid var(--c-border);border-radius:6px;background:var(--c-panel);color:var(--c-text);font-size:12px;font-weight:600;cursor:pointer;">▶ Play</button>
+          <a href="/api/music/loops/file/${l.id}" download style="flex:1;padding:6px;border:1px solid var(--c-border);border-radius:6px;background:var(--c-panel);color:var(--c-text);font-size:12px;font-weight:600;cursor:pointer;text-align:center;text-decoration:none;">⬇</a>
+          <button onclick="libDeleteLoop(${l.id})" title="Delete" style="padding:6px 9px;border:1px solid var(--c-border);border-radius:6px;background:var(--c-panel);color:var(--c-red);font-size:12px;cursor:pointer;">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = '<div style="color:var(--c-red);font-size:13px;grid-column:1/-1;">Could not load your loops.</div>';
+  }
+}
+
+function libPlayLoop(id) {
+  if (_myLoopAudio) { _myLoopAudio.pause(); }
+  _myLoopAudio = new Audio('/api/music/loops/file/' + id);
+  _myLoopAudio.loop = true;
+  _myLoopAudio.play().catch(() => {});
+}
+
+async function libDeleteLoop(id) {
+  if (!confirm('Delete this loop?')) return;
+  if (_myLoopAudio) { _myLoopAudio.pause(); _myLoopAudio = null; }
+  await fetch('/api/music/loops/' + id, { method: 'DELETE' });
+  libLoadMyLoops();
 }
 
 let _libSearchTimer = null;
@@ -3811,9 +3875,10 @@ function bmHitPad(pi, vel = 85) {
   _bmSynth(pad.t, pitch, decay, filter, vol, ov.rev, ov.del, ov.dist);
 }
 
-function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
-  const ctx = bmActx;
-  const t   = ctx.currentTime;
+function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist, _octx, _omaster, _ostart) {
+  const ctx    = _octx || bmActx;
+  const master = _omaster || bmMasterGain;
+  const t      = (_ostart != null) ? _ostart : ctx.currentTime;
   const out = ctx.createGain();
   out.gain.setValueAtTime(vol, t);
   out.gain.exponentialRampToValueAtTime(0.0001, t + decay + 0.05);
@@ -3825,9 +3890,9 @@ function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
   const dst = doDist ? (() => { const ws = ctx.createWaveShaper(); ws.curve = _makeDistCurve(60); out.connect(ws); return ws; })() : null;
   const finalNode = dst || flt;
 
-  if (doRev && bmReverbNode) finalNode.connect(bmReverbNode);
-  if (doDel && bmDelayNode)  finalNode.connect(bmDelayNode);
-  finalNode.connect(bmMasterGain);
+  if (!_octx && doRev && bmReverbNode) finalNode.connect(bmReverbNode);
+  if (!_octx && doDel && bmDelayNode)  finalNode.connect(bmDelayNode);
+  finalNode.connect(master);
 
   switch (type) {
     case 'k808': {
@@ -3837,7 +3902,7 @@ function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
       o.connect(out); o.start(t); o.stop(t + decay + 0.1);
       const nb = _noiseBuffer(0.012); const ns = ctx.createBufferSource(); ns.buffer = nb;
       const ng = ctx.createGain(); ng.gain.setValueAtTime(vol * 0.35, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.018);
-      ns.connect(ng); ng.connect(bmMasterGain); ns.start(t); ns.stop(t + 0.02);
+      ns.connect(ng); ng.connect(master); ns.start(t); ns.stop(t + 0.02);
       break;
     }
     case 'kick': {
@@ -3861,7 +3926,7 @@ function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
       ns.connect(nf); nf.connect(out); ns.start(t); ns.stop(t + decay + 0.05);
       const o = ctx.createOscillator(); o.frequency.value = pitch;
       const tg = ctx.createGain(); tg.gain.setValueAtTime(vol * 0.45, t); tg.gain.exponentialRampToValueAtTime(0.0001, t + decay * 0.4);
-      o.connect(tg); tg.connect(bmMasterGain); o.start(t); o.stop(t + decay * 0.4);
+      o.connect(tg); tg.connect(master); o.start(t); o.stop(t + decay * 0.4);
       break;
     }
     case 'snrm': {
@@ -3875,7 +3940,7 @@ function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
         const nb = _noiseBuffer(0.07); const ns = ctx.createBufferSource(); ns.buffer = nb;
         const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = pitch; nf.Q.value = 0.5;
         const ng = ctx.createGain(); ng.gain.setValueAtTime(vol * (1 - i*0.18), t+d); ng.gain.exponentialRampToValueAtTime(0.0001, t+d+decay);
-        ns.connect(nf); nf.connect(ng); ng.connect(bmMasterGain); ns.start(t+d); ns.stop(t+d+decay+0.05);
+        ns.connect(nf); nf.connect(ng); ng.connect(master); ns.start(t+d); ns.stop(t+d+decay+0.05);
       });
       return;
     }
@@ -3951,6 +4016,94 @@ function _bmSynth(type, pitch, decay, filter, vol, doRev, doDel, doDist) {
       const o = ctx.createOscillator(); o.frequency.value = pitch;
       o.connect(out); o.start(t); o.stop(t + decay + 0.05);
     }
+  }
+}
+
+// ── Render the current pattern to a WAV loop and save it to the library ──────
+function _bmAudioBufferToWav(buffer) {
+  const numCh = buffer.numberOfChannels, len = buffer.length, sr = buffer.sampleRate;
+  const blockAlign = numCh * 2, dataLen = len * blockAlign;
+  const ab = new ArrayBuffer(44 + dataLen), view = new DataView(ab);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); view.setUint32(4, 36 + dataLen, true); w(8, 'WAVE');
+  w(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+  view.setUint16(22, numCh, true); view.setUint32(24, sr, true);
+  view.setUint32(28, sr * blockAlign, true); view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true); w(36, 'data'); view.setUint32(40, dataLen, true);
+  const chans = [];
+  for (let c = 0; c < numCh; c++) chans.push(buffer.getChannelData(c));
+  let off = 44;
+  for (let i = 0; i < len; i++) {
+    for (let c = 0; c < numCh; c++) {
+      let s = Math.max(-1, Math.min(1, chans[c][i]));
+      view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true); off += 2;
+    }
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+async function bmRenderLoopWav(bars) {
+  _bmInitCtx();  // ensure bmActx exists (noise buffers are created on it)
+  const bpm = parseInt(document.getElementById('bmBpm').value) || 90;
+  const steps = bmStepCount;
+  const stepSec = (60 / bpm) / 4;
+  const loopSec = steps * stepSec * bars;
+  const tail = 0.6;  // let the final hits ring out
+  const sr = 44100;
+  const octx = new OfflineAudioContext(2, Math.ceil((loopSec + tail) * sr), sr);
+  const master = octx.createGain();
+  master.gain.value = 0.9;
+  master.connect(octx.destination);
+
+  const kit = BM_KITS[bmKitIdx];
+  for (let bar = 0; bar < bars; bar++) {
+    for (let si = 0; si < steps; si++) {
+      const at = (bar * steps + si) * stepSec;
+      kit.pads.forEach((pad, pi) => {
+        const vel = bmBanks[bmBank][pi][si];
+        if (!vel) return;
+        const ov = bmPadOverrides[pi] || {};
+        const semitones = ov.tune ?? 0;
+        const pitch = pad.p * Math.pow(2, semitones / 12);
+        const decay = ov.decay ?? pad.d;
+        const filter = ov.flt ? Math.min(ov.filter ?? pad.f, 2000) : (ov.filter ?? pad.f);
+        const vol = (ov.vol ?? pad.v) * (vel / 100) * 0.85;
+        // dry render (no shared reverb/delay nodes across contexts)
+        _bmSynth(pad.t, pitch, decay, filter, vol, false, false, ov.dist, octx, master, at);
+      });
+    }
+  }
+  const rendered = await octx.startRendering();
+  return { blob: _bmAudioBufferToWav(rendered), duration: loopSec };
+}
+
+async function bmSaveLoop() {
+  if (!_hasBeatPattern()) { alert('Add some steps to the pattern first — the beat is empty.'); return; }
+  const name = prompt('Name this loop:', 'My Beat ' + new Date().toLocaleTimeString().replace(/:\d\d /, ' '));
+  if (name === null) return;
+  const btn = document.getElementById('bmSaveBtn');
+  const wasPlaying = bmPlaying;
+  if (wasPlaying) bmStop();
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  try {
+    const bars = 2;
+    const { blob, duration } = await bmRenderLoopWav(bars);
+    const fd = new FormData();
+    fd.append('audio', blob, 'loop.wav');
+    fd.append('name', (name || 'Untitled Loop').trim());
+    fd.append('bpm', document.getElementById('bmBpm').value || '90');
+    fd.append('bars', String(bars));
+    fd.append('kit', (BM_KITS[bmKitIdx] && BM_KITS[bmKitIdx].name) || '');
+    fd.append('duration', String(duration));
+    const r = await fetch('/api/music/loops/save', { method: 'POST', body: fd });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Save failed');
+    if (typeof libLoadMyLoops === 'function') libLoadMyLoops();
+    alert('Loop saved to your Library!');
+  } catch (e) {
+    alert('Could not save loop: ' + (e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾'; }
   }
 }
 

@@ -451,6 +451,19 @@ def init_db():
         )
         """)
         conn.execute("""
+        CREATE TABLE IF NOT EXISTS saved_loops (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name        TEXT NOT NULL,
+            bpm         INTEGER DEFAULT 90,
+            bars        INTEGER DEFAULT 2,
+            kit         TEXT DEFAULT '',
+            duration    REAL DEFAULT 0,
+            file_path   TEXT NOT NULL,
+            created_at  TIMESTAMP DEFAULT NOW()
+        )
+        """)
+        conn.execute("""
         CREATE TABLE IF NOT EXISTS dub_jobs (
             id              TEXT PRIMARY KEY,
             user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -1993,6 +2006,41 @@ def get_published_videos(user_id: int):
 
 
 # ── Feature 2: Content Calendar / Scheduler ───────────────────────────────────
+
+def create_saved_loop(user_id: int, name: str, file_path: str, bpm: int = 90,
+                       bars: int = 2, kit: str = "", duration: float = 0) -> int:
+    with get_conn() as conn:
+        cur = conn.execute("""
+            INSERT INTO saved_loops (user_id, name, file_path, bpm, bars, kit, duration)
+            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (user_id, name, file_path, bpm, bars, kit, duration))
+        return cur.fetchone()["id"]
+
+
+def get_saved_loops(user_id: int):
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM saved_loops WHERE user_id=%s ORDER BY created_at DESC",
+            (user_id,)
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def get_saved_loop(loop_id: int, user_id: int = None):
+    query = "SELECT * FROM saved_loops WHERE id=%s"
+    params = [loop_id]
+    if user_id is not None:
+        query += " AND user_id=%s"
+        params.append(user_id)
+    with get_conn() as conn:
+        row = conn.execute(query, params).fetchone()
+    return row_to_dict(row) if row else None
+
+
+def delete_saved_loop(loop_id: int, user_id: int):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM saved_loops WHERE id=%s AND user_id=%s", (loop_id, user_id))
+
 
 def create_scheduled_post(user_id: int, job_id: int, platform: str, scheduled_at: str) -> int:
     with get_conn() as conn:
