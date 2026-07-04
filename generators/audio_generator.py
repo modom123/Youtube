@@ -1,4 +1,4 @@
-"""Text-to-speech audio generation — Google Cloud TTS Neural2 primary, edge-tts secondary, pyttsx3/espeak-ng fallback."""
+"""Text-to-speech audio generation — ElevenLabs primary, Google Cloud TTS Neural2 secondary, edge-tts tertiary, pyttsx3/espeak-ng last-resort fallback."""
 import asyncio
 import base64
 import re
@@ -124,6 +124,66 @@ def _stitch_mp3_chunks(mp3_chunks: list, output_path: Path) -> None:
             output_path.write_bytes(b"".join(mp3_chunks))
 
 
+# Max characters per ElevenLabs request. The API accepts more, but keeping
+# chunks modest keeps latency down and lets us stitch on sentence boundaries.
+_ELEVENLABS_CHUNK_SIZE = 2500
+
+
+def _elevenlabs_tts_chunk(text: str, voice_id: str, api_key: str, model_id: str) -> bytes:
+    """Call the ElevenLabs text-to-speech API for a single chunk, return MP3 bytes."""
+    import requests as req
+    resp = req.post(
+        f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+        headers={"xi-api-key": api_key, "Content-Type": "application/json"},
+        json={
+            "text": text,
+            "model_id": model_id,
+            # Tuned for clear, consistent narration.
+            "voice_settings": {
+                "stability": 0.5,
+                "similarity_boost": 0.75,
+                "style": 0.0,
+                "use_speaker_boost": True,
+            },
+        },
+        timeout=120,
+    )
+    resp.raise_for_status()
+    return resp.content
+
+
+def _generate_elevenlabs(text: str, output_path: Path, voice_id: str) -> bool:
+    """
+    Generate TTS using the ElevenLabs API — the primary, highest-quality source.
+    Returns True on success, False if ELEVENLABS_API_KEY is not set or on error.
+    Long texts are chunked on sentence boundaries and stitched with ffmpeg.
+    """
+    api_key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
+    if not api_key:
+        return False
+    if not voice_id:
+        return False
+
+    model_id = getattr(config, "ELEVENLABS_MODEL", "eleven_multilingual_v2")
+    try:
+        chunks = _split_into_chunks(text, _ELEVENLABS_CHUNK_SIZE)
+        mp3_chunks = []
+        for chunk in chunks:
+            if not chunk.strip():
+                continue
+            mp3_chunks.append(_elevenlabs_tts_chunk(chunk, voice_id, api_key, model_id))
+
+        if not mp3_chunks:
+            return False
+
+        _stitch_mp3_chunks(mp3_chunks, output_path)
+        print(f"[audio] ElevenLabs ({model_id}, voice={voice_id}) — {len(mp3_chunks)} chunk(s)")
+        return output_path.exists()
+    except Exception as e:
+        print(f"[audio] ElevenLabs failed ({e}) — falling back to Google/edge TTS")
+        return False
+
+
 def _generate_google_tts(text: str, output_path: Path, voice: str) -> bool:
     """
     Generate TTS using Google Cloud TTS Neural2 REST API.
@@ -232,25 +292,33 @@ def generate_audio(
 ) -> Path:
     """Convert text to speech and save as MP3.
 
-    Priority:
-    1. Google Cloud TTS Neural2 (if GOOGLE_API_KEY set)
-    2. edge-tts
-    3. espeak-ng / pyttsx3 fallback
+    Priority (each fallback stays the SAME gender the user selected):
+    1. ElevenLabs (if ELEVENLABS_API_KEY set) — premium AI voices
+    2. Google Cloud TTS Neural2 (if GOOGLE_API_KEY set)
+    3. edge-tts
+    4. espeak-ng / pyttsx3 fallback
     """
     voice = voice or config.DEFAULT_VOICE
+    resolved = config.resolve_voice(voice)
     clean_text = clean_narration(text)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. Try Google Cloud TTS Neural2
+    # 1. Try ElevenLabs — the primary, highest-quality source
+    if _generate_elevenlabs(clean_text, output_path, resolved["elevenlabs"]):
+        if output_path.exists():
+            return output_path
+
+    # 2. Try Google Cloud TTS Neural2 (gender-matched fallback voice)
     if getattr(config, "GOOGLE_API_KEY", ""):
-        if _generate_google_tts(clean_text, output_path, voice):
+        if _generate_google_tts(clean_text, output_path, resolved["google"]):
             if output_path.exists():
                 return output_path
 
-    # 2. Try edge-tts
+    # 3. Try edge-tts (gender-matched fallback voice — never a raw Google id,
+    #    which edge-tts would reject and drop us to the robotic espeak voice)
     try:
-        asyncio.run(_generate_speech(clean_text, output_path, voice, rate, pitch))
+        asyncio.run(_generate_speech(clean_text, output_path, resolved["edge"], rate, pitch))
     except Exception as e:
         print(f"[audio] edge-tts failed ({e}) — using fallback TTS")
         _tts_fallback(clean_text, output_path)

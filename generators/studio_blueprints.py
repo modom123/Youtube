@@ -66,7 +66,7 @@ BLUEPRINTS = {
         },
         "asset_recipe": {
             "narration": {
-                "source_priority": ["google_tts_studio", "elevenlabs", "edge_tts"],
+                "source_priority": ["elevenlabs", "google_tts_studio", "edge_tts"],
                 "style_by_format": {
                     "long": "conversational authority — 120-150 wpm, 1.5s section pauses",
                     "short": "punchy, fast, hook-first — 160+ wpm, no dead air",

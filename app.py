@@ -45,6 +45,15 @@ def _datefmt(val, fmt="%Y-%m-%d %H:%M"):
     s = str(val)
     return s[:16].replace("T", " ")
 
+
+@app.template_filter("voice_name")
+def _voice_name(voice_id):
+    """Map a voice id (ElevenLabs, or legacy Google/edge) to its friendly catalog name."""
+    if not voice_id:
+        return "Default"
+    resolved = config.resolve_voice(voice_id)
+    return resolved.get("name") or str(voice_id)
+
 # Trust Render's reverse-proxy headers so request.url_root returns the
 # correct public HTTPS URL instead of the internal http://service:10000 address.
 from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
@@ -7798,9 +7807,9 @@ def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
         audio_path = os.path.join(out_dir, "episode.mp3")
 
         audio_generator.generate_audio(
-            script=script_text,
+            text=script_text,
             output_path=audio_path,
-            voice_id=voice_id or None,
+            voice=voice_id or None,
         )
         _push({"progress": 65, "step": "Creating audiogram video…"})
 

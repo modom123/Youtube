@@ -254,6 +254,9 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # "Adam" — deep male narrator
+# Highest-quality multilingual model for narration. Override to
+# "eleven_turbo_v2_5" for faster/cheaper synthesis at a small quality cost.
+ELEVENLABS_MODEL = os.getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2")
 
 # Hit Factory providers
 SUNO_COOKIE = os.getenv("SUNO_COOKIE", "")
@@ -345,21 +348,27 @@ LONG_VIDEO_MIN_DURATION = 180
 PODCAST_MIN_DURATION = 300
 
 # Single canonical voice catalog used across every studio (Create, Studio,
-# Hollywood, Ad Lab, Batch, Settings). 10 distinct, highest-quality Google
-# Neural2/Studio/Journey voices — 6 female, 4 male — each with a real edge-tts
-# fallback of the SAME gender so a user's choice never silently flips gender
-# when Google/ElevenLabs TTS is unavailable.
+# Hollywood, Ad Lab, Batch, Settings). 10 premium ElevenLabs voices — 5 female,
+# 5 male — each carrying a same-gender Google Neural2 and edge-tts fallback so
+# a user's choice never silently flips gender (or drops to a robotic espeak
+# voice) when ElevenLabs is unavailable.
+#
+# `id` is the ElevenLabs voice_id — the primary, high-quality source. The
+# `google`/`edge` keys are graceful, gender-matched degradations used only when
+# ElevenLabs can't be reached. These IDs are ElevenLabs' stable premade library.
 VOICE_CATALOG = [
-    {"id": "en-US-Studio-O",  "name": "Aria",   "gender": "Female", "style": "Warm & Professional",   "locale": "en-US", "edge": "en-US-AriaNeural"},
-    {"id": "en-US-Journey-F", "name": "Luna",    "gender": "Female", "style": "Conversational & Natural", "locale": "en-US", "edge": "en-US-JennyNeural"},
-    {"id": "en-US-Neural2-C", "name": "Maya",    "gender": "Female", "style": "Clear & Confident",     "locale": "en-US", "edge": "en-US-JennyNeural"},
-    {"id": "en-US-Neural2-F", "name": "Sophia",  "gender": "Female", "style": "Friendly & Upbeat",      "locale": "en-US", "edge": "en-US-AriaNeural"},
-    {"id": "en-US-Neural2-G", "name": "Grace",   "gender": "Female", "style": "Calm & Soothing",        "locale": "en-US", "edge": "en-US-JennyNeural"},
-    {"id": "en-US-Neural2-H", "name": "Nova",    "gender": "Female", "style": "Energetic & Bright",     "locale": "en-US", "edge": "en-US-AriaNeural"},
-    {"id": "en-US-Studio-Q",  "name": "Marcus",  "gender": "Male",   "style": "Deep & Authoritative",   "locale": "en-US", "edge": "en-US-GuyNeural"},
-    {"id": "en-US-Journey-D", "name": "Derek",   "gender": "Male",   "style": "Conversational & Natural", "locale": "en-US", "edge": "en-US-DavisNeural"},
-    {"id": "en-US-Neural2-A", "name": "Atlas",   "gender": "Male",   "style": "Warm & Trustworthy",     "locale": "en-US", "edge": "en-US-GuyNeural"},
-    {"id": "en-US-Neural2-I", "name": "Jaxon",   "gender": "Male",   "style": "Bold & Energetic",       "locale": "en-US", "edge": "en-US-DavisNeural"},
+    # ── Female ────────────────────────────────────────────────────────────────
+    {"id": "21m00Tcm4TlvDq8ikWAM", "name": "Rachel",    "gender": "Female", "style": "Calm & Narrative",     "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Studio-O",  "edge": "en-US-AriaNeural"},
+    {"id": "XrExE9yKIg1WjnnlVkGX", "name": "Matilda",   "gender": "Female", "style": "Warm & Friendly",      "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-F", "edge": "en-US-JennyNeural"},
+    {"id": "XB0fDUnXU5powFXDhCwa", "name": "Charlotte", "gender": "Female", "style": "Expressive & Engaging", "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-H", "edge": "en-US-AriaNeural"},
+    {"id": "oWAxZDx7w5VEj9dCyTzz", "name": "Grace",     "gender": "Female", "style": "Soft & Soothing",      "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-G", "edge": "en-US-JennyNeural"},
+    {"id": "ThT5KcBeYPX3keUQqHPh", "name": "Dorothy",   "gender": "Female", "style": "Bright & Pleasant",    "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-A", "edge": "en-GB-SoniaNeural"},
+    # ── Male ──────────────────────────────────────────────────────────────────
+    {"id": "pNInz6obpgDQGcFmaJgB", "name": "Adam",      "gender": "Male",   "style": "Deep & Authoritative", "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Studio-Q",  "edge": "en-US-GuyNeural"},
+    {"id": "nPczCjzI2devNBz1zQrb", "name": "Brian",     "gender": "Male",   "style": "Rich Narration",       "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-A", "edge": "en-US-GuyNeural"},
+    {"id": "ErXwobaYiN019PkySvjV", "name": "Antoni",    "gender": "Male",   "style": "Warm & Well-Rounded",  "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-D", "edge": "en-US-DavisNeural"},
+    {"id": "JBFqnCBsd6RMkjVDRZzb", "name": "George",    "gender": "Male",   "style": "Warm Storyteller",     "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-B", "edge": "en-GB-RyanNeural"},
+    {"id": "TxGEqnHWrfWFTfGW9XjX", "name": "Josh",      "gender": "Male",   "style": "Young & Energetic",    "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-I", "edge": "en-US-DavisNeural"},
 ]
 for _v in VOICE_CATALOG:
     _v["label"] = f"{_v['name']} — {_v['style']} ({_v['gender']})"
@@ -367,6 +376,68 @@ del _v
 
 # Back-compat aliases — both now point at the same single catalog.
 AVAILABLE_VOICES = [v["id"] for v in VOICE_CATALOG]
+
+# ── Voice resolution ────────────────────────────────────────────────────────
+# Any identifier a caller might hold — an ElevenLabs id, a friendly name
+# ("Marcus"), a legacy Google voice id ("en-US-Studio-O"), or an edge voice
+# ("en-US-GuyNeural") — resolves to the right {elevenlabs, google, edge} triple
+# so every fallback layer stays the SAME gender the user picked.
+_VOICE_BY_EL     = {v["id"]: v for v in VOICE_CATALOG}
+_VOICE_BY_NAME   = {v["name"].lower(): v for v in VOICE_CATALOG}
+_VOICE_BY_GOOGLE = {v["google"]: v for v in VOICE_CATALOG}
+_VOICE_BY_EDGE   = {v["edge"]: v for v in VOICE_CATALOG}
+
+# Gender of legacy voice ids that are no longer in the catalog, so an old
+# persona/DB value still maps to a same-gender ElevenLabs voice.
+_LEGACY_VOICE_GENDER = {
+    "en-US-Studio-O": "Female", "en-US-Journey-F": "Female", "en-US-Neural2-C": "Female",
+    "en-US-Neural2-F": "Female", "en-US-Neural2-G": "Female", "en-US-Neural2-H": "Female",
+    "en-US-AriaNeural": "Female", "en-US-JennyNeural": "Female", "en-GB-SoniaNeural": "Female",
+    "en-AU-NatashaNeural": "Female",
+    "en-US-Studio-Q": "Male", "en-US-Journey-D": "Male", "en-US-Neural2-A": "Male",
+    "en-US-Neural2-D": "Male", "en-US-Neural2-I": "Male",
+    "en-US-GuyNeural": "Male", "en-US-DavisNeural": "Male", "en-GB-RyanNeural": "Male",
+}
+
+
+def _looks_like_google_voice(v: str) -> bool:
+    return isinstance(v, str) and v.startswith(("en-", "en_")) and any(
+        tag in v for tag in ("Neural2", "Studio", "Journey", "Wavenet", "Standard")
+    )
+
+
+def _looks_like_edge_voice(v: str) -> bool:
+    return isinstance(v, str) and v.startswith("en-") and v.endswith("Neural")
+
+
+def resolve_voice(voice: str) -> dict:
+    """Resolve any voice identifier to {elevenlabs, google, edge, name, gender}.
+
+    ElevenLabs is the primary, highest-quality source; google/edge are
+    gender-matched fallbacks. Accepts ElevenLabs ids, friendly names, and
+    legacy Google/edge voice ids so nothing stored before this change breaks.
+    """
+    v = voice or DEFAULT_VOICE
+    entry = (
+        _VOICE_BY_EL.get(v)
+        or _VOICE_BY_NAME.get(str(v).lower())
+        or _VOICE_BY_GOOGLE.get(v)
+        or _VOICE_BY_EDGE.get(v)
+    )
+    if entry:
+        return {"elevenlabs": entry["id"], "google": entry["google"],
+                "edge": entry["edge"], "name": entry["name"], "gender": entry["gender"]}
+
+    # Unknown/legacy id — preserve gender where we can, else use a neutral narrator.
+    gender = _LEGACY_VOICE_GENDER.get(v)
+    base = _VOICE_BY_NAME["rachel"] if gender == "Female" else _VOICE_BY_NAME["adam"]
+    return {
+        "elevenlabs": base["id"],
+        "google": v if _looks_like_google_voice(v) else base["google"],
+        "edge":   v if _looks_like_edge_voice(v)   else base["edge"],
+        "name": base["name"],
+        "gender": gender or base["gender"],
+    }
 
 # SMTP (for email notifications — all optional, silently skipped if not set)
 SMTP_HOST = os.getenv("SMTP_HOST", "")
