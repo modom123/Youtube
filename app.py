@@ -3204,6 +3204,53 @@ def api_debug_higgsville():
     })
 
 
+@app.route("/api/debug/elevenlabs")
+@login_required
+def api_debug_elevenlabs():
+    """Diagnose the voiceover: is the ElevenLabs key set, valid, and in quota?
+
+    If videos come out with the robotic 'computer voice', hit this — it tells
+    you exactly why ElevenLabs isn't being used (NO_KEY / BAD_KEY / quota / OK).
+    """
+    import requests as _rq
+    key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
+    out = {
+        "key_set": bool(key),
+        "key_length": len(key),
+        "model": getattr(config, "ELEVENLABS_MODEL", ""),
+    }
+    if not key:
+        out["status"] = "NO_KEY"
+        out["fix"] = ("ELEVENLABS_API_KEY is not set — that's why you get the robotic "
+                      "voice. Add it in Settings → ElevenLabs, or as an env var, then redeploy.")
+        return jsonify(out)
+    try:
+        r = _rq.get("https://api.elevenlabs.io/v1/user",
+                    headers={"xi-api-key": key}, timeout=15)
+        out["http_status"] = r.status_code
+        if r.status_code == 200:
+            sub = (r.json() or {}).get("subscription", {}) or {}
+            used = sub.get("character_count")
+            limit = sub.get("character_limit")
+            out["status"] = "OK"
+            out["tier"] = sub.get("tier")
+            out["characters_used"] = used
+            out["characters_limit"] = limit
+            if isinstance(used, int) and isinstance(limit, int) and used >= limit:
+                out["status"] = "QUOTA_EXHAUSTED"
+                out["fix"] = "You're out of ElevenLabs characters this cycle — upgrade or wait for reset."
+        elif r.status_code in (401, 403):
+            out["status"] = "BAD_KEY"
+            out["fix"] = "ElevenLabs rejected the key — paste a fresh valid key in Settings."
+        else:
+            out["status"] = "ERROR"
+            out["body"] = r.text[:300]
+    except Exception as e:
+        out["status"] = "NETWORK_ERROR"
+        out["error"] = str(e)
+    return jsonify(out)
+
+
 @app.route("/api/test-ai-keys")
 def api_test_ai_keys():
     """Live-test every configured AI key with a minimal real API call."""

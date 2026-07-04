@@ -169,36 +169,99 @@ def _elevenlabs_tts_chunk(text: str, voice_id: str, api_key: str, model_id: str)
     return resp.content
 
 
+_EL_ACCOUNT_VOICES_CACHE: Optional[list] = None
+
+
+def _elevenlabs_account_voices(api_key: str) -> list:
+    """Fetch (and cache) the voices actually available on THIS ElevenLabs account."""
+    global _EL_ACCOUNT_VOICES_CACHE
+    if _EL_ACCOUNT_VOICES_CACHE is not None:
+        return _EL_ACCOUNT_VOICES_CACHE
+    import requests as req
+    try:
+        r = req.get("https://api.elevenlabs.io/v1/voices",
+                    headers={"xi-api-key": api_key}, timeout=15)
+        r.raise_for_status()
+        _EL_ACCOUNT_VOICES_CACHE = r.json().get("voices", [])
+    except Exception as e:
+        print(f"[audio] ElevenLabs: could not list account voices ({e})")
+        _EL_ACCOUNT_VOICES_CACHE = []
+    return _EL_ACCOUNT_VOICES_CACHE
+
+
+def _elevenlabs_fallback_voice(api_key: str, voice_id: str) -> Optional[str]:
+    """If a catalog voice_id isn't on this account (older/free plans differ),
+    pick a REAL account voice matched to the catalog voice's gender so we still
+    get an ElevenLabs voice of the right gender instead of dropping to espeak."""
+    entry = next((v for v in config.VOICE_CATALOG if v["id"] == voice_id), None)
+    gender = (entry or {}).get("gender", "").lower()
+    voices = _elevenlabs_account_voices(api_key)
+    if not voices:
+        return None
+    same = [v for v in voices if (v.get("labels") or {}).get("gender", "").lower() == gender]
+    pool = same or voices
+    return pool[0].get("voice_id")
+
+
 def _generate_elevenlabs(text: str, output_path: Path, voice_id: str) -> bool:
     """
     Generate TTS using the ElevenLabs API — the primary, highest-quality source.
     Returns True on success, False if ELEVENLABS_API_KEY is not set or on error.
-    Long texts are chunked on sentence boundaries and stitched with ffmpeg.
+
+    Fails LOUDLY (logs the HTTP status) so a silent drop to the robotic espeak
+    voice is diagnosable, and self-heals a bad/unavailable voice id by retrying
+    with a real gender-matched voice from the account.
     """
     api_key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
     if not api_key:
+        print("[audio] ElevenLabs SKIPPED — ELEVENLABS_API_KEY is not set. "
+              "Set it in Settings → ElevenLabs (or the env var) or you'll get the "
+              "robotic fallback voice.")
         return False
     if not voice_id:
         return False
 
     model_id = getattr(config, "ELEVENLABS_MODEL", "eleven_multilingual_v2")
-    try:
-        chunks = _split_into_chunks(text, _ELEVENLABS_CHUNK_SIZE)
-        mp3_chunks = []
-        for chunk in chunks:
-            if not chunk.strip():
+    chunks = _split_into_chunks(text, _ELEVENLABS_CHUNK_SIZE)
+
+    # Try the requested catalog voice first; if it 404/422s (not on this plan),
+    # retry once with a real account voice of the same gender.
+    tried = []
+    attempt = voice_id
+    for _ in range(2):
+        tried.append(attempt)
+        try:
+            mp3_chunks = [
+                _elevenlabs_tts_chunk(chunk, attempt, api_key, model_id)
+                for chunk in chunks if chunk.strip()
+            ]
+            if not mp3_chunks:
+                return False
+            _stitch_mp3_chunks(mp3_chunks, output_path)
+            print(f"[audio] ElevenLabs OK ({model_id}, voice={attempt}) — {len(mp3_chunks)} chunk(s)")
+            return output_path.exists()
+        except Exception as e:
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            body = ""
+            try:
+                body = e.response.text[:200]
+            except Exception:
+                pass
+            print(f"[audio] ElevenLabs FAILED voice={attempt} status={status} err={e} {body}")
+            if status in (401, 403):
+                print("[audio] ElevenLabs: API key rejected — check ELEVENLABS_API_KEY is valid.")
+                return False
+            if status == 429:
+                print("[audio] ElevenLabs: quota/credits exhausted (429).")
+                return False
+            # 404/422/etc: voice may not exist on this account — self-heal once.
+            fb = _elevenlabs_fallback_voice(api_key, voice_id)
+            if fb and fb not in tried:
+                print(f"[audio] ElevenLabs: retrying with account voice {fb}")
+                attempt = fb
                 continue
-            mp3_chunks.append(_elevenlabs_tts_chunk(chunk, voice_id, api_key, model_id))
-
-        if not mp3_chunks:
             return False
-
-        _stitch_mp3_chunks(mp3_chunks, output_path)
-        print(f"[audio] ElevenLabs ({model_id}, voice={voice_id}) — {len(mp3_chunks)} chunk(s)")
-        return output_path.exists()
-    except Exception as e:
-        print(f"[audio] ElevenLabs failed ({e}) — falling back to Google/edge TTS")
-        return False
+    return False
 
 
 def _generate_google_tts(text: str, output_path: Path, voice: str) -> bool:
