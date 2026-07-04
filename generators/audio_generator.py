@@ -212,7 +212,7 @@ def _generate_elevenlabs(text: str, output_path: Path, voice_id: str) -> bool:
     voice is diagnosable, and self-heals a bad/unavailable voice id by retrying
     with a real gender-matched voice from the account.
     """
-    api_key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
+    api_key = (getattr(config, "ELEVENLABS_API_KEY", "") or "").strip()
     if not api_key:
         print("[audio] ElevenLabs SKIPPED — ELEVENLABS_API_KEY is not set. "
               "Set it in Settings → ElevenLabs (or the env var) or you'll get the "

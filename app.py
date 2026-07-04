@@ -3213,41 +3213,81 @@ def api_debug_elevenlabs():
     you exactly why ElevenLabs isn't being used (NO_KEY / BAD_KEY / quota / OK).
     """
     import requests as _rq
-    key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
+
+    def _mask(k):
+        k = k or ""
+        return f"{k[:6]}…{k[-4:]}" if len(k) > 12 else ("(set)" if k else "(empty)")
+
+    def _test_key(k):
+        try:
+            r = _rq.get("https://api.elevenlabs.io/v1/user",
+                        headers={"xi-api-key": k}, timeout=15)
+            return r.status_code, r
+        except Exception as e:
+            return None, e
+
+    raw = getattr(config, "ELEVENLABS_API_KEY", "") or ""
+    key = raw.strip()
+    env_key = (os.getenv("ELEVENLABS_API_KEY", "") or "").strip()
+    try:
+        db_key = (db.get_setting("apikey_ELEVENLABS_API_KEY") or "").strip()
+    except Exception:
+        db_key = ""
+
+    # Which source is actually winning? Env var takes precedence over the
+    # Settings/DB value in _load_platform_creds_from_db — a stale env var
+    # silently overriding a good Settings key is the classic 'I updated it but
+    # it still fails' trap.
+    source = "env" if (env_key and env_key == key) else ("settings_db" if db_key == key else "unknown")
     out = {
         "key_set": bool(key),
         "key_length": len(key),
+        "key_preview": _mask(key),
+        "active_source": source,
+        "had_surrounding_whitespace": raw != raw.strip(),
+        "env_and_settings_differ": bool(env_key and db_key and env_key != db_key),
         "model": getattr(config, "ELEVENLABS_MODEL", ""),
     }
     if not key:
         out["status"] = "NO_KEY"
         out["fix"] = ("ELEVENLABS_API_KEY is not set — that's why you get the robotic "
-                      "voice. Add it in Settings → ElevenLabs, or as an env var, then redeploy.")
+                      "voice. Add it in Settings → ElevenLabs, then reload.")
         return jsonify(out)
-    try:
-        r = _rq.get("https://api.elevenlabs.io/v1/user",
-                    headers={"xi-api-key": key}, timeout=15)
-        out["http_status"] = r.status_code
-        if r.status_code == 200:
-            sub = (r.json() or {}).get("subscription", {}) or {}
-            used = sub.get("character_count")
-            limit = sub.get("character_limit")
-            out["status"] = "OK"
-            out["tier"] = sub.get("tier")
-            out["characters_used"] = used
-            out["characters_limit"] = limit
-            if isinstance(used, int) and isinstance(limit, int) and used >= limit:
-                out["status"] = "QUOTA_EXHAUSTED"
-                out["fix"] = "You're out of ElevenLabs characters this cycle — upgrade or wait for reset."
-        elif r.status_code in (401, 403):
-            out["status"] = "BAD_KEY"
-            out["fix"] = "ElevenLabs rejected the key — paste a fresh valid key in Settings."
-        else:
-            out["status"] = "ERROR"
-            out["body"] = r.text[:300]
-    except Exception as e:
+
+    status, r = _test_key(key)
+    out["http_status"] = status
+    if status == 200:
+        sub = (r.json() or {}).get("subscription", {}) or {}
+        used, limit = sub.get("character_count"), sub.get("character_limit")
+        out["status"] = "OK"
+        out["tier"] = sub.get("tier")
+        out["characters_used"] = used
+        out["characters_limit"] = limit
+        if isinstance(used, int) and isinstance(limit, int) and used >= limit:
+            out["status"] = "QUOTA_EXHAUSTED"
+            out["fix"] = "You're out of ElevenLabs characters this cycle — upgrade or wait for reset."
+    elif status in (401, 403):
+        out["status"] = "BAD_KEY"
+        out["fix"] = "ElevenLabs rejected this key (401). Generate a fresh key at elevenlabs.io → Profile → API Keys and paste it in Settings."
+        # If a DIFFERENT key is saved in Settings but the env var is winning,
+        # test that one — the user may have already fixed it in the wrong place.
+        if db_key and db_key != key:
+            db_status, _ = _test_key(db_key)
+            out["settings_db_key_preview"] = _mask(db_key)
+            out["settings_db_key_status"] = ("OK" if db_status == 200 else f"HTTP {db_status}")
+            if db_status == 200:
+                out["fix"] = ("The key you saved in Settings IS valid, but a DIFFERENT (invalid) "
+                              "ELEVENLABS_API_KEY env var is overriding it. Remove/replace the env "
+                              "var in Render, or update it to the valid key, then redeploy.")
+    elif status is None:
         out["status"] = "NETWORK_ERROR"
-        out["error"] = str(e)
+        out["error"] = str(r)
+    else:
+        out["status"] = "ERROR"
+        try:
+            out["body"] = r.text[:300]
+        except Exception:
+            pass
     return jsonify(out)
 
 
