@@ -418,8 +418,8 @@ let studioES = null;
   // Claude — proxy check via a simple ping to confirm API key is set
   const hasAnthropicKey = {{ 'true' if config.ANTHROPIC_API_KEY else 'false' }};
   setBadge('svc-claude', hasAnthropicKey, 'Claude AI');
-  // MCP — check if MCP token is configured
-  const hasMcpToken = {{ 'true' if config.HIGGSFIELD_MCP_TOKEN else 'false' }};
+  // MCP — connected via OAuth session token or env var (no REST API key exists)
+  const hasMcpToken = {{ 'true' if higgsfield_connected else 'false' }};
   setBadge('svc-hf-mcp', hasMcpToken, 'Higgsfield MCP');
 })();
 

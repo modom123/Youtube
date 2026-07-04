@@ -21,11 +21,27 @@ MCP_URL = config.HIGGSFIELD_MCP_URL
 _PROTO_VERSION = "2024-11-05"
 
 
-def _token() -> str:
+def resolve_token() -> str:
+    """Effective Higgsfield MCP token for the current request/thread.
+
+    Higgsfield has no REST API key — access is the OAuth/MCP bearer token, set
+    per-user into ``_session_token`` (from the Accounts-page OAuth connection)
+    with the ``HIGGSFIELD_MCP_TOKEN`` env var as a global fallback. Returns ""
+    when nothing is connected. Accidental URL pastes are ignored.
+    """
     tok = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN or ""
-    # Ignore accidental URL entries (user pasted the MCP endpoint URL instead of a token)
     if tok.startswith("http://") or tok.startswith("https://"):
         tok = ""
+    return tok
+
+
+def is_connected() -> bool:
+    """True when a Higgsfield MCP token is available (OAuth session or env)."""
+    return bool(resolve_token())
+
+
+def _token() -> str:
+    tok = resolve_token()
     if not tok:
         raise RuntimeError(
             "Higgsfield not connected. Go to Accounts page and click 'Connect Higgsfield' "

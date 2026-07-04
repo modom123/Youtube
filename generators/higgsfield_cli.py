@@ -22,7 +22,13 @@ def _seed_credentials() -> bool:
     if _SEEDED:
         return _CRED_FILE.exists()
 
-    token = config.HIGGSFIELD_MCP_TOKEN
+    # Resolve the effective token (per-user OAuth/MCP session token → env var),
+    # not just the env var — OAuth-connected users have no HIGGSFIELD_MCP_TOKEN set.
+    try:
+        from generators.higgsfield_mcp import resolve_token
+        token = resolve_token()
+    except Exception:
+        token = config.HIGGSFIELD_MCP_TOKEN
     if not token:
         return False
 

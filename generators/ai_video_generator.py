@@ -16,6 +16,23 @@ import config
 _session_token: threading.local = threading.local()
 
 
+def _active_token() -> str:
+    """Effective Higgsfield token: per-user OAuth/MCP session token → env fallback.
+
+    Higgsfield authenticates with an OAuth/MCP bearer token, not a REST API key,
+    so this resolves the connected token rather than only checking the env var.
+    """
+    tok = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN or ""
+    if tok.startswith("http://") or tok.startswith("https://"):
+        tok = ""
+    return tok
+
+
+def is_connected() -> bool:
+    """True when Higgsfield is reachable (OAuth session token or env var)."""
+    return bool(_active_token())
+
+
 # ── Higgsville model catalog ───────────────────────────────────────────────────────────────────────────────
 # Keys match the Higgsville API model IDs
 HIGGSVILLE_MODELS = {
@@ -51,7 +68,7 @@ HIGGSVILLE_API_BASE = "https://api.higgsfield.ai/v1"
 # ── Higgsville REST API client ────────────────────────────────────────────────────────────────────────────
 
 def _higgsville_headers() -> dict:
-    key = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN
+    key = _active_token()
     if not key:
         raise RuntimeError("Higgsfield not connected — authenticate via Accounts page")
     return {
@@ -201,7 +218,7 @@ def _try_sdk_clip(
     """Attempt generation via higgsfield-client SDK. Returns path or None."""
     try:
         import higgsfield_client as hf
-        os.environ["HF_KEY"] = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN
+        os.environ["HF_KEY"] = _active_token()
 
         # Map new model IDs to SDK paths where known
         sdk_paths = {
@@ -409,7 +426,7 @@ def generate_ai_clips(
     clips = []
 
     if provider in ("higgsville", "both"):
-        if config.HIGGSFIELD_MCP_TOKEN:
+        if is_connected():
             hv_clips = _generate_higgsville_with_mcp_fallback(
                 prompts=prompts,
                 output_dir=output_dir / "higgsville",
@@ -418,7 +435,7 @@ def generate_ai_clips(
             )
             clips.extend(hv_clips)
         else:
-            print("[ai_video] HIGGSFIELD_MCP_TOKEN not set — skipping Higgsville")
+            print("[ai_video] Higgsfield not connected — skipping AI video (connect via Accounts page)")
 
     if provider in ("google_flow", "both"):
         if config.GOOGLE_API_KEY:

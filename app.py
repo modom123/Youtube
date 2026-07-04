@@ -2078,6 +2078,16 @@ def _get_user_higgsfield_token(user_id: int) -> str:
     return config.HIGGSFIELD_MCP_TOKEN  # global fallback
 
 
+def _higgsfield_connected(user_id: int) -> bool:
+    """True when Higgsfield is usable for this user — OAuth/MCP connection or env
+    token. Higgsfield has no REST API key, so studios must not gate on the env
+    var alone (that made OAuth-connected users see 'API not configured')."""
+    tok = _get_user_higgsfield_token(user_id) or ""
+    if tok.startswith("http://") or tok.startswith("https://"):
+        return False
+    return bool(tok)
+
+
 # ── Madison Avenue (unified CRM: Contacts + Inbox + Engagement + Outreach) ─────
 
 @app.route("/madison-avenue")
@@ -2980,6 +2990,7 @@ def studio_page():
         higgsfield_models=config.HIGGSVILLE_MODELS, config=config, templates=templates,
         user_default_voice=current_user.default_voice,
         google_api_key=bool(config.GOOGLE_API_KEY),
+        higgsfield_connected=_higgsfield_connected(current_user.id),
     )
 
 
@@ -3174,7 +3185,7 @@ def hollywood_page():
         voices=config.VOICE_CATALOG,
         user_default_voice=current_user.default_voice,
         google_api_key=bool(config.GOOGLE_API_KEY),
-        higgsfield_token=bool(config.HIGGSFIELD_MCP_TOKEN),
+        higgsfield_token=_higgsfield_connected(current_user.id),
         config=config,
     )
 

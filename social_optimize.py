@@ -176,7 +176,7 @@ def run(
             is_portrait=profile.get("is_portrait", False),
             target_duration=profile.get("duration"),
             pixabay_key_set=bool(config.PIXABAY_API_KEY),
-            higgsfield_token_set=bool(config.HIGGSFIELD_MCP_TOKEN),
+            higgsfield_token_set=ai_video_generator.is_connected(),
             anthropic_key_set=bool(getattr(config, "ANTHROPIC_API_KEY", "")),
             google_key_set=bool(getattr(config, "GOOGLE_API_KEY", "")),
             elevenlabs_key_set=bool(getattr(config, "ELEVENLABS_API_KEY", "")),
@@ -452,8 +452,8 @@ def run(
     # ── 5b. Generate AI video clips (Google Flow / Higgsfield) ───────────────
     ai_clips = []
     _use_ai_video = ai_video_provider and ai_video_provider != "none"
-    # Auto-enable Higgsfield when no stock media and token is available
-    if not _use_ai_video and not video_clips and not image_clips and config.HIGGSFIELD_MCP_TOKEN:
+    # Auto-enable Higgsfield when no stock media and Higgsfield is connected
+    if not _use_ai_video and not video_clips and not image_clips and ai_video_generator.is_connected():
         _use_ai_video = True
         ai_video_provider = "higgsville"
         print("[pipeline] No stock media — auto-enabling Higgsfield AI visuals")
@@ -486,7 +486,7 @@ def run(
                 _blog("error", f"AI video generation failed: {e}", exc=e)
 
         # If AI video clips failed, try generating AI images as backgrounds
-        if not ai_clips and config.HIGGSFIELD_MCP_TOKEN:
+        if not ai_clips and ai_video_generator.is_connected():
             _push_progress(58, "Generating AI background images...")
             with logger.spinner("Generating AI background images via Higgsfield..."):
                 try:
