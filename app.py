@@ -3254,38 +3254,64 @@ def api_debug_elevenlabs():
                       "voice. Add it in Settings → ElevenLabs, then reload.")
         return jsonify(out)
 
-    status, r = _test_key(key)
-    out["http_status"] = status
-    if status == 200:
-        sub = (r.json() or {}).get("subscription", {}) or {}
-        used, limit = sub.get("character_count"), sub.get("character_limit")
+    # Authoritative test: actually synthesize a tiny clip with the voice we use.
+    # This is what the pipeline does, and unlike /v1/user it works with keys that
+    # are permission-scoped to text-to-speech only.
+    def _test_tts(k):
+        try:
+            rr = _rq.post(
+                "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM",
+                headers={"xi-api-key": k, "Content-Type": "application/json"},
+                json={"text": "Test.", "model_id": getattr(config, "ELEVENLABS_MODEL", "eleven_multilingual_v2")},
+                timeout=30,
+            )
+            return rr.status_code, rr
+        except Exception as e:
+            return None, e
+
+    user_status, ur = _test_key(key)
+    tts_status, tr = _test_tts(key)
+    out["user_endpoint_status"] = user_status
+    out["tts_endpoint_status"] = tts_status
+
+    if tts_status == 200:
+        # TTS works — the voiceover WILL use ElevenLabs.
         out["status"] = "OK"
-        out["tier"] = sub.get("tier")
-        out["characters_used"] = used
-        out["characters_limit"] = limit
-        if isinstance(used, int) and isinstance(limit, int) and used >= limit:
-            out["status"] = "QUOTA_EXHAUSTED"
-            out["fix"] = "You're out of ElevenLabs characters this cycle — upgrade or wait for reset."
-    elif status in (401, 403):
+        if user_status == 200:
+            sub = (ur.json() or {}).get("subscription", {}) or {}
+            out["tier"] = sub.get("tier")
+            out["characters_used"] = sub.get("character_count")
+            out["characters_limit"] = sub.get("character_limit")
+        else:
+            out["note"] = "Key is scoped to text-to-speech only (can't read account info) — that's fine."
+    elif tts_status in (401, 403):
         out["status"] = "BAD_KEY"
-        out["fix"] = "ElevenLabs rejected this key (401). Generate a fresh key at elevenlabs.io → Profile → API Keys and paste it in Settings."
-        # If a DIFFERENT key is saved in Settings but the env var is winning,
-        # test that one — the user may have already fixed it in the wrong place.
+        body = ""
+        try:
+            body = tr.text[:300]
+        except Exception:
+            pass
+        out["tts_error_body"] = body
+        out["fix"] = ("ElevenLabs rejected this key for text-to-speech. Generate a fresh key at "
+                      "elevenlabs.io → Profile → API Keys with Text-to-Speech permission enabled, "
+                      "then set it wherever active_source points (env var or Settings).")
         if db_key and db_key != key:
-            db_status, _ = _test_key(db_key)
+            db_tts, _ = _test_tts(db_key)
             out["settings_db_key_preview"] = _mask(db_key)
-            out["settings_db_key_status"] = ("OK" if db_status == 200 else f"HTTP {db_status}")
-            if db_status == 200:
-                out["fix"] = ("The key you saved in Settings IS valid, but a DIFFERENT (invalid) "
-                              "ELEVENLABS_API_KEY env var is overriding it. Remove/replace the env "
-                              "var in Render, or update it to the valid key, then redeploy.")
-    elif status is None:
+            out["settings_db_key_tts_status"] = db_tts
+            if db_tts == 200:
+                out["fix"] = ("The key in Settings works, but a DIFFERENT invalid ELEVENLABS_API_KEY "
+                              "env var is overriding it. Fix/remove the env var in Render, then redeploy.")
+    elif tts_status == 429:
+        out["status"] = "QUOTA_EXHAUSTED"
+        out["fix"] = "Out of ElevenLabs characters this cycle — upgrade or wait for reset."
+    elif tts_status is None:
         out["status"] = "NETWORK_ERROR"
-        out["error"] = str(r)
+        out["error"] = str(tr)
     else:
         out["status"] = "ERROR"
         try:
-            out["body"] = r.text[:300]
+            out["tts_error_body"] = tr.text[:300]
         except Exception:
             pass
     return jsonify(out)
