@@ -216,9 +216,15 @@ const defaultSections = {
 {% if remix_job %}
   // Pre-fill from remix job
   document.getElementById('video-title').value = {{ remix_job.topic | tojson }};
+  {% if remix_sections %}
+  // Load the source video's real script so you can swap the voiceover: pick a
+  // new voice above and re-produce, and every section is re-narrated in it.
+  sections = {{ remix_sections | tojson }};
+  {% else %}
   sections = [
     {heading: 'SECTION 1', narration: {{ (remix_job.title or remix_job.topic) | tojson }} },
   ];
+  {% endif %}
 {% endif %}
 
 if (sections.length === 0) {

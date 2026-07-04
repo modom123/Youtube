@@ -5479,7 +5479,9 @@ def commercial_page():
     accounts = db.get_accounts(user_id=current_user.id)
     connected = {a["platform"] for a in accounts if a["is_active"]}
     return render_template("commercial.html", connected_platforms=connected,
-                           higgsfield_models=config.HIGGSVILLE_MODELS)
+                           higgsfield_models=config.HIGGSVILLE_MODELS,
+                           voices=config.VOICE_CATALOG,
+                           user_default_voice=current_user.default_voice)
 
 
 @app.route("/api/commercial/run", methods=["POST"])
@@ -9447,6 +9449,58 @@ def editing_room_page():
                            voices=config.VOICE_CATALOG, user_default_voice=current_user.default_voice)
 
 
+def _load_job_sections(job: dict) -> list:
+    """Load a completed job's real per-section narration so The Cut can re-voice
+    it. Reads the job's script.json (via its manifest) and normalizes each
+    section to {heading, narration}. Returns [] if nothing usable is found —
+    the editor then falls back to the title, as before."""
+    manifest_path = (job or {}).get("manifest_path") or ""
+    candidates = []
+    try:
+        if manifest_path and Path(manifest_path).exists():
+            with open(manifest_path) as f:
+                manifest = json.load(f)
+            script_ref = (manifest.get("files") or {}).get("script")
+            if script_ref:
+                candidates.append(Path(script_ref))
+            # The Cut's own manifests carry the sections inline.
+            if isinstance(manifest.get("sections"), list):
+                candidates.append(manifest)
+            candidates.append(Path(manifest_path).parent / "script.json")
+    except Exception as e:
+        print(f"[editing] could not read manifest for job {job.get('id')}: {e}")
+
+    for cand in candidates:
+        try:
+            if isinstance(cand, dict):
+                data = cand
+            elif cand.exists():
+                with open(cand) as f:
+                    data = json.load(f)
+            else:
+                continue
+            raw = data.get("sections") or []
+            out = []
+            for i, s in enumerate(raw):
+                if not isinstance(s, dict):
+                    continue
+                narration = (s.get("narration") or "").strip()
+                if not narration:
+                    continue
+                heading = (s.get("heading") or s.get("label") or f"SECTION {i + 1}").strip()
+                out.append({"heading": heading, "narration": narration})
+            if out:
+                return out
+            # No per-section text, but a full narration is still re-voiceable.
+            full = (data.get("narration") or data.get("narration_full")
+                    or data.get("voiceover_full") or "").strip()
+            if full:
+                return [{"heading": "SECTION 1", "narration": full}]
+        except Exception as e:
+            print(f"[editing] could not parse sections from {cand}: {e}")
+    return []
+
+
 @app.route("/editing-room/remix/<int:job_id>")
 @login_required
 def editing_room_remix(job_id):
@@ -9454,7 +9508,9 @@ def editing_room_remix(job_id):
     if not job:
         return redirect("/editing-room")
     jobs = db.get_jobs(limit=50, user_id=current_user.id)
-    return render_template("editing_room.html", jobs=jobs, remix_job=job, active_page="editing-room",
+    remix_sections = _load_job_sections(job)
+    return render_template("editing_room.html", jobs=jobs, remix_job=job,
+                           remix_sections=remix_sections, active_page="editing-room",
                            voices=config.VOICE_CATALOG, user_default_voice=current_user.default_voice)
 
 

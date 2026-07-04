@@ -212,6 +212,15 @@
       </div>
 
       <div class="form-row">
+        <label>Voiceover Voice</label>
+        <select id="com-voice">
+          {% for v in voices %}
+          <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-row">
         <label>Publish To</label>
         <div class="platform-chips" id="platformChips">
           {% set platforms = [
@@ -577,6 +586,7 @@ async function runCommercial() {
   fd.append('audience', document.getElementById('audience').value);
   fd.append('style',    document.getElementById('style').value);
   fd.append('duration', document.getElementById('duration').value);
+  fd.append('voice',    document.getElementById('com-voice').value);
   getSelectedPlatforms().forEach(p => fd.append('platforms', p));
 
   try {
