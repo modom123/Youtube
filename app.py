@@ -31,6 +31,7 @@ from admin import admin_bp
 from notifications import send_notification
 from monetizer import monetizer_bp, init_monetizer_tables
 from hermes_agent import hermes_bp
+from whop_integration import whop_bp, init_whop_tables
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
@@ -75,6 +76,19 @@ def load_user(user_id):
     data = db.get_user_by_id(int(user_id))
     return make_user(data) if data else None
 
+
+@app.after_request
+def _allow_whop_embedding(resp):
+    """Whop loads our app inside an iframe on whop.com. Every other route stays
+    frame-denied; only /whop/* opts in via a scoped frame-ancestors CSP (and no
+    X-Frame-Options, which has no allow-list and would block the embed)."""
+    if request.path.startswith("/whop/"):
+        resp.headers["Content-Security-Policy"] = (
+            "frame-ancestors 'self' https://whop.com https://*.whop.com"
+        )
+        resp.headers.pop("X-Frame-Options", None)
+    return resp
+
 from sales_channels import sales_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(billing_bp)
@@ -82,6 +96,7 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(monetizer_bp)
 app.register_blueprint(sales_bp)
 app.register_blueprint(hermes_bp)
+app.register_blueprint(whop_bp)
 
 db.init_db()
 
@@ -8355,6 +8370,7 @@ def api_rate_job(job_id):
 # ── Startup ───────────────────────────────────────────────────────────────────
 
 init_monetizer_tables()
+init_whop_tables()
 from generators.studio_intelligence import init_intelligence_tables
 init_intelligence_tables()
 _load_platform_creds_from_db()

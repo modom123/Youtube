@@ -229,11 +229,13 @@ def _save_whop_ids(tier_key: str, product_id: str, plan_id: str):
     """Persist Whop product/plan IDs in the settings table."""
     with db.get_conn() as conn:
         conn.execute(
-            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+            "INSERT INTO settings (key, value) VALUES (?, ?) "
+            "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value",
             (f"whop_{tier_key}_product_id", product_id),
         )
         conn.execute(
-            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+            "INSERT INTO settings (key, value) VALUES (?, ?) "
+            "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value",
             (f"whop_{tier_key}_plan_id", plan_id),
         )
         conn.commit()
@@ -366,9 +368,15 @@ def _handle_membership_activated(data: dict):
 
     with db.get_conn() as conn:
         conn.execute("""
-            INSERT OR REPLACE INTO whop_subscriptions
+            INSERT INTO whop_subscriptions
             (user_id, membership_id, tier, status, videos_remaining, activated_at, updated_at)
             VALUES (?, ?, ?, 'active', ?, ?, ?)
+            ON CONFLICT (membership_id) DO UPDATE SET
+                user_id=EXCLUDED.user_id,
+                tier=EXCLUDED.tier,
+                status='active',
+                videos_remaining=EXCLUDED.videos_remaining,
+                updated_at=EXCLUDED.updated_at
         """, (uid, membership_id, tier, videos_per_month,
               datetime.now(timezone.utc).isoformat(),
               datetime.now(timezone.utc).isoformat()))
@@ -730,20 +738,19 @@ def init_whop_tables():
     with db.get_conn() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS whop_subscriptions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id),
                 membership_id TEXT UNIQUE,
                 tier TEXT DEFAULT 'clipper_basic',
                 status TEXT DEFAULT 'active',
                 videos_remaining INTEGER DEFAULT 3,
                 activated_at TEXT,
-                updated_at TEXT,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                updated_at TEXT
             )
         """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS whop_payments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 membership_id TEXT,
                 amount_cents INTEGER DEFAULT 0,
                 currency TEXT DEFAULT 'usd',

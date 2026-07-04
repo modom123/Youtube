@@ -99,6 +99,7 @@ class _CursorWrapper:
         self._cur = cur
         self.lastrowid = None
         self.description = cur.description
+        self.rowcount = cur.rowcount
 
     def fetchone(self):
         row = self._cur.fetchone()
