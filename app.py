@@ -10040,7 +10040,11 @@ Return JSON with "subject" and "body" keys only."""
 
 def _post_db_startup():
     init_monetizer_tables()
-    init_whop_tables()
+    try:
+        init_whop_tables()
+    except Exception as e:
+        # A Whop schema hiccup must never take down the whole app at boot.
+        print(f"[boot] init_whop_tables failed (continuing without Whop): {e}")
     from generators.studio_intelligence import init_intelligence_tables
     init_intelligence_tables()
     _load_platform_creds_from_db()
@@ -10083,7 +10087,15 @@ def _post_db_startup():
 
 
 if _db_ready:
-    _post_db_startup()
+    # Must not raise: an exception here happens at module import and would crash
+    # the gunicorn worker (502) instead of degrading. The DB-retry path already
+    # wraps this — mirror that resilience on the healthy-DB path too.
+    try:
+        _post_db_startup()
+    except Exception as _startup_err:
+        import traceback as _tb
+        print(f"[boot] _post_db_startup error (serving anyway): {_startup_err}")
+        _tb.print_exc()
 
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")
