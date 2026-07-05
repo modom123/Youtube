@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_voice_picker.html" import voice_picker %}
 {% set active_page = "commercial" %}
 
 {% block title %}Ad Lab — Social Optimize{% endblock %}
@@ -212,6 +213,11 @@
       </div>
 
       <div class="form-row">
+        <label>Voiceover Voice</label>
+        {{ voice_picker(voices, user_default_voice, 'com-voice') }}
+      </div>
+
+      <div class="form-row">
         <label>Publish To</label>
         <div class="platform-chips" id="platformChips">
           {% set platforms = [
@@ -403,6 +409,36 @@ let selectedFile = null;
 let _timerInterval = null;
 let _timerStart = null;
 
+// ── Resume an in-progress job after leaving/returning to this page ──────────
+// The job itself keeps running server-side regardless of whether this tab
+// is open, but currentJobId only ever lived in a JS variable -- navigate
+// away and back and there was no way to reconnect to it, so it looked like
+// the work was lost even though it wasn't. Persist the id so this page can
+// pick the same job back up.
+const SO_JOB_KEY = 'so_commercial_active_job';
+const SO_JOB_MAX_AGE_MS = 30 * 60 * 1000; // 30 min -- generous for a commercial
+
+function saveActiveJob(jobId) {
+  localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, startedAt: Date.now() }));
+}
+function clearActiveJob() {
+  localStorage.removeItem(SO_JOB_KEY);
+}
+function getResumableJob() {
+  try {
+    const raw = localStorage.getItem(SO_JOB_KEY);
+    if (!raw) return null;
+    const { jobId, startedAt } = JSON.parse(raw);
+    if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) {
+      clearActiveJob();
+      return null;
+    }
+    return jobId;
+  } catch (e) {
+    return null;
+  }
+}
+
 function startTimer() {
   stopTimer();
   _timerStart = Date.now();
@@ -547,6 +583,7 @@ async function runCommercial() {
   fd.append('audience', document.getElementById('audience').value);
   fd.append('style',    document.getElementById('style').value);
   fd.append('duration', document.getElementById('duration').value);
+  fd.append('voice',    document.getElementById('com-voice').value);
   getSelectedPlatforms().forEach(p => fd.append('platforms', p));
 
   try {
@@ -554,6 +591,7 @@ async function runCommercial() {
     const data = await resp.json();
     if (data.error) { showError(data.error); stopTimer(); btn.disabled = false; btn.textContent = '🎬 Generate Commercial'; return; }
     currentJobId = data.job_id;
+    saveActiveJob(currentJobId);
     listenToStream(currentJobId);
   } catch(e) {
     showError('Failed to start: ' + e.message);
@@ -599,6 +637,7 @@ function handleEvent(d, jobId, es) {
   if (d.status === 'done') {
     if (es) es.close();
     stopTimer();
+    clearActiveJob();
     showResults(d);
     const btn = document.getElementById('generateBtn');
     btn.disabled = false;
@@ -606,6 +645,7 @@ function handleEvent(d, jobId, es) {
   } else if (d.status === 'error') {
     if (es) es.close();
     stopTimer();
+    clearActiveJob();
     showError(d.error || 'Generation failed');
     const btn = document.getElementById('generateBtn');
     btn.disabled = false;
@@ -809,7 +849,7 @@ async function launchToTV() {
           showTvDistResult('youtube', d.url, 'YouTube — ' + title);
         } else if (d.needs_auth) {
           setTvRowError('youtube', 'Not connected');
-          if (confirm('Connect YouTube account?')) window.location.href = d.auth_url;
+          window.location.href = `/accounts?next=${encodeURIComponent(window.location.pathname)}&highlight=youtube`;
         } else {
           setTvRowError('youtube', d.error || 'Upload failed');
           errors.push('YouTube: ' + (d.error || 'Upload failed'));
@@ -837,7 +877,7 @@ async function launchToTV() {
           showTvDistResult('twitch', d.channel_url, 'Twitch — Live Now');
         } else if (d.needs_auth) {
           setTvRowError('twitch', 'Not connected');
-          if (confirm('Connect Twitch account?')) window.location.href = d.auth_url;
+          window.location.href = `/accounts?next=${encodeURIComponent(window.location.pathname)}&highlight=twitch`;
         } else {
           setTvRowError('twitch', d.error || 'Broadcast failed');
           errors.push('Twitch: ' + (d.error || 'Broadcast failed'));
@@ -860,5 +900,53 @@ async function launchToTV() {
 document.getElementById('tvModal').addEventListener('click', function(e) {
   if (e.target === this) closeLaunchModal();
 });
+
+// Landed back here after connecting a platform via /accounts?next=...
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const connected = params.get('connected');
+  if (connected) {
+    toast('success', `${connected.charAt(0).toUpperCase() + connected.slice(1)} connected`, 'Try broadcasting again.');
+    params.delete('connected');
+    const clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+    window.history.replaceState({}, '', clean);
+  }
+})();
+
+// Reconnect to a commercial that was still generating when this page was
+// last left -- the job itself never stopped running server-side, only the
+// browser's connection to it was gone. Confirm the server actually still
+// knows about it before disrupting the UI (a bare "pending" with nothing
+// else means the job id is stale, e.g. from a server restart).
+(async function resumeActiveJob() {
+  const jobId = getResumableJob();
+  if (!jobId) return;
+  try {
+    const resp = await fetch(`/api/commercial/${jobId}/status`);
+    const d = await resp.json();
+    const hasRealState = d.progress !== undefined || d.step || d.status === 'done' || d.status === 'error' || d.status === 'running';
+    if (!hasRealState) { clearActiveJob(); return; }
+
+    currentJobId = jobId;
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('resultPanel').classList.add('visible');
+
+    if (d.status === 'done' || d.status === 'error') {
+      handleEvent(d, jobId, null);
+      return;
+    }
+
+    document.getElementById('progressSection').style.display = 'block';
+    document.getElementById('doneSection').style.display = 'none';
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Generating...';
+    startTimer();
+    handleEvent(d, jobId, null);
+    listenToStream(jobId);
+  } catch (e) {
+    // Network hiccup -- leave the stored job id in place, next load retries.
+  }
+})();
 </script>
 {% endblock %}

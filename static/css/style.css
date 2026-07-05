@@ -57,10 +57,36 @@ body {
   overflow-x: hidden;
 }
 
-/* ── Scrollbar ───────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; }
+/* ── Scrollbar (thicker, easier to grab) ─────────────────── */
+::-webkit-scrollbar { width: 14px; height: 14px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
-::-webkit-scrollbar-thumb { background: var(--red-dim); border-radius: 3px; }
+::-webkit-scrollbar-thumb {
+  background: var(--red-dim); border-radius: 8px;
+  border: 3px solid var(--bg-primary); background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--accent, var(--red-dim)); background-clip: content-box; }
+* { scrollbar-width: auto; scrollbar-color: var(--red-dim) var(--bg-primary); }
+
+/* ── Live production progress pinned to the bottom ───────────
+   While a job runs, generated content flows DOWN the page — keep the progress
+   bar + timer (which spells SOCIAL OPTIMIZE) stuck to the bottom of the viewport
+   so you don't have to scroll back to the top to see if it's still working.
+   These containers are display:none until production starts, so this is inert
+   the rest of the time. */
+#progress-area,
+#progressSection,
+.hw-progress-wrap,
+.progress-bar-wrap,
+#studioProgress {
+  position: sticky;
+  bottom: 8px;
+  z-index: 50;
+  background: var(--card, var(--bg-primary));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 -6px 16px rgba(0,0,0,.28);
+}
 
 /* ── Layout ──────────────────────────────────────────────── */
 .layout {
@@ -227,6 +253,44 @@ body {
 
 .content { padding: 28px; flex: 1; }
 
+/* ── Embedded mode (page shown inside a Studio hub iframe) ──────────────────
+   No sidebar/topbar: collapse the grid to a single full-width column so the
+   page uses the whole hub area instead of being crammed into the 240px track.
+   The hub already provides the title bar and tabs, and its iframe scrolls,
+   so drop the redundant chrome, min-heights, and outer scrollbar. */
+.layout.embed { grid-template-columns: 1fr; min-height: auto; }
+.layout.embed .main { min-height: auto; }
+.layout.embed .content { padding: 24px; }
+body.embedded { background: transparent; }
+
+/* Iframe-context safety net: any page rendered inside an iframe (studio hubs,
+   Whop app) must hide the app chrome even if the ?embed flag was lost on a
+   redirect/nav — otherwise a second sidebar renders ("double left tabs"). */
+html.embedded-frame .sidebar,
+html.embedded-frame .topbar { display: none !important; }
+html.embedded-frame .layout { grid-template-columns: 1fr !important; min-height: auto; }
+html.embedded-frame body { background: transparent; }
+html.embedded-frame #hermesBubble,
+html.embedded-frame #hermesPanel { display: none !important; }
+
+/* The hub page already shows the assistant bubble — hide the duplicate that
+   each embedded iframe would otherwise stack on top of it. */
+body.embedded #hermesBubble,
+body.embedded #hermesPanel { display: none !important; }
+/* Full-height pages subtract a topbar (80/116px) that no longer exists in
+   embed mode — inside the iframe the whole area is theirs. Reclaim it, and
+   zero the surrounding content padding so their edge-to-edge grids don't sit
+   inside a second scroll box. Normal card pages keep the 24px padding above. */
+.layout.embed .content:has(.clipper-layout),
+.layout.embed .content:has(.pod-layout),
+.layout.embed .content:has(.ms-wrap) { padding: 0; }
+.layout.embed .clipper-layout { min-height: 100vh; }
+.layout.embed .panel-left,
+.layout.embed .panel-center,
+.layout.embed .panel-right { max-height: 100vh; }
+.layout.embed .pod-layout,
+.layout.embed .ms-wrap { height: 100vh; }
+
 /* ── Cards ───────────────────────────────────────────────── */
 .card {
   background: var(--bg-card);
@@ -283,6 +347,13 @@ body {
   border-color: var(--border-bright);
   transform: translateY(-2px);
   box-shadow: var(--shadow);
+}
+
+.stat-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .stat-label {

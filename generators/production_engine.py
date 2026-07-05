@@ -208,8 +208,8 @@ class ProductionStudioEngine:
 
         # ── FORCE hook section (section_id=1) to have Higgsfield ─────────────
         # Regardless of Cost Engineer decision, section 1 must be AI-generated
-        # when HIGGSFIELD_MCP_TOKEN is configured.
-        if config.HIGGSFIELD_MCP_TOKEN and not dry_run:
+        # when Higgsfield is connected (OAuth/MCP token, not a REST API key).
+        if higgsfield_mcp.has_key() and not dry_run:
             hook_has_higgsfield = any(
                 a.section_id == 1 and a.source.startswith("higgsfield_")
                 for a in asset_plan.assets
@@ -341,7 +341,7 @@ class ProductionStudioEngine:
                 prompts = [a.prompt for a in higgsfield_assets[:6]]
                 model_key = higgsfield_assets[0].model_key or "cinematic_studio_3_0"
                 aspect = higgsfield_assets[0].aspect_ratio
-                ai_clips = higgsfield_mcp.generate_clips_via_mcp(
+                ai_clips = higgsfield_mcp.generate_clips(
                     prompts=prompts,
                     output_dir=ai_clips_dir,
                     model_id=model_key,
@@ -368,14 +368,14 @@ class ProductionStudioEngine:
             errors.append(f"Thumbnail failed: {e}")
 
         # ── AI Thumbnail via Higgsfield (upgrade over standard thumbnail) ─────
-        if config.HIGGSFIELD_MCP_TOKEN and not dry_run and script.thumbnail_prompt:
+        if higgsfield_mcp.has_key() and not dry_run and script.thumbnail_prompt:
             self.cb("Generating AI thumbnail…", 81)
             try:
                 ai_thumb_path = job_dir / "thumbnail_ai.jpg"
-                result_path = higgsfield_mcp.generate_image_via_mcp(
+                result_path = higgsfield_mcp.generate_image(
                     prompt=script.thumbnail_prompt,
                     output_path=ai_thumb_path,
-                    model_id="nano_banana_pro",
+                    model_id="flux_2",
                     aspect_ratio="16:9",
                 )
                 if result_path and result_path.exists() and result_path.stat().st_size > 1_000:

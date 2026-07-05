@@ -32,6 +32,8 @@ from moviepy import (
 )
 from moviepy.video.fx import FadeIn, FadeOut
 
+from generators import audio_generator
+
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT_PATH_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
@@ -379,7 +381,7 @@ def _clip_with_overlay(clip_path, heading, palette, w, h, duration, idx, total, 
 
 def generate_section_clips(sections, studio, output_dir, progress_cb=None):
     """Generate Higgsfield AI clips for each section. Returns dict of {index: clip_path}."""
-    from generators.higgsfield_mcp import generate_clips_via_mcp
+    from generators.higgsfield_mcp import generate_clips
     preset = STUDIO_PRESETS[studio]
     w, h = preset["width"], preset["height"]
     ar = "9:16" if h > w else "16:9"
@@ -398,7 +400,7 @@ def generate_section_clips(sections, studio, output_dir, progress_cb=None):
         progress_cb(f"Generating {len(prompts)} AI clips via Higgsfield...", 5)
 
     model = "kling3_0_turbo"
-    clips = generate_clips_via_mcp(
+    clips = generate_clips(
         prompts=prompts,
         output_dir=output_dir / "clips",
         model_id=model,
@@ -484,6 +486,7 @@ def produce(
     use_ai_clips: bool = False,
     custom_bgm_path: Optional[str] = None,
     section_media: Optional[dict] = None,
+    voice: Optional[str] = None,
 ) -> dict:
     """
     Produce a complete enhanced video.
@@ -497,6 +500,9 @@ def produce(
         progress_cb: Optional callback(message, percent)
         clip_paths: Optional dict {section_index: Path} of pre-generated video clips
         use_ai_clips: If True, generate AI clips via Higgsfield before assembly
+        voice: Voice catalog id for narration -- routed through the same
+            ElevenLabs -> Google Neural2 -> edge-tts -> espeak-ng cascade
+            every other studio uses, instead of always using espeak-ng.
 
     Returns:
         dict with output path, duration, resolution, etc.
@@ -525,7 +531,7 @@ def produce(
     _progress("Generating voiceover...", 10)
     full_narration = " ".join(s["narration"] for s in sections)
     voice_path = output_dir / "voiceover.mp3"
-    _tts_espeak(full_narration, voice_path)
+    audio_generator.generate_audio(full_narration, voice_path, voice=voice)
     voice_clip = AudioFileClip(str(voice_path))
     voice_dur = voice_clip.duration
 

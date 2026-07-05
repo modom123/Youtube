@@ -7,6 +7,17 @@ load_dotenv()
 # ── App ───────────────────────────────────────────────────────────────────────
 APP_BASE_URL = os.getenv("APP_BASE_URL", "https://socialoptimize.online")
 
+# ── Public media hosting (Instagram/Threads need a public video URL) ──────────
+# Optional S3-compatible storage (AWS S3, Cloudflare R2, Backblaze B2).
+# When unset, the app serves media itself at signed URLs under APP_BASE_URL.
+S3_BUCKET             = os.getenv("S3_BUCKET", "")
+S3_ACCESS_KEY_ID      = os.getenv("S3_ACCESS_KEY_ID", os.getenv("AWS_ACCESS_KEY_ID", ""))
+S3_SECRET_ACCESS_KEY  = os.getenv("S3_SECRET_ACCESS_KEY", os.getenv("AWS_SECRET_ACCESS_KEY", ""))
+S3_REGION             = os.getenv("S3_REGION", "auto")
+S3_ENDPOINT_URL       = os.getenv("S3_ENDPOINT_URL", "")      # e.g. R2 account endpoint
+S3_PUBLIC_BASE_URL    = os.getenv("S3_PUBLIC_BASE_URL", "")   # CDN / public bucket base
+MEDIA_PUBLIC_BASE_URL = os.getenv("MEDIA_PUBLIC_BASE_URL", APP_BASE_URL)
+
 # ── Persistent data directory ─────────────────────────────────────────────────
 # Locally this is the project root; on Render it's the mounted disk at /data
 DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).parent))
@@ -45,6 +56,7 @@ STRIPE_PRICE_AGENCY   = os.getenv("STRIPE_PRICE_AGENCY", "")
 # ── Whop ─────────────────────────────────────────────────────────────────────
 WHOP_API_KEY          = os.getenv("WHOP_API_KEY", "")
 WHOP_WEBHOOK_SECRET   = os.getenv("WHOP_WEBHOOK_SECRET", "")
+WHOP_PLAN_FREE        = os.getenv("WHOP_PLAN_FREE", "")
 WHOP_PLAN_STARTER     = os.getenv("WHOP_PLAN_STARTER", "")
 WHOP_PLAN_CREATOR     = os.getenv("WHOP_PLAN_CREATOR", "")
 WHOP_PLAN_PRO         = os.getenv("WHOP_PLAN_PRO", "")
@@ -94,15 +106,16 @@ BYPASS_USAGE_GATE = os.getenv("BYPASS_USAGE_GATE", "0") not in ("", "0", "false"
 TIERS = {
     "free": {
         "label": "Free",
-        "description": "Get started for free — no credit card, no commitment. 3 AI videos per month with 10 credits.",
+        "description": "Get started for free — no credit card, no commitment. 3 AI videos per month with 50 credits.",
         "price_monthly": 0,
         "trial_days": 0,
-        "videos_per_month": -1,
-        "higgsfield_credits": 10,
+        "videos_per_month": 3,
+        "higgsfield_credits": 50,
         "stripe_price_id": None,
+        "whop_plan_id": WHOP_PLAN_FREE,
         "features": [
             "3 AI videos/month",
-            "10 Social Optimize Credits",
+            "50 Social Optimize Credits",
             "5-agent AI pipeline",
             "Publish to 3 platforms",
             "Content Calendar",
@@ -120,14 +133,14 @@ TIERS = {
         "price_monthly": 9.99,
         "trial_days": 7,
         "videos_per_month": 7,
-        "higgsfield_credits": 50,
+        "higgsfield_credits": 100,
         "stripe_price_id": STRIPE_PRICE_STARTER,
         "whop_plan_id": WHOP_PLAN_STARTER,
         "features": [
             "7-day free trial",
             "7 AI videos/month",
             "Publish to 5 platforms",
-            "50 Social Optimize Credits/mo",
+            "100 Social Optimize Credits/mo",
             "5-agent AI pipeline",
             "Content calendar & scheduling",
             "The Cut",
@@ -140,18 +153,18 @@ TIERS = {
     },
     "creator": {
         "label": "Creator",
-        "description": "Built for entrepreneurs and small businesses. 14-day free trial, then $29.99/mo.",
+        "description": "Built for entrepreneurs and small businesses. 7-day free trial, then $29.99/mo.",
         "price_monthly": 29.99,
-        "trial_days": 14,
+        "trial_days": 7,
         "videos_per_month": 15,
-        "higgsfield_credits": 150,
+        "higgsfield_credits": 210,
         "stripe_price_id": STRIPE_PRICE_CREATOR,
         "whop_plan_id": WHOP_PLAN_CREATOR,
         "features": [
-            "14-day free trial",
+            "7-day free trial",
             "15 AI videos/month",
             "Publish to 8 platforms",
-            "150 Social Optimize Credits/mo",
+            "210 Social Optimize Credits/mo",
             "5-agent AI pipeline",
             "The Forge — production suite",
             "Ad Lab — photo → ad",
@@ -166,18 +179,18 @@ TIERS = {
     },
     "pro": {
         "label": "Pro",
-        "description": "The full creative suite for serious creators. 14-day free trial, then $79.99/mo.",
+        "description": "The full creative suite for serious creators. 7-day free trial, then $79.99/mo.",
         "price_monthly": 79.99,
-        "trial_days": 14,
+        "trial_days": 7,
         "videos_per_month": 50,
-        "higgsfield_credits": 500,
+        "higgsfield_credits": 700,
         "stripe_price_id": STRIPE_PRICE_PRO,
         "whop_plan_id": WHOP_PLAN_PRO,
         "features": [
-            "14-day free trial",
+            "7-day free trial",
             "50 AI videos/month",
             "Publish to all 8 platforms",
-            "500 Social Optimize Credits/mo",
+            "700 Social Optimize Credits/mo",
             "Everything in Creator",
             "The Forge — full production suite",
             "Cinema House — cinematic AI",
@@ -194,18 +207,18 @@ TIERS = {
     },
     "agency": {
         "label": "Agency",
-        "description": "Scale your content operation. 14-day free trial, then $199.99/mo.",
+        "description": "Scale your content operation. 7-day free trial, then $199.99/mo.",
         "price_monthly": 199.99,
-        "trial_days": 14,
+        "trial_days": 7,
         "videos_per_month": 125,
-        "higgsfield_credits": 2000,
+        "higgsfield_credits": 1750,
         "stripe_price_id": STRIPE_PRICE_AGENCY,
         "whop_plan_id": WHOP_PLAN_AGENCY,
         "features": [
-            "14-day free trial",
+            "7-day free trial",
             "125 AI videos/month",
             "Publish to all 8 platforms",
-            "2,000 Social Optimize Credits/mo",
+            "1,750 Social Optimize Credits/mo",
             "Everything in Pro",
             "The Scalpel — unlimited clips",
             "Team management (5 seats)",
@@ -242,6 +255,47 @@ TIER_CLAUDE_MODEL = {
     "agency":  "claude-sonnet-4-6",
 }
 
+# ── Real vendor cost basis (for unit economics / credit pricing) ────────────
+# Sourced from public vendor pricing pages, checked 2026-07. These feed
+# agents/sterling_business.py's cost-center audit and the credit-pricing
+# formula — update here if vendor pricing or your plan tier changes.
+
+# Anthropic Claude API — $ per million tokens (input, output).
+# Source: https://platform.claude.com/docs/en/about-claude/pricing
+ANTHROPIC_COST_PER_M_TOKENS = {
+    "haiku":  {"input": 1.0, "output": 5.0},   # claude-haiku-4-5
+    "sonnet": {"input": 3.0, "output": 15.0},  # claude-sonnet-4-6
+}
+
+# Higgsfield credits — real account data (checked via balance/transactions).
+# Generation now runs on the Platform API (key+secret) credit pack: 500 credits
+# for $31 -> $0.062/credit. (Subscription base was $0.0556/credit; overage
+# top-ups run $0.10-0.15/credit per https://higgsfield.ai/pricing.) Update
+# HIGGSFIELD_COST_PER_CREDIT_BASE if your credit source/price changes.
+HIGGSFIELD_COST_PER_CREDIT_BASE  = float(os.getenv("HIGGSFIELD_COST_PER_CREDIT_BASE", "0.062"))
+HIGGSFIELD_COST_PER_CREDIT_TOPUP = float(os.getenv("HIGGSFIELD_COST_PER_CREDIT_TOPUP", "0.125"))
+HIGGSFIELD_MONTHLY_BASE_CREDITS  = float(os.getenv("HIGGSFIELD_MONTHLY_BASE_CREDITS", "270"))
+
+# ElevenLabs TTS — $ per 1,000 characters. Flash/Turbo models (cheaper, used
+# for short-form narration) run ~$0.05/1k chars vs $0.10 for Multilingual v2.
+# Source: https://elevenlabs.io/pricing/api
+ELEVENLABS_COST_PER_1K_CHARS = float(os.getenv("ELEVENLABS_COST_PER_1K_CHARS", "0.05"))
+
+# Google Cloud APIs — checked 2026-07 via cloud.google.com/{vision,translate,natural-language}/pricing
+GOOGLE_VISION_COST_PER_IMAGE      = 0.0015   # label detection, after 1,000/mo free tier
+GOOGLE_TRANSLATE_COST_PER_1K_CHARS = 0.02    # Basic/Advanced NMT, $20/M chars, after 500k/mo free
+GOOGLE_NLP_COST_PER_1K_UNITS      = 0.001    # entity/sentiment analysis, after 5,000/mo free
+
+# Infrastructure — actual billed plan cost per month.
+# Source: https://render.com/pricing (Standard tier) / https://supabase.com/pricing (Pro tier)
+RENDER_MONTHLY_COST   = float(os.getenv("RENDER_MONTHLY_COST", "25"))
+SUPABASE_MONTHLY_COST = float(os.getenv("SUPABASE_MONTHLY_COST", "25"))
+
+# Stripe processing fees — standard US online card rate.
+# Source: https://stripe.com/pricing
+STRIPE_PCT_FEE  = 0.029
+STRIPE_FLAT_FEE = 0.30
+
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 DEEPSEEK_API_KEY  = os.getenv("DEEPSEEK_API_KEY", "")
 QWEN_API_KEY      = os.getenv("QWEN_API_KEY", "")       # Alibaba DashScope
@@ -254,6 +308,33 @@ PEXELS_API_KEY = os.getenv("PEXELS_API_KEY", "")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  # "Adam" — deep male narrator
+# Highest-quality multilingual model for narration. Override to
+# "eleven_turbo_v2_5" for faster/cheaper synthesis at a small quality cost.
+ELEVENLABS_MODEL = os.getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2")
+
+# Google Cloud Storage — used ONLY as a scratch pad for audio files that
+# exceed Speech-to-Text's ~10MB inline-content limit (a real podcast episode
+# at 16kHz mono routinely does: that ceiling is only ~5 minutes of audio).
+# Requires a SEPARATE credential from GOOGLE_API_KEY: GCS write access needs
+# a service account (API keys can't authorize bucket writes), created in
+# Google Cloud Console > IAM & Admin > Service Accounts, granted the
+# "Storage Object Admin" role on the target bucket, with a JSON key
+# generated and pasted whole (including newlines) into
+# GOOGLE_SERVICE_ACCOUNT_JSON. Leave GCS_BUCKET_NAME unset to keep this
+# disabled — long-episode transcription will just raise a clear error
+# instead of silently truncating.
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "")
+GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+
+# Anthropic Admin API — a SEPARATE key from ANTHROPIC_API_KEY, generated in
+# the Anthropic Console under Settings > Admin API Keys (requires an org
+# admin role). The regular API key used for actual Claude calls has no way
+# to check its own spend — only the Admin API's cost report can. Anthropic
+# is pay-as-you-go with no fixed monthly credit cap, so monitoring needs a
+# budget number you set yourself; leave ANTHROPIC_MONTHLY_BUDGET at 0 to
+# keep this disabled until you've set both.
+ANTHROPIC_ADMIN_KEY = os.getenv("ANTHROPIC_ADMIN_KEY", "")
+ANTHROPIC_MONTHLY_BUDGET = float(os.getenv("ANTHROPIC_MONTHLY_BUDGET", "0"))
 
 # Hit Factory providers
 SUNO_COOKIE = os.getenv("SUNO_COOKIE", "")
@@ -261,16 +342,40 @@ REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
 MUBERT_KEY = os.getenv("MUBERT_KEY", "")
 FREESOUND_API_KEY = os.getenv("FREESOUND_API_KEY", "")
 
-# Higgsfield AI — bearer token for REST + MCP API calls
+# Higgsfield AI — OAuth/MCP bearer token for the MCP endpoint (mcp.higgsfield.ai)
 HIGGSFIELD_MCP_TOKEN = (
     os.getenv("HIGGSFIELD_MCP_TOKEN")
     or os.getenv("HIGGSFIELD_TOKEN")
     or os.getenv("HIGGSVILLE_TOKEN")
     or os.getenv("HIGGSVILLE_MCP_TOKEN")
-    or os.getenv("HIGGSFIELD_API_KEY")
     or ""
 )
 HIGGSFIELD_MCP_URL = os.getenv("HIGGSFIELD_MCP_URL", "https://mcp.higgsfield.ai/mcp")
+
+# ── Higgsfield Platform API — KEY_ID + KEY_SECRET pair ────────────────────────
+# Distinct from the MCP token above. The Platform API (platform.higgsfield.ai),
+# used by the higgsfield-client SDK and CLI, authenticates with a key id + secret
+# and sends `Authorization: Key KEY_ID:KEY_SECRET`. The SDK/CLI read these from
+# HF_API_KEY / HF_API_SECRET (or a combined HF_KEY="KEY_ID:KEY_SECRET").
+HIGGSFIELD_API_KEY    = os.getenv("HIGGSFIELD_API_KEY", "")     # key id (UUID)
+HIGGSFIELD_API_SECRET = os.getenv("HIGGSFIELD_API_SECRET", "")  # key secret
+HIGGSFIELD_API_CREDENTIAL = (
+    f"{HIGGSFIELD_API_KEY}:{HIGGSFIELD_API_SECRET}"
+    if HIGGSFIELD_API_KEY and HIGGSFIELD_API_SECRET else ""
+)
+# Expose the credential to the higgsfield-client SDK / CLI, which resolve it from
+# the environment. setdefault so an explicitly-set HF_* env var still wins.
+if HIGGSFIELD_API_CREDENTIAL:
+    os.environ.setdefault("HF_API_KEY", HIGGSFIELD_API_KEY)
+    os.environ.setdefault("HF_API_SECRET", HIGGSFIELD_API_SECRET)
+    os.environ.setdefault("HF_KEY", HIGGSFIELD_API_CREDENTIAL)
+
+# Gamma — slide-deck generation for ranking/listicle-style videos and other
+# presentation output. Real REST API, not the MCP tool (that's only
+# available to this chat session, not the deployed server).
+# Source: https://developers.gamma.app/ — base https://public-api.gamma.app/v1.0
+GAMMA_API_KEY = os.getenv("GAMMA_API_KEY", "")
+GAMMA_API_BASE = "https://public-api.gamma.app/v1.0"
 
 # YouTube
 YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID", "")
@@ -333,7 +438,7 @@ PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID", "")
 
 # Video settings
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en-US")
-DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "en-US-Studio-O")
+DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "en-US-Journey-D")
 VIDEO_WIDTH = int(os.getenv("DEFAULT_VIDEO_WIDTH", "1280"))
 VIDEO_HEIGHT = int(os.getenv("DEFAULT_VIDEO_HEIGHT", "720"))
 SHORT_WIDTH = int(os.getenv("SHORT_VIDEO_WIDTH", "720"))
@@ -344,22 +449,145 @@ SHORTS_MAX_DURATION = 60
 LONG_VIDEO_MIN_DURATION = 180
 PODCAST_MIN_DURATION = 300
 
+# Canonical studio/tool list -- single source of truth for anything that
+# needs to enumerate "what studios exist" (currently /api/studios for the
+# mobile app). Paths must match the real routes in app.py/templates/base.html
+# exactly -- a studio listed here with a wrong path 404s for whoever calls it.
+STUDIOS = [
+    {"id": "create", "name": "Create", "icon": "🚀", "path": "/create",
+     "desc": "Turn any topic into a complete, ready-to-post video.",
+     "purpose": "The fastest way to turn any topic into a ready-to-post video — script, voiceover, visuals, and thumbnail generated automatically.",
+     "how_to": [
+        "Enter a topic.",
+        "Pick a format (short/long/podcast/etc.), target platforms, and a voice.",
+        "Click Generate — Social Optimize researches the topic, writes the script, records narration, sources visuals, and assembles the final video.",
+        "Review the result and publish directly to connected platforms, or download it.",
+     ]},
+    {"id": "studio", "name": "The Forge", "icon": "🏭", "path": "/studio",
+     "desc": "Premium YouTube video production, niche-driven.",
+     "purpose": "Autonomous daily content production for a niche — for creators who want a steady stream of videos without manually starting each one.",
+     "how_to": [
+        "Enter your niche or channel focus.",
+        "Set a target duration and budget.",
+        "Click Run — five specialized AI agents handle trend research, scripting, asset planning, cost optimization, and SEO.",
+        "Review the finished video and publish.",
+     ]},
+    {"id": "hollywood", "name": "Cinema House", "icon": "🎬", "path": "/hollywood",
+     "desc": "Documentary-grade cinematic storytelling.",
+     "purpose": "Premium, documentary-grade cinematic videos that mix real stock footage with AI-generated cinematic shots — built for storytelling, not quick turnarounds.",
+     "how_to": [
+        "Enter your topic or story.",
+        "Choose duration and target audience.",
+        "Generate — the Cinematic Director, Screenwriter, and Asset Curator agents plan and build a shot-by-shot production.",
+        "Review the finished film, including an AI-generated thumbnail.",
+     ]},
+    {"id": "music", "name": "Hit Factory", "icon": "🎵", "path": "/music-studio",
+     "desc": "Beats and songs that sound radio-ready.",
+     "purpose": "Generate original background music, beats, or full songs with lyrics for your videos — no royalty-free library needed.",
+     "how_to": [
+        "Set genre, mood, tempo, and vocal style.",
+        "Optionally write your own lyrics, or let AI write them.",
+        "Generate — Social Optimize composes the music and can layer AI vocals on top.",
+        "Download the track, or use it as background music in Editing Room.",
+     ]},
+    {"id": "podcast", "name": "Podcast Studio", "icon": "🎙️", "path": "/podcast-studio",
+     "desc": "Record, edit, and publish podcast episodes.",
+     "purpose": "Turn a topic into a full podcast episode with narration and an audiogram video, or upload your own recorded audio for show notes and a matching video.",
+     "how_to": [
+        "Choose 'Generate from topic' or 'Upload audio'.",
+        "Set the show name, episode number, and guest info if relevant.",
+        "Generate — get a scripted episode with narration and chapters, or an audiogram plus transcript for uploaded audio.",
+        "Publish or schedule the episode to your platforms.",
+     ]},
+    {"id": "commercial", "name": "Ad Lab", "icon": "📺", "path": "/commercial",
+     "desc": "Scroll-stopping product ads from a photo or clip.",
+     "purpose": "Turn a product photo or clip into a scroll-stopping commercial — ad copy, script, voiceover, and video, ready to run.",
+     "how_to": [
+        "Upload a product photo or video.",
+        "Enter the brand name, description, and target audience.",
+        "Generate — Claude Vision analyzes your product, writes ad copy in five proven frameworks, and produces a finished commercial.",
+        "Review the hooks/CTAs and publish, or broadcast directly to YouTube/Twitch.",
+     ]},
+    {"id": "clipper", "name": "Clipper", "icon": "✂️", "path": "/clipper",
+     "desc": "Turn a long video into viral short clips.",
+     "purpose": "Turn one long video into several short, captioned, vertical clips optimized for virality.",
+     "how_to": [
+        "Upload a video, paste a URL, or pick an existing job.",
+        "Set how many clips you want and how long each should be.",
+        "Generate — AI identifies the most engaging moments (or falls back to scene detection), then extracts, reframes, and captions each clip.",
+        "Download clips individually or as a zip.",
+     ]},
+    {"id": "editing-room", "name": "Editing Room", "icon": "🎞️", "path": "/editing-room",
+     "desc": "Assemble a polished video from your own footage.",
+     "purpose": "Assemble a polished video from your own script and media — cinematic titles, lower-thirds, Ken Burns motion, and background music, without a full AI generation pipeline.",
+     "how_to": [
+        "Pick a studio look (Cinema House / The Forge / Ad Lab style).",
+        "Write your section headings and narration, or remix an existing job.",
+        "Upload your own clips/images per section, or let AI generate them.",
+        "Produce — get a fully assembled, narrated video.",
+     ]},
+    {"id": "ranking", "name": "Ranking Studio", "icon": "🏆", "path": "/ranking-studio",
+     "desc": "Top N / listicle videos via Gamma slide decks.",
+     "purpose": "Turn any 'Top N' idea into a narrated countdown video with a real designed slide deck.",
+     "how_to": [
+        "Enter your topic and how many items to rank.",
+        "Generate — Claude writes the ranked list, Gamma designs matching slides, and each slide gets its own narration.",
+        "Review the finished countdown video.",
+     ]},
+    {"id": "batch", "name": "Batch", "icon": "📦", "path": "/batch",
+     "desc": "Generate multiple videos from a topic list at once.",
+     "purpose": "Generate multiple videos from a list of topics in one run — for filling out a week's worth of content at once.",
+     "how_to": [
+        "Add a list of topics.",
+        "Set the shared format, platforms, and voice for all of them.",
+        "Run — each topic goes through the full Create pipeline one after another.",
+        "Review each finished video in your Jobs list.",
+     ]},
+    {"id": "quickpost", "name": "QuickPost", "icon": "⚡", "path": "/quickpost",
+     "desc": "Turn a photo or clip into ready-to-post captions.",
+     "purpose": "The fastest way to post a photo or clip you already have — AI writes platform-specific captions instantly.",
+     "how_to": [
+        "Upload a photo or short video.",
+        "Pick your tone and which platforms you're posting to.",
+        "Generate — get a tailored caption, hashtags, and a best-time-to-post suggestion for each platform.",
+        "Copy the caption or publish directly.",
+     ]},
+]
+
 # Single canonical voice catalog used across every studio (Create, Studio,
-# Hollywood, Ad Lab, Batch, Settings). 10 distinct, highest-quality Google
-# Neural2/Studio/Journey voices — 6 female, 4 male — each with a real edge-tts
-# fallback of the SAME gender so a user's choice never silently flips gender
-# when Google/ElevenLabs TTS is unavailable.
+# Hollywood, Ad Lab, Batch, Settings). 20 ElevenLabs voices — 10 female, 10 male.
+#
+# IMPORTANT: every id below is from ElevenLabs' CURRENT default voice library,
+# which is present on every account. Legacy voices (Adam/Antoni/Josh/Arnold/
+# Sam/Domi/Elli/Freya/Grace/Dorothy...) were removed because newer accounts
+# don't have them — those 404 and used to drop to the robotic fallback.
+#
+# The `google`/`edge` keys are kept only for back-compat with resolve_voice;
+# narration NEVER falls back to them anymore (see audio_generator: ElevenLabs
+# voice → another ElevenLabs voice → Higgsfield, never a computer voice).
 VOICE_CATALOG = [
-    {"id": "en-US-Studio-O",  "name": "Aria",   "gender": "Female", "style": "Warm & Professional",   "locale": "en-US", "edge": "en-US-AriaNeural"},
-    {"id": "en-US-Journey-F", "name": "Luna",    "gender": "Female", "style": "Conversational & Natural", "locale": "en-US", "edge": "en-US-JennyNeural"},
-    {"id": "en-US-Neural2-C", "name": "Maya",    "gender": "Female", "style": "Clear & Confident",     "locale": "en-US", "edge": "en-US-JennyNeural"},
-    {"id": "en-US-Neural2-F", "name": "Sophia",  "gender": "Female", "style": "Friendly & Upbeat",      "locale": "en-US", "edge": "en-US-AriaNeural"},
-    {"id": "en-US-Neural2-G", "name": "Grace",   "gender": "Female", "style": "Calm & Soothing",        "locale": "en-US", "edge": "en-US-JennyNeural"},
-    {"id": "en-US-Neural2-H", "name": "Nova",    "gender": "Female", "style": "Energetic & Bright",     "locale": "en-US", "edge": "en-US-AriaNeural"},
-    {"id": "en-US-Studio-Q",  "name": "Marcus",  "gender": "Male",   "style": "Deep & Authoritative",   "locale": "en-US", "edge": "en-US-GuyNeural"},
-    {"id": "en-US-Journey-D", "name": "Derek",   "gender": "Male",   "style": "Conversational & Natural", "locale": "en-US", "edge": "en-US-DavisNeural"},
-    {"id": "en-US-Neural2-A", "name": "Atlas",   "gender": "Male",   "style": "Warm & Trustworthy",     "locale": "en-US", "edge": "en-US-GuyNeural"},
-    {"id": "en-US-Neural2-I", "name": "Jaxon",   "gender": "Male",   "style": "Bold & Energetic",       "locale": "en-US", "edge": "en-US-DavisNeural"},
+    # ── Female (current ElevenLabs default library) ───────────────────────────
+    {"id": "9BWtsMINqrJLrRacOk9x", "name": "Aria",      "gender": "Female", "style": "Expressive & Modern",  "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Studio-O",  "edge": "en-US-AriaNeural"},
+    {"id": "21m00Tcm4TlvDq8ikWAM", "name": "Rachel",    "gender": "Female", "style": "Calm & Narrative",     "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-C", "edge": "en-US-AriaNeural"},
+    {"id": "EXAVITQu4vr4xnSDxMaL", "name": "Sarah",     "gender": "Female", "style": "Soft & Newsy",         "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-E", "edge": "en-US-JennyNeural"},
+    {"id": "FGY2WhTYpPnrIDTdsKH5", "name": "Laura",     "gender": "Female", "style": "Young & Upbeat",       "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-F", "edge": "en-US-JennyNeural"},
+    {"id": "XB0fDUnXU5powFXDhCwa", "name": "Charlotte", "gender": "Female", "style": "Smooth & Engaging",    "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-H", "edge": "en-US-AriaNeural"},
+    {"id": "Xb7hH8MSUJpSbSDYk0k2", "name": "Alice",     "gender": "Female", "style": "Confident British",    "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-A", "edge": "en-GB-SoniaNeural"},
+    {"id": "XrExE9yKIg1WjnnlVkGX", "name": "Matilda",   "gender": "Female", "style": "Warm & Friendly",      "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-G", "edge": "en-US-JennyNeural"},
+    {"id": "cgSgspJ2msm6clMCkdW9", "name": "Jessica",   "gender": "Female", "style": "Playful & Expressive", "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-C", "edge": "en-US-AriaNeural"},
+    {"id": "pFZP5JQG7iQjIQuC4Bku", "name": "Lily",      "gender": "Female", "style": "Warm British",         "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-C", "edge": "en-GB-SoniaNeural"},
+    {"id": "SAz9YHcvj6GT2YYXdXww", "name": "River",     "gender": "Female", "style": "Relaxed & Neutral",    "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-F", "edge": "en-US-JennyNeural"},
+    # ── Male (current ElevenLabs default library) ─────────────────────────────
+    {"id": "nPczCjzI2devNBz1zQrb", "name": "Brian",     "gender": "Male",   "style": "Deep Narration",       "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Studio-Q",  "edge": "en-US-GuyNeural"},
+    {"id": "JBFqnCBsd6RMkjVDRZzb", "name": "George",    "gender": "Male",   "style": "Warm Storyteller",     "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-B", "edge": "en-GB-RyanNeural"},
+    {"id": "CwhRBWXzGAHq8TQ4Fs17", "name": "Roger",     "gender": "Male",   "style": "Confident & Easy",     "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-A", "edge": "en-US-GuyNeural"},
+    {"id": "IKne3meq5aSn9XLyUdCD", "name": "Charlie",   "gender": "Male",   "style": "Natural Australian",   "locale": "en-AU", "provider": "elevenlabs", "google": "en-AU-Neural2-B", "edge": "en-AU-WilliamNeural"},
+    {"id": "N2lVS1w4EtoT3dr4eOWO", "name": "Callum",    "gender": "Male",   "style": "Intense & Dramatic",   "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-D", "edge": "en-US-GuyNeural"},
+    {"id": "TX3LPaxmHKxFdv7VOQHJ", "name": "Liam",      "gender": "Male",   "style": "Young & Articulate",   "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-I", "edge": "en-US-DavisNeural"},
+    {"id": "bIHbv24MWmeRgasZH58o", "name": "Will",      "gender": "Male",   "style": "Friendly & Warm",      "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-J", "edge": "en-US-GuyNeural"},
+    {"id": "cjVigY5qzO86Huf0OWal", "name": "Eric",      "gender": "Male",   "style": "Smooth & Mature",      "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-A", "edge": "en-US-DavisNeural"},
+    {"id": "iP95p4xoKVk53GoZ742B", "name": "Chris",     "gender": "Male",   "style": "Casual & Real",        "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-D", "edge": "en-US-GuyNeural"},
+    {"id": "onwK4e9ZLuTAKqWW03F9", "name": "Daniel",    "gender": "Male",   "style": "Authoritative News",   "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-B", "edge": "en-GB-RyanNeural"},
 ]
 for _v in VOICE_CATALOG:
     _v["label"] = f"{_v['name']} — {_v['style']} ({_v['gender']})"
@@ -368,19 +596,82 @@ del _v
 # Back-compat aliases — both now point at the same single catalog.
 AVAILABLE_VOICES = [v["id"] for v in VOICE_CATALOG]
 
+# ── Voice resolution ────────────────────────────────────────────────────────
+# Any identifier a caller might hold — an ElevenLabs id, a friendly name
+# ("Marcus"), a legacy Google voice id ("en-US-Studio-O"), or an edge voice
+# ("en-US-GuyNeural") — resolves to the right {elevenlabs, google, edge} triple
+# so every fallback layer stays the SAME gender the user picked.
+_VOICE_BY_EL     = {v["id"]: v for v in VOICE_CATALOG}
+_VOICE_BY_NAME   = {v["name"].lower(): v for v in VOICE_CATALOG}
+_VOICE_BY_GOOGLE = {v["google"]: v for v in VOICE_CATALOG}
+_VOICE_BY_EDGE   = {v["edge"]: v for v in VOICE_CATALOG}
+
+# Gender of legacy voice ids that are no longer in the catalog, so an old
+# persona/DB value still maps to a same-gender ElevenLabs voice.
+_LEGACY_VOICE_GENDER = {
+    "en-US-Studio-O": "Female", "en-US-Journey-F": "Female", "en-US-Neural2-C": "Female",
+    "en-US-Neural2-F": "Female", "en-US-Neural2-G": "Female", "en-US-Neural2-H": "Female",
+    "en-US-AriaNeural": "Female", "en-US-JennyNeural": "Female", "en-GB-SoniaNeural": "Female",
+    "en-AU-NatashaNeural": "Female",
+    "en-US-Studio-Q": "Male", "en-US-Journey-D": "Male", "en-US-Neural2-A": "Male",
+    "en-US-Neural2-D": "Male", "en-US-Neural2-I": "Male",
+    "en-US-GuyNeural": "Male", "en-US-DavisNeural": "Male", "en-GB-RyanNeural": "Male",
+}
+
+
+def _looks_like_google_voice(v: str) -> bool:
+    return isinstance(v, str) and v.startswith(("en-", "en_")) and any(
+        tag in v for tag in ("Neural2", "Studio", "Journey", "Wavenet", "Standard")
+    )
+
+
+def _looks_like_edge_voice(v: str) -> bool:
+    return isinstance(v, str) and v.startswith("en-") and v.endswith("Neural")
+
+
+def resolve_voice(voice: str) -> dict:
+    """Resolve any voice identifier to {elevenlabs, google, edge, name, gender}.
+
+    ElevenLabs is the primary, highest-quality source; google/edge are
+    gender-matched fallbacks. Accepts ElevenLabs ids, friendly names, and
+    legacy Google/edge voice ids so nothing stored before this change breaks.
+    """
+    v = voice or DEFAULT_VOICE
+    entry = (
+        _VOICE_BY_EL.get(v)
+        or _VOICE_BY_NAME.get(str(v).lower())
+        or _VOICE_BY_GOOGLE.get(v)
+        or _VOICE_BY_EDGE.get(v)
+    )
+    if entry:
+        return {"elevenlabs": entry["id"], "google": entry["google"],
+                "edge": entry["edge"], "name": entry["name"], "gender": entry["gender"]}
+
+    # Unknown/legacy id — preserve gender where we can, else use a neutral narrator.
+    gender = _LEGACY_VOICE_GENDER.get(v)
+    base = _VOICE_BY_NAME["rachel"] if gender == "Female" else _VOICE_BY_NAME["adam"]
+    return {
+        "elevenlabs": base["id"],
+        "google": v if _looks_like_google_voice(v) else base["google"],
+        "edge":   v if _looks_like_edge_voice(v)   else base["edge"],
+        "name": base["name"],
+        "gender": gender or base["gender"],
+    }
+
 # SMTP (for email notifications — all optional, silently skipped if not set)
 SMTP_HOST = os.getenv("SMTP_HOST", "")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASS = os.getenv("SMTP_PASS", "")
 SMTP_FROM = os.getenv("SMTP_FROM", "noreply@socialoptimize.online")
+CONTACT_NOTIFY_EMAIL = os.getenv("CONTACT_NOTIFY_EMAIL", "") or SMTP_USER
 
 TWILIO_ACCOUNT_SID  = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN   = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER  = os.getenv("TWILIO_FROM_NUMBER", "")
 
 # Google Cloud TTS voice (Studio > Journey > Neural2 quality order)
-GOOGLE_TTS_VOICE = os.getenv("GOOGLE_TTS_VOICE", "en-US-Studio-O")
+GOOGLE_TTS_VOICE = os.getenv("GOOGLE_TTS_VOICE", "en-US-Journey-D")
 GOOGLE_TTS_VOICES = VOICE_CATALOG  # back-compat alias — single source of truth
 
 # Cloud Translation supported languages

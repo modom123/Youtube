@@ -36,10 +36,10 @@
     <p>AI-powered content creation studio</p>
   </div>
   <div class="auth-card">
-    {% if plan and plan in ('starter','creator','agency') %}
+    {% if plan and plan in ('starter','creator','pro','agency') %}
       <h2>Start your free trial</h2>
-      <p class="sub">14 days free — your card won't be charged until the trial ends.</p>
-      <div class="trial-badge">🎉 14-day free trial · Cancel anytime · Auto-renews after trial</div>
+      <p class="sub">7 days free — your card won't be charged until the trial ends.</p>
+      <div class="trial-badge">🎉 7-day free trial · Cancel anytime · Auto-renews after trial</div>
     {% else %}
       <h2>Create your account</h2>
       <p class="sub">Start with 3 free videos — no credit card required.</p>

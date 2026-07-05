@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_voice_picker.html" import voice_picker %}
 {% set active_page = "jobs" %}
 
 {% block title %}Job #{{ job.id }} — Social Optimize Machine{% endblock %}
@@ -309,7 +310,19 @@
         <button class="btn btn-sm edit-tab active-tab" data-tab="video" onclick="setEditTab('video')" style="flex:1;border-radius:6px;background:var(--accent);color:#000;">Replace Video</button>
         <button class="btn btn-sm edit-tab" data-tab="audio" onclick="setEditTab('audio')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Replace Audio</button>
         <button class="btn btn-sm edit-tab" data-tab="mix" onclick="setEditTab('mix')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Mix A+V</button>
+        <button class="btn btn-sm edit-tab" data-tab="voice" onclick="setEditTab('voice')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">New Voice</button>
         <button class="btn btn-sm edit-tab" data-tab="convert" onclick="setEditTab('convert')" style="flex:1;border-radius:6px;background:transparent;color:var(--muted);">Convert</button>
+      </div>
+
+      <!-- New Voice tab: keep the video, swap the voiceover -->
+      <div id="edit-tab-voice" style="display:none;">
+        <div class="text-xs text-dim mb-12">Re-narrate this video's script in a new voice and keep the exact same video. Click ▶ to hear a sample, then choose.</div>
+        {{ voice_picker(voices, user_default_voice, 'revoice-select') }}
+        <button class="btn btn-primary btn-block mt-12" id="revoice-btn" onclick="revoiceJob({{ job.id }})">🎙 Re-voice &amp; keep video</button>
+        <div id="revoice-progress" style="display:none;margin-top:12px;">
+          <div class="progress-track"><div class="progress-bar" id="revoice-bar" style="width:0%"></div></div>
+          <div class="text-xs text-dim mt-4" id="revoice-txt">Starting…</div>
+        </div>
       </div>
 
       <!-- Upload Video tab -->
@@ -670,8 +683,52 @@ function toggleEditPanel() {
   if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
 }
 
+// Deep-link: /jobs/<id>?edit=voice opens the editor on the New Voice tab.
+(function () {
+  const which = new URLSearchParams(location.search).get('edit');
+  if (!which) return;
+  document.addEventListener('DOMContentLoaded', () => {
+    const p = document.getElementById('editPanel');
+    if (p) p.style.display = 'block';
+    if (typeof setEditTab === 'function') setEditTab(which === 'voice' ? 'voice' : 'video');
+    if (p) p.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+})();
+
+function revoiceJob(jobId) {
+  const voice = document.getElementById('revoice-select').value;
+  const btn = document.getElementById('revoice-btn');
+  const prog = document.getElementById('revoice-progress');
+  const bar = document.getElementById('revoice-bar');
+  const txt = document.getElementById('revoice-txt');
+  btn.disabled = true; btn.style.opacity = '0.6';
+  prog.style.display = 'block';
+  fetch(`/api/jobs/${jobId}/revoice`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ voice })
+  }).then(r => r.json()).then(d => {
+    if (d.error) { txt.textContent = d.error; btn.disabled = false; btn.style.opacity = '1'; return; }
+    const poll = setInterval(async () => {
+      const s = await fetch(`/api/jobs/${jobId}/revoice-status`).then(r => r.json());
+      if (s.progress !== undefined) bar.style.width = s.progress + '%';
+      if (s.step) txt.textContent = s.step;
+      if (s.status === 'done') {
+        clearInterval(poll);
+        txt.textContent = 'Done! Reloading…';
+        setTimeout(() => location.reload(), 900);
+      } else if (s.status === 'error') {
+        clearInterval(poll);
+        txt.textContent = 'Failed: ' + (s.error || 'unknown error');
+        btn.disabled = false; btn.style.opacity = '1';
+      }
+    }, 1500);
+  }).catch(e => {
+    txt.textContent = 'Request failed: ' + e; btn.disabled = false; btn.style.opacity = '1';
+  });
+}
+
 function setEditTab(tab) {
-  ['video','audio','mix','convert'].forEach(t => {
+  ['video','audio','mix','voice','convert'].forEach(t => {
     document.getElementById('edit-tab-' + t).style.display = t === tab ? 'block' : 'none';
     const btn = document.querySelector(`.edit-tab[data-tab="${t}"]`);
     if (btn) {

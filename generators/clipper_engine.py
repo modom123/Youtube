@@ -421,7 +421,7 @@ def _identify_moments(
     prompt = _build_analysis_prompt(metadata, scenes, silences, subtitle_text, clip_count, clip_length)
     clips = _analyze_with_claude(prompt)
 
-    if clips is None:
+    if not clips:  # None (API/parse failure) or [] (valid but empty) both need the fallback
         _progress(cb, "analyzing", 40, "Using scene-based detection (AI unavailable)...")
         clips = _fallback_moment_detection(metadata, scenes, silences, clip_count, clip_length)
 
@@ -765,6 +765,10 @@ def run_clipper(clip_job_id: str, clip_config: dict, progress_callback: Progress
         # ── Step 1: Acquire video ───────────────────────────────────────────
         _progress(cb, "downloading", 2, "Acquiring source video...")
         video_path = _acquire_video(clip_config, work_dir, cb)
+        # Downloaded sources land in work_dir, which is deleted on completion.
+        # Move them to clips_dir so the player and publishing can use them after.
+        if work_dir in video_path.parents:
+            video_path = video_path.rename(clips_dir / f"source{video_path.suffix}")
         _progress(cb, "downloading", 10, "Video acquired")
 
         # ── Step 2: Get metadata ────────────────────────────────────────────
@@ -834,9 +838,7 @@ def run_clipper(clip_job_id: str, clip_config: dict, progress_callback: Progress
                 thumb_time = (moment["end_sec"] - moment["start_sec"]) / 3  # 1/3 in for interesting frame
                 _generate_thumbnail(clip_path, thumb_time, thumb_path)
 
-                # Build download URL
-                relative_path = f"clips/{clip_job_id}/{clip_filename}"
-                download_url = f"/output/{relative_path}"
+                download_url = f"/api/clipper/{clip_job_id}/clips/{i}/video"
 
                 output_clips.append({
                     "title": moment.get("title", f"Clip {clip_num}"),
@@ -880,6 +882,7 @@ def run_clipper(clip_job_id: str, clip_config: dict, progress_callback: Progress
             "clips": output_clips,
             "source_duration": metadata["duration"],
             "transcript_preview": transcript_preview,
+            "source_path": str(video_path),
         }
 
     except Exception as e:

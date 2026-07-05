@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_voice_picker.html" import voice_picker %}
 {% block title %}The Cut — Social Optimize{% endblock %}
 {% block topbar_title %}🎛️ The Cut{% endblock %}
 
@@ -56,10 +57,14 @@
           <input type="text" id="video-title" placeholder="Enter video title..." value="{{ remix_job.topic if remix_job else '' }}"
             style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
         </label>
-        <label style="display:block;">
+        <label style="display:block;margin-bottom:10px;">
           <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">Subtitle</span>
           <input type="text" id="video-subtitle" placeholder="Optional subtitle or tagline..."
             style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+        </label>
+        <label style="display:block;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">Narration Voice</span>
+          <div style="margin-top:4px;">{{ voice_picker(voices, user_default_voice, 'video-voice') }}</div>
         </label>
       </div>
 
@@ -162,6 +167,26 @@ let bgmTrackId = new URLSearchParams(window.location.search).get('bgm') || null;
 let bgmType = new URLSearchParams(window.location.search).get('bgm_type') || 'track';
 let sectionMedia = {};  // {sectionIndex: [{media_id, path, type, filename}]}
 
+const SO_JOB_KEY = 'so_editing_active_job';
+const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000;
+function saveActiveJob(jobId) {
+  localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, startedAt: Date.now() }));
+}
+function clearActiveJob() {
+  localStorage.removeItem(SO_JOB_KEY);
+}
+function getResumableJob() {
+  try {
+    const raw = localStorage.getItem(SO_JOB_KEY);
+    if (!raw) return null;
+    const { jobId, startedAt } = JSON.parse(raw);
+    if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) { clearActiveJob(); return null; }
+    return jobId;
+  } catch (e) {
+    return null;
+  }
+}
+
 const defaultSections = {
   hollywood: [
     {heading: 'THE HOOK', narration: 'Open with something dramatic that grabs attention instantly.'},
@@ -187,9 +212,15 @@ const defaultSections = {
 {% if remix_job %}
   // Pre-fill from remix job
   document.getElementById('video-title').value = {{ remix_job.topic | tojson }};
+  {% if remix_sections %}
+  // Load the source video's real script so you can swap the voiceover: pick a
+  // new voice above and re-produce, and every section is re-narrated in it.
+  sections = {{ remix_sections | tojson }};
+  {% else %}
   sections = [
     {heading: 'SECTION 1', narration: {{ (remix_job.title or remix_job.topic) | tojson }} },
   ];
+  {% endif %}
 {% endif %}
 
 if (sections.length === 0) {
@@ -367,6 +398,7 @@ function startProduction() {
       use_ai_clips: visualMode === 'ai',
       bgm_track_id: bgmTrackId,
       bgm_type: bgmType,
+      voice: document.getElementById('video-voice').value,
       section_media: sectionMedia,
     })
   })
@@ -381,18 +413,84 @@ function startProduction() {
       return;
     }
     // Stream progress
-    const es = new EventSource(`/api/editing-room/stream/${data.editing_job_id}`);
-    es.onmessage = (e) => {
-      const d = JSON.parse(e.data);
+    saveActiveJob(data.editing_job_id);
+    attachEditingStream(data.editing_job_id);
+  })
+  .catch(err => {
+    alert('Request failed: ' + err);
+    btn.disabled = false;
+    btn.textContent = 'Start Production';
+    btn.style.opacity = '1';
+  });
+}
+
+function attachEditingStream(editing_job_id) {
+  const btn = document.getElementById('produce-btn');
+  const es = new EventSource(`/api/editing-room/stream/${editing_job_id}`);
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    if (d.progress !== undefined) {
+      document.getElementById('progress-bar').style.width = d.progress + '%';
+      soBrandCounterRender('progress-pct', d.progress);
+    }
+    if (d.step) {
+      document.getElementById('progress-step').textContent = d.step;
+    }
+    if (d.status === 'done') {
+      es.close();
+      stopTimer();
+      clearActiveJob();
+      btn.disabled = false;
+      btn.textContent = 'Start Production';
+      btn.style.opacity = '1';
+      document.getElementById('result-area').style.display = 'block';
+      const r = d.result || {};
+      document.getElementById('result-info').textContent =
+        `${r.label || selectedStudio} | ${(r.duration||0).toFixed(1)}s | ${r.resolution || ''} | ${r.file_size_mb || '?'} MB`;
+      if (d.db_job_id) {
+        document.getElementById('result-download').href = `/api/jobs/${d.db_job_id}/download`;
+      }
+    }
+    if (d.status === 'error') {
+      es.close();
+      stopTimer();
+      clearActiveJob();
+      btn.disabled = false;
+      btn.textContent = 'Start Production';
+      btn.style.opacity = '1';
+      alert('Production failed: ' + (d.step || 'Unknown error'));
+    }
+  };
+  es.onerror = () => {
+    es.close();
+    btn.disabled = false;
+    btn.textContent = 'Start Production';
+    btn.style.opacity = '1';
+  };
+}
+
+(function resumeActiveJob() {
+  const jobId = getResumableJob();
+  if (!jobId) return;
+  fetch(`/api/editing-room/status/${jobId}`)
+    .then(r => { if (!r.ok) { clearActiveJob(); return null; } return r.json(); })
+    .then(d => {
+      if (!d || d.error) { clearActiveJob(); return; }
+      const btn = document.getElementById('produce-btn');
+      btn.disabled = true;
+      btn.textContent = 'Producing...';
+      btn.style.opacity = '0.6';
+      document.getElementById('progress-area').style.display = 'block';
+      document.getElementById('result-area').style.display = 'none';
+      startTimer();
       if (d.progress !== undefined) {
         document.getElementById('progress-bar').style.width = d.progress + '%';
         soBrandCounterRender('progress-pct', d.progress);
       }
-      if (d.step) {
-        document.getElementById('progress-step').textContent = d.step;
-      }
+      if (d.step) document.getElementById('progress-step').textContent = d.step;
+
       if (d.status === 'done') {
-        es.close();
+        clearActiveJob();
         stopTimer();
         btn.disabled = false;
         btn.textContent = 'Start Production';
@@ -404,29 +502,19 @@ function startProduction() {
         if (d.db_job_id) {
           document.getElementById('result-download').href = `/api/jobs/${d.db_job_id}/download`;
         }
-      }
-      if (d.status === 'error') {
-        es.close();
+      } else if (d.status === 'error') {
+        clearActiveJob();
         stopTimer();
         btn.disabled = false;
         btn.textContent = 'Start Production';
         btn.style.opacity = '1';
-        alert('Production failed: ' + (d.step || 'Unknown error'));
+      } else {
+        attachEditingStream(jobId);
       }
-    };
-    es.onerror = () => {
-      es.close();
-      btn.disabled = false;
-      btn.textContent = 'Start Production';
-      btn.style.opacity = '1';
-    };
-  })
-  .catch(err => {
-    alert('Request failed: ' + err);
-    btn.disabled = false;
-    btn.textContent = 'Start Production';
-    btn.style.opacity = '1';
-  });
-}
+    })
+    .catch(() => {
+      // Network hiccup -- leave stored job in place, next load retries.
+    });
+})();
 </script>
 {% endblock %}

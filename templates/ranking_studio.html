@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% set active_page = "ranking" %}
+
+{% block title %}Ranking Studio — Social Optimize{% endblock %}
+{% block topbar_title %}🏆 Ranking Studio{% endblock %}
+{% block topbar_sub %}Top 10s and listicle videos — Gamma slide decks + narration, auto-assembled{% endblock %}
+
+{% block content %}
+<style>
+.rk-wrap { max-width: 760px; margin: 0 auto; padding: 24px; }
+.rk-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 20px; }
+.rk-field { margin-bottom: 16px; }
+.rk-field label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.rk-field input, .rk-field select {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; color: var(--text); font-size: 14px;
+}
+.rk-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.rk-submit {
+  background: var(--accent, #d4a017); color: #000; border: none; border-radius: 8px;
+  padding: 12px 24px; font-weight: 700; font-size: 14px; cursor: pointer; width: 100%;
+}
+.rk-submit:disabled { opacity: .6; cursor: not-allowed; }
+.rk-progress { display: none; }
+.rk-progress-bar { background: var(--bg); border-radius: 999px; height: 10px; overflow: hidden; margin: 10px 0; }
+.rk-progress-fill { height: 100%; background: var(--accent, #d4a017); border-radius: 999px; transition: width .4s; width: 0%; }
+.rk-step-label { color: var(--muted); font-size: 13px; }
+.rk-result { display: none; }
+.rk-result video { width: 100%; border-radius: 10px; background: #000; }
+.rk-items { margin-top: 14px; }
+.rk-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.rk-item:last-child { border-bottom: none; }
+.rk-item .rank { font-weight: 800; color: var(--accent, #d4a017); min-width: 28px; }
+.rk-error { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
+</style>
+
+<div class="rk-wrap">
+  <div class="rk-card">
+    <div class="rk-field">
+      <label>Topic</label>
+      <input type="text" id="rk-topic" placeholder="e.g. Best NBA players of all time, Top budget laptops of 2026...">
+    </div>
+    <div class="rk-row">
+      <div class="rk-field">
+        <label># of Items</label>
+        <select id="rk-count">
+          <option value="5">Top 5</option>
+          <option value="7">Top 7</option>
+          <option value="10" selected>Top 10</option>
+          <option value="15">Top 15</option>
+        </select>
+      </div>
+      <div class="rk-field">
+        <label>Aspect Ratio</label>
+        <select id="rk-ratio">
+          <option value="9:16" selected>9:16 (Shorts/Reels/TikTok)</option>
+          <option value="1:1">1:1 (Square)</option>
+          <option value="16:9">16:9 (YouTube)</option>
+          <option value="4:5">4:5 (Instagram)</option>
+        </select>
+      </div>
+    </div>
+    <div class="rk-field">
+      <label>Voice</label>
+      <select id="rk-voice">
+        {% for v in voices %}
+        <option value="{{ v.id }}">{{ v.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="rk-submit" id="rk-submit" onclick="createRanking()">Generate Ranking Video</button>
+    <div class="rk-error" id="rk-error"></div>
+  </div>
+
+  <div class="rk-card rk-progress" id="rk-progress">
+    <div class="rk-step-label" id="rk-step-label">Starting...</div>
+    <div class="rk-progress-bar"><div class="rk-progress-fill" id="rk-progress-fill"></div></div>
+    <div style="text-align:center;"><span class="so-brand-counter" id="rkBrand"></span></div>
+  </div>
+
+  <div class="rk-card rk-result" id="rk-result">
+    <video id="rk-video" controls></video>
+    <div class="rk-items" id="rk-items"></div>
+    <a class="rk-submit" style="display:inline-block;text-decoration:none;text-align:center;margin-top:14px;" id="rk-download" download>Download Video</a>
+  </div>
+</div>
+
+<script>
+let _rkJobId = null;
+let _rkPollTimer = null;
+
+const SO_JOB_KEY = 'so_ranking_active_job';
+const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000;
+function saveActiveJob(jobId) {
+  localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, startedAt: Date.now() }));
+}
+function clearActiveJob() {
+  localStorage.removeItem(SO_JOB_KEY);
+}
+function getResumableJob() {
+  try {
+    const raw = localStorage.getItem(SO_JOB_KEY);
+    if (!raw) return null;
+    const { jobId, startedAt } = JSON.parse(raw);
+    if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) { clearActiveJob(); return null; }
+    return jobId;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function createRanking() {
+  const topic = document.getElementById('rk-topic').value.trim();
+  if (!topic) { showError('Please enter a topic.'); return; }
+
+  const btn = document.getElementById('rk-submit');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  document.getElementById('rk-error').style.display = 'none';
+  document.getElementById('rk-result').style.display = 'none';
+  document.getElementById('rk-progress').style.display = 'block';
+  soBrandCounterRender('rkBrand', 0);
+
+  const payload = {
+    topic,
+    count: parseInt(document.getElementById('rk-count').value),
+    ratio: document.getElementById('rk-ratio').value,
+    voice: document.getElementById('rk-voice').value,
+  };
+
+  try {
+    const resp = await fetch('/api/ranking/create', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload),
+    });
+    const result = await resp.json();
+    if (!resp.ok) { showError(result.error || 'Failed to start.'); resetBtn(); return; }
+    _rkJobId = result.job_id;
+    saveActiveJob(_rkJobId);
+    pollStatus();
+  } catch (e) {
+    showError('Network error: ' + e.message);
+    resetBtn();
+  }
+}
+
+async function pollStatus() {
+  try {
+    const resp = await fetch(`/api/ranking/${_rkJobId}/status`);
+    const job = await resp.json();
+
+    if (job.progress !== undefined) {
+      document.getElementById('rk-progress-fill').style.width = Math.min(job.progress, 99) + '%';
+      document.getElementById('rk-step-label').textContent = job.step_label || 'Processing...';
+      soBrandCounterRender('rkBrand', Math.min(job.progress, 99));
+    }
+
+    if (job.status === 'done') {
+      clearActiveJob();
+      document.getElementById('rk-progress-fill').style.width = '100%';
+      soBrandCounterRender('rkBrand', 100);
+      document.getElementById('rk-video').src = `/api/ranking/${_rkJobId}/video`;
+      document.getElementById('rk-download').href = `/api/ranking/${_rkJobId}/video`;
+      let itemsHtml = '';
+      (job.items || []).slice().reverse().forEach(item => {
+        itemsHtml += `<div class="rk-item"><div class="rank">#${item.rank}</div><div>${item.title}</div></div>`;
+      });
+      document.getElementById('rk-items').innerHTML = itemsHtml;
+      document.getElementById('rk-result').style.display = 'block';
+      document.getElementById('rk-progress').style.display = 'none';
+      resetBtn();
+      return;
+    }
+    if (job.status === 'error') {
+      clearActiveJob();
+      showError(job.error || 'Generation failed.');
+      document.getElementById('rk-progress').style.display = 'none';
+      resetBtn();
+      return;
+    }
+    _rkPollTimer = setTimeout(pollStatus, 3000);
+  } catch (e) {
+    _rkPollTimer = setTimeout(pollStatus, 5000);
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('rk-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function resetBtn() {
+  const btn = document.getElementById('rk-submit');
+  btn.disabled = false;
+  btn.textContent = 'Generate Ranking Video';
+}
+
+(function resumeActiveJob() {
+  const jobId = getResumableJob();
+  if (!jobId) return;
+  fetch(`/api/ranking/${jobId}/status`)
+    .then(r => { if (!r.ok) { clearActiveJob(); return null; } return r.json(); })
+    .then(job => {
+      if (!job || job.error) { clearActiveJob(); return; }
+      _rkJobId = jobId;
+      const btn = document.getElementById('rk-submit');
+      btn.disabled = true;
+      btn.textContent = 'Generating...';
+      document.getElementById('rk-error').style.display = 'none';
+      document.getElementById('rk-result').style.display = 'none';
+      document.getElementById('rk-progress').style.display = 'block';
+      pollStatus();
+    })
+    .catch(() => {
+      // Network hiccup -- leave stored job in place, next load retries.
+    });
+})();
+</script>
+{% endblock %}

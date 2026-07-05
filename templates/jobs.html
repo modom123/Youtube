@@ -94,6 +94,7 @@
                 {% elif job.audio_path %}
                 <button onclick="previewMedia({{ job.id }}, {{ (job.title or job.topic) | tojson }}, 'audio')" class="btn btn-ghost btn-sm" title="Preview audio">▶ Audio</button>
                 {% endif %}
+                <a href="/jobs/{{ job.id }}?edit=voice" class="btn btn-ghost btn-sm" title="Edit — change the voice, keep the video">✏ Edit</a>
               {% endif %}
               {% if job.status == 'error' %}
               <button onclick="retryJob({{ job.id }}, this)" class="btn btn-primary btn-sm">↺ Retry</button>

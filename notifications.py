@@ -83,6 +83,16 @@ def _build_notification_content(event_type: str, data: dict):
         title = "Dubbing Complete"
         body = f'Your video has been dubbed in {data.get("language", "")}.'
         link = f"/jobs/{data.get('job_id', '')}"
+    elif event_type == "autopilot_paused":
+        title = "Autopilot Paused"
+        body = f'Campaign "{data.get("name", "")}" was paused: {data.get("reason", "")}'
+        link = "/autopilot"
+    elif event_type == "autopilot_low_credits":
+        title = "Autopilot Skipped a Run"
+        body = (f'Campaign "{data.get("name", "")}" skipped its scheduled run — you have '
+                f'{data.get("balance", 0):.0f} Social Optimize Credits but need {data.get("needed", 0)}. '
+                f'Top up to keep it running.')
+        link = "/credits"
     else:
         title = event_type.replace("_", " ").title()
         body = json.dumps(data)

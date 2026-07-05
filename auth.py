@@ -5,11 +5,12 @@ from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import database as db
 import config
+import mobile_auth
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -19,7 +20,12 @@ PAID_PLANS = {"starter", "creator", "pro", "agency"}
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
+    is_json = request.is_json
+
     if current_user.is_authenticated:
+        if is_json:
+            return jsonify({"token": mobile_auth.issue_token(current_user.id),
+                            "user": user_to_dict(current_user)})
         plan = request.args.get("plan", "").strip()
         if plan in PAID_PLANS:
             return redirect(url_for("billing.checkout", tier_name=plan))
@@ -28,27 +34,37 @@ def register():
     plan = request.args.get("plan", "").strip()
 
     if request.method == "POST":
-        name  = request.form.get("name", "").strip()
-        email = request.form.get("email", "").strip().lower()
-        pw    = request.form.get("password", "")
-        pw2   = request.form.get("password2", "")
-        plan  = request.form.get("plan", plan).strip()
+        if is_json:
+            data = request.get_json(silent=True) or {}
+            name  = (data.get("name") or "").strip()
+            email = (data.get("email") or "").strip().lower()
+            pw    = data.get("password", "")
+            pw2   = pw  # mobile app has no separate confirm-password field
+            plan  = (data.get("plan") or plan).strip()
+        else:
+            name  = request.form.get("name", "").strip()
+            email = request.form.get("email", "").strip().lower()
+            pw    = request.form.get("password", "")
+            pw2   = request.form.get("password2", "")
+            plan  = request.form.get("plan", plan).strip()
+
+        def _fail(msg, status=400):
+            if is_json:
+                return jsonify({"error": msg}), status
+            flash(msg, "error")
+            return render_template("auth/register.html", plan=plan)
 
         if not email or not pw:
-            flash("Email and password are required.", "error")
-            return render_template("auth/register.html", plan=plan)
+            return _fail("Email and password are required.")
 
         if pw != pw2:
-            flash("Passwords do not match.", "error")
-            return render_template("auth/register.html", plan=plan)
+            return _fail("Passwords do not match.")
 
         if len(pw) < 8:
-            flash("Password must be at least 8 characters.", "error")
-            return render_template("auth/register.html", plan=plan)
+            return _fail("Password must be at least 8 characters.")
 
         if db.get_user_by_email(email):
-            flash("An account with that email already exists.", "error")
-            return render_template("auth/register.html", plan=plan)
+            return _fail("An account with that email already exists.", 409)
 
         pw_hash = generate_password_hash(pw)
         user_id = db.create_user(email=email, password_hash=pw_hash, name=name or email.split("@")[0])
@@ -59,6 +75,9 @@ def register():
         user = _UserObj(user_data)
         login_user(user, remember=True)
 
+        if is_json:
+            return jsonify({"token": mobile_auth.issue_token(user.id), "user": user_to_dict(user)})
+
         if plan in PAID_PLANS:
             return redirect(url_for("billing.checkout", tier_name=plan))
         return redirect(url_for("dashboard"))
@@ -68,31 +87,50 @@ def register():
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
+    is_json = request.is_json
+
     if current_user.is_authenticated:
+        if is_json:
+            return jsonify({"token": mobile_auth.issue_token(current_user.id),
+                            "user": user_to_dict(current_user)})
         return redirect(url_for("dashboard"))
 
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
-        pw    = request.form.get("password", "")
-        remember = bool(request.form.get("remember"))
+        if is_json:
+            data = request.get_json(silent=True) or {}
+            email = (data.get("email") or "").strip().lower()
+            pw    = data.get("password", "")
+            remember = True
+        else:
+            email = request.form.get("email", "").strip().lower()
+            pw    = request.form.get("password", "")
+            remember = bool(request.form.get("remember"))
 
         user_data = db.get_user_by_email(email)
         if not user_data or not check_password_hash(user_data["password_hash"], pw):
+            if is_json:
+                return jsonify({"error": "Invalid email or password"}), 401
             flash("Invalid email or password.", "error")
             return render_template("auth/login.html")
 
         user = _UserObj(user_data)
         login_user(user, remember=remember)
+
+        if is_json:
+            return jsonify({"token": mobile_auth.issue_token(user.id), "user": user_to_dict(user)})
+
         next_page = request.args.get("next") or url_for("dashboard")
         return redirect(next_page)
 
     return render_template("auth/login.html")
 
 
-@auth_bp.route("/logout")
+@auth_bp.route("/logout", methods=["GET", "POST"])
 @login_required
 def logout():
     logout_user()
+    if request.is_json:
+        return jsonify({"ok": True})
     return redirect(url_for("landing"))
 
 
@@ -214,7 +252,7 @@ class _UserObj:
     @property
     def assistant_enabled(self): return self._d.get("assistant_enabled") != 0
     @property
-    def default_voice(self): return self._d.get("default_voice") or "en-US-Studio-O"
+    def default_voice(self): return self._d.get("default_voice") or "en-US-Journey-D"
 
     def refresh(self):
         self._d = db.get_user_by_id(self._d["id"])
@@ -223,6 +261,19 @@ class _UserObj:
 
 def make_user(user_data: dict) -> _UserObj:
     return _UserObj(user_data)
+
+
+def user_to_dict(user: "_UserObj") -> dict:
+    """JSON-serializable view of a user, shared by the mobile JSON auth
+    endpoints and /api/profile so the shape stays consistent everywhere."""
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "subscription_tier": user.subscription_tier,
+        "videos_used": user.videos_used,
+        "credits_used": user.credits_used,
+    }
 
 
 # ── Bootstrap: first-admin setup (only works when 0 users exist) ─────────────

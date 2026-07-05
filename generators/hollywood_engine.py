@@ -542,7 +542,7 @@ class HollywoodEngine:
             try:
                 prompts = [a.prompt for a in clips_to_generate]
                 model_id = clips_to_generate[0].model_key or "cinematic_studio_3_0"
-                ai_clips = higgsfield_mcp.generate_clips_via_mcp(
+                ai_clips = higgsfield_mcp.generate_clips(
                     prompts=prompts,
                     output_dir=ai_clips_dir,
                     model_id=model_id,
@@ -607,10 +607,10 @@ class HollywoodEngine:
                     if len(img_prompt) < 20:
                         img_prompt = f"Cinematic {topic} scene: {img_prompt}, photorealistic, 4K"
                     img_path = ai_img_dir / f"scene_{i:02d}.jpg"
-                    result = higgsfield_mcp.generate_image_via_mcp(
+                    result = higgsfield_mcp.generate_image(
                         prompt=img_prompt[:400],
                         output_path=img_path,
-                        model_id="nano_banana_pro",
+                        model_id="flux_2",
                         aspect_ratio=aspect,
                     )
                     if result and result.exists():
@@ -627,10 +627,10 @@ class HollywoodEngine:
         if _hf_token and script.thumbnail_prompt:
             try:
                 ai_thumb_path = job_dir / "thumbnail_ai.jpg"
-                result_path = higgsfield_mcp.generate_image_via_mcp(
+                result_path = higgsfield_mcp.generate_image(
                     prompt=script.thumbnail_prompt,
                     output_path=ai_thumb_path,
-                    model_id="nano_banana_pro",
+                    model_id="flux_2",
                     aspect_ratio="16:9",
                 )
                 if result_path and result_path.exists() and result_path.stat().st_size > 1_000:
@@ -743,17 +743,28 @@ class HollywoodEngine:
 # ── Blank fallback constructors ──────────────────────────────────────────────
 
 def _blank_blueprint(topic: str) -> dict:
+    # VideoBlueprint requires >=3 keywords -- a single-item list here would
+    # itself fail pydantic validation and crash this failure-recovery path.
     return {
         "title": topic, "hook": "", "core_angle": "", "target_audience": "general",
         "content_type": "story", "tone": "dramatic",
-        "estimated_ctr": 0.06, "trend_score": 7.0, "keywords": [topic],
+        "estimated_ctr": 0.06, "trend_score": 7.0,
+        "keywords": [topic, "video", "content"],
         "thumbnail_concept": "", "rationale": "",
     }
 
 
 def _blank_script(title: str) -> dict:
+    # FullScript requires >=1 hashtag and >=1 section (with its own required
+    # fields) -- empty lists here would themselves fail validation and crash
+    # this failure-recovery path with the very error it's meant to recover from.
     return {
-        "title": title, "description": "", "hashtags": [], "sections": [],
+        "title": title, "description": "", "hashtags": ["#content"],
+        "sections": [{
+            "section_id": 1, "label": "N/A", "narration": "",
+            "visual_direction": "", "b_roll_keywords": [title],
+            "duration_seconds": 3, "emotional_beat": "reflection",
+        }],
         "total_duration_seconds": 0, "narration_full": "",
         "thumbnail_prompt": "", "chapter_timestamps": [],
     }
@@ -767,9 +778,12 @@ def _blank_asset_plan() -> OptimizedAssetPlan:
 
 
 def _blank_seo(title: str) -> dict:
+    # SEOPackage requires >=10 tags and >=2 ab_title_variants -- short lists
+    # here would themselves fail validation and crash this failure-recovery path.
     return {
-        "title_final": title, "description_full": "", "tags": [],
+        "title_final": title, "description_full": "",
+        "tags": [title] + [f"tag{i}" for i in range(1, 10)],
         "thumbnail_text": "", "end_screen_cta": "Subscribe for more!",
         "pinned_comment": "", "upload_timing": "Tuesday 14:00 UTC",
-        "predicted_views_30d": 0, "ab_title_variants": [title],
+        "predicted_views_30d": 0, "ab_title_variants": [title, title],
     }

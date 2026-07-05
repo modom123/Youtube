@@ -410,7 +410,8 @@ def revenue_overview():
 
         rows = conn.execute("""
             SELECT subscription_tier, subscription_status, COUNT(*) as cnt
-            FROM users GROUP BY subscription_tier, subscription_status
+            FROM users WHERE COALESCE(is_admin,0)=0
+            GROUP BY subscription_tier, subscription_status
         """).fetchall()
 
         tier_breakdown = {}
@@ -1074,7 +1075,7 @@ def add_changelog():
 def list_alerts():
     with _conn() as conn:
         alerts = _rows_to_list(conn.execute("""
-            SELECT * FROM monetizer_alerts ORDER BY acknowledged, created_at DESC LIMIT 50
+            SELECT * FROM monetizer_alerts ORDER BY (status='open') DESC, acknowledged, created_at DESC LIMIT 50
         """).fetchall())
     return jsonify({"alerts": alerts})
 
@@ -1088,12 +1089,27 @@ def ack_alert(alert_id):
     return jsonify({"ok": True})
 
 
-def create_alert(alert_type, message, severity="warning", metric_name=None, metric_value=None, threshold=None):
+@monetizer_bp.route("/api/alerts/<int:alert_id>/resolve", methods=["POST"])
+@login_required
+@owner_required
+def resolve_alert(alert_id):
+    with _conn() as conn:
+        conn.execute(
+            "UPDATE monetizer_alerts SET status='resolved', acknowledged=1, resolved_at=datetime('now') WHERE id = ?",
+            (alert_id,))
+    return jsonify({"ok": True})
+
+
+def create_alert(alert_type, message, severity="warning", metric_name=None, metric_value=None,
+                  threshold=None, suggested_action=None, source_agent=None):
     with _conn() as conn:
         conn.execute("""
-            INSERT INTO monetizer_alerts (alert_type, severity, message, metric_name, metric_value, threshold)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (alert_type, severity, message, metric_name, metric_value, threshold))
+            INSERT INTO monetizer_alerts
+              (alert_type, severity, message, metric_name, metric_value, threshold,
+               suggested_action, source_agent, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open')
+        """, (alert_type, severity, message, metric_name, metric_value, threshold,
+              suggested_action, source_agent))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1171,7 +1187,8 @@ def pricing_simulate():
         current = {}
         for row in conn.execute("""
             SELECT subscription_tier, COUNT(*) as c FROM users
-            WHERE subscription_status = 'active' GROUP BY subscription_tier
+            WHERE subscription_status = 'active' AND COALESCE(is_admin,0)=0
+            GROUP BY subscription_tier
         """).fetchall():
             current[row["subscription_tier"]] = row["c"]
 
@@ -1460,12 +1477,18 @@ def api_plan_overview():
     with _conn() as conn:
         total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         paying = conn.execute(
-            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL"
+            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') "
+            "AND subscription_tier IS NOT NULL AND COALESCE(is_admin,0)=0"
         ).fetchone()[0]
 
         tier_prices = {k: v["price_monthly"] for k, v in config.TIERS.items()}
         mrr = 0
-        for row in conn.execute("SELECT subscription_tier, COUNT(*) as cnt FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL AND subscription_status='active' GROUP BY subscription_tier").fetchall():
+        for row in conn.execute("""
+            SELECT subscription_tier, COUNT(*) as cnt FROM users
+            WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL
+              AND subscription_status='active' AND COALESCE(is_admin,0)=0
+            GROUP BY subscription_tier
+        """).fetchall():
             mrr += row["cnt"] * tier_prices.get(row["subscription_tier"], 0)
         arr = mrr * 12
 
@@ -1513,6 +1536,89 @@ def api_plan_overview():
     })
 
 
+def sync_milestone_progress():
+    """Automatically advance business_plan_milestones status based on real
+    actuals (no admin has to click through the PATCH endpoint), and raise
+    real task-queue alerts: 'milestone_completed' when actuals cross a
+    milestone's target, 'milestone_behind' when a due milestone hasn't hit
+    target yet. Dedups 'behind' alerts per milestone so an ongoing gap
+    doesn't spam a fresh alert every time this runs."""
+    current_week = _get_current_week()
+    with _conn() as conn:
+        paying = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') "
+            "AND subscription_tier IS NOT NULL AND COALESCE(is_admin,0)=0"
+        ).fetchone()[0]
+        tier_prices = {k: v["price_monthly"] for k, v in config.TIERS.items()}
+        mrr = 0
+        for row in conn.execute("""
+            SELECT subscription_tier, COUNT(*) as cnt FROM users
+            WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL
+              AND subscription_status='active' AND COALESCE(is_admin,0)=0
+            GROUP BY subscription_tier
+        """).fetchall():
+            mrr += row["cnt"] * tier_prices.get(row["subscription_tier"], 0)
+        mrr = round(mrr, 2)
+
+        due = _rows_to_list(conn.execute(
+            "SELECT * FROM business_plan_milestones WHERE status != 'completed' "
+            "AND week_number <= ? ORDER BY week_number", (current_week,)
+        ).fetchall())
+
+        completed_now, still_behind = [], []
+        for m in due:
+            conn.execute(
+                "UPDATE business_plan_milestones SET actual_users=?, actual_mrr=? WHERE id=?",
+                (paying, mrr, m["id"]),
+            )
+            hit_target = paying >= m["target_users"] and mrr >= m["target_mrr"]
+            if hit_target:
+                conn.execute(
+                    "UPDATE business_plan_milestones SET status='completed', completed_at=? WHERE id=?",
+                    (datetime.now(timezone.utc).isoformat(), m["id"]),
+                )
+                completed_now.append(m)
+            else:
+                if m["status"] == "pending":
+                    conn.execute("UPDATE business_plan_milestones SET status='in_progress' WHERE id=?", (m["id"],))
+                still_behind.append(m)
+
+        tag = lambda m: f"milestone_week_{m['week_number']}"
+
+        # Auto-resolve any lingering 'behind' alert for a milestone that just completed
+        for m in completed_now:
+            conn.execute(
+                "UPDATE monetizer_alerts SET status='resolved', resolved_at=NOW() "
+                "WHERE alert_type='milestone_behind' AND metric_name=? AND status='open'",
+                (tag(m),),
+            )
+
+        # Dedup: skip milestones that already have an open 'behind' alert
+        open_tags = {r["metric_name"] for r in conn.execute(
+            "SELECT DISTINCT metric_name FROM monetizer_alerts WHERE alert_type='milestone_behind' AND status='open'"
+        ).fetchall()}
+        still_behind = [m for m in still_behind if tag(m) not in open_tags]
+
+    for m in completed_now:
+        create_alert("milestone_completed",
+                      f"Week {m['week_number']} milestone hit: {m['focus']} ({paying} paying users, ${mrr:,.0f} MRR)",
+                      severity="info", metric_name=f"milestone_week_{m['week_number']}",
+                      source_agent="sterling_croft")
+    for m in still_behind:
+        gap_users = max(0, m["target_users"] - paying)
+        gap_mrr = max(0, m["target_mrr"] - mrr)
+        create_alert("milestone_behind",
+                      f"Week {m['week_number']} ({m['focus']}) target not yet hit — "
+                      f"need {gap_users} more paying users and ${gap_mrr:,.0f} more MRR",
+                      severity="warning", metric_name=f"milestone_week_{m['week_number']}",
+                      metric_value=gap_users, threshold=0,
+                      suggested_action=m.get("deliverables") or "Review this week's plan focus.",
+                      source_agent="sterling_croft")
+
+    return {"current_week": current_week, "completed": len(completed_now),
+            "still_behind": len(still_behind), "paying": paying, "mrr": mrr}
+
+
 @monetizer_bp.route("/api/plan/milestone/<int:milestone_id>", methods=["PATCH"])
 @login_required
 @owner_required
@@ -1534,11 +1640,17 @@ def api_plan_update_milestone(milestone_id):
 
         total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
         paying = conn.execute(
-            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL"
+            "SELECT COUNT(*) FROM users WHERE subscription_tier NOT IN ('free','') "
+            "AND subscription_tier IS NOT NULL AND COALESCE(is_admin,0)=0"
         ).fetchone()[0]
         tier_prices = {k: v["price_monthly"] for k, v in config.TIERS.items()}
         mrr = 0
-        for row in conn.execute("SELECT subscription_tier, COUNT(*) as cnt FROM users WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL AND subscription_status='active' GROUP BY subscription_tier").fetchall():
+        for row in conn.execute("""
+            SELECT subscription_tier, COUNT(*) as cnt FROM users
+            WHERE subscription_tier NOT IN ('free','') AND subscription_tier IS NOT NULL
+              AND subscription_status='active' AND COALESCE(is_admin,0)=0
+            GROUP BY subscription_tier
+        """).fetchall():
             mrr += row["cnt"] * tier_prices.get(row["subscription_tier"], 0)
 
         sets.extend(["actual_users=?", "actual_mrr=?"])

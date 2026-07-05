@@ -41,7 +41,7 @@ Uses the standard 5-agent pipeline with Pexels/Pixabay stock + optional Higgsfie
 ## Higgsfield Platform
 Higgsfield is a full creative platform with:
 - AI video generation (cinematic_studio_3_0, kling3_0, veo3, seedance)
-- AI image generation (nano_banana_pro)
+- AI image generation (flux_2)
 - Stock photo and video library
 - Marketing studio for composed visuals
 The Hollywood pipeline leverages ALL of these — not just AI generation.

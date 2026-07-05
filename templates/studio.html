@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_voice_picker.html" import voice_picker %}
 {% set active_page = "studio" %}
 
 {% block title %}The Forge — Social Optimize{% endblock %}
@@ -154,11 +155,7 @@
       <div class="form-grid-2">
         <div class="form-row">
           <label>Voice</label>
-          <select id="s-voice">
-            {% for v in voices %}
-            <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
-            {% endfor %}
-          </select>
+          {{ voice_picker(voices, user_default_voice, 's-voice') }}
         </div>
         <div class="form-row">
           <label>Thumbnail Style</label>
@@ -400,6 +397,31 @@
 let studioJobId = null;
 let studioES = null;
 
+// ── Resume an in-progress job after leaving/returning to this page ──────────
+// _run_studio_thread keeps running server-side regardless of this tab, but
+// studioJobId only ever lived in this local variable -- navigating away and
+// back showed a blank form with no way to tell a pipeline was still running.
+const SO_JOB_KEY = 'so_studio_active_job';
+const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
+
+function saveActiveJob(jobId) {
+  localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, startedAt: Date.now() }));
+}
+function clearActiveJob() {
+  localStorage.removeItem(SO_JOB_KEY);
+}
+function getResumableJob() {
+  try {
+    const raw = localStorage.getItem(SO_JOB_KEY);
+    if (!raw) return null;
+    const { jobId, startedAt } = JSON.parse(raw);
+    if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) { clearActiveJob(); return null; }
+    return jobId;
+  } catch (e) {
+    return null;
+  }
+}
+
 // Check service status on page load
 (async function checkServices() {
   function setBadge(id, ok, label) {
@@ -418,8 +440,8 @@ let studioES = null;
   // Claude — proxy check via a simple ping to confirm API key is set
   const hasAnthropicKey = {{ 'true' if config.ANTHROPIC_API_KEY else 'false' }};
   setBadge('svc-claude', hasAnthropicKey, 'Claude AI');
-  // MCP — check if MCP token is configured
-  const hasMcpToken = {{ 'true' if config.HIGGSFIELD_MCP_TOKEN else 'false' }};
+  // MCP — connected via OAuth session token or env var (no REST API key exists)
+  const hasMcpToken = {{ 'true' if higgsfield_connected else 'false' }};
   setBadge('svc-hf-mcp', hasMcpToken, 'Higgsfield MCP');
 })();
 
@@ -643,6 +665,7 @@ function studioRun() {
   .then(data => {
     if (data.error) { alert(data.error); btn.disabled = false; btn.textContent = 'Run Production Pipeline'; return; }
     studioJobId = data.studio_job_id;
+    saveActiveJob(studioJobId);
     listenStudio(studioJobId);
   })
   .catch(err => {
@@ -670,6 +693,7 @@ function listenStudio(jobId) {
 
     if (msg.status === 'done') {
       studioES.close();
+      clearActiveJob();
       document.getElementById('studioRunBtn').disabled = false;
       document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
       addLog('✓ Pipeline complete!', 'success');
@@ -677,6 +701,7 @@ function listenStudio(jobId) {
       showJobLink(msg.db_job_id);
     } else if (msg.status === 'error') {
       studioES.close();
+      clearActiveJob();
       document.getElementById('studioRunBtn').disabled = false;
       document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
       addLog('✗ ' + step, 'error');
@@ -702,11 +727,13 @@ function pollStatus(jobId) {
       updateAgentsFromProgress(pct);
 
       if (data.status === 'done') {
+        clearActiveJob();
         document.getElementById('studioRunBtn').disabled = false;
         document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
         if (data.result) renderResult(data.result);
         showJobLink(data.db_job_id);
       } else if (data.status === 'error') {
+        clearActiveJob();
         document.getElementById('studioRunBtn').disabled = false;
         document.getElementById('studioRunBtn').textContent = 'Run Production Pipeline';
       } else {
@@ -714,6 +741,49 @@ function pollStatus(jobId) {
       }
     });
 }
+
+// Reconnect to a pipeline that was still running when this page was last
+// left. A bare {"error": "Not found"} means the server has no memory of
+// this id (e.g. it restarted since), so it's discarded rather than shown.
+(function resumeActiveJob() {
+  const jobId = getResumableJob();
+  if (!jobId) return;
+  fetch('/api/studio/status/' + jobId)
+    .then(r => r.json())
+    .then(data => {
+      if (!data || data.error) { clearActiveJob(); return; }
+
+      studioJobId = jobId;
+      const btn = document.getElementById('studioRunBtn');
+      btn.disabled = true;
+      btn.textContent = 'Pipeline Running…';
+      document.getElementById('studioProgressCard').style.display = '';
+      document.getElementById('studioResults').classList.remove('visible');
+
+      const pct = data.progress || 0;
+      document.getElementById('studioPbar').style.width = pct + '%';
+      document.getElementById('studioStepLabel').textContent = data.step || '';
+      soBrandCounterRender('studioBrand', pct);
+      updateAgentsFromProgress(pct);
+
+      if (data.status === 'done') {
+        clearActiveJob();
+        btn.disabled = false;
+        btn.textContent = 'Run Production Pipeline';
+        if (data.result) renderResult(data.result);
+        showJobLink(data.db_job_id);
+      } else if (data.status === 'error') {
+        clearActiveJob();
+        btn.disabled = false;
+        btn.textContent = 'Run Production Pipeline';
+      } else {
+        listenStudio(jobId);
+      }
+    })
+    .catch(() => {
+      // Network hiccup -- leave the stored job id in place, next load retries.
+    });
+})();
 
 // ── Trending Now ─────────────────────────────────────────────────────────────
 

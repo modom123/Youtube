@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_voice_picker.html" import voice_picker %}
 {% set active_page = "create" %}
 
 {% block title %}Create Content — Social Optimize Machine{% endblock %}
@@ -129,12 +130,8 @@
       <div class="card-title mb-16"><span class="accent">🎙️</span> Voice & Style</div>
       <div class="form-group">
         <label>Narrator Voice</label>
-        <select id="voice">
-          {% for v in voices %}
-          <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
-          {% endfor %}
-        </select>
-        <div class="form-hint">10 premium voices — 6 female, 4 male</div>
+        {{ voice_picker(voices, user_default_voice, 'voice') }}
+        <div class="form-hint">10 premium ElevenLabs voices — 5 female, 5 male · click ▶ to hear a sample</div>
       </div>
       <div class="form-group">
         <label>Script Engine</label>
@@ -742,6 +739,32 @@ async function startBlitz() {
   }
 }
 
+// ── Resume an in-progress job after leaving/returning to this page ──────────
+// _run_job_thread keeps generating server-side regardless of whether this
+// tab is open and writes real progress into the jobs table, but job_id only
+// ever lived in this function's local scope -- navigate away and back and
+// there was no way to reconnect, making a still-running job look lost.
+const SO_JOB_KEY = 'so_create_active_job';
+const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour -- long-form videos take a while
+
+function saveActiveJob(jobId, topic) {
+  localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, topic, startedAt: Date.now() }));
+}
+function clearActiveJob() {
+  localStorage.removeItem(SO_JOB_KEY);
+}
+function getResumableJob() {
+  try {
+    const raw = localStorage.getItem(SO_JOB_KEY);
+    if (!raw) return null;
+    const { jobId, topic, startedAt } = JSON.parse(raw);
+    if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) { clearActiveJob(); return null; }
+    return { jobId, topic };
+  } catch (e) {
+    return null;
+  }
+}
+
 async function launchJob(payload) {
   document.getElementById('launch-btn').disabled = true;
   const panel = document.getElementById('progressPanel');
@@ -763,7 +786,12 @@ async function launchJob(payload) {
     return;
   }
   const { job_id } = await resp.json();
+  saveActiveJob(job_id, payload.topic);
 
+  return attachJobStream(job_id, payload.topic);
+}
+
+function attachJobStream(job_id, fallbackTitle) {
   return new Promise((resolve) => {
     const es = new EventSource(`/api/job/${job_id}/stream`);
     const log = document.getElementById('prog-log');
@@ -785,22 +813,24 @@ async function launchJob(payload) {
       }
       if (d.status === 'done') {
         es.close();
+        clearActiveJob();
         document.getElementById('prog-status').className = 'pill pill-done';
         document.getElementById('prog-status').textContent = 'Done!';
         document.getElementById('prog-bar').className = 'progress-bar green';
         document.getElementById('prog-bar').style.width = '100%';
         soBrandCounterRender('prog-brand', 100);
-        document.getElementById('prog-title').textContent = d.title || payload.topic;
+        document.getElementById('prog-title').textContent = d.title || fallbackTitle;
         const acts = document.getElementById('prog-done-actions');
         acts.style.removeProperty('display');
         document.getElementById('prog-download').href = `/api/jobs/${job_id}/download`;
         document.getElementById('prog-detail').href = `/jobs/${job_id}`;
         document.getElementById('launch-btn').disabled = false;
-        toast('success', 'Video Ready!', d.title || payload.topic);
+        toast('success', 'Video Ready!', d.title || fallbackTitle);
         resolve();
       }
       if (d.status === 'error') {
         es.close();
+        clearActiveJob();
         document.getElementById('prog-status').className = 'pill pill-error';
         document.getElementById('prog-status').textContent = 'Error';
         toast('error', 'Generation Failed', d.step);
@@ -810,6 +840,59 @@ async function launchJob(payload) {
     };
   });
 }
+
+// Reconnect to a job that was still generating when this page was last
+// left. /api/job/<id> reads the real, persistent jobs table row (not an
+// in-memory dict), so this survives even a server restart in between --
+// unlike the still-running case, a 404 here means the id is genuinely
+// gone (e.g. the job was deleted) and is discarded.
+(async function resumeActiveJob() {
+  const resumable = getResumableJob();
+  if (!resumable) return;
+  const { jobId, topic } = resumable;
+  try {
+    const resp = await fetch(`/api/job/${jobId}`);
+    if (!resp.ok) { clearActiveJob(); return; }
+    const job = await resp.json();
+
+    const panel = document.getElementById('progressPanel');
+    panel.style.display = 'block';
+    resetProgress();
+    document.getElementById('launch-btn').disabled = true;
+
+    if (job.status === 'done') {
+      clearActiveJob();
+      document.getElementById('prog-status').className = 'pill pill-done';
+      document.getElementById('prog-status').textContent = 'Done!';
+      document.getElementById('prog-bar').className = 'progress-bar green';
+      document.getElementById('prog-bar').style.width = '100%';
+      soBrandCounterRender('prog-brand', 100);
+      document.getElementById('prog-title').textContent = job.title || topic;
+      document.getElementById('prog-done-actions').style.removeProperty('display');
+      document.getElementById('prog-download').href = `/api/jobs/${jobId}/download`;
+      document.getElementById('prog-detail').href = `/jobs/${jobId}`;
+      document.getElementById('launch-btn').disabled = false;
+      return;
+    }
+    if (job.status === 'error') {
+      clearActiveJob();
+      document.getElementById('prog-status').className = 'pill pill-error';
+      document.getElementById('prog-status').textContent = 'Error';
+      document.getElementById('launch-btn').disabled = false;
+      return;
+    }
+
+    // Still running -- restore what we know, then pick up live updates.
+    if (job.progress !== undefined) {
+      document.getElementById('prog-bar').style.width = job.progress + '%';
+      soBrandCounterRender('prog-brand', job.progress);
+    }
+    if (job.current_step) document.getElementById('prog-step').textContent = job.current_step;
+    attachJobStream(jobId, topic);
+  } catch (e) {
+    // Network hiccup -- leave the stored job id in place, next load retries.
+  }
+})();
 
 function resetProgress() {
   document.getElementById('prog-bar').style.width = '0%';

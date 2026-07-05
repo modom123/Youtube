@@ -1,0 +1,19 @@
+{# Reusable voice picker: a table of catalog voices with a play-sample button and
+   click-to-select. Renders a hidden input (id=input_id) holding the chosen
+   voice id, so it's a drop-in replacement for a <select>. Shared CSS/JS live in
+   base.html (vpSelect / vpPlay). #}
+{% macro voice_picker(voices, selected='', input_id='voice') %}
+<input type="hidden" id="{{ input_id }}" name="{{ input_id }}" value="{{ selected }}">
+<div class="voice-picker" data-target="{{ input_id }}">
+  {% for v in voices %}
+  <div class="vp-row{% if v.id == selected %} vp-selected{% endif %}" data-voice="{{ v.id }}" onclick="vpSelect(this)">
+    <button type="button" class="vp-play" title="Play sample" onclick="vpPlay(event, '{{ v.id }}')">▶</button>
+    <div class="vp-meta">
+      <div class="vp-name">{{ v.name }} <span class="vp-badge vp-{{ v.gender|lower }}">{{ v.gender }}</span></div>
+      <div class="vp-style">{{ v.style }}</div>
+    </div>
+    <span class="vp-check">✓</span>
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}

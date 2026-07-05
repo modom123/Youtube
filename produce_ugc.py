@@ -471,8 +471,25 @@ def make_outro_card(width, height, accent_color, bg_colors):
 
 # ── Audio generators ───────────────────────────────────────────────────────
 
+def generate_voiceover(text, output_path, voice="en-us"):
+    """Generate voiceover — ElevenLabs (premium) first, espeak-ng offline fallback.
+
+    Routes through the shared audio_generator so this producer gets the same
+    high-quality ElevenLabs voices as every other studio, and only drops to the
+    robotic espeak voice when no TTS provider is reachable.
+    """
+    try:
+        from generators.audio_generator import generate_audio
+        generate_audio(text=text, output_path=Path(output_path), voice=voice)
+        if Path(output_path).exists():
+            return
+    except Exception as e:
+        print(f"  [voiceover] premium TTS unavailable ({e}) — using espeak fallback")
+    generate_voiceover_espeak(text, output_path, "en-us")
+
+
 def generate_voiceover_espeak(text, output_path, voice="en-us"):
-    """Generate voiceover using espeak-ng (offline)."""
+    """Generate voiceover using espeak-ng (offline last-resort fallback)."""
     wav_path = str(output_path).replace(".mp3", ".wav")
     subprocess.run(
         ["espeak-ng", "-w", wav_path, "-v", voice, "-s", "150", "-p", "45", "-a", "180", text],
@@ -600,7 +617,7 @@ def produce_studio(studio_key):
     full_narration = " ".join(s["narration"] for s in script["sections"])
     voice_path = job_dir / "voiceover.mp3"
     print(f"  [1/6] Generating voiceover...")
-    generate_voiceover_espeak(full_narration, voice_path, studio["voice"])
+    generate_voiceover(full_narration, voice_path, studio["voice"])
 
     voice_clip = AudioFileClip(str(voice_path))
     total_duration = voice_clip.duration
@@ -612,7 +629,7 @@ def produce_studio(studio_key):
     print(f"  [2/6] Calculating section timing...")
     for i, sec in enumerate(script["sections"]):
         sec_path = job_dir / f"section_{i}.mp3"
-        generate_voiceover_espeak(sec["narration"], sec_path, studio["voice"])
+        generate_voiceover(sec["narration"], sec_path, studio["voice"])
         sc = AudioFileClip(str(sec_path))
         section_durations.append(sc.duration + 0.8)
         section_audios.append(sec_path)

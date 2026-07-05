@@ -12,7 +12,7 @@ from generators import graphics_generator
 from generators import ai_video_generator
 from publishers import (
     youtube_publisher, tiktok_publisher, facebook_publisher, twitter_publisher, linkedin_publisher,
-    pinterest_publisher, threads_publisher,
+    pinterest_publisher, threads_publisher, instagram_publisher,
 )
 from utils import file_manager, logger
 from utils.build_log import BuildLog
@@ -176,7 +176,7 @@ def run(
             is_portrait=profile.get("is_portrait", False),
             target_duration=profile.get("duration"),
             pixabay_key_set=bool(config.PIXABAY_API_KEY),
-            higgsfield_token_set=bool(config.HIGGSFIELD_MCP_TOKEN),
+            higgsfield_token_set=ai_video_generator.is_connected(),
             anthropic_key_set=bool(getattr(config, "ANTHROPIC_API_KEY", "")),
             google_key_set=bool(getattr(config, "GOOGLE_API_KEY", "")),
             elevenlabs_key_set=bool(getattr(config, "ELEVENLABS_API_KEY", "")),
@@ -452,8 +452,8 @@ def run(
     # ── 5b. Generate AI video clips (Google Flow / Higgsfield) ───────────────
     ai_clips = []
     _use_ai_video = ai_video_provider and ai_video_provider != "none"
-    # Auto-enable Higgsfield when no stock media and token is available
-    if not _use_ai_video and not video_clips and not image_clips and config.HIGGSFIELD_MCP_TOKEN:
+    # Auto-enable Higgsfield when no stock media and Higgsfield is connected
+    if not _use_ai_video and not video_clips and not image_clips and ai_video_generator.is_connected():
         _use_ai_video = True
         ai_video_provider = "higgsville"
         print("[pipeline] No stock media — auto-enabling Higgsfield AI visuals")
@@ -486,11 +486,11 @@ def run(
                 _blog("error", f"AI video generation failed: {e}", exc=e)
 
         # If AI video clips failed, try generating AI images as backgrounds
-        if not ai_clips and config.HIGGSFIELD_MCP_TOKEN:
+        if not ai_clips and ai_video_generator.is_connected():
             _push_progress(58, "Generating AI background images...")
             with logger.spinner("Generating AI background images via Higgsfield..."):
                 try:
-                    from generators.higgsfield_mcp import generate_image_via_mcp
+                    from generators.higgsfield_mcp import generate_image
                     ai_images_dir = job / "ai_images"
                     ai_images_dir.mkdir(parents=True, exist_ok=True)
                     ar = "9:16" if profile["is_portrait"] else "16:9"
@@ -500,7 +500,7 @@ def run(
                     )[:6]
                     for i, prompt in enumerate(img_prompts):
                         out = ai_images_dir / f"ai_bg_{i:02d}.jpg"
-                        result = generate_image_via_mcp(prompt, out, aspect_ratio=ar)
+                        result = generate_image(prompt, out, aspect_ratio=ar)
                         if result:
                             image_clips.append(result)
                             print(f"[pipeline] AI image {i+1}: {result.name}")
@@ -648,12 +648,28 @@ def run(
                     logger.success(f"TikTok: {result.get('publish_id')}")
 
                 elif platform == "instagram":
-                    logger.warn("Instagram requires a publicly hosted video URL.")
-                    manifest["publish_results"]["instagram"] = {
-                        "status": "skipped",
-                        "reason": "Instagram requires a public CDN URL. Upload the video manually or host it first.",
-                        "video_path": str(video_path),
-                    }
+                    import media_host
+                    public_url = manifest.get("files", {}).get("cdn_url", "") or media_host.get_public_url(video_path)
+                    if not public_url:
+                        logger.warn("Instagram requires a publicly hosted video URL and none could be created.")
+                        manifest["publish_results"]["instagram"] = {
+                            "status": "skipped",
+                            "reason": "Could not create a public URL for the video (set APP_BASE_URL or S3_* config).",
+                            "video_path": str(video_path),
+                        }
+                    else:
+                        with logger.spinner("Uploading to Instagram Reels..."):
+                            result = instagram_publisher.upload_reel(
+                                video_url=public_url,
+                                title=script.title,
+                                description=script.description,
+                                tags=script.hashtags,
+                            )
+                        manifest["publish_results"]["instagram"] = result
+                        if result.get("media_id"):
+                            logger.success(f"Instagram: {result.get('url')}")
+                        else:
+                            logger.warn(f"Instagram: {result.get('reason') or result.get('error')}")
 
                 elif platform == "facebook":
                     with logger.spinner("Uploading to Facebook..."):
@@ -712,13 +728,14 @@ def run(
                         logger.warn(f"Pinterest: {result.get('reason') or result.get('error')}")
 
                 elif platform == "threads":
-                    # Threads requires a CDN URL — check manifest for a cdn_url or skip
-                    cdn_url = manifest.get("files", {}).get("cdn_url", "")
+                    # Threads requires a public URL — use manifest cdn_url or host the file
+                    import media_host
+                    cdn_url = manifest.get("files", {}).get("cdn_url", "") or media_host.get_public_url(video_path)
                     if not cdn_url:
-                        logger.warn("Threads requires a public CDN URL — skipping (no cdn_url in manifest).")
+                        logger.warn("Threads requires a public URL and none could be created — skipping.")
                         manifest["publish_results"]["threads"] = {
                             "status": "skipped",
-                            "reason": "Threads requires a public CDN URL. No cdn_url found in manifest.",
+                            "reason": "Could not create a public URL for the video (set APP_BASE_URL or S3_* config).",
                             "video_path": str(video_path),
                         }
                     else:
@@ -787,11 +804,19 @@ def publish_to_platforms(
                 )
                 results["tiktok"] = result
             elif platform == "instagram":
-                results["instagram"] = {
-                    "status": "skipped",
-                    "reason": "Instagram requires a public CDN URL. Host the video first.",
-                    "video_path": str(video_path),
-                }
+                import media_host
+                public_url = cdn_url or media_host.get_public_url(video_path)
+                if not public_url:
+                    results["instagram"] = {
+                        "status": "skipped",
+                        "reason": "Could not create a public URL for the video (set APP_BASE_URL or S3_* config).",
+                        "video_path": str(video_path),
+                    }
+                else:
+                    result = instagram_publisher.upload_reel(
+                        video_url=public_url, title=title, description=description, tags=hashtags,
+                    )
+                    results["instagram"] = result
             elif platform == "facebook":
                 result = facebook_publisher.upload_video(
                     video_path=video_path, title=title, description=description,
@@ -816,15 +841,17 @@ def publish_to_platforms(
                 )
                 results["pinterest"] = result
             elif platform == "threads":
-                if not cdn_url:
+                import media_host
+                public_url = cdn_url or media_host.get_public_url(video_path)
+                if not public_url:
                     results["threads"] = {
                         "status": "skipped",
-                        "reason": "Threads requires a public CDN URL. No cdn_url found.",
+                        "reason": "Could not create a public URL for the video (set APP_BASE_URL or S3_* config).",
                         "video_path": str(video_path),
                     }
                 else:
                     result = threads_publisher.upload_video(
-                        video_url=cdn_url, title=title, description=description, tags=hashtags,
+                        video_url=public_url, title=title, description=description, tags=hashtags,
                     )
                     results["threads"] = result
         except Exception as e:

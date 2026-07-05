@@ -16,6 +16,24 @@ import config
 _session_token: threading.local = threading.local()
 
 
+def _active_token() -> str:
+    """Effective Higgsfield token: per-user OAuth/MCP session token → env fallback.
+
+    Higgsfield authenticates with an OAuth/MCP bearer token, not a REST API key,
+    so this resolves the connected token rather than only checking the env var.
+    """
+    tok = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN or ""
+    if tok.startswith("http://") or tok.startswith("https://"):
+        tok = ""
+    return tok
+
+
+def is_connected() -> bool:
+    """True when Higgsfield is reachable — OAuth/MCP token OR Platform API
+    key+secret (the SDK fallback path authenticates with the latter)."""
+    return bool(_active_token()) or bool(getattr(config, "HIGGSFIELD_API_CREDENTIAL", ""))
+
+
 # ── Higgsville model catalog ───────────────────────────────────────────────────────────────────────────────
 # Keys match the Higgsville API model IDs
 HIGGSVILLE_MODELS = {
@@ -51,7 +69,7 @@ HIGGSVILLE_API_BASE = "https://api.higgsfield.ai/v1"
 # ── Higgsville REST API client ────────────────────────────────────────────────────────────────────────────
 
 def _higgsville_headers() -> dict:
-    key = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN
+    key = _active_token()
     if not key:
         raise RuntimeError("Higgsfield not connected — authenticate via Accounts page")
     return {
@@ -59,6 +77,17 @@ def _higgsville_headers() -> dict:
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
+
+
+def has_higgsfield_key() -> bool:
+    """Backward-compatible alias for is_connected().
+
+    True if this thread has a connected user's token OR the global system
+    token is configured. Gates that only check config.HIGGSFIELD_MCP_TOKEN
+    silently skip AI visual generation for every customer who connected
+    their own Higgsfield account but relies on no system-wide token being
+    set -- always check this instead."""
+    return is_connected()
 
 
 def _higgsville_generate(model_id: str, prompt: str, params: dict) -> Optional[str]:
@@ -201,7 +230,12 @@ def _try_sdk_clip(
     """Attempt generation via higgsfield-client SDK. Returns path or None."""
     try:
         import higgsfield_client as hf
-        os.environ["HF_KEY"] = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN
+        # Prefer the MCP/OAuth token if present; otherwise leave the Platform
+        # API key+secret (HF_API_KEY/HF_API_SECRET/HF_KEY, set in config) in
+        # place — don't blank HF_KEY when there's no MCP token.
+        _tok = _active_token()
+        if _tok:
+            os.environ["HF_KEY"] = _tok
 
         # Map new model IDs to SDK paths where known
         sdk_paths = {
@@ -409,7 +443,7 @@ def generate_ai_clips(
     clips = []
 
     if provider in ("higgsville", "both"):
-        if config.HIGGSFIELD_MCP_TOKEN:
+        if is_connected():
             hv_clips = _generate_higgsville_with_mcp_fallback(
                 prompts=prompts,
                 output_dir=output_dir / "higgsville",
@@ -418,7 +452,7 @@ def generate_ai_clips(
             )
             clips.extend(hv_clips)
         else:
-            print("[ai_video] HIGGSFIELD_MCP_TOKEN not set — skipping Higgsville")
+            print("[ai_video] Higgsfield not connected — skipping AI video (connect via Accounts page)")
 
     if provider in ("google_flow", "both"):
         if config.GOOGLE_API_KEY:
@@ -442,10 +476,27 @@ def _generate_higgsville_with_mcp_fallback(
     duration: int = 5,
 ) -> list[Path]:
     """
-    Try Higgsfield CLI first (non-interactive, seeds token from env).
-    Fall back to MCP endpoint → SDK → REST API.
+    Higgsfield generation order: Platform API SDK (key+secret) → CLI → MCP → REST.
     """
-    # 1. CLI path (preferred — single binary, no SDK dependency)
+    # 0. Platform API SDK (key+secret) — primary when configured.
+    try:
+        from generators.higgsfield_mcp import has_platform_credentials, generate_clips_via_sdk
+        if has_platform_credentials():
+            sdk_clips = generate_clips_via_sdk(
+                prompts=prompts,
+                output_dir=output_dir / "sdk",
+                model_id=model_id,
+                aspect_ratio=aspect_ratio,
+                duration=duration,
+            )
+            if sdk_clips:
+                print(f"[ai_video] ✓ {len(sdk_clips)} clips via Higgsfield Platform SDK")
+                return sdk_clips
+            print("[ai_video] Platform SDK returned 0 clips — falling back to CLI/MCP")
+    except Exception as e:
+        print(f"[ai_video] Platform SDK path error ({e}) — falling back to CLI/MCP")
+
+    # 1. CLI path (single binary, no SDK dependency)
     try:
         from generators.higgsfield_cli import generate_clips_via_cli, is_authenticated
         if is_authenticated():

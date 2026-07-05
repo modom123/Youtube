@@ -144,9 +144,13 @@ def _generate_outbound_campaigns():
 def _compute_pipeline_metrics():
     """Report on enterprise pipeline health."""
     with db.get_conn() as conn:
-        agency_users = conn.execute("SELECT COUNT(*) FROM users WHERE subscription_tier='agency'").fetchone()[0]
-        creator_users = conn.execute("SELECT COUNT(*) FROM users WHERE subscription_tier='creator'").fetchone()[0]
-        total_acv = agency_users * 199 * 12 + creator_users * 79 * 12
+        agency_users = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE subscription_tier='agency' AND COALESCE(is_admin,0)=0"
+        ).fetchone()[0]
+        creator_users = conn.execute(
+            "SELECT COUNT(*) FROM users WHERE subscription_tier='creator' AND COALESCE(is_admin,0)=0"
+        ).fetchone()[0]
+        total_acv = agency_users * 199.99 * 12 + creator_users * 29.99 * 12
 
     metrics = {
         "agency_accounts": agency_users,

@@ -96,6 +96,7 @@
     <div class="b-card" id="activeBatchCard" style="display:none;">
       <h2>Running Batch — <span id="batchProgressLabel">0 / 0 complete</span></h2>
       <div id="batchTopicRows"></div>
+      <div style="margin-top:12px;text-align:center;"><span class="so-brand-counter" id="batchBrand"></span></div>
     </div>
 
     <!-- Batch history -->
@@ -110,6 +111,26 @@
 <script>
 let activeBatchId = null;
 let batchES = null;
+
+const SO_JOB_KEY = 'so_batch_active_job';
+const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000;
+function saveActiveJob(jobId) {
+  localStorage.setItem(SO_JOB_KEY, JSON.stringify({ jobId, startedAt: Date.now() }));
+}
+function clearActiveJob() {
+  localStorage.removeItem(SO_JOB_KEY);
+}
+function getResumableJob() {
+  try {
+    const raw = localStorage.getItem(SO_JOB_KEY);
+    if (!raw) return null;
+    const { jobId, startedAt } = JSON.parse(raw);
+    if (!jobId || Date.now() - startedAt > SO_JOB_MAX_AGE_MS) { clearActiveJob(); return null; }
+    return jobId;
+  } catch (e) {
+    return null;
+  }
+}
 
 document.getElementById('b-topics').addEventListener('input', function() {
   const lines = this.value.split('\n').map(l => l.trim()).filter(Boolean);
@@ -143,6 +164,7 @@ async function batchRun() {
   if (!resp.ok) { alert(data.error || 'Failed to start batch'); btn.disabled = false; btn.textContent = 'Run Batch Pipeline'; return; }
 
   activeBatchId = data.batch_id;
+  saveActiveJob(activeBatchId);
   showActiveBatch(topics);
   subscribeToStream(activeBatchId);
   btn.textContent = 'Running…';
@@ -151,6 +173,7 @@ async function batchRun() {
 function showActiveBatch(topics) {
   const card = document.getElementById('activeBatchCard');
   card.style.display = '';
+  soBrandCounterRender('batchBrand', 0);
   const rows = document.getElementById('batchTopicRows');
   rows.innerHTML = `
     <table class="batch-table">
@@ -171,24 +194,29 @@ function subscribeToStream(batchId) {
   batchES = new EventSource(`/api/batch/${batchId}/stream`);
   batchES.onmessage = function(e) {
     const d = JSON.parse(e.data);
-    if (d.type === 'topic_start') {
-      const idx = d.index;
-      const el = document.getElementById(`bstat-${idx}`);
-      if (el) el.textContent = '▶';
-      const pr = document.getElementById(`bprog-${idx}`);
-      if (pr) pr.style.width = '30%';
-    } else if (d.type === 'topic_done') {
-      const idx = d.index;
-      const el = document.getElementById(`bstat-${idx}`);
-      if (el) el.textContent = d.success ? '✓' : '✗';
-      const pr = document.getElementById(`bprog-${idx}`);
-      if (pr) pr.style.width = d.success ? '100%' : '0%';
-      document.getElementById('batchProgressLabel').textContent = `${d.completed} / ${d.total} complete`;
-    } else if (d.type === 'batch_done') {
+    if (d.done) {
       batchES.close();
+      clearActiveJob();
       document.getElementById('batchRunBtn').disabled = false;
       document.getElementById('batchRunBtn').textContent = 'Run Batch Pipeline';
+      soBrandCounterRender('batchBrand', 100);
       loadHistory();
+      return;
+    }
+    if (d.index !== undefined) {
+      const el = document.getElementById(`bstat-${d.index}`);
+      const pr = document.getElementById(`bprog-${d.index}`);
+      if (d.status === 'running') {
+        if (el) el.textContent = '▶';
+        if (pr) pr.style.width = '30%';
+      } else if (d.status === 'done' || d.status === 'error') {
+        if (el) el.textContent = d.status === 'done' ? '✓' : '✗';
+        if (pr) pr.style.width = d.status === 'done' ? '100%' : '0%';
+      }
+    }
+    if (d.completed !== undefined && d.total !== undefined) {
+      document.getElementById('batchProgressLabel').textContent = `${d.completed} / ${d.total} complete`;
+      soBrandCounterRender('batchBrand', d.total > 0 ? (d.completed / d.total * 100) : 0);
     }
   };
 }
@@ -216,9 +244,15 @@ async function loadHistory() {
 
 async function resumeBatch(batchId) {
   const resp = await fetch(`/api/batch/${batchId}/status`);
+  if (!resp.ok) return;
   const d = await resp.json();
   if (d.status === 'running') {
     activeBatchId = batchId;
+    saveActiveJob(batchId);
+    const topics = JSON.parse(d.topics_json || '[]');
+    showActiveBatch(topics);
+    document.getElementById('batchRunBtn').disabled = true;
+    document.getElementById('batchRunBtn').textContent = 'Running…';
     subscribeToStream(batchId);
   }
 }
@@ -228,5 +262,27 @@ function escHtml(s) {
 }
 
 loadHistory();
+
+(function resumeActiveJobOnLoad() {
+  const jobId = getResumableJob();
+  if (!jobId) return;
+  fetch(`/api/batch/${jobId}/status`)
+    .then(r => { if (!r.ok) { clearActiveJob(); return null; } return r.json(); })
+    .then(d => {
+      if (!d || d.error) { clearActiveJob(); return; }
+      if (d.status !== 'running') { clearActiveJob(); return; }
+      activeBatchId = jobId;
+      const topics = JSON.parse(d.topics_json || '[]');
+      showActiveBatch(topics);
+      document.getElementById('batchRunBtn').disabled = true;
+      document.getElementById('batchRunBtn').textContent = 'Running…';
+      // Reconnecting replays every event recorded for this batch from the
+      // start, so the per-topic table naturally fills back in.
+      subscribeToStream(jobId);
+    })
+    .catch(() => {
+      // Network hiccup -- leave stored job in place, next load retries.
+    });
+})();
 </script>
 {% endblock %}

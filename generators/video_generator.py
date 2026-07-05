@@ -15,25 +15,35 @@ def _get_ffmpeg():
     return imageio_ffmpeg.get_ffmpeg_exe()
 
 
+def _get_ffprobe() -> Optional[str]:
+    """Find a real ffprobe binary. imageio_ffmpeg only bundles ffmpeg, never
+    ffprobe -- deriving a path by string-replacing "ffmpeg" with "ffprobe" in
+    its bundled binary's path never resolves to a real file, so that never
+    actually works even where a system ffprobe is installed alongside
+    ffmpeg (e.g. via apt). Look on PATH instead, where the real one lives."""
+    import shutil
+    return shutil.which("ffprobe")
+
+
 def _get_duration(path: Path) -> float:
     """Get media duration using ffprobe, with MoviePy fallback."""
-    ffmpeg = _get_ffmpeg()
-    ffprobe = ffmpeg.replace("ffmpeg", "ffprobe")
+    ffprobe = _get_ffprobe()
     duration = 0.0
-    try:
-        r = subprocess.run(
-            [ffprobe, "-v", "error", "-show_entries", "format=duration",
-             "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-            capture_output=True, text=True, timeout=10,
-        )
-        val = r.stdout.strip()
-        if val:
-            duration = float(val)
-    except Exception:
-        pass
+    if ffprobe:
+        try:
+            r = subprocess.run(
+                [ffprobe, "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+                capture_output=True, text=True, timeout=10,
+            )
+            val = r.stdout.strip()
+            if val:
+                duration = float(val)
+        except Exception:
+            pass
     if duration > 0:
         return duration
-    # ffprobe failed or returned 0 — try MoviePy
+    # ffprobe unavailable/failed or returned 0 — try MoviePy
     try:
         from moviepy import AudioFileClip
         clip = AudioFileClip(str(path))
@@ -47,16 +57,29 @@ def _get_duration(path: Path) -> float:
 
 
 def _get_video_duration(path: Path) -> float:
-    """Get video file duration."""
-    ffmpeg = _get_ffmpeg()
-    ffprobe = ffmpeg.replace("ffmpeg", "ffprobe")
+    """Get video file duration, with a MoviePy fallback when ffprobe isn't
+    on PATH -- without this fallback every video clip silently reads as
+    duration 0 and gets discarded, forcing the no-visuals text-card path
+    even when real stock/AI video clips were successfully fetched."""
+    ffprobe = _get_ffprobe()
+    if ffprobe:
+        try:
+            r = subprocess.run(
+                [ffprobe, "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+                capture_output=True, text=True, timeout=10,
+            )
+            val = r.stdout.strip()
+            if val:
+                return float(val)
+        except Exception:
+            pass
     try:
-        r = subprocess.run(
-            [ffprobe, "-v", "error", "-show_entries", "format=duration",
-             "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-            capture_output=True, text=True, timeout=10,
-        )
-        return float(r.stdout.strip())
+        from moviepy import VideoFileClip
+        clip = VideoFileClip(str(path))
+        duration = float(clip.duration)
+        clip.close()
+        return duration
     except Exception:
         return 0
 

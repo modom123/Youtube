@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% set active_page = "video-studio" %}
+{% block title %}Video Studio — Social Optimize{% endblock %}
+{% block topbar_title %}🎬 Video Studio{% endblock %}
+{% block topbar_sub %}Every video format — shorts, longs, documentaries, podcasts, rankings — in one studio{% endblock %}
+
+{% block content %}
+<style>
+.hub-wrap { display: flex; flex-direction: column; height: calc(100vh - 116px); min-height: 540px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.hub-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 16px; gap: 4px; flex-shrink: 0; overflow-x: auto; }
+.hub-tab { padding: 14px 16px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; transition: color .2s, background .2s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.hub-tab:hover { color: var(--text); background: rgba(212,160,23,.08); }
+.hub-tab.active { color: var(--accent, #d4a017); border-bottom-color: var(--accent, #d4a017); background: rgba(212,160,23,.08); }
+.hub-body { flex: 1; min-height: 0; position: relative; }
+.hub-pane { display: none; width: 100%; height: 100%; }
+.hub-pane.active { display: block; }
+.hub-pane iframe { width: 100%; height: 100%; border: none; display: block; }
+</style>
+
+<div class="hub-wrap">
+  <div class="hub-tabs">
+    <button class="hub-tab active" data-tab="create" onclick="switchHubTab('create', this)">🚀 Quick Create</button>
+    <button class="hub-tab" data-tab="forge" onclick="switchHubTab('forge', this)">🔥 The Forge</button>
+    <button class="hub-tab" data-tab="batch" onclick="switchHubTab('batch', this)">📦 Batch</button>
+    <button class="hub-tab" data-tab="cinema" onclick="switchHubTab('cinema', this)">🎬 Cinema House</button>
+    <button class="hub-tab" data-tab="podcast" onclick="switchHubTab('podcast', this)">🎙️ Podcast</button>
+    <button class="hub-tab" data-tab="ranking" onclick="switchHubTab('ranking', this)">🏆 Rankings</button>
+    <button class="hub-tab" data-tab="music" onclick="switchHubTab('music', this)">🎵 Soundtracks</button>
+  </div>
+  <div class="hub-body">
+    <div class="hub-pane active" id="hub-pane-create"><iframe src="/create?embed=1" loading="lazy"></iframe></div>
+    <div class="hub-pane" id="hub-pane-forge"><iframe data-src="/studio?embed=1" loading="lazy"></iframe></div>
+    <div class="hub-pane" id="hub-pane-batch"><iframe data-src="/batch?embed=1" loading="lazy"></iframe></div>
+    <div class="hub-pane" id="hub-pane-cinema"><iframe data-src="/hollywood?embed=1" loading="lazy"></iframe></div>
+    <div class="hub-pane" id="hub-pane-podcast"><iframe data-src="/podcast-studio?embed=1" loading="lazy"></iframe></div>
+    <div class="hub-pane" id="hub-pane-ranking"><iframe data-src="/ranking-studio?embed=1" loading="lazy"></iframe></div>
+    <div class="hub-pane" id="hub-pane-music"><iframe data-src="/music-studio?embed=1" loading="lazy"></iframe></div>
+  </div>
+</div>
+
+<script>
+function switchHubTab(id, btn) {
+  document.querySelectorAll('.hub-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.hub-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const pane = document.getElementById('hub-pane-' + id);
+  pane.classList.add('active');
+  const iframe = pane.querySelector('iframe');
+  if (iframe.dataset.src && !iframe.src) iframe.src = iframe.dataset.src;
+}
+// Deep-link support: /video-studio?tab=podcast
+const _t = new URLSearchParams(location.search).get('tab');
+if (_t) { const b = document.querySelector(`.hub-tab[data-tab="${_t}"]`); if (b) switchHubTab(_t, b); }
+</script>
+{% endblock %}

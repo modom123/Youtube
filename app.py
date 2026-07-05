@@ -16,24 +16,42 @@ import uuid
 import vobject
 from pathlib import Path
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from flask import (
     Flask, render_template, request, jsonify, redirect, url_for,
-    send_file, Response, stream_with_context, session
+    send_file, Response, stream_with_context, session, abort
 )
 from flask_login import LoginManager, login_required, current_user
 from werkzeug.utils import secure_filename
 import requests
 import database as db
 import config
-from auth import auth_bp, make_user
+from auth import auth_bp, make_user, user_to_dict
+import mobile_auth
 from billing import billing_bp, check_usage_gate
 from admin import admin_bp
 from notifications import send_notification
 from monetizer import monetizer_bp, init_monetizer_tables
 from hermes_agent import hermes_bp
+from whop_integration import whop_bp, init_whop_tables
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
+
+# Every OAuth redirect_uri in this app is built from APP_BASE_URL / the
+# per-platform *_REDIRECT_URI configs, all of which point at the bare domain
+# (e.g. https://socialoptimize.online) — but the site is actually served at
+# www.socialoptimize.online too. Without an explicit cookie domain, Flask's
+# session cookie is host-only: a user who starts the OAuth flow on the www
+# host loses that cookie the instant the provider redirects back to the bare
+# host (or vice versa), silently dropping the OAuth "state" value and, for
+# every @login_required callback, dropping the login session itself. That's
+# the root cause behind "connect account" failing with an unhandled error —
+# sharing the cookie across both hosts fixes it for every platform at once.
+_base_host = urlparse(config.APP_BASE_URL).hostname or ""
+if _base_host and _base_host not in ("localhost", "127.0.0.1"):
+    _bare_host = _base_host[4:] if _base_host.startswith("www.") else _base_host
+    app.config["SESSION_COOKIE_DOMAIN"] = "." + _bare_host
 
 @app.template_filter("datefmt")
 def _datefmt(val, fmt="%Y-%m-%d %H:%M"):
@@ -44,6 +62,15 @@ def _datefmt(val, fmt="%Y-%m-%d %H:%M"):
         return val.strftime(fmt)
     s = str(val)
     return s[:16].replace("T", " ")
+
+
+@app.template_filter("voice_name")
+def _voice_name(voice_id):
+    """Map a voice id (ElevenLabs, or legacy Google/edge) to its friendly catalog name."""
+    if not voice_id:
+        return "Default"
+    resolved = config.resolve_voice(voice_id)
+    return resolved.get("name") or str(voice_id)
 
 # Trust Render's reverse-proxy headers so request.url_root returns the
 # correct public HTTPS URL instead of the internal http://service:10000 address.
@@ -57,7 +84,12 @@ login_manager.login_message_category = "info"
 
 @login_manager.unauthorized_handler
 def _unauthorized():
-    if request.path.startswith("/api/"):
+    # /settings/data and /settings/update are the mobile app's JSON routes
+    # (see api.ts) even though they don't live under /api/ -- an unauthed
+    # mobile request to them needs the same clean 401 as everything else,
+    # not an HTML redirect to the login page that fetch would just follow
+    # and return as opaque text.
+    if request.path.startswith("/api/") or request.path.startswith("/settings/"):
         return jsonify({"error": "Session expired — please sign in again"}), 401
     return redirect(url_for("auth.login"))
 
@@ -66,6 +98,34 @@ def load_user(user_id):
     data = db.get_user_by_id(int(user_id))
     return make_user(data) if data else None
 
+
+@login_manager.request_loader
+def load_user_from_bearer_token(req):
+    # The mobile app can't reliably read the Set-Cookie header from fetch,
+    # so it authenticates with a signed bearer token instead of the browser
+    # session cookie -- this lets @login_required routes accept either.
+    auth_header = req.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return None
+    user_id = mobile_auth.verify_token(auth_header[7:])
+    if not user_id:
+        return None
+    data = db.get_user_by_id(user_id)
+    return make_user(data) if data else None
+
+
+@app.after_request
+def _allow_whop_embedding(resp):
+    """Whop loads our app inside an iframe on whop.com. Every other route stays
+    frame-denied; only /whop/* opts in via a scoped frame-ancestors CSP (and no
+    X-Frame-Options, which has no allow-list and would block the embed)."""
+    if request.path.startswith("/whop/"):
+        resp.headers["Content-Security-Policy"] = (
+            "frame-ancestors 'self' https://whop.com https://*.whop.com"
+        )
+        resp.headers.pop("X-Frame-Options", None)
+    return resp
+
 from sales_channels import sales_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(billing_bp)
@@ -73,11 +133,71 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(monetizer_bp)
 app.register_blueprint(sales_bp)
 app.register_blueprint(hermes_bp)
+app.register_blueprint(whop_bp)
 
-db.init_db()
+# ── Database boot: never let a down/slow database kill the web process ───────
+# If init fails, the app still binds and serves a clear 503 while a background
+# thread retries — instead of the worker dying and Render returning a bare 502
+# for every request with no self-recovery.
+_db_ready = False
 
-from admin import load_env_from_db
-load_env_from_db()
+
+def _finish_db_dependent_boot():
+    from admin import load_env_from_db
+    load_env_from_db()
+
+
+def _init_db_with_retry():
+    global _db_ready
+    delay = 2
+    while True:
+        try:
+            db.init_db()
+            break
+        except Exception as e:
+            print(f"[boot] Database still unavailable ({e}) — retrying in {delay}s")
+            time.sleep(delay)
+            delay = min(delay * 2, 60)
+    # Wait for the module import to finish so the deferred startup hooks exist
+    while "_post_db_startup" not in globals():
+        time.sleep(1)
+    try:
+        _finish_db_dependent_boot()
+        globals()["_post_db_startup"]()
+    except Exception as e:
+        print(f"[boot] Post-DB startup error (continuing anyway): {e}")
+    _db_ready = True
+    print("[boot] Database connected — leaving degraded mode")
+
+
+try:
+    db.init_db()
+    _finish_db_dependent_boot()
+    _db_ready = True
+except Exception as _boot_err:
+    print(f"[boot] DATABASE UNAVAILABLE AT STARTUP: {_boot_err}")
+    print("[boot] Serving in degraded mode; retrying connection in background")
+    threading.Thread(target=_init_db_with_retry, daemon=True, name="db_boot_retry").start()
+
+
+@app.before_request
+def _guard_db_not_ready():
+    if _db_ready:
+        return None
+    # Keep the process visibly alive for Render's health check and static assets
+    if request.path == "/health" or request.path.startswith("/static/"):
+        return None
+    if request.path.startswith("/api/"):
+        return jsonify({"error": "Service is starting up — database not ready. Try again shortly."}), 503
+    return (
+        "<html><body style='font-family:sans-serif;background:#111;color:#eee;"
+        "display:flex;align-items:center;justify-content:center;height:100vh;text-align:center'>"
+        "<div><h1>Social Optimize is starting up</h1>"
+        "<p>We're reconnecting to the database. This page will work again in a moment — "
+        "please refresh in ~30 seconds.</p></div></body></html>",
+        503,
+        {"Retry-After": "30"},
+    )
 
 @app.errorhandler(500)
 def _handle_500(e):
@@ -173,6 +293,19 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
           f"requested={raw_model} → using={routed_model}")
     blog.info(f"AI model routed: {raw_model} → {routed_model}", tier=tier, format=params.get("format"))
 
+    # Feedback loop: steer the script with what actually performs on this account
+    if user_id:
+        try:
+            from generators.performance_insights import insights_prompt
+            tip = insights_prompt(user_id)
+            if tip:
+                params["custom_instructions"] = (
+                    (params.get("custom_instructions") or "") + "\n\n" + tip
+                ).strip()
+                blog.info("Injected audience performance insights into script prompt")
+        except Exception as e:
+            blog.warn(f"Performance insights unavailable: {e}")
+
     # Hard watchdog: mark job as failed if thread runs longer than 15 minutes
     _WATCHDOG_SECONDS = 900
     _job_cancelled = threading.Event()
@@ -243,6 +376,7 @@ def _run_job_thread_inner(job_id: int, params: dict, user_id: int = None):
         if user_id:
             try:
                 db.increment_user_usage(user_id, videos=1)
+                db.deduct_credits(user_id, "video_generate", "Create Content video")
             except Exception as _ue:
                 print(f"[job #{job_id}] increment_user_usage failed (non-fatal): {_ue}")
         job_title = manifest.get("title")
@@ -299,6 +433,7 @@ def pricing():
     if current_user.is_authenticated:
         return redirect(url_for("billing.billing_page"))
     whop_plans = {
+        "free": config.WHOP_PLAN_FREE,
         "starter": config.WHOP_PLAN_STARTER,
         "creator": config.WHOP_PLAN_CREATOR,
         "pro": config.WHOP_PLAN_PRO,
@@ -464,7 +599,14 @@ def _quickpost_publish_image(platform: str, media_path: str, caption: str, user_
         resp.raise_for_status()
         return {"platform": "facebook", "post_id": resp.json().get("id")}
 
-    # Platforms requiring CDN URL (Instagram, TikTok, Threads, etc.)
+    if platform == "instagram":
+        import media_host
+        from publishers import instagram_publisher
+        public_url = media_host.get_public_url(media_path)
+        if public_url:
+            return instagram_publisher.upload_photo(image_url=public_url, caption=caption)
+
+    # Platforms requiring CDN URL (TikTok, Threads, etc.)
     return {
         "platform": platform,
         "status": "manual_required",
@@ -600,6 +742,11 @@ def privacy():
     return render_template("privacy.html")
 
 
+@app.route("/terms")
+def terms():
+    return render_template("legal/terms.html")
+
+
 @app.route("/docs")
 def docs():
     return render_template("docs.html")
@@ -613,6 +760,49 @@ def about():
 @app.route("/blog")
 def blog():
     return render_template("blog.html")
+
+
+@app.route("/contact")
+def contact():
+    return render_template("contact.html")
+
+
+@app.route("/api/contact", methods=["POST"])
+def api_contact():
+    data = request.get_json(silent=True) or request.form.to_dict()
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip()
+    subject = (data.get("subject") or "other").strip()
+    message = (data.get("message") or "").strip()
+
+    if not name or not email or not message:
+        return jsonify({"message": "Name, email, and message are required."}), 400
+    if "@" not in email or len(email) > 254 or len(name) > 200 or len(message) > 5000:
+        return jsonify({"message": "Please check your input and try again."}), 400
+
+    db.save_contact_message(name, email, subject, message)
+
+    if config.CONTACT_NOTIFY_EMAIL:
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            if config.SMTP_HOST and config.SMTP_USER:
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = f"[Contact Form] {subject}: {name}"
+                msg["From"] = config.SMTP_FROM
+                msg["To"] = config.CONTACT_NOTIFY_EMAIL
+                msg["Reply-To"] = email
+                body = f"From: {name} <{email}>\nSubject: {subject}\n\n{message}"
+                msg.attach(MIMEText(body, "plain"))
+                with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT) as server:
+                    server.starttls()
+                    server.login(config.SMTP_USER, config.SMTP_PASS)
+                    server.sendmail(config.SMTP_FROM, config.CONTACT_NOTIFY_EMAIL, msg.as_string())
+        except Exception:
+            app.logger.exception("Failed to send contact form notification email")
+
+    return jsonify({"ok": True})
 
 
 @app.route("/tiktoktZP2Ao6MnBjhPb6PTnJsMZ2dzTLrSfPy.txt")
@@ -635,6 +825,102 @@ def dashboard():
 @app.route("/home")
 def home_redirect():
     return redirect(url_for("dashboard"))
+
+
+# ── Mobile app JSON API ───────────────────────────────────────────────────────
+# The mobile app (mobile/) authenticates via a bearer token (see
+# mobile_auth.py + the request_loader above) rather than the browser
+# session cookie, then talks to these plain-JSON endpoints -- the rest of
+# the site's routes render HTML templates and aren't meant for a native
+# client to consume directly.
+
+@app.route("/api/profile")
+@login_required
+def api_profile():
+    return jsonify(user_to_dict(current_user))
+
+
+@app.route("/api/dashboard")
+@login_required
+def api_dashboard():
+    db.reset_usage_if_new_period(current_user.id)
+    stats = db.get_stats(user_id=current_user.id)
+    tier = config.TIERS.get(current_user.subscription_tier, config.TIERS["free"])
+    return jsonify({
+        **stats,
+        "subscription_tier": current_user.subscription_tier,
+        "videos_used": current_user.videos_used,
+        "credits_used": current_user.credits_used,
+        "tier_video_limit": tier.get("videos_per_month"),
+    })
+
+
+def _job_to_mobile_dict(job: dict) -> dict:
+    platforms = job.get("platforms") or []
+    return {
+        "id": job["id"],
+        "topic": job.get("topic", ""),
+        "status": job.get("status", ""),
+        "progress": job.get("progress", 0),
+        "platform": platforms[0] if platforms else "",
+        "style": job.get("style", ""),
+        "video_url": f"/api/jobs/{job['id']}/video" if job.get("video_path") else None,
+        "created_at": (
+            job["created_at"].isoformat() if hasattr(job.get("created_at"), "isoformat")
+            else job.get("created_at")
+        ),
+    }
+
+
+@app.route("/api/jobs")
+@login_required
+def api_jobs_list():
+    jobs = db.get_jobs(limit=50, user_id=current_user.id)
+    return jsonify({"jobs": [_job_to_mobile_dict(j) for j in jobs]})
+
+
+@app.route("/api/studios")
+@login_required
+def api_studios():
+    return jsonify({"studios": config.STUDIOS})
+
+
+@app.route("/api/analytics")
+@login_required
+def api_analytics():
+    # Same underlying data as the web /analytics page (db.get_analytics),
+    # just as plain JSON instead of a rendered template.
+    analytics = db.get_analytics(user_id=current_user.id)
+    total_views = sum(a.get("views", 0) for a in analytics)
+    total_revenue = sum(a.get("revenue_estimate", 0) for a in analytics)
+    return jsonify({
+        "videos": analytics,
+        "total_views": total_views,
+        "total_revenue": total_revenue,
+    })
+
+
+@app.route("/settings/data")
+@login_required
+def api_settings_data():
+    user = db.get_user_by_id(current_user.id)
+    return jsonify({
+        "name": user.get("name"),
+        "email": user.get("email"),
+        "notify_email": bool(user.get("notify_email")),
+        "webhook_url": user.get("webhook_url") or "",
+        "assistant_enabled": user.get("assistant_enabled") != 0,
+        "default_voice": user.get("default_voice") or config.DEFAULT_VOICE,
+        "subscription_tier": user.get("subscription_tier") or "free",
+        "voices": config.VOICE_CATALOG,
+    })
+
+
+@app.route("/settings/update", methods=["POST"])
+@login_required
+def api_settings_update_mobile():
+    _apply_settings_update(current_user.id, request.json or {})
+    return jsonify({"status": "saved"})
 
 
 @app.route("/create")
@@ -769,7 +1055,8 @@ def job_detail(job_id):
     accounts = db.get_accounts(user_id=current_user.id)
     connected = {a["platform"] for a in accounts if a["is_active"]}
     return render_template("job_detail.html", job=job, dubs=dubs, dub_languages=DUB_LANGUAGES,
-                           connected_platforms=connected)
+                           connected_platforms=connected, voices=config.VOICE_CATALOG,
+                           user_default_voice=current_user.default_voice)
 
 
 @app.route("/api/jobs/<int:job_id>/publish", methods=["POST"])
@@ -1092,6 +1379,129 @@ def upload_job_audio(job_id):
     return jsonify({"ok": True, "audio_path": str(dest)})
 
 
+_revoice_jobs: dict = {}
+_revoice_lock = threading.Lock()
+
+
+def _load_job_narration(job: dict) -> str:
+    """Full narration text for a completed job, for re-voicing."""
+    secs = _load_job_sections(job)
+    return " ".join(s["narration"] for s in secs if s.get("narration")).strip()
+
+
+def _run_revoice_thread(job_id: int, voice: str, user_id: int):
+    import subprocess as _sp
+    import imageio_ffmpeg
+    from generators import audio_generator
+
+    def _set(**kw):
+        with _revoice_lock:
+            st = _revoice_jobs.get(job_id) or {}
+            st.update(kw)
+            _revoice_jobs[job_id] = st
+
+    try:
+        job = db.get_job(job_id, user_id=user_id)
+        if not job:
+            _set(status="error", error="Job not found")
+            return
+        video_path = job.get("video_path") or ""
+        if not video_path or not Path(video_path).exists():
+            _set(status="error", error="This job has no video file on disk to keep.")
+            return
+        narration = _load_job_narration(job)
+        if not narration:
+            _set(status="error", error="Couldn't find this job's script to re-voice.")
+            return
+
+        _set(status="running", step="Generating new voiceover…", progress=20)
+        out_dir = Path(video_path).parent
+        new_audio = out_dir / f"revoice_{int(time.time())}.mp3"
+        audio_generator.generate_audio(text=narration, output_path=new_audio, voice=voice)
+
+        _set(step="Remuxing audio onto video…", progress=70)
+        out_video = out_dir / f"revoiced_{int(time.time())}.mp4"
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        # Keep the original video exactly; pad the new narration with silence and
+        # trim to the video length so the picture is untouched.
+        try:
+            result = _sp.run(
+                [ffmpeg, "-y", "-i", str(video_path), "-i", str(new_audio),
+                 "-filter_complex", "[1:a]apad[aud]",
+                 "-map", "0:v:0", "-map", "[aud]",
+                 "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
+                 str(out_video)],
+                capture_output=True, timeout=600,
+            )
+        except _sp.TimeoutExpired:
+            _set(status="error", error="Re-voice timed out combining audio with video.")
+            return
+        if result.returncode != 0 or not out_video.exists():
+            err = (result.stderr or b"")[-300:].decode("utf-8", "replace")
+            _set(status="error", error=f"ffmpeg failed to combine the new voice with the video. {err}")
+            return
+
+        db.update_job(job_id, video_path=str(out_video), audio_path=str(new_audio), voice=voice)
+        _set(status="done", progress=100, step="Done", video_path=str(out_video))
+    except Exception as e:
+        _set(status="error", error=str(e))
+
+
+@app.route("/api/jobs/<int:job_id>/revoice", methods=["POST"])
+@login_required
+def api_job_revoice(job_id):
+    """Re-generate a completed job's narration in a new voice and mux it onto the
+    SAME video — keep the picture, swap the voiceover."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    voice = (request.json or {}).get("voice") or current_user.default_voice or config.DEFAULT_VOICE
+    with _revoice_lock:
+        if (_revoice_jobs.get(job_id) or {}).get("status") == "running":
+            return jsonify({"error": "A re-voice is already running for this job."}), 409
+        _revoice_jobs[job_id] = {"status": "running", "progress": 0, "step": "Starting…"}
+    threading.Thread(target=_run_revoice_thread, args=(job_id, voice, current_user.id),
+                     daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/jobs/<int:job_id>/revoice-status")
+@login_required
+def api_job_revoice_status(job_id):
+    with _revoice_lock:
+        st = _revoice_jobs.get(job_id)
+    return jsonify(st or {"status": "idle"})
+
+
+_VOICE_SAMPLE_TEXT = ("Hi there — this is a sample of my voice. "
+                      "I can narrate your videos in this style.")
+_voice_sample_lock = threading.Lock()
+
+
+@app.route("/api/voice-sample/<voice_id>")
+@login_required
+def api_voice_sample(voice_id):
+    """Return a short spoken sample for a catalog voice (generated once, cached).
+    Powers the 'hear a sample and choose' voice picker."""
+    safe = "".join(c for c in voice_id if c.isalnum() or c in "-_")[:48]
+    if not safe:
+        return jsonify({"error": "bad voice id"}), 400
+    cache_dir = Path(config.DATA_DIR) / "voice_samples"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    # Version tag busts stale/robotic cached samples when the voice set changes.
+    sample = cache_dir / f"{safe}_v2.mp3"
+    if not sample.exists() or sample.stat().st_size < 512:
+        with _voice_sample_lock:
+            if not sample.exists() or sample.stat().st_size < 512:
+                from generators import audio_generator
+                try:
+                    audio_generator.generate_audio(text=_VOICE_SAMPLE_TEXT,
+                                                    output_path=sample, voice=voice_id)
+                except Exception as e:
+                    return jsonify({"error": f"Could not generate sample: {e}"}), 500
+    return send_file(str(sample), mimetype="audio/mpeg")
+
+
 @app.route("/api/jobs/<int:job_id>/convert", methods=["POST"])
 @login_required
 def convert_job_video(job_id):
@@ -1248,7 +1658,9 @@ def api_job_update(job_id):
     if not job:
         return jsonify({"error": "Job not found"}), 404
     data = request.json or {}
-    allowed = {"format", "title", "description", "privacy", "platforms"}
+    # "description" was listed here but jobs has no such column -- would
+    # crash with UndefinedColumn the moment anything actually sent it.
+    allowed = {"format", "title", "privacy", "platforms"}
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "No valid fields provided"}), 400
@@ -1301,20 +1713,35 @@ def api_personas_delete(persona_id):
 
 # ── Social Accounts ───────────────────────────────────────────────────────────
 
+def _oauth_error_detail(error: str, detail: str) -> str:
+    """Human-readable guidance for OAuth connect failures shown on the accounts page."""
+    cb = config.APP_BASE_URL.rstrip("/") + "/oauth/youtube/callback"
+    if error == "youtube":
+        if detail == "creds":
+            return ("YouTube isn't set up yet. In Render set YOUTUBE_CLIENT_ID and "
+                    "YOUTUBE_CLIENT_SECRET (from a Google Cloud OAuth 2.0 Client), then redeploy.")
+        return ("YouTube sign-in failed. In Google Cloud Console: enable the YouTube Data "
+                f"API v3, and add this exact Authorized redirect URI: {cb} . Also confirm "
+                "APP_BASE_URL is your public domain.")
+    if error and error.startswith("higgsfield"):
+        return ("Higgsfield OAuth is unreliable — set HIGGSFIELD_API_KEY + HIGGSFIELD_API_SECRET "
+                "instead and check /api/debug/higgsfield.")
+    return ""
+
+
 @app.route("/accounts")
 @login_required
 def accounts_page():
     accounts = db.get_accounts(user_id=current_user.id)
     connected = {a["platform"] for a in accounts if a.get("is_active", True)}
-    higgsfield_connected = any(
-        a.get("platform") == "higgsfield" and a.get("is_active") and a.get("access_token")
-        for a in accounts
-    )
+    higgsfield_via_api = bool(getattr(config, "HIGGSFIELD_API_CREDENTIAL", ""))
+    higgsfield_connected = _higgsfield_connected(current_user.id)
     return render_template(
         "accounts.html",
         accounts=accounts,
         connected=connected,
         higgsfield_connected=higgsfield_connected,
+        higgsfield_via_api=higgsfield_via_api,
         is_admin=current_user.is_admin,
         youtube_configured=bool(config.YOUTUBE_CLIENT_ID),
         tiktok_configured=bool(config.TIKTOK_CLIENT_KEY),
@@ -1324,6 +1751,9 @@ def accounts_page():
         threads_configured=bool(config.THREADS_APP_ID),
         twitch_configured=bool(config.TWITCH_CLIENT_ID),
         snapchat_configured=bool(config.SNAP_CLIENT_ID),
+        connected_platform=request.args.get("connected"),
+        error_platform=request.args.get("error"),
+        error_detail=_oauth_error_detail(request.args.get("error"), request.args.get("detail")),
     )
 
 
@@ -1428,69 +1858,145 @@ def api_automation_engagement_run(platform):
     return jsonify({"status": "ran", "results": results})
 
 
+def _oauth_fail(platform: str, detail: str):
+    """Every OAuth callback below routes failures here instead of letting an
+    exception bubble up into a raw 500 — so a broken/expired credential, a
+    provider API change, or a missing scope shows the user an actionable
+    message on /accounts instead of a blank crash page."""
+    print(f"[oauth] {platform} connection failed: {detail}")
+    session.pop("oauth_return_to", None)
+    from urllib.parse import quote
+    return redirect(f"/accounts?error={platform}&detail={quote(str(detail)[:200])}")
+
+
+def _oauth_remember_return_to():
+    """Call at the top of every /oauth/<platform>/start route. If the
+    connect attempt was triggered from inside a studio (via ?next=<path>)
+    rather than from /accounts directly, remember where to send the user
+    back afterward — so 'connect' always visually happens in the one place
+    (Accounts) but doesn't strand the user away from what they were doing."""
+    next_path = request.args.get("next")
+    if next_path and next_path.startswith("/") and not next_path.startswith("//"):
+        session["oauth_return_to"] = next_path
+    else:
+        session.pop("oauth_return_to", None)
+
+
+def _oauth_success(platform: str):
+    """Every OAuth callback calls this on success instead of hardcoding
+    /accounts?connected=<platform>, so a studio-initiated connect (see
+    _oauth_remember_return_to) bounces the user back to that studio."""
+    return_to = session.pop("oauth_return_to", None)
+    if return_to:
+        sep = "&" if "?" in return_to else "?"
+        return redirect(f"{return_to}{sep}connected={platform}")
+    return redirect(f"/accounts?connected={platform}")
+
+
 @app.route("/oauth/youtube/start")
 def oauth_youtube_start():
-    if not config.YOUTUBE_CLIENT_ID:
-        return jsonify({"error": "YouTube credentials not configured in .env"}), 400
-    from google_auth_oauthlib.flow import Flow
-    flow = Flow.from_client_config(
-        {"web": {
-            "client_id": config.YOUTUBE_CLIENT_ID,
-            "client_secret": config.YOUTUBE_CLIENT_SECRET,
-            "redirect_uris": [config.APP_BASE_URL + "/oauth/youtube/callback"],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-        }},
-        scopes=config.YOUTUBE_SCOPES + ["https://www.googleapis.com/auth/youtube.readonly"],
-        redirect_uri=config.APP_BASE_URL + "/oauth/youtube/callback",
-    )
-    auth_url, state = flow.authorization_url(prompt="consent", access_type="offline")
-    session["youtube_state"] = state
-    return redirect(auth_url)
+    if not config.YOUTUBE_CLIENT_ID or not config.YOUTUBE_CLIENT_SECRET:
+        # Friendly banner on the accounts page instead of a raw JSON error.
+        return redirect(url_for("accounts_page") + "?error=youtube&detail=creds")
+    try:
+        _oauth_remember_return_to()
+        from google_auth_oauthlib.flow import Flow
+        redirect_uri = config.APP_BASE_URL.rstrip("/") + "/oauth/youtube/callback"
+        flow = Flow.from_client_config(
+            {"web": {
+                "client_id": config.YOUTUBE_CLIENT_ID,
+                "client_secret": config.YOUTUBE_CLIENT_SECRET,
+                "redirect_uris": [redirect_uri],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }},
+            scopes=config.YOUTUBE_SCOPES + ["https://www.googleapis.com/auth/youtube.readonly"],
+            redirect_uri=redirect_uri,
+        )
+        auth_url, state = flow.authorization_url(prompt="consent", access_type="offline")
+        session["youtube_state"] = state
+        # google-auth-oauthlib >=1.1.0 defaults autogenerate_code_verifier=True,
+        # so authorization_url() just embedded a PKCE code_challenge in that URL
+        # (lazily generating flow.code_verifier as a side effect). Google now
+        # requires the matching code_verifier on token exchange — it has to be
+        # persisted here and restored in the callback's Flow, which otherwise
+        # gets its own unrelated auto-generated verifier that Google never saw.
+        session["youtube_code_verifier"] = flow.code_verifier
+        return redirect(auth_url)
+    except Exception:
+        app.logger.exception("YouTube OAuth start failed")
+        return redirect(url_for("accounts_page") + "?error=youtube&detail=start")
 
 
 @app.route("/oauth/youtube/callback")
 @login_required
 def oauth_youtube_callback():
     from google_auth_oauthlib.flow import Flow
-    import googleapiclient.discovery
-    flow = Flow.from_client_config(
-        {"web": {
-            "client_id": config.YOUTUBE_CLIENT_ID,
-            "client_secret": config.YOUTUBE_CLIENT_SECRET,
-            "redirect_uris": [config.APP_BASE_URL + "/oauth/youtube/callback"],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-        }},
-        scopes=config.YOUTUBE_SCOPES + ["https://www.googleapis.com/auth/youtube.readonly"],
-        redirect_uri=config.APP_BASE_URL + "/oauth/youtube/callback",
-        state=session.get("youtube_state"),
-    )
-    flow.fetch_token(authorization_response=request.url)
-    creds = flow.credentials
-    yt = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
-    channels = yt.channels().list(part="snippet,statistics", mine=True).execute()
-    channel = channels["items"][0] if channels.get("items") else {}
-    snippet = channel.get("snippet", {})
-    stats = channel.get("statistics", {})
-    db.upsert_account(
-        platform="youtube",
-        username=snippet.get("customUrl", snippet.get("title", "YouTube")),
-        display_name=snippet.get("title"),
-        avatar_url=snippet.get("thumbnails", {}).get("default", {}).get("url"),
-        access_token=creds.token,
-        refresh_token=creds.refresh_token,
-        account_id=channel.get("id"),
-        followers=int(stats.get("subscriberCount", 0)),
-        user_id=current_user.id,
-    )
-    return redirect("/accounts?connected=youtube")
+    try:
+        flow = Flow.from_client_config(
+            {"web": {
+                "client_id": config.YOUTUBE_CLIENT_ID,
+                "client_secret": config.YOUTUBE_CLIENT_SECRET,
+                "redirect_uris": [config.APP_BASE_URL + "/oauth/youtube/callback"],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }},
+            scopes=config.YOUTUBE_SCOPES + ["https://www.googleapis.com/auth/youtube.readonly"],
+            redirect_uri=config.APP_BASE_URL + "/oauth/youtube/callback",
+            state=session.get("youtube_state"),
+        )
+        # Restore the verifier generated in oauth_youtube_start — this Flow
+        # instance would otherwise auto-generate its own, unrelated one that
+        # Google never associated with this authorization code, causing
+        # "invalid_grant (Missing code verifier)" on every single attempt.
+        flow.code_verifier = session.get("youtube_code_verifier")
+        # Explicit timeouts throughout: neither requests_oauthlib's fetch_token
+        # nor googleapiclient's default transport set one on their own, so a
+        # slow/hung network call here would tie up the request indefinitely
+        # (gunicorn's own worker timeout is disabled for the long video-render
+        # routes) — the user just sees an endless spinner with no way out.
+        flow.fetch_token(authorization_response=request.url, timeout=30)
+        creds = flow.credentials
+
+        # Plain REST call instead of googleapiclient.discovery.build(), which
+        # has no straightforward per-call timeout — this matches every other
+        # platform's OAuth callback in this file and lets us bound it explicitly.
+        resp = requests.get(
+            "https://www.googleapis.com/youtube/v3/channels",
+            params={"part": "snippet,statistics", "mine": "true"},
+            headers={"Authorization": f"Bearer {creds.token}"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        channels = resp.json()
+        channel = channels["items"][0] if channels.get("items") else {}
+        if not channel:
+            return _oauth_fail("youtube", "No YouTube channel found on that Google account — "
+                                          "create a channel first, then reconnect.")
+        snippet = channel.get("snippet", {})
+        stats = channel.get("statistics", {})
+        db.upsert_account(
+            platform="youtube",
+            username=snippet.get("customUrl", snippet.get("title", "YouTube")),
+            display_name=snippet.get("title"),
+            avatar_url=snippet.get("thumbnails", {}).get("default", {}).get("url"),
+            access_token=creds.token,
+            refresh_token=creds.refresh_token,
+            account_id=channel.get("id"),
+            followers=int(stats.get("subscriberCount", 0)),
+            user_id=current_user.id,
+        )
+    except Exception as e:
+        return _oauth_fail("youtube", str(e))
+    return _oauth_success("youtube")
 
 
 @app.route("/oauth/tiktok/start")
+@login_required
 def oauth_tiktok_start():
     if not config.TIKTOK_CLIENT_KEY:
         return jsonify({"error": "TikTok credentials not configured in .env"}), 400
+    _oauth_remember_return_to()
     redirect_uri = config.APP_BASE_URL + "/oauth/tiktok/callback"
     auth_url = (
         f"https://www.tiktok.com/v2/auth/authorize/"
@@ -1504,30 +2010,38 @@ def oauth_tiktok_start():
 
 
 @app.route("/oauth/tiktok/callback")
+@login_required
 def oauth_tiktok_callback():
     import requests as req
     code = request.args.get("code")
-    redirect_uri = config.APP_BASE_URL + "/oauth/tiktok/callback"
-    token_resp = req.post("https://open.tiktokapis.com/v2/oauth/token/", data={
-        "client_key": config.TIKTOK_CLIENT_KEY,
-        "client_secret": config.TIKTOK_CLIENT_SECRET,
-        "code": code, "grant_type": "authorization_code", "redirect_uri": redirect_uri,
-    }).json()
-    access_token = token_resp.get("access_token")
-    open_id = token_resp.get("open_id")
-    user_resp = req.get(
-        "https://open.tiktokapis.com/v2/user/info/",
-        headers={"Authorization": f"Bearer {access_token}"},
-        params={"fields": "display_name,avatar_url,follower_count,open_id"},
-    ).json()
-    user = user_resp.get("data", {}).get("user", {})
-    db.upsert_account(
-        platform="tiktok", username=user.get("display_name", "TikTok User"),
-        display_name=user.get("display_name"), avatar_url=user.get("avatar_url"),
-        access_token=access_token, account_id=open_id, followers=user.get("follower_count", 0),
-        user_id=current_user.id,
-    )
-    return redirect("/accounts?connected=tiktok")
+    if not code:
+        return _oauth_fail("tiktok", "TikTok did not return an authorization code.")
+    try:
+        redirect_uri = config.APP_BASE_URL + "/oauth/tiktok/callback"
+        token_resp = req.post("https://open.tiktokapis.com/v2/oauth/token/", data={
+            "client_key": config.TIKTOK_CLIENT_KEY,
+            "client_secret": config.TIKTOK_CLIENT_SECRET,
+            "code": code, "grant_type": "authorization_code", "redirect_uri": redirect_uri,
+        }).json()
+        access_token = token_resp.get("access_token")
+        if not access_token:
+            return _oauth_fail("tiktok", token_resp.get("error_description") or "Token exchange failed.")
+        open_id = token_resp.get("open_id")
+        user_resp = req.get(
+            "https://open.tiktokapis.com/v2/user/info/",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"fields": "display_name,avatar_url,follower_count,open_id"},
+        ).json()
+        user = user_resp.get("data", {}).get("user", {})
+        db.upsert_account(
+            platform="tiktok", username=user.get("display_name", "TikTok User"),
+            display_name=user.get("display_name"), avatar_url=user.get("avatar_url"),
+            access_token=access_token, account_id=open_id, followers=user.get("follower_count", 0),
+            user_id=current_user.id,
+        )
+    except Exception as e:
+        return _oauth_fail("tiktok", str(e))
+    return _oauth_success("tiktok")
 
 
 # ── Meta OAuth (Facebook + Instagram) ────────────────────────────────────────
@@ -1537,6 +2051,7 @@ def oauth_tiktok_callback():
 def oauth_facebook_start():
     if not config.FACEBOOK_APP_ID:
         return redirect("/accounts?error=facebook_not_configured")
+    _oauth_remember_return_to()
     redirect_uri = config.APP_BASE_URL + "/oauth/facebook/callback"
     scope = "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish"
     auth_url = (
@@ -1556,70 +2071,73 @@ def oauth_facebook_callback():
     code = request.args.get("code")
     error = request.args.get("error")
     if error or not code:
-        return redirect("/accounts?error=facebook_denied")
+        return _oauth_fail("facebook", error or "Facebook did not return an authorization code.")
 
-    redirect_uri = config.APP_BASE_URL + "/oauth/facebook/callback"
-    # Exchange code for user access token
-    token_resp = req.get("https://graph.facebook.com/v18.0/oauth/access_token", params={
-        "client_id": config.FACEBOOK_APP_ID,
-        "client_secret": config.FACEBOOK_APP_SECRET,
-        "redirect_uri": redirect_uri,
-        "code": code,
-    }).json()
-    user_token = token_resp.get("access_token")
-    if not user_token:
-        return redirect("/accounts?error=facebook_token_failed")
-
-    # Exchange for long-lived token (60 days)
-    long_resp = req.get("https://graph.facebook.com/v18.0/oauth/access_token", params={
-        "grant_type": "fb_exchange_token",
-        "client_id": config.FACEBOOK_APP_ID,
-        "client_secret": config.FACEBOOK_APP_SECRET,
-        "fb_exchange_token": user_token,
-    }).json()
-    long_token = long_resp.get("access_token", user_token)
-
-    # Get user profile
-    me = req.get("https://graph.facebook.com/v18.0/me", params={
-        "fields": "id,name,picture", "access_token": long_token,
-    }).json()
-
-    db.upsert_account(
-        platform="facebook", username=me.get("name", "Facebook User"),
-        display_name=me.get("name"),
-        avatar_url=me.get("picture", {}).get("data", {}).get("url"),
-        access_token=long_token, account_id=me.get("id"), followers=0,
-        user_id=current_user.id,
-    )
-
-    # Also pull connected Pages and Instagram business accounts
-    pages_resp = req.get("https://graph.facebook.com/v18.0/me/accounts", params={
-        "access_token": long_token,
-    }).json()
-    for page in pages_resp.get("data", []):
-        page_token = page.get("access_token")
-        page_id = page.get("id")
-        # Check for connected Instagram business account
-        ig_resp = req.get(f"https://graph.facebook.com/v18.0/{page_id}", params={
-            "fields": "instagram_business_account", "access_token": page_token,
+    try:
+        redirect_uri = config.APP_BASE_URL + "/oauth/facebook/callback"
+        # Exchange code for user access token
+        token_resp = req.get("https://graph.facebook.com/v18.0/oauth/access_token", params={
+            "client_id": config.FACEBOOK_APP_ID,
+            "client_secret": config.FACEBOOK_APP_SECRET,
+            "redirect_uri": redirect_uri,
+            "code": code,
         }).json()
-        ig_id = ig_resp.get("instagram_business_account", {}).get("id")
-        if ig_id:
-            ig_user = req.get(f"https://graph.facebook.com/v18.0/{ig_id}", params={
-                "fields": "username,name,profile_picture_url,followers_count",
-                "access_token": page_token,
-            }).json()
-            db.upsert_account(
-                platform="instagram",
-                username=ig_user.get("username", ig_user.get("name", "Instagram")),
-                display_name=ig_user.get("name"),
-                avatar_url=ig_user.get("profile_picture_url"),
-                access_token=page_token, account_id=ig_id,
-                followers=int(ig_user.get("followers_count", 0)),
-                user_id=current_user.id,
-            )
+        user_token = token_resp.get("access_token")
+        if not user_token:
+            return _oauth_fail("facebook", token_resp.get("error", {}).get("message") or "Token exchange failed.")
 
-    return redirect("/accounts?connected=facebook")
+        # Exchange for long-lived token (60 days)
+        long_resp = req.get("https://graph.facebook.com/v18.0/oauth/access_token", params={
+            "grant_type": "fb_exchange_token",
+            "client_id": config.FACEBOOK_APP_ID,
+            "client_secret": config.FACEBOOK_APP_SECRET,
+            "fb_exchange_token": user_token,
+        }).json()
+        long_token = long_resp.get("access_token", user_token)
+
+        # Get user profile
+        me = req.get("https://graph.facebook.com/v18.0/me", params={
+            "fields": "id,name,picture", "access_token": long_token,
+        }).json()
+
+        db.upsert_account(
+            platform="facebook", username=me.get("name", "Facebook User"),
+            display_name=me.get("name"),
+            avatar_url=me.get("picture", {}).get("data", {}).get("url"),
+            access_token=long_token, account_id=me.get("id"), followers=0,
+            user_id=current_user.id,
+        )
+
+        # Also pull connected Pages and Instagram business accounts
+        pages_resp = req.get("https://graph.facebook.com/v18.0/me/accounts", params={
+            "access_token": long_token,
+        }).json()
+        for page in pages_resp.get("data", []):
+            page_token = page.get("access_token")
+            page_id = page.get("id")
+            # Check for connected Instagram business account
+            ig_resp = req.get(f"https://graph.facebook.com/v18.0/{page_id}", params={
+                "fields": "instagram_business_account", "access_token": page_token,
+            }).json()
+            ig_id = ig_resp.get("instagram_business_account", {}).get("id")
+            if ig_id:
+                ig_user = req.get(f"https://graph.facebook.com/v18.0/{ig_id}", params={
+                    "fields": "username,name,profile_picture_url,followers_count",
+                    "access_token": page_token,
+                }).json()
+                db.upsert_account(
+                    platform="instagram",
+                    username=ig_user.get("username", ig_user.get("name", "Instagram")),
+                    display_name=ig_user.get("name"),
+                    avatar_url=ig_user.get("profile_picture_url"),
+                    access_token=page_token, account_id=ig_id,
+                    followers=int(ig_user.get("followers_count", 0)),
+                    user_id=current_user.id,
+                )
+    except Exception as e:
+        return _oauth_fail("facebook", str(e))
+
+    return _oauth_success("facebook")
 
 
 # ── LinkedIn OAuth ────────────────────────────────────────────────────────────
@@ -1629,6 +2147,7 @@ def oauth_facebook_callback():
 def oauth_linkedin_start():
     if not config.LINKEDIN_CLIENT_ID:
         return redirect("/accounts?error=linkedin_not_configured")
+    _oauth_remember_return_to()
     redirect_uri = config.APP_BASE_URL + "/oauth/linkedin/callback"
     scope = "openid profile email w_member_social"
     auth_url = (
@@ -1648,36 +2167,39 @@ def oauth_linkedin_callback():
     import requests as req
     code = request.args.get("code")
     if not code:
-        return redirect("/accounts?error=linkedin_denied")
-    redirect_uri = config.APP_BASE_URL + "/oauth/linkedin/callback"
-    token_resp = req.post("https://www.linkedin.com/oauth/v2/accessToken", data={
-        "grant_type": "authorization_code",
-        "code": code,
-        "redirect_uri": redirect_uri,
-        "client_id": config.LINKEDIN_CLIENT_ID,
-        "client_secret": config.LINKEDIN_CLIENT_SECRET,
-    }).json()
-    access_token = token_resp.get("access_token")
-    if not access_token:
-        return redirect("/accounts?error=linkedin_token_failed")
-    me = req.get("https://api.linkedin.com/v2/userinfo", headers={
-        "Authorization": f"Bearer {access_token}",
-    }).json()
-    db.upsert_account(
-        platform="linkedin",
-        username=me.get("name", "LinkedIn User"),
-        display_name=me.get("name"),
-        avatar_url=me.get("picture"),
-        access_token=access_token, account_id=me.get("sub"), followers=0,
-        user_id=current_user.id,
-    )
-    return redirect("/accounts?connected=linkedin")
+        return _oauth_fail("linkedin", "LinkedIn did not return an authorization code.")
+    try:
+        redirect_uri = config.APP_BASE_URL + "/oauth/linkedin/callback"
+        token_resp = req.post("https://www.linkedin.com/oauth/v2/accessToken", data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": redirect_uri,
+            "client_id": config.LINKEDIN_CLIENT_ID,
+            "client_secret": config.LINKEDIN_CLIENT_SECRET,
+        }).json()
+        access_token = token_resp.get("access_token")
+        if not access_token:
+            return _oauth_fail("linkedin", token_resp.get("error_description") or "Token exchange failed.")
+        me = req.get("https://api.linkedin.com/v2/userinfo", headers={
+            "Authorization": f"Bearer {access_token}",
+        }).json()
+        db.upsert_account(
+            platform="linkedin",
+            username=me.get("name", "LinkedIn User"),
+            display_name=me.get("name"),
+            avatar_url=me.get("picture"),
+            access_token=access_token, account_id=me.get("sub"), followers=0,
+            user_id=current_user.id,
+        )
+    except Exception as e:
+        return _oauth_fail("linkedin", str(e))
+    return _oauth_success("linkedin")
 
 
 @app.route("/oauth/instagram/start")
 @login_required
 def oauth_instagram_start():
-    return redirect(url_for("oauth_facebook_start"))
+    return redirect(url_for("oauth_facebook_start", next=request.args.get("next")))
 
 
 # ── X (Twitter) OAuth 2.0 ─────────────────────────────────────────────────────
@@ -1690,6 +2212,7 @@ def oauth_twitter_start():
     import base64
     if not config.TWITTER_CLIENT_ID:
         return redirect(url_for("accounts_page"))
+    _oauth_remember_return_to()
     verifier = secrets.token_urlsafe(32)
     session["twitter_verifier"] = verifier
     challenge = base64.urlsafe_b64encode(
@@ -1715,40 +2238,44 @@ def oauth_twitter_callback():
     code = request.args.get("code")
     verifier = session.pop("twitter_verifier", None)
     if not code or not verifier:
-        return redirect(url_for("accounts_page"))
-    credentials = base64.b64encode(
-        f"{config.TWITTER_CLIENT_ID}:{config.TWITTER_CLIENT_SECRET}".encode()
-    ).decode()
-    resp = requests.post(
-        "https://api.twitter.com/2/oauth2/token",
-        headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/x-www-form-urlencoded"},
-        data={
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": config.TWITTER_REDIRECT_URI,
-            "code_verifier": verifier,
-        },
-    )
-    if resp.status_code != 200:
-        return redirect(url_for("accounts_page"))
-    tokens = resp.json()
-    access_token = tokens.get("access_token")
-    # Fetch user profile
-    me = requests.get(
-        "https://api.twitter.com/2/users/me",
-        headers={"Authorization": f"Bearer {access_token}"},
-        params={"user.fields": "name,username,public_metrics"},
-    ).json().get("data", {})
-    db.upsert_account(
-        user_id=current_user.id, platform="twitter",
-        platform_user_id=me.get("id", ""),
-        username=me.get("username", ""),
-        display_name=me.get("name", ""),
-        access_token=access_token,
-        refresh_token=tokens.get("refresh_token", ""),
-        followers=me.get("public_metrics", {}).get("followers_count", 0),
-    )
-    return redirect(url_for("accounts_page"))
+        return _oauth_fail("twitter", "Missing authorization code or PKCE verifier — "
+                                      "the connect attempt may have expired, please try again.")
+    try:
+        credentials = base64.b64encode(
+            f"{config.TWITTER_CLIENT_ID}:{config.TWITTER_CLIENT_SECRET}".encode()
+        ).decode()
+        resp = requests.post(
+            "https://api.twitter.com/2/oauth2/token",
+            headers={"Authorization": f"Basic {credentials}", "Content-Type": "application/x-www-form-urlencoded"},
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": config.TWITTER_REDIRECT_URI,
+                "code_verifier": verifier,
+            },
+        )
+        if resp.status_code != 200:
+            return _oauth_fail("twitter", f"Token exchange failed ({resp.status_code}): {resp.text[:200]}")
+        tokens = resp.json()
+        access_token = tokens.get("access_token")
+        # Fetch user profile
+        me = requests.get(
+            "https://api.twitter.com/2/users/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params={"user.fields": "name,username,public_metrics"},
+        ).json().get("data", {})
+        db.upsert_account(
+            user_id=current_user.id, platform="twitter",
+            platform_user_id=me.get("id", ""),
+            username=me.get("username", ""),
+            display_name=me.get("name", ""),
+            access_token=access_token,
+            refresh_token=tokens.get("refresh_token", ""),
+            followers=me.get("public_metrics", {}).get("followers_count", 0),
+        )
+    except Exception as e:
+        return _oauth_fail("twitter", str(e))
+    return _oauth_success("twitter")
 
 
 # ── Threads OAuth ─────────────────────────────────────────────────────────────
@@ -1759,6 +2286,7 @@ def oauth_threads_start():
     import secrets
     if not config.THREADS_APP_ID:
         return redirect(url_for("accounts_page"))
+    _oauth_remember_return_to()
     state = secrets.token_hex(16)
     session["threads_state"] = state
     from urllib.parse import urlencode
@@ -1777,40 +2305,43 @@ def oauth_threads_start():
 def oauth_threads_callback():
     code = request.args.get("code")
     if not code:
-        return redirect(url_for("accounts_page"))
-    # Exchange code for short-lived token
-    resp = requests.post("https://graph.threads.net/oauth/access_token", data={
-        "client_id": config.THREADS_APP_ID,
-        "client_secret": config.THREADS_APP_SECRET,
-        "grant_type": "authorization_code",
-        "redirect_uri": config.THREADS_REDIRECT_URI,
-        "code": code,
-    })
-    if resp.status_code != 200:
-        return redirect(url_for("accounts_page"))
-    short = resp.json()
-    # Exchange for long-lived token (60 days)
-    long_resp = requests.get("https://graph.threads.net/access_token", params={
-        "grant_type": "th_exchange_token",
-        "client_secret": config.THREADS_APP_SECRET,
-        "access_token": short.get("access_token"),
-    })
-    access_token = long_resp.json().get("access_token", short.get("access_token"))
-    user_id_threads = short.get("user_id", "")
-    # Fetch profile
-    me = requests.get(
-        f"https://graph.threads.net/v1.0/{user_id_threads}",
-        params={"fields": "id,username,name,threads_profile_picture_url,threads_biography",
-                "access_token": access_token},
-    ).json()
-    db.upsert_account(
-        user_id=current_user.id, platform="threads",
-        platform_user_id=str(me.get("id", user_id_threads)),
-        username=me.get("username", ""),
-        display_name=me.get("name", ""),
-        access_token=access_token,
-    )
-    return redirect(url_for("accounts_page"))
+        return _oauth_fail("threads", "Threads did not return an authorization code.")
+    try:
+        # Exchange code for short-lived token
+        resp = requests.post("https://graph.threads.net/oauth/access_token", data={
+            "client_id": config.THREADS_APP_ID,
+            "client_secret": config.THREADS_APP_SECRET,
+            "grant_type": "authorization_code",
+            "redirect_uri": config.THREADS_REDIRECT_URI,
+            "code": code,
+        })
+        if resp.status_code != 200:
+            return _oauth_fail("threads", f"Token exchange failed ({resp.status_code}): {resp.text[:200]}")
+        short = resp.json()
+        # Exchange for long-lived token (60 days)
+        long_resp = requests.get("https://graph.threads.net/access_token", params={
+            "grant_type": "th_exchange_token",
+            "client_secret": config.THREADS_APP_SECRET,
+            "access_token": short.get("access_token"),
+        })
+        access_token = long_resp.json().get("access_token", short.get("access_token"))
+        user_id_threads = short.get("user_id", "")
+        # Fetch profile
+        me = requests.get(
+            f"https://graph.threads.net/v1.0/{user_id_threads}",
+            params={"fields": "id,username,name,threads_profile_picture_url,threads_biography",
+                    "access_token": access_token},
+        ).json()
+        db.upsert_account(
+            user_id=current_user.id, platform="threads",
+            platform_user_id=str(me.get("id", user_id_threads)),
+            username=me.get("username", ""),
+            display_name=me.get("name", ""),
+            access_token=access_token,
+        )
+    except Exception as e:
+        return _oauth_fail("threads", str(e))
+    return _oauth_success("threads")
 
 
 # ── Twitch OAuth ──────────────────────────────────────────────────────────────
@@ -1821,6 +2352,7 @@ def oauth_twitch_start():
     import secrets
     if not config.TWITCH_CLIENT_ID:
         return redirect(url_for("accounts_page"))
+    _oauth_remember_return_to()
     state = secrets.token_hex(16)
     session["twitch_state"] = state
     from urllib.parse import urlencode
@@ -1839,34 +2371,38 @@ def oauth_twitch_start():
 def oauth_twitch_callback():
     code = request.args.get("code")
     if not code:
-        return redirect(url_for("accounts_page"))
-    resp = requests.post("https://id.twitch.tv/oauth2/token", data={
-        "client_id": config.TWITCH_CLIENT_ID,
-        "client_secret": config.TWITCH_CLIENT_SECRET,
-        "code": code,
-        "grant_type": "authorization_code",
-        "redirect_uri": config.TWITCH_REDIRECT_URI,
-    })
-    if resp.status_code != 200:
-        return redirect(url_for("accounts_page"))
-    tokens = resp.json()
-    access_token = tokens.get("access_token")
-    # Fetch user info
-    me_resp = requests.get(
-        "https://api.twitch.tv/helix/users",
-        headers={"Authorization": f"Bearer {access_token}", "Client-Id": config.TWITCH_CLIENT_ID},
-    )
-    me = me_resp.json().get("data", [{}])[0]
-    db.upsert_account(
-        user_id=current_user.id, platform="twitch",
-        platform_user_id=me.get("id", ""),
-        username=me.get("login", ""),
-        display_name=me.get("display_name", ""),
-        access_token=access_token,
-        refresh_token=tokens.get("refresh_token", ""),
-        avatar_url=me.get("profile_image_url", ""),
-    )
-    return redirect(url_for("accounts_page"))
+        return _oauth_fail("twitch", "Twitch did not return an authorization code.")
+    try:
+        resp = requests.post("https://id.twitch.tv/oauth2/token", data={
+            "client_id": config.TWITCH_CLIENT_ID,
+            "client_secret": config.TWITCH_CLIENT_SECRET,
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": config.TWITCH_REDIRECT_URI,
+        })
+        if resp.status_code != 200:
+            return _oauth_fail("twitch", f"Token exchange failed ({resp.status_code}): {resp.text[:200]}")
+        tokens = resp.json()
+        access_token = tokens.get("access_token")
+        # Fetch user info
+        me_resp = requests.get(
+            "https://api.twitch.tv/helix/users",
+            headers={"Authorization": f"Bearer {access_token}", "Client-Id": config.TWITCH_CLIENT_ID},
+        )
+        me_list = me_resp.json().get("data") or [{}]
+        me = me_list[0]
+        db.upsert_account(
+            user_id=current_user.id, platform="twitch",
+            platform_user_id=me.get("id", ""),
+            username=me.get("login", ""),
+            display_name=me.get("display_name", ""),
+            access_token=access_token,
+            refresh_token=tokens.get("refresh_token", ""),
+            avatar_url=me.get("profile_image_url", ""),
+        )
+    except Exception as e:
+        return _oauth_fail("twitch", str(e))
+    return _oauth_success("twitch")
 
 
 # ── Snapchat OAuth ────────────────────────────────────────────────────────────
@@ -1877,6 +2413,7 @@ def oauth_snapchat_start():
     import secrets
     if not config.SNAP_CLIENT_ID:
         return redirect(url_for("accounts_page"))
+    _oauth_remember_return_to()
     state = secrets.token_hex(16)
     session["snap_state"] = state
     from urllib.parse import urlencode
@@ -1895,36 +2432,39 @@ def oauth_snapchat_start():
 def oauth_snapchat_callback():
     code = request.args.get("code")
     if not code:
-        return redirect(url_for("accounts_page"))
-    resp = requests.post(
-        "https://accounts.snapchat.com/accounts/oauth2/token",
-        auth=(config.SNAP_CLIENT_ID, config.SNAP_CLIENT_SECRET),
-        data={
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": config.SNAP_REDIRECT_URI,
-        },
-    )
-    if resp.status_code != 200:
-        return redirect(url_for("accounts_page"))
-    tokens = resp.json()
-    access_token = tokens.get("access_token")
-    # Fetch user info from Snapchat Marketing API
-    me_resp = requests.get(
-        "https://adsapi.snapchat.com/v1/me",
-        headers={"Authorization": f"Bearer {access_token}"},
-    )
-    me = me_resp.json().get("me", {})
-    display_name = me.get("display_name") or me.get("email", "Snapchat User")
-    db.upsert_account(
-        user_id=current_user.id, platform="snapchat",
-        platform_user_id=me.get("id", ""),
-        username=display_name.lower().replace(" ", ""),
-        display_name=display_name,
-        access_token=access_token,
-        refresh_token=tokens.get("refresh_token", ""),
-    )
-    return redirect(url_for("accounts_page"))
+        return _oauth_fail("snapchat", "Snapchat did not return an authorization code.")
+    try:
+        resp = requests.post(
+            "https://accounts.snapchat.com/accounts/oauth2/token",
+            auth=(config.SNAP_CLIENT_ID, config.SNAP_CLIENT_SECRET),
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": config.SNAP_REDIRECT_URI,
+            },
+        )
+        if resp.status_code != 200:
+            return _oauth_fail("snapchat", f"Token exchange failed ({resp.status_code}): {resp.text[:200]}")
+        tokens = resp.json()
+        access_token = tokens.get("access_token")
+        # Fetch user info from Snapchat Marketing API
+        me_resp = requests.get(
+            "https://adsapi.snapchat.com/v1/me",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        me = me_resp.json().get("me", {})
+        display_name = me.get("display_name") or me.get("email", "Snapchat User")
+        db.upsert_account(
+            user_id=current_user.id, platform="snapchat",
+            platform_user_id=me.get("id", ""),
+            username=display_name.lower().replace(" ", ""),
+            display_name=display_name,
+            access_token=access_token,
+            refresh_token=tokens.get("refresh_token", ""),
+        )
+    except Exception as e:
+        return _oauth_fail("snapchat", str(e))
+    return _oauth_success("snapchat")
 
 
 # ── Higgsfield OAuth (MCP PKCE — no client_secret) ───────────────────────────
@@ -1975,37 +2515,47 @@ def _hf_discover() -> dict:
 @app.route("/oauth/higgsfield/start")
 @login_required
 def oauth_higgsfield_start():
-    import hashlib
-    import base64
-    import secrets as _sec
-    disc = _hf_discover()
-    auth_ep = disc.get("authorization_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/authorize")
+    # If Platform API key+secret are already configured, OAuth is unnecessary —
+    # send the user back with a clear message instead of into a flow they don't need.
+    if getattr(config, "HIGGSFIELD_API_CREDENTIAL", ""):
+        return redirect(url_for("accounts_page") + "?connected=higgsfield")
+    try:
+        import hashlib
+        import base64
+        import secrets as _sec
+        disc = _hf_discover()
+        auth_ep = disc.get("authorization_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/authorize")
 
-    # PKCE — no client_secret required
-    verifier = _sec.token_urlsafe(64)
-    challenge = base64.urlsafe_b64encode(
-        hashlib.sha256(verifier.encode()).digest()
-    ).rstrip(b"=").decode()
-    state = _sec.token_urlsafe(16)
+        # PKCE — no client_secret required
+        verifier = _sec.token_urlsafe(64)
+        challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(verifier.encode()).digest()
+        ).rstrip(b"=").decode()
+        state = _sec.token_urlsafe(16)
 
-    _hf_pkce_store[state] = {
-        "code_verifier": verifier,
-        "token_endpoint": disc.get("token_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/token"),
-        "user_id": current_user.id,
-    }
+        next_path = request.args.get("next")
+        _hf_pkce_store[state] = {
+            "code_verifier": verifier,
+            "token_endpoint": disc.get("token_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/token"),
+            "user_id": current_user.id,
+            "return_to": next_path if next_path and next_path.startswith("/") and not next_path.startswith("//") else None,
+        }
 
-    callback_uri = _public_callback_base() + "/oauth/higgsfield/callback"
-    from urllib.parse import urlencode
-    qs = urlencode({
-        "response_type": "code",
-        "client_id": "social-money",
-        "redirect_uri": callback_uri,
-        "scope": "openid profile",
-        "state": state,
-        "code_challenge": challenge,
-        "code_challenge_method": "S256",
-    })
-    return redirect(f"{auth_ep}?{qs}")
+        callback_uri = _public_callback_base() + "/oauth/higgsfield/callback"
+        from urllib.parse import urlencode
+        qs = urlencode({
+            "response_type": "code",
+            "client_id": "social-money",
+            "redirect_uri": callback_uri,
+            "scope": "openid profile",
+            "state": state,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        })
+        return redirect(f"{auth_ep}?{qs}")
+    except Exception as e:
+        app.logger.exception("Higgsfield OAuth start failed")
+        return redirect(url_for("accounts_page") + "?error=higgsfield_start_failed")
 
 
 @app.route("/oauth/higgsfield/callback")
@@ -2055,6 +2605,10 @@ def oauth_higgsfield_callback():
         refresh_token=tokens.get("refresh_token", ""),
         is_active=True,
     )
+    return_to = pkce.get("return_to")
+    if return_to:
+        sep = "&" if "?" in return_to else "?"
+        return redirect(f"{return_to}{sep}connected=higgsfield")
     return redirect(url_for("accounts_page") + "?connected=higgsfield")
 
 
@@ -2067,6 +2621,19 @@ def _get_user_higgsfield_token(user_id: int) -> str:
             if tok:
                 return tok
     return config.HIGGSFIELD_MCP_TOKEN  # global fallback
+
+
+def _higgsfield_connected(user_id: int) -> bool:
+    """True when Higgsfield is usable for this user — via Platform API key+secret,
+    an OAuth/MCP connection, or the env token. Recognizing the key+secret here
+    stops the accounts page from pushing users to the (often-failing) OAuth flow
+    when they've already configured API credentials."""
+    if getattr(config, "HIGGSFIELD_API_CREDENTIAL", ""):
+        return True
+    tok = _get_user_higgsfield_token(user_id) or ""
+    if tok.startswith("http://") or tok.startswith("https://"):
+        return False
+    return bool(tok)
 
 
 # ── Madison Avenue (unified CRM: Contacts + Inbox + Engagement + Outreach) ─────
@@ -2596,10 +3163,9 @@ def settings_page():
     return render_template("settings.html", user=user, voices=config.VOICE_CATALOG)
 
 
-@app.route("/api/settings", methods=["POST"])
-@login_required
-def api_update_settings():
-    data = request.json or {}
+def _apply_settings_update(user_id: int, data: dict) -> None:
+    """Shared by the web /api/settings route and the mobile /settings/update
+    route so the two clients can't drift onto different validation rules."""
     updates = {}
     if "name" in data:
         updates["name"] = data["name"].strip()
@@ -2614,7 +3180,13 @@ def api_update_settings():
         if data["default_voice"] in valid_ids:
             updates["default_voice"] = data["default_voice"]
     if updates:
-        db.update_user(current_user.id, **updates)
+        db.update_user(user_id, **updates)
+
+
+@app.route("/api/settings", methods=["POST"])
+@login_required
+def api_update_settings():
+    _apply_settings_update(current_user.id, request.json or {})
     return jsonify({"status": "saved"})
 
 
@@ -2788,6 +3360,187 @@ def api_debug_higgsville():
     })
 
 
+@app.route("/api/debug/elevenlabs")
+@login_required
+def api_debug_elevenlabs():
+    """Diagnose the voiceover: is the ElevenLabs key set, valid, and in quota?
+
+    If videos come out with the robotic 'computer voice', hit this — it tells
+    you exactly why ElevenLabs isn't being used (NO_KEY / BAD_KEY / quota / OK).
+    """
+    import requests as _rq
+
+    def _mask(k):
+        k = k or ""
+        return f"{k[:6]}…{k[-4:]}" if len(k) > 12 else ("(set)" if k else "(empty)")
+
+    def _test_key(k):
+        try:
+            r = _rq.get("https://api.elevenlabs.io/v1/user",
+                        headers={"xi-api-key": k}, timeout=15)
+            return r.status_code, r
+        except Exception as e:
+            return None, e
+
+    raw = getattr(config, "ELEVENLABS_API_KEY", "") or ""
+    key = raw.strip()
+    env_key = (os.getenv("ELEVENLABS_API_KEY", "") or "").strip()
+    try:
+        db_key = (db.get_setting("apikey_ELEVENLABS_API_KEY") or "").strip()
+    except Exception:
+        db_key = ""
+
+    # Which source is actually winning? Env var takes precedence over the
+    # Settings/DB value in _load_platform_creds_from_db — a stale env var
+    # silently overriding a good Settings key is the classic 'I updated it but
+    # it still fails' trap.
+    source = "env" if (env_key and env_key == key) else ("settings_db" if db_key == key else "unknown")
+    out = {
+        "key_set": bool(key),
+        "key_length": len(key),
+        "key_preview": _mask(key),
+        "active_source": source,
+        "had_surrounding_whitespace": raw != raw.strip(),
+        "env_and_settings_differ": bool(env_key and db_key and env_key != db_key),
+        "model": getattr(config, "ELEVENLABS_MODEL", ""),
+    }
+    if not key:
+        out["status"] = "NO_KEY"
+        out["fix"] = ("ELEVENLABS_API_KEY is not set — that's why you get the robotic "
+                      "voice. Add it in Settings → ElevenLabs, then reload.")
+        return jsonify(out)
+
+    # Authoritative test: actually synthesize a tiny clip with the voice we use.
+    # This is what the pipeline does, and unlike /v1/user it works with keys that
+    # are permission-scoped to text-to-speech only.
+    def _test_tts(k):
+        try:
+            rr = _rq.post(
+                "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM",
+                headers={"xi-api-key": k, "Content-Type": "application/json"},
+                json={"text": "Test.", "model_id": getattr(config, "ELEVENLABS_MODEL", "eleven_multilingual_v2")},
+                timeout=30,
+            )
+            return rr.status_code, rr
+        except Exception as e:
+            return None, e
+
+    user_status, ur = _test_key(key)
+    tts_status, tr = _test_tts(key)
+    out["user_endpoint_status"] = user_status
+    out["tts_endpoint_status"] = tts_status
+
+    if tts_status == 200:
+        # TTS works — the voiceover WILL use ElevenLabs.
+        out["status"] = "OK"
+        if user_status == 200:
+            sub = (ur.json() or {}).get("subscription", {}) or {}
+            out["tier"] = sub.get("tier")
+            out["characters_used"] = sub.get("character_count")
+            out["characters_limit"] = sub.get("character_limit")
+        else:
+            out["note"] = "Key is scoped to text-to-speech only (can't read account info) — that's fine."
+    elif tts_status in (401, 403):
+        out["status"] = "BAD_KEY"
+        body = ""
+        try:
+            body = tr.text[:300]
+        except Exception:
+            pass
+        out["tts_error_body"] = body
+        out["fix"] = ("ElevenLabs rejected this key for text-to-speech. Generate a fresh key at "
+                      "elevenlabs.io → Profile → API Keys with Text-to-Speech permission enabled, "
+                      "then set it wherever active_source points (env var or Settings).")
+        if db_key and db_key != key:
+            db_tts, _ = _test_tts(db_key)
+            out["settings_db_key_preview"] = _mask(db_key)
+            out["settings_db_key_tts_status"] = db_tts
+            if db_tts == 200:
+                out["fix"] = ("The key in Settings works, but a DIFFERENT invalid ELEVENLABS_API_KEY "
+                              "env var is overriding it. Fix/remove the env var in Render, then redeploy.")
+    elif tts_status == 429:
+        out["status"] = "QUOTA_EXHAUSTED"
+        out["fix"] = "Out of ElevenLabs characters this cycle — upgrade or wait for reset."
+    elif tts_status is None:
+        out["status"] = "NETWORK_ERROR"
+        out["error"] = str(tr)
+    else:
+        out["status"] = "ERROR"
+        try:
+            out["tts_error_body"] = tr.text[:300]
+        except Exception:
+            pass
+    return jsonify(out)
+
+
+@app.route("/api/debug/higgsfield")
+@login_required
+def api_debug_higgsfield():
+    """Diagnose Higgsfield: is a token resolved for this user, and does the MCP
+    endpoint accept it? Turns 'Higgsfield not configured' into a definitive
+    CONNECTED / NO_TOKEN / MCP_REJECTED answer."""
+    from generators import higgsfield_mcp as _hmcp
+
+    tok = (_get_user_higgsfield_token(current_user.id) or "").strip()
+    # Where did the token come from?
+    source = "none"
+    try:
+        for acc in db.get_accounts(user_id=current_user.id):
+            if acc.get("platform") == "higgsfield" and acc.get("is_active") and acc.get("access_token"):
+                source = "oauth_account"
+                break
+        else:
+            if config.HIGGSFIELD_MCP_TOKEN:
+                source = "env_or_settings"
+    except Exception:
+        pass
+
+    out = {
+        "token_resolved": bool(tok),
+        "token_length": len(tok),
+        "token_source": source,
+        "looks_like_url": tok.startswith(("http://", "https://")),
+        "mcp_url": getattr(config, "HIGGSFIELD_MCP_URL", ""),
+        # Platform API (key+secret) is a SEPARATE auth used by the SDK/CLI, not
+        # the MCP endpoint the studios call. Report it so a user who set a
+        # key/secret understands why the MCP-based studios still need OAuth.
+        "platform_api_key_secret_set": bool(getattr(config, "HIGGSFIELD_API_CREDENTIAL", "")),
+    }
+    if not tok:
+        if out["platform_api_key_secret_set"]:
+            out["status"] = "CONNECTED_PLATFORM_API"
+            out["note"] = ("Using Higgsfield Platform API key+secret via the SDK "
+                           "(HF_API_KEY/HF_API_SECRET). Image Studio and AI video use this.")
+            return jsonify(out)
+        out["status"] = "NO_TOKEN"
+        out["fix"] = ("No Higgsfield token for your account. Go to Social Accounts → "
+                      "Connect Higgsfield (OAuth), or set HIGGSFIELD_MCP_TOKEN, or set "
+                      "HIGGSFIELD_API_KEY + HIGGSFIELD_API_SECRET.")
+        return jsonify(out)
+    if out["looks_like_url"]:
+        out["status"] = "BAD_TOKEN"
+        out["fix"] = "The saved value is a URL, not a token. Paste the bearer token, not the MCP endpoint."
+        return jsonify(out)
+
+    # Live-test the MCP endpoint with this user's token.
+    _hmcp._session_token.value = tok
+    try:
+        bal = _hmcp.get_balance()
+        if bal is not None:
+            out["status"] = "CONNECTED"
+            out["balance"] = bal
+        else:
+            out["status"] = "MCP_REJECTED"
+            out["fix"] = ("The MCP endpoint didn't accept this token (expired or invalid). "
+                          "Reconnect Higgsfield on the Social Accounts page.")
+    except Exception as e:
+        out["status"] = "MCP_ERROR"
+        out["error"] = str(e)
+    finally:
+        _hmcp._session_token.value = None
+    return jsonify(out)
+
+
 @app.route("/api/test-ai-keys")
 def api_test_ai_keys():
     """Live-test every configured AI key with a minimal real API call."""
@@ -2873,7 +3626,16 @@ def _push_studio_event(job_id: str, data: dict):
 
 def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
     from generators.production_engine import ProductionStudioEngine
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
     niche = params["niche"]
+
+    if user_id:
+        try:
+            _tok = _get_user_higgsfield_token(user_id)
+            _avg._session_token.value = _tok
+            _hmcp._session_token.value = _tok
+        except Exception as e:
+            print(f"[studio] Higgsfield token setup failed (non-fatal): {e}")
 
     # Create a DB job record so the output appears in the Jobs list
     db_job_id = db.create_job(
@@ -2917,6 +3679,13 @@ def _run_studio_thread(studio_job_id: str, params: dict, user_id: int = None):
         )
         result_dict = result.model_dump()
         job_title = result.seo.title_final if result.seo else niche
+
+        if user_id:
+            try:
+                db.increment_user_usage(user_id, videos=1)
+                db.deduct_credits(user_id, "video_generate", "The Forge video")
+            except Exception as _ue:
+                print(f"[studio #{db_job_id}] usage/credit tracking failed (non-fatal): {_ue}")
 
         # Save completed output to the DB job
         db.update_job(
@@ -2971,6 +3740,7 @@ def studio_page():
         higgsfield_models=config.HIGGSVILLE_MODELS, config=config, templates=templates,
         user_default_voice=current_user.default_voice,
         google_api_key=bool(config.GOOGLE_API_KEY),
+        higgsfield_connected=_higgsfield_connected(current_user.id),
     )
 
 
@@ -3113,6 +3883,13 @@ def _run_hw_thread(hw_job_id: str, params: dict, user_id: int = None):
         result_dict = result.model_dump()
         job_title = result.seo.title_final if result.seo else topic
 
+        if user_id:
+            try:
+                db.increment_user_usage(user_id, videos=1)
+                db.deduct_credits(user_id, "video_generate", "Cinema House video")
+            except Exception as _ue:
+                print(f"[hollywood #{db_job_id}] usage/credit tracking failed (non-fatal): {_ue}")
+
         db.update_job(
             db_job_id, status="done", progress=100, current_step="Complete!",
             title=job_title,
@@ -3165,7 +3942,7 @@ def hollywood_page():
         voices=config.VOICE_CATALOG,
         user_default_voice=current_user.default_voice,
         google_api_key=bool(config.GOOGLE_API_KEY),
-        higgsfield_token=bool(config.HIGGSFIELD_MCP_TOKEN),
+        higgsfield_token=_higgsfield_connected(current_user.id),
         config=config,
     )
 
@@ -3305,6 +4082,24 @@ def _run_music_thread(job_id: str, params: dict, user_id: int = None):
 
         audio_url = f"/api/music/download/{job_id}" if result.get("audio_path") else None
 
+        # Every provider (Suno, Replicate, HuggingFace, ElevenLabs) can fail
+        # or simply not be configured -- when that happens result["audio_path"]
+        # is None and there is no track to give the customer. Reporting
+        # "done" and charging credits in that case would bill someone for a
+        # song that doesn't exist.
+        if not result.get("audio_path"):
+            with _music_lock:
+                _music_jobs[job_id].update({
+                    "status": "error",
+                    "step": "No music provider produced audio — check Suno/Replicate/"
+                            "ElevenLabs configuration. No credits were charged.",
+                })
+            _push_music_event(job_id, {
+                "type": "error",
+                "message": "No music provider produced audio. No credits were charged.",
+            })
+            return
+
         # Emit lyrics event if we have them
         if result.get("lyrics"):
             _push_music_event(job_id, {"type": "lyrics", "lyrics": result["lyrics"]})
@@ -3324,6 +4119,12 @@ def _run_music_thread(job_id: str, params: dict, user_id: int = None):
             "user_id": user_id,
         }
         db.set_setting(f"music_track:{job_id}", json.dumps(track_record))
+
+        if user_id:
+            try:
+                db.deduct_credits(user_id, "audio_generate", "Hit Factory track")
+            except Exception as _ue:
+                print(f"[music #{job_id}] credit tracking failed (non-fatal): {_ue}")
 
         with _music_lock:
             _music_jobs[job_id].update({"status": "done", "progress": 100, "result": result, "audio_url": audio_url})
@@ -3555,6 +4356,81 @@ def serve_generated_loop(loop_id):
                      download_name=f"{loop_id}.mp3")
 
 
+# ── Beat Maker: saved loops ───────────────────────────────────────────────────
+
+SAVED_LOOPS_DIR = Path(config.OUTPUT_DIR) / "saved_loops"
+
+
+@app.route("/api/music/loops/save", methods=["POST"])
+@login_required
+def api_save_loop():
+    """Persist a rendered beat pattern (WAV) as a reusable loop in the library."""
+    f = request.files.get("audio")
+    if not f or not f.filename:
+        return jsonify({"error": "No audio uploaded"}), 400
+    name = (request.form.get("name") or "Untitled Loop").strip()[:120]
+    try:
+        bpm = int(float(request.form.get("bpm") or 90))
+        bars = int(float(request.form.get("bars") or 2))
+        duration = float(request.form.get("duration") or 0)
+    except ValueError:
+        bpm, bars, duration = 90, 2, 0
+    kit = (request.form.get("kit") or "").strip()[:60]
+
+    user_dir = SAVED_LOOPS_DIR / str(current_user.id)
+    user_dir.mkdir(parents=True, exist_ok=True)
+    loop_uuid = str(uuid.uuid4())[:12]
+    path = user_dir / f"{loop_uuid}.wav"
+    f.save(str(path))
+    # Reject empties / oversized (a 4-bar loop is well under 10MB)
+    size = path.stat().st_size
+    if size < 44 or size > 15 * 1024 * 1024:
+        path.unlink(missing_ok=True)
+        return jsonify({"error": "Invalid audio size"}), 400
+
+    loop_id = db.create_saved_loop(
+        user_id=current_user.id, name=name, file_path=str(path),
+        bpm=bpm, bars=bars, kit=kit, duration=duration,
+    )
+    return jsonify({"ok": True, "loop": {
+        "id": loop_id, "name": name, "bpm": bpm, "bars": bars,
+        "kit": kit, "duration": duration,
+    }})
+
+
+@app.route("/api/music/loops/mine")
+@login_required
+def api_my_loops():
+    loops = db.get_saved_loops(current_user.id)
+    return jsonify([{
+        "id": l["id"], "name": l["name"], "bpm": l["bpm"], "bars": l["bars"],
+        "kit": l["kit"], "duration": l["duration"], "created_at": str(l["created_at"]),
+    } for l in loops])
+
+
+@app.route("/api/music/loops/file/<int:loop_id>")
+@login_required
+def api_loop_file(loop_id):
+    loop = db.get_saved_loop(loop_id, user_id=current_user.id)
+    if not loop or not Path(loop["file_path"]).is_file():
+        return jsonify({"error": "Loop not found"}), 404
+    return send_file(loop["file_path"], mimetype="audio/wav", conditional=True,
+                     download_name=f"{loop['name']}.wav")
+
+
+@app.route("/api/music/loops/<int:loop_id>", methods=["DELETE"])
+@login_required
+def api_delete_loop(loop_id):
+    loop = db.get_saved_loop(loop_id, user_id=current_user.id)
+    if loop:
+        try:
+            Path(loop["file_path"]).unlink(missing_ok=True)
+        except Exception:
+            pass
+        db.delete_saved_loop(loop_id, current_user.id)
+    return jsonify({"ok": True})
+
+
 # ── YouTube Audio for Music Library ───────────────────────────────────────────
 
 @app.route("/api/music/youtube-search")
@@ -3700,42 +4576,22 @@ def analytics_page():
 @login_required
 def api_analytics_refresh():
     try:
-        published = db.get_published_videos(user_id=current_user.id)
-        if not published:
+        from generators.performance_insights import refresh_user_analytics
+        refreshed = refresh_user_analytics(current_user.id)
+        if refreshed == 0 and not db.get_published_videos(user_id=current_user.id):
             return jsonify({"status": "no_videos", "refreshed": 0})
-        accounts = db.get_accounts(user_id=current_user.id)
-        account = next((a for a in accounts if a["platform"] == "youtube" and a.get("access_token")), None)
-        if not account:
-            return jsonify({"error": "No YouTube account connected"}), 400
-        refreshed = 0
-        try:
-            from google.oauth2.credentials import Credentials
-            import googleapiclient.discovery
-            creds = Credentials(
-                token=account["access_token"], refresh_token=account.get("refresh_token"),
-                client_id=config.YOUTUBE_CLIENT_ID, client_secret=config.YOUTUBE_CLIENT_SECRET,
-                token_uri="https://oauth2.googleapis.com/token",
-            )
-            yt = googleapiclient.discovery.build("youtube", "v3", credentials=creds)
-            yt_videos = [v for v in published if v["platform"] == "youtube" and v.get("video_id")]
-            for chunk_start in range(0, len(yt_videos), 50):
-                chunk = yt_videos[chunk_start:chunk_start + 50]
-                ids = ",".join(v["video_id"] for v in chunk)
-                resp = yt.videos().list(part="statistics,contentDetails", id=ids).execute()
-                for item in resp.get("items", []):
-                    stats = item.get("statistics", {})
-                    views = int(stats.get("viewCount", 0))
-                    likes = int(stats.get("likeCount", 0))
-                    comments = int(stats.get("commentCount", 0))
-                    revenue = round(views / 1000 * 2.0, 2)
-                    db.upsert_analytics(
-                        user_id=current_user.id, video_id=item["id"], platform="youtube",
-                        views=views, likes=likes, comments=comments, revenue_estimate=revenue,
-                    )
-                    refreshed += 1
-        except Exception as e:
-            return jsonify({"error": f"YouTube API error: {e}"}), 500
         return jsonify({"status": "ok", "refreshed": refreshed})
+    except Exception as e:
+        return jsonify({"error": f"YouTube API error: {e}"}), 500
+
+
+@app.route("/api/analytics/insights")
+@login_required
+def api_analytics_insights():
+    """What this account has learned from its published performance."""
+    try:
+        from generators.performance_insights import compute_insights
+        return jsonify(compute_insights(current_user.id) or {"status": "not_enough_data"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -3851,6 +4707,15 @@ def _push_batch_event(batch_id: str, data: dict):
 
 
 def _run_batch_thread(batch_id: str, topics: list, common_config: dict, user_id: int):
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
+    if user_id:
+        try:
+            _tok = _get_user_higgsfield_token(user_id)
+            _avg._session_token.value = _tok
+            _hmcp._session_token.value = _tok
+        except Exception as e:
+            print(f"[batch] Higgsfield token setup failed (non-fatal): {e}")
+
     total = len(topics)
     completed = 0
     failed = 0
@@ -3869,6 +4734,10 @@ def _run_batch_thread(batch_id: str, topics: list, common_config: dict, user_id:
                 privacy=common_config.get("privacy", "private"), user_id=user_id,
             )
             db.increment_user_usage(user_id, videos=1)
+            try:
+                db.deduct_credits(user_id, "video_generate", f"Batch video: {topic}")
+            except Exception as _ue:
+                print(f"[batch] credit tracking failed (non-fatal): {_ue}")
             params = {
                 "topic": topic, "format": common_config.get("format", "short"),
                 "platforms": common_config.get("platforms", []),
@@ -4138,30 +5007,51 @@ def api_use_template(tmpl_id):
 
 # ── Feature 5: Multi-language Auto-Dub ───────────────────────────────────────
 
+# Codes match the Higgsfield MCP "dubbing" tool's supported target_language
+# values exactly -- these are NOT arbitrary ISO-639-1 codes (e.g. Chinese is
+# "cmn", not "zh"; there is no Dutch support at all), so don't "fix" these to
+# look like standard 2-letter codes without checking against the tool first.
 DUB_LANGUAGES = {
-    "es": "Spanish", "fr": "French", "de": "German", "pt": "Portuguese",
-    "ja": "Japanese", "ko": "Korean", "zh": "Chinese (Mandarin)",
-    "ar": "Arabic", "hi": "Hindi", "it": "Italian", "ru": "Russian", "nl": "Dutch",
+    "eng": "English", "cmn": "Chinese (Mandarin)", "fra": "French", "hin": "Hindi",
+    "ita": "Italian", "jpn": "Japanese", "kor": "Korean", "por": "Portuguese",
+    "rus": "Russian", "tur": "Turkish", "spa": "Spanish", "deu": "German",
+    "ara": "Arabic", "pol": "Polish", "ind": "Indonesian", "fil": "Filipino",
+    "swe": "Swedish", "fin": "Finnish",
 }
 
 
 def _run_dub_thread(dub_id: str, video_path: str, target_language: str, user_id: int, source_job_id: int):
-    import subprocess
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
+    if user_id:
+        try:
+            _tok = _get_user_higgsfield_token(user_id)
+            _avg._session_token.value = _tok
+            _hmcp._session_token.value = _tok
+        except Exception as e:
+            print(f"[dub] Higgsfield token setup failed (non-fatal): {e}")
+
     try:
         db.update_dub_job(dub_id, status="running")
-        result = subprocess.run(
-            ["higgsfield", "generate", "workflow", "dubbing",
-             "--video", video_path, "--target-language", target_language,
-             "--wait", "--json"],
-            capture_output=True, text=True, timeout=600,
+
+        if not _hmcp.has_key():
+            db.update_dub_job(
+                dub_id, status="error",
+                output_path="Higgsfield not connected — connect your account on the Accounts page.",
+            )
+            return
+
+        out_dir = Path(config.OUTPUT_DIR) / "dubs" / dub_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        output_path = out_dir / f"dubbed_{target_language}.mp4"
+
+        result_path = _hmcp.generate_dubbing_via_mcp(
+            video_path=video_path,
+            target_language=target_language,
+            output_path=output_path,
         )
-        if result.returncode == 0:
-            try:
-                out = json.loads(result.stdout)
-                output_path = out.get("output_path") or out.get("url", "")
-            except Exception:
-                output_path = result.stdout.strip()
-            db.update_dub_job(dub_id, status="done", output_path=output_path)
+
+        if result_path:
+            db.update_dub_job(dub_id, status="done", output_path=str(result_path))
             try:
                 from notifications import send_notification
                 lang_name = DUB_LANGUAGES.get(target_language, target_language)
@@ -4171,7 +5061,10 @@ def _run_dub_thread(dub_id: str, video_path: str, target_language: str, user_id:
             except Exception:
                 pass
         else:
-            db.update_dub_job(dub_id, status="error", output_path=result.stderr[:500])
+            db.update_dub_job(
+                dub_id, status="error",
+                output_path="Dubbing failed — the Higgsfield dubbing job did not complete successfully.",
+            )
     except Exception as e:
         db.update_dub_job(dub_id, status="error", output_path=str(e))
 
@@ -4452,6 +5345,207 @@ def api_competitor_inspire(comp_id):
     })
 
 
+# ── Studio hubs: 4 consolidated entry points over the existing tools ─────────
+
+@app.route("/video-studio")
+@login_required
+def video_studio_hub():
+    return render_template("video_studio.html")
+
+
+@app.route("/clip-studio")
+@login_required
+def clip_studio_hub():
+    return render_template("clip_studio.html")
+
+
+@app.route("/images")
+@login_required
+def image_studio_hub():
+    return render_template("image_hub.html")
+
+
+# ── Image Studio ──────────────────────────────────────────────────────────────
+
+IMAGE_STUDIO_DIR = Path(config.OUTPUT_DIR) / "images"
+_imgstudio_jobs: dict = {}
+_imgstudio_lock = threading.Lock()
+
+_IMG_STYLE_PROMPTS = {
+    "photo": "photorealistic, natural lighting, shot on a professional camera, high detail",
+    "cinematic": "cinematic still, dramatic lighting, shallow depth of field, film grain, moody color grade",
+    "illustration": "flat vector illustration, bold shapes, clean lines, vibrant palette",
+    "3d": "3D render, octane, soft studio lighting, high polish",
+    "anime": "anime style, detailed line art, vibrant cel shading",
+    "minimal": "minimalist composition, generous negative space, single subject, muted palette",
+}
+
+
+@app.route("/image-studio")
+@login_required
+def image_studio_page():
+    accounts = db.get_accounts(user_id=current_user.id)
+    connected = {a["platform"] for a in accounts if a["is_active"]}
+    return render_template("image_studio.html", connected_platforms=sorted(connected))
+
+
+def _run_imgstudio_thread(img_job_id: str, params: dict, user_id: int):
+    from generators import higgsfield_mcp as _hmcp
+
+    def update(**kw):
+        with _imgstudio_lock:
+            job = _imgstudio_jobs.get(img_job_id)
+            if job is not None:
+                job.update(kw)
+
+    try:
+        tok = _get_user_higgsfield_token(user_id)
+        _hmcp._session_token.value = tok
+        use_platform = _hmcp.has_platform_credentials()
+        if not tok and not use_platform:
+            update(status="error",
+                   error="Higgsfield isn't connected. Go to Social Accounts and click 'Connect Higgsfield', "
+                         "or set HIGGSFIELD_API_KEY + HIGGSFIELD_API_SECRET.")
+            return
+
+        out_dir = IMAGE_STUDIO_DIR / img_job_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        prompt = params["prompt"]
+        style_suffix = _IMG_STYLE_PROMPTS.get(params["style"], "")
+        full_prompt = f"{prompt}. {style_suffix}" if style_suffix else prompt
+
+        images = []
+        count = params["count"]
+        for i in range(count):
+            update(step=f"Generating image {i+1}/{count}...", progress=int(100 * i / count) or 5)
+            out_path = out_dir / f"img_{i+1}.png"
+            # Unified: Platform SDK (key+secret) first, MCP/OAuth fallback.
+            result = _hmcp.generate_image(
+                prompt=full_prompt,
+                output_path=out_path,
+                model_id=params["model"],
+                aspect_ratio=params["aspect"],
+            )
+            if result:
+                images.append(f"images/{img_job_id}/{out_path.name}")
+
+        if images:
+            update(status="done", progress=100, step="Done", images=images)
+        else:
+            update(status="error",
+                   error="Image generation returned nothing — check your Higgsfield connection and credits.")
+    except Exception as e:
+        update(status="error", error=str(e))
+
+
+@app.route("/api/image-studio/generate", methods=["POST"])
+@login_required
+def api_imgstudio_generate():
+    data = request.json or {}
+    prompt = (data.get("prompt") or "").strip()
+    if not prompt:
+        return jsonify({"error": "Describe the image you want"}), 400
+
+    img_job_id = str(uuid.uuid4())[:8]
+    params = {
+        "prompt": prompt[:2000],
+        "style": data.get("style", "photo"),
+        "aspect": data.get("aspect") if data.get("aspect") in ("9:16", "1:1", "16:9", "4:5", "3:4") else "1:1",
+        "count": min(max(int(data.get("count") or 1), 1), 4),
+        "model": data.get("model") or "flux_2",
+    }
+    with _imgstudio_lock:
+        _imgstudio_jobs[img_job_id] = {
+            "status": "running", "progress": 0, "step": "Starting...",
+            "images": [], "user_id": current_user.id, "prompt": prompt,
+        }
+    threading.Thread(target=_run_imgstudio_thread, args=(img_job_id, params, current_user.id),
+                     daemon=True).start()
+    return jsonify({"img_job_id": img_job_id})
+
+
+@app.route("/api/image-studio/<img_job_id>/status")
+@login_required
+def api_imgstudio_status(img_job_id):
+    with _imgstudio_lock:
+        job = _imgstudio_jobs.get(img_job_id)
+    if not job or job.get("user_id") != current_user.id:
+        return jsonify({"error": "Job not found"}), 404
+    return jsonify({k: v for k, v in job.items() if k != "user_id"})
+
+
+@app.route("/api/image-studio/publish", methods=["POST"])
+@login_required
+def api_imgstudio_publish():
+    data = request.json or {}
+    rel = (data.get("image") or "").strip()
+    platform = data.get("platform", "")
+    caption = (data.get("caption") or "").strip()
+    if not rel or not platform:
+        return jsonify({"error": "image and platform are required"}), 400
+
+    # Only allow files inside this user's image-studio jobs
+    parts = Path(rel).parts
+    if len(parts) != 3 or parts[0] != "images":
+        return jsonify({"error": "Invalid image path"}), 400
+    with _imgstudio_lock:
+        owner_job = _imgstudio_jobs.get(parts[1])
+    if not owner_job or owner_job.get("user_id") != current_user.id:
+        return jsonify({"error": "Image not found"}), 404
+
+    full = Path(config.OUTPUT_DIR) / rel
+    if not full.is_file():
+        return jsonify({"error": "Image file not found"}), 404
+
+    try:
+        result = _quickpost_publish_image(platform, str(full), caption, current_user.id)
+        post_id = result.get("media_id") or result.get("tweet_id") or result.get("post_id")
+        if post_id:
+            try:
+                db.add_published_video(
+                    user_id=current_user.id, job_id=None, platform=platform,
+                    video_id=str(post_id), video_url=result.get("url", ""),
+                    title=caption[:120] or owner_job.get("prompt", "")[:120],
+                )
+            except Exception:
+                pass
+        return jsonify({"ok": True, "result": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── Media serving ─────────────────────────────────────────────────────────────
+
+def _safe_output_path(relpath: str) -> Path:
+    """Resolve a path relative to OUTPUT_DIR, rejecting traversal outside it."""
+    base = Path(config.OUTPUT_DIR).resolve()
+    full = (base / relpath).resolve()
+    if base not in full.parents and full != base:
+        abort(404)
+    if not full.is_file():
+        abort(404)
+    return full
+
+
+@app.route("/public/media/<sig>/<path:relpath>")
+def public_media(sig, relpath):
+    """Unauthenticated, HMAC-signed media URLs so platforms (Instagram/Threads)
+    can fetch videos for ingestion. Only files under OUTPUT_DIR are servable."""
+    from media_host import verify_media_sig
+    if not verify_media_sig(relpath, sig):
+        abort(403)
+    full = _safe_output_path(relpath)
+    mime = "video/mp4" if full.suffix.lower() in (".mp4", ".m4v") else None
+    return send_file(str(full), mimetype=mime, conditional=True)
+
+
+@app.route("/output/<path:relpath>")
+@login_required
+def serve_output(relpath):
+    full = _safe_output_path(relpath)
+    return send_file(str(full), conditional=True)
+
+
 # ── The Scalpel ───────────────────────────────────────────────────────────────
 
 _clip_jobs: dict = {}
@@ -4465,35 +5559,60 @@ def clipper_page():
     return render_template("clipper.html", completed_jobs=completed_jobs)
 
 
+CLIPPER_UPLOADS = Path(config.DATA_DIR) / "clipper_uploads"
+CLIPPER_UPLOADS.mkdir(parents=True, exist_ok=True)
+
+
 @app.route("/api/clipper/create", methods=["POST"])
 @login_required
 def api_clipper_create():
-    data = request.json
-    source = data.get("source", "url")
+    is_upload = bool(request.files)
+    data = request.form if is_upload else (request.json or {})
+    source = data.get("source", "upload" if is_upload else "url")
     clip_job_id = str(uuid.uuid4())[:8]
+
+    def _truthy(v, default=True):
+        if v is None:
+            return default
+        if isinstance(v, bool):
+            return v
+        return str(v).lower() not in ("false", "0", "")
 
     clip_config = {
         "source": source,
         "url": data.get("url"),
         "job_id": data.get("job_id"),
-        "clip_count": int(data.get("clip_count", 5)),
-        "clip_length": int(data.get("clip_length", 30)),
+        "clip_count": int(data.get("clip_count") or 5),
+        "clip_length": int(data.get("clip_length") or 30),
         "ratio": data.get("ratio", "9:16"),
         "style": data.get("style", "viral"),
-        "captions": data.get("captions", True),
-        "hook_overlay": data.get("hook_overlay", True),
+        "captions": _truthy(data.get("captions")),
+        "hook_overlay": _truthy(data.get("hook_overlay")),
         "user_id": current_user.id,
     }
 
-    # If source is a completed job, get the video path
-    if source == "job" and data.get("job_id"):
+    if source == "upload":
+        f = request.files.get("file")
+        if not f or not f.filename:
+            return jsonify({"error": "No video file provided"}), 400
+        ext = Path(secure_filename(f.filename)).suffix or ".mp4"
+        upload_path = CLIPPER_UPLOADS / f"{clip_job_id}{ext}"
+        f.save(str(upload_path))
+        clip_config["video_path"] = str(upload_path)
+    elif source == "job" and data.get("job_id"):
         job = db.get_job(int(data["job_id"]), user_id=current_user.id)
         if not job or not job.get("video_path"):
             return jsonify({"error": "Job not found or has no video"}), 400
         clip_config["video_path"] = job["video_path"]
+        clip_config["source"] = "file"
+    elif not data.get("url"):
+        return jsonify({"error": "Provide a video URL, file, or completed job"}), 400
 
     with _clip_lock:
-        _clip_jobs[clip_job_id] = {"status": "processing", "config": clip_config, "clips": []}
+        _clip_jobs[clip_job_id] = {
+            "status": "processing", "progress": 0, "step": "downloading",
+            "step_label": "Starting...", "config": clip_config, "clips": [],
+        }
 
     t = threading.Thread(target=_run_clipper_thread, args=(clip_job_id, clip_config), daemon=True)
     t.start()
@@ -4501,72 +5620,122 @@ def api_clipper_create():
     return jsonify({"clip_job_id": clip_job_id})
 
 
+def _get_clip_job(clip_job_id):
+    """Fetch a clip job, enforcing ownership."""
+    with _clip_lock:
+        job = _clip_jobs.get(clip_job_id)
+    if not job or job.get("config", {}).get("user_id") != current_user.id:
+        return None
+    return job
+
+
 @app.route("/api/clipper/<clip_job_id>/status")
 @login_required
 def api_clipper_status(clip_job_id):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
+    job = _get_clip_job(clip_job_id)
     if not job:
         return jsonify({"error": "Clip job not found"}), 404
-    return jsonify(job)
+    return jsonify({k: v for k, v in job.items() if k != "config"})
+
+
+# Map engine progress statuses onto the UI's step keys
+_CLIP_STEP_KEYS = {
+    "downloading": "downloading", "analyzing": "analyzing",
+    "clipping": "cutting", "captioning": "captions",
+    "hook": "captions", "finalizing": "finalizing",
+}
 
 
 def _run_clipper_thread(clip_job_id: str, clip_config: dict):
-    import random
-    time.sleep(3)
+    from generators import clipper_engine
 
-    clip_count = clip_config["clip_count"]
-    clip_length = clip_config["clip_length"]
-    style = clip_config["style"]
+    def progress_cb(status, progress, step):
+        with _clip_lock:
+            job = _clip_jobs.get(clip_job_id)
+            if job is not None and job.get("status") == "processing":
+                job["progress"] = progress
+                job["step"] = _CLIP_STEP_KEYS.get(status, status)
+                job["step_label"] = step
 
-    hook_templates = {
-        "viral": ["Wait for it...", "Nobody talks about this", "This changes everything",
-                   "You won't believe this", "Here's what they don't tell you"],
-        "highlights": ["Key takeaway", "The main point", "Critical insight",
-                       "Don't miss this", "Here's the bottom line"],
-        "quotes": ["Best quote", "Mic drop moment", "This hit different",
-                   "Words to live by", "Pure gold"],
-        "tutorial": ["Step by step", "Here's how", "Watch closely",
-                     "Pro tip", "The secret trick"],
-    }
-    hooks = hook_templates.get(style, hook_templates["viral"])
-
-    clips = []
-    total_duration = clip_count * clip_length * 3
-    for i in range(clip_count):
-        start_sec = random.randint(0, max(1, total_duration - clip_length))
-        start_min = start_sec // 60
-        start_s = start_sec % 60
-        end_sec = start_sec + clip_length
-        end_min = end_sec // 60
-        end_s = end_sec % 60
-        virality = random.randint(65, 98)
-
-        clips.append({
-            "title": f"Clip {i+1} — {random.choice(hooks)}",
-            "start_time": f"{start_min}:{start_s:02d}",
-            "end_time": f"{end_min}:{end_s:02d}",
-            "virality_score": virality,
-            "hook": random.choice(hooks),
-            "download_url": None,
-        })
-        time.sleep(1)
-
-    clips.sort(key=lambda c: c["virality_score"], reverse=True)
+    try:
+        result = clipper_engine.run_clipper(clip_job_id, clip_config, progress_callback=progress_cb)
+    except Exception as e:
+        result = {"status": "error", "error": str(e), "clips": []}
 
     with _clip_lock:
-        _clip_jobs[clip_job_id] = {
-            "status": "done",
-            "clips": clips,
-            "config": clip_config,
-        }
+        job = _clip_jobs.setdefault(clip_job_id, {"config": clip_config})
+        if result.get("status") == "done" and result.get("clips"):
+            job.update(
+                status="done", progress=100, step="finalizing", step_label="Done",
+                clips=result["clips"],
+                source_duration=result.get("source_duration", 0),
+                transcript_preview=result.get("transcript_preview", ""),
+                source_path=result.get("source_path", clip_config.get("video_path", "")),
+            )
+        else:
+            job.update(
+                status="error",
+                error=result.get("error") or "Clipping produced no clips",
+                clips=[],
+            )
+
+
+@app.route("/api/clipper/<clip_job_id>/source-video")
+@login_required
+def api_clipper_source_video(clip_job_id):
+    job = _get_clip_job(clip_job_id)
+    if not job:
+        return jsonify({"error": "Clip job not found"}), 404
+    path = job.get("source_path") or job.get("config", {}).get("video_path")
+    if not path or not Path(path).is_file():
+        return jsonify({"error": "Source video not available"}), 404
+    return send_file(str(path), mimetype="video/mp4", conditional=True)
+
+
+@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/video")
+@login_required
+def api_clipper_clip_video(clip_job_id, clip_idx):
+    job = _get_clip_job(clip_job_id)
+    if not job or clip_idx >= len(job.get("clips", [])):
+        return jsonify({"error": "Clip not found"}), 404
+    path = job["clips"][clip_idx].get("file_path")
+    if not path or not Path(path).is_file():
+        return jsonify({"error": "Clip file not available"}), 404
+    return send_file(str(path), mimetype="video/mp4", conditional=True)
+
+
+@app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/thumbnail")
+@login_required
+def api_clipper_clip_thumbnail(clip_job_id, clip_idx):
+    job = _get_clip_job(clip_job_id)
+    if not job or clip_idx >= len(job.get("clips", [])):
+        return jsonify({"error": "Clip not found"}), 404
+    path = job["clips"][clip_idx].get("thumbnail_path")
+    if not path or not Path(path).is_file():
+        return jsonify({"error": "Thumbnail not available"}), 404
+    return send_file(str(path), mimetype="image/jpeg", conditional=True)
+
+
+@app.route("/api/clipper/<clip_job_id>/download-all")
+@login_required
+def api_clipper_download_all(clip_job_id):
+    job = _get_clip_job(clip_job_id)
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Clip job not ready"}), 400
+    import zipfile
+    zip_path = Path(config.OUTPUT_DIR) / "clips" / clip_job_id / "all_clips.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zf:
+        for i, clip in enumerate(job.get("clips", [])):
+            path = clip.get("file_path")
+            if path and Path(path).is_file():
+                zf.write(path, f"clip_{i+1}.mp4")
+    return send_file(str(zip_path), as_attachment=True, download_name=f"clips_{clip_job_id}.zip")
 
 
 @app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/publish", methods=["POST"])
 @login_required
 def api_clipper_clip_publish(clip_job_id, clip_idx):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
+    job = _get_clip_job(clip_job_id)
     if not job or job.get("status") != "done":
         return jsonify({"error": "Clip job not ready"}), 400
     clips = job.get("clips", [])
@@ -4577,24 +5746,36 @@ def api_clipper_clip_publish(clip_job_id, clip_idx):
     platform = data.get("platform", "youtube")
     caption  = data.get("caption", "")
 
-    video_path = job.get("config", {}).get("video_path")
+    clip = clips[clip_idx]
+    video_path = clip.get("file_path")
     if not video_path or not Path(video_path).exists():
-        return jsonify({"error": "No source video available for this clip job. Download the clip and upload manually."}), 400
+        return jsonify({"error": "Clip file not available. It may have been cleaned up — re-run the clipper."}), 400
 
     import social_optimize as _so
-    clip = clips[clip_idx]
     title = (clip.get("title") or f"Clip {clip_idx+1}")[:100]
     try:
         results = _so.publish_to_platforms(
             video_path=video_path,
             title=title,
             description=caption or title,
-            hashtags=[],
+            hashtags=[t for t in (clip.get("hook") or "").split() if t.startswith("#")],
             keywords=[],
             platforms=[platform],
             privacy="public",
+            is_short=True,
         )
-        return jsonify({"ok": True, "result": results.get(platform, {})})
+        result = results.get(platform, {})
+        # Record the publish so analytics can track clip performance
+        video_id = result.get("video_id") or result.get("media_id") or result.get("publish_id")
+        if video_id:
+            try:
+                db.add_published_video(
+                    user_id=current_user.id, job_id=None, platform=platform,
+                    video_id=str(video_id), video_url=result.get("url", ""), title=title,
+                )
+            except Exception:
+                pass
+        return jsonify({"ok": True, "result": result})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -4602,8 +5783,7 @@ def api_clipper_clip_publish(clip_job_id, clip_idx):
 @app.route("/api/clipper/<clip_job_id>/clips/<int:clip_idx>/trim", methods=["POST"])
 @login_required
 def api_clipper_clip_trim(clip_job_id, clip_idx):
-    with _clip_lock:
-        job = _clip_jobs.get(clip_job_id)
+    job = _get_clip_job(clip_job_id)
     if not job or job.get("status") != "done":
         return jsonify({"error": "Clip job not ready"}), 400
     clips = job.get("clips", [])
@@ -4639,7 +5819,9 @@ def commercial_page():
     accounts = db.get_accounts(user_id=current_user.id)
     connected = {a["platform"] for a in accounts if a["is_active"]}
     return render_template("commercial.html", connected_platforms=connected,
-                           higgsfield_models=config.HIGGSVILLE_MODELS)
+                           higgsfield_models=config.HIGGSVILLE_MODELS,
+                           voices=config.VOICE_CATALOG,
+                           user_default_voice=current_user.default_voice)
 
 
 @app.route("/api/commercial/run", methods=["POST"])
@@ -4907,9 +6089,21 @@ SCRIPT_SECTIONS:
             keywords, out_dir, video_count=6, is_portrait=True,
         )
 
+        # Always include the customer's own uploaded product media -- it was
+        # already read and analyzed above, so it's guaranteed to exist and be
+        # directly relevant, unlike a stock search that can legitimately come
+        # back empty (no PEXELS_API_KEY, an unusual product niche, ...).
+        # Without this, a stock-search miss hard-failed the whole commercial
+        # even though the customer's own photo/video was sitting right there.
+        own_video_clips = [Path(m["path"]) for m in video_media if Path(m["path"]).exists()]
+        own_image_clips = [Path(m["path"]) for m in image_media if Path(m["path"]).exists()]
+        video_clips = list(video_clips) + own_video_clips
+        image_clips = own_image_clips + list(image_clips)
+
         if not video_clips and not image_clips:
             raise RuntimeError(
-                "Couldn't find stock clips matching your product. Try a more descriptive brand/description."
+                "Couldn't find any visuals for your commercial — no stock clips matched and "
+                "no product photo/video was available."
             )
 
         step("Assembling your commercial...", 80)
@@ -4935,6 +6129,10 @@ SCRIPT_SECTIONS:
         step("Commercial ready!", 100)
 
         db.increment_videos_used(user_id)
+        try:
+            db.deduct_credits(user_id, "video_generate", f"Ad Lab commercial: {brand}")
+        except Exception as _ue:
+            print(f"[commercial] credit tracking failed (non-fatal): {_ue}")
 
         db.update_job(db_job_id, status="done", progress=100, current_step="Commercial ready!",
                       title=brand, video_path=final_video, audio_path=audio_path,
@@ -5238,7 +6436,11 @@ def commercial_download(job_id):
 @app.route("/health")
 def health():
     from generators.higgsfield_cli import is_authenticated as hf_cli_ok
-    return jsonify({"status": "ok", "version": "1.0", "higgsfield_cli": hf_cli_ok()})
+    # Always 200 while the process is alive: with the degraded-mode boot the app
+    # recovers from a DB outage on its own, and a failing health check would
+    # just make Render kill it back into a 502 loop. "database" tells you which.
+    return jsonify({"status": "ok", "version": "1.0",
+                    "database": _db_ready, "higgsfield_cli": hf_cli_ok()})
 
 
 @app.route("/api/admin/higgsfield-token", methods=["POST"])
@@ -5491,6 +6693,22 @@ def _engagement_automation_thread():
             pass
 
 
+def _analytics_refresh_thread():
+    """Refresh published-video performance metrics for every connected account
+    every 6 hours, feeding the performance-insights loop."""
+    while True:
+        time.sleep(6 * 3600)
+        try:
+            from generators.performance_insights import refresh_user_analytics
+            for uid in db.get_user_ids_with_platform_account("youtube"):
+                try:
+                    refresh_user_analytics(uid)
+                except Exception as e:
+                    print(f"[analytics] refresh failed for user {uid}: {e}")
+        except Exception:
+            pass
+
+
 def start_background_threads():
     global _bg_threads_started
     with _bg_threads_lock:
@@ -5507,6 +6725,10 @@ def start_background_threads():
     t4.start()
     t5 = threading.Thread(target=_engagement_automation_thread, daemon=True, name="engagement_automation")
     t5.start()
+    t6 = threading.Thread(target=_autopilot_thread, daemon=True, name="autopilot")
+    t6.start()
+    t7 = threading.Thread(target=_analytics_refresh_thread, daemon=True, name="analytics_refresh")
+    t7.start()
 
 
 # ── RSS Feeds ────────────────────────────────────────────────────────────────
@@ -6788,26 +8010,6 @@ def api_credits_topup():
     return jsonify(result)
 
 
-@app.route("/api/credits/purchase", methods=["POST"])
-@login_required
-def api_credits_purchase():
-    """User purchases a credit package (payment handled externally; this just grants credits)."""
-    data = request.json or {}
-    pkg_id = data.get("package_id")
-    if not pkg_id:
-        return jsonify({"error": "package_id required"}), 400
-    packages = {str(p["id"]): p for p in db.get_credit_packages()}
-    pkg = packages.get(str(pkg_id))
-    if not pkg:
-        return jsonify({"error": "Invalid package"}), 404
-    credits = float(pkg["credits"])
-    bonus = credits * float(pkg.get("bonus_pct", 0)) / 100
-    total = credits + bonus
-    result = db.add_credits(current_user.id, total, "purchase",
-                            f"Purchased {pkg['name']} ({total:.0f} credits)")
-    return jsonify({**result, "package": pkg["name"], "credits": total})
-
-
 @app.route("/api/credits/deduct", methods=["POST"])
 @login_required
 def api_credits_deduct():
@@ -6912,7 +8114,8 @@ def _mon_tier_prices():
 def _mon_user_counts():
     with db.get_conn() as conn:
         rows = conn.execute(
-            "SELECT subscription_tier, COUNT(*) AS cnt FROM users GROUP BY subscription_tier"
+            "SELECT subscription_tier, COUNT(*) AS cnt FROM users "
+            "WHERE COALESCE(is_admin,0)=0 GROUP BY subscription_tier"
         ).fetchall()
     counts = {r["subscription_tier"]: int(r["cnt"]) for r in rows}
     return counts
@@ -7747,6 +8950,7 @@ _podcast_lock = threading.Lock()
 @login_required
 def podcast_studio():
     return render_template("podcast_studio.html", voices=config.VOICE_CATALOG,
+                           user_default_voice=current_user.default_voice,
                            active_page="podcast")
 
 
@@ -7773,22 +8977,43 @@ def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
         voice_id    = params.get("voice_id", "")
         context     = params.get("context", "")
 
+        user_row = db.get_user_by_id(user_id) if user_id else {}
+        tier = (user_row or {}).get("subscription_tier", "starter")
+
+        # generate_script()'s real signature has no podcast-specific kwargs
+        # (podcast_name/guest_name/podcast_duration/style/context never
+        # existed) -- fold that context into custom_instructions instead,
+        # the mechanism the function actually supports.
+        extra = [f"This is episode {episode_num} of the podcast '{show_name}'."]
+        if guest:
+            extra.append(f"This episode features guest: {guest}. Reference them naturally throughout.")
+        if style:
+            extra.append(f"Style/tone: {style}.")
+        if context:
+            extra.append(context)
+
         script_result = script_generator.generate_script(
             topic=topic,
-            format="podcast",
+            content_type="podcast",
+            target_duration=duration * 60,
             audience=audience,
-            podcast_name=show_name,
-            episode_number=episode_num,
-            guest_name=guest,
-            podcast_duration=duration,
-            style=style,
-            context=context,
+            custom_instructions=" ".join(extra),
+            subscription_tier=tier,
         )
-        script_text = script_result.get("script", "") if isinstance(script_result, dict) else str(script_result)
-        title       = script_result.get("title", topic) if isinstance(script_result, dict) else topic
-        description = script_result.get("description", "") if isinstance(script_result, dict) else ""
-        show_notes  = script_result.get("show_notes", description) if isinstance(script_result, dict) else description
-        chapters    = script_result.get("chapters", []) if isinstance(script_result, dict) else []
+        # generate_script() returns a ContentScript dataclass, not a dict --
+        # .get(...) would AttributeError, and fields like .script/.show_notes/
+        # .chapters never existed on it (it's .narration, and there's no
+        # dedicated show_notes/chapters field at all).
+        title       = script_result.title or topic
+        description = script_result.description
+        narration   = script_result.narration
+        show_notes  = description
+        chapters    = []
+        cursor = 0
+        for sec in (script_result.sections or []):
+            mm, ss = divmod(cursor, 60)
+            chapters.append({"timestamp": f"{mm:02d}:{ss:02d}", "title": sec.get("name", "Section")})
+            cursor += int(sec.get("duration", 0) or 0)
 
         _push({"progress": 35, "step": "Generating audio…", "title": title})
 
@@ -7798,9 +9023,9 @@ def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
         audio_path = os.path.join(out_dir, "episode.mp3")
 
         audio_generator.generate_audio(
-            script=script_text,
+            text=narration,
             output_path=audio_path,
-            voice_id=voice_id or None,
+            voice=voice_id or None,
         )
         _push({"progress": 65, "step": "Creating audiogram video…"})
 
@@ -7811,10 +9036,11 @@ def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
             video_out  = os.path.join(out_dir, "audiogram.mp4")
             create_podcast_video(
                 audio_path=audio_path,
-                script=script_text,
-                podcast_name=show_name,
-                episode_number=episode_num,
                 output_path=video_out,
+                channel_name=show_name,
+                episode_number=episode_num,
+                title=title,
+                sections=script_result.sections,
             )
             if os.path.exists(video_out):
                 video_path = video_out
@@ -7824,19 +9050,33 @@ def _run_podcast_thread(pod_job_id: str, params: dict, user_id: int):
         _push({"progress": 90, "step": "Finalising…"})
 
         # ── 4. Persist job ─────────────────────────────────────────────────
+        # create_job() requires platforms/audience/voice/style/privacy (no
+        # defaults) and has no status/title kwargs at all -- those are set
+        # afterward via update_job(), same as every other studio's pattern.
         db_job_id = db.create_job(
+            topic=topic, format="podcast", platforms=[],
+            audience=audience, voice=voice_id or config.DEFAULT_VOICE,
+            style=style, privacy="private",
             user_id=user_id,
-            topic=topic,
-            format="podcast",
-            status="done",
-            title=title,
         )
         db.update_job(
             db_job_id,
-            video_path=video_path or audio_path,
             status="done",
-            description=description,
+            progress=100,
+            title=title,
+            # jobs has no description column -- that only lives in the
+            # in-memory _podcast_jobs status dict pushed below, which is
+            # what actually feeds the UI's show notes/description display.
+            video_path=video_path or audio_path,
+            audio_path=audio_path,
         )
+
+        if user_id:
+            try:
+                db.increment_user_usage(user_id, videos=1)
+                db.deduct_credits(user_id, "podcast_generate", f"Podcast episode: {title}")
+            except Exception as _ue:
+                print(f"[podcast #{pod_job_id}] usage/credit tracking failed (non-fatal): {_ue}")
 
         _push({
             "status": "done",
@@ -7889,10 +9129,10 @@ def _run_podcast_upload_thread(pod_job_id: str, params: dict, audio_path: str, u
             video_out = os.path.join(out_dir, "audiogram.mp4")
             create_podcast_video(
                 audio_path=audio_path,
-                script=transcript,
-                podcast_name=show_name,
-                episode_number=ep_num,
                 output_path=video_out,
+                channel_name=show_name,
+                episode_number=ep_num,
+                title=topic,
             )
             if os.path.exists(video_out):
                 video_path = video_out
@@ -7901,8 +9141,13 @@ def _run_podcast_upload_thread(pod_job_id: str, params: dict, audio_path: str, u
 
         _push({"progress": 90, "step": "Saving…"})
 
-        db_job_id = db.create_job(user_id=user_id, topic=topic, format="podcast", status="done", title=topic)
-        db.update_job(db_job_id, video_path=video_path or audio_path, status="done")
+        db_job_id = db.create_job(
+            topic=topic, format="podcast", platforms=[],
+            audience="general public", voice=config.DEFAULT_VOICE,
+            style="fire", privacy="private", user_id=user_id,
+        )
+        db.update_job(db_job_id, status="done", progress=100, title=topic,
+                      video_path=video_path or audio_path, audio_path=audio_path)
 
         _push({
             "status": "done", "progress": 100, "step": "Done!",
@@ -8010,9 +9255,12 @@ def api_podcast_publish(pod_job_id):
     video_path = job.get("video_path") or job.get("audio_path")
 
     if schedule:
-        stub_id  = db.create_job(user_id=current_user.id, topic=caption, format="podcast",
-                                 status="done", title=caption)
-        db.update_job(stub_id, video_path=video_path, status="done")
+        stub_id  = db.create_job(
+            topic=caption, format="podcast", platforms=[platform] if platform else [],
+            audience="general public", voice=config.DEFAULT_VOICE,
+            style="fire", privacy="private", user_id=current_user.id,
+        )
+        db.update_job(stub_id, status="done", progress=100, title=caption, video_path=video_path)
         post_id  = db.create_scheduled_post(user_id=current_user.id, job_id=stub_id,
                                             platform=platform, scheduled_at=schedule)
         return jsonify({"ok": True, "scheduled": True, "post_id": post_id})
@@ -8032,6 +9280,406 @@ def api_podcast_publish(pod_job_id):
         return jsonify({"error": str(exc)}), 500
 
 
+# ── Ranking Studio (Top N / listicle videos via Gamma slide decks) ───────────
+
+_ranking_jobs: dict = {}
+_ranking_lock = threading.Lock()
+
+
+@app.route("/ranking-studio")
+@login_required
+def ranking_studio_page():
+    return render_template("ranking_studio.html", voices=config.VOICE_CATALOG,
+                           active_page="ranking")
+
+
+@app.route("/api/ranking/create", methods=["POST"])
+@login_required
+def api_ranking_create():
+    allowed, err = check_usage_gate(current_user.id)
+    if not allowed:
+        return jsonify({"error": err, "upgrade": True}), 403
+
+    data = request.json or {}
+    topic = (data.get("topic") or "").strip()
+    if not topic:
+        return jsonify({"error": "Topic is required"}), 400
+
+    job_id = str(uuid.uuid4())[:8]
+    job_config = {
+        "topic": topic,
+        "count": int(data.get("count", 10)),
+        "voice": data.get("voice") or config.DEFAULT_VOICE,
+        "ratio": data.get("ratio", "9:16"),
+        "theme": data.get("theme"),
+        "user_id": current_user.id,
+    }
+
+    with _ranking_lock:
+        _ranking_jobs[job_id] = {"status": "processing", "progress": 0, "config": job_config}
+
+    t = threading.Thread(target=_run_ranking_thread, args=(job_id, job_config), daemon=True)
+    t.start()
+    return jsonify({"job_id": job_id})
+
+
+@app.route("/api/ranking/<job_id>/status")
+@login_required
+def api_ranking_status(job_id):
+    with _ranking_lock:
+        job = _ranking_jobs.get(job_id)
+    if not job:
+        return jsonify({"error": "Ranking job not found"}), 404
+    return jsonify(job)
+
+
+@app.route("/api/ranking/<job_id>/video")
+@login_required
+def api_ranking_video(job_id):
+    with _ranking_lock:
+        job = _ranking_jobs.get(job_id)
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Ranking job not ready"}), 400
+    video_path = job.get("video_path")
+    if not video_path or not Path(video_path).is_file():
+        return jsonify({"error": "Video file not found"}), 404
+    return send_file(video_path, mimetype="video/mp4", conditional=True)
+
+
+def _run_ranking_thread(job_id: str, job_config: dict):
+    from generators.ranking_video import generate_ranking_video
+
+    user_id = job_config.get("user_id")
+
+    def on_progress(status: str, progress: int, step_label: str):
+        with _ranking_lock:
+            job = _ranking_jobs.get(job_id)
+            if job is None:
+                return
+            job.update({"status": "processing", "progress": progress,
+                       "step": status, "step_label": step_label})
+
+    result = generate_ranking_video(job_id, job_config, progress_callback=on_progress)
+
+    if result["status"] == "done" and user_id:
+        try:
+            db.increment_user_usage(user_id, videos=1)
+            db.deduct_credits(user_id, "video_generate", f"Ranking video: {result.get('topic', '')}")
+        except Exception as exc:
+            print(f"[ranking #{job_id}] usage/credit tracking failed (non-fatal): {exc}")
+
+    with _ranking_lock:
+        _ranking_jobs[job_id] = {
+            "status": result["status"],
+            "error": result.get("error", ""),
+            "video_path": result.get("video_path", ""),
+            "thumbnail_path": result.get("thumbnail_path", ""),
+            "items": result.get("items", []),
+            "topic": result.get("topic", job_config.get("topic", "")),
+            "config": job_config,
+        }
+
+
+# ── Agency Landing Pages (Gamma-generated, Agency tier) ──────────────────────
+
+def _require_agency_tier():
+    if current_user.is_admin:
+        return None
+    if current_user.subscription_tier != "agency":
+        return jsonify({"error": "Landing pages are an Agency-tier feature. Upgrade to unlock.",
+                        "upgrade": True}), 403
+    return None
+
+
+@app.route("/agency/landing-pages")
+@login_required
+def agency_landing_pages_page():
+    gate = _require_agency_tier()
+    if gate:
+        return redirect(url_for("billing.billing_page"))
+    pages = db.get_landing_pages(current_user.id)
+    clients = db.get_agency_clients(current_user.id)
+    return render_template("agency_landing_pages.html", pages=pages, clients=clients, active_page="landing_pages")
+
+
+@app.route("/api/agency/landing-pages", methods=["POST"])
+@login_required
+def api_agency_landing_page_create():
+    gate = _require_agency_tier()
+    if gate:
+        return gate
+
+    data = request.json or {}
+    business_name = (data.get("business_name") or "").strip()
+    description = (data.get("description") or "").strip()
+    audience = (data.get("audience") or "general audience").strip()
+    cta = (data.get("cta") or "Get Started").strip()
+    client_id = data.get("client_id") or None
+
+    if not business_name or not description:
+        return jsonify({"error": "Business name and description are required"}), 400
+
+    prompt = (
+        f"Create a high-converting landing page for {business_name}.\n\n"
+        f"What they do: {description}\n"
+        f"Target audience: {audience}\n"
+        f"Primary call-to-action: {cta}\n\n"
+        f"Include a strong hero section, key benefits/features, social proof section, "
+        f"and a clear CTA. Professional, modern design."
+    )
+
+    page_id = db.create_landing_page(current_user.id, business_name, prompt, client_id=client_id)
+
+    t = threading.Thread(target=_run_landing_page_thread, args=(page_id, prompt), daemon=True)
+    t.start()
+    return jsonify({"page_id": page_id})
+
+
+@app.route("/api/agency/landing-pages/<int:page_id>/status")
+@login_required
+def api_agency_landing_page_status(page_id):
+    page = db.get_landing_page(current_user.id, page_id)
+    if not page:
+        return jsonify({"error": "Landing page not found"}), 404
+    return jsonify(page)
+
+
+def _run_landing_page_thread(page_id: int, prompt: str):
+    from generators import gamma_client
+    try:
+        result = gamma_client.generate_website(prompt, num_cards=5)
+        db.update_landing_page(page_id, url=result["url"],
+                               gamma_generation_id=result["generation_id"], status="done")
+    except Exception as e:
+        db.update_landing_page(page_id, status="error", error=str(e))
+
+
+# ── Autopilot: fully automated recurring content generation + posting ───────
+# Pro & Agency feature. User describes a niche once; a background thread wakes
+# every 5 minutes, finds configs due for their next run, has Claude pick a
+# fresh non-repeating topic, runs it through the exact same pipeline as
+# manual /api/create, and — once the video is done — queues it into the
+# existing scheduled_posts system (the same one manual "schedule for later"
+# posts use) so it goes out across every connected platform at the configured
+# time. No further human input required after setup.
+
+_AUTOPILOT_DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def _require_autopilot_tier():
+    if current_user.is_admin:
+        return None
+    if current_user.subscription_tier not in ("pro", "agency"):
+        return jsonify({"error": "Autopilot — fully automated content generation and posting — "
+                        "is a Pro & Agency feature. Upgrade to unlock it.",
+                        "upgrade": True}), 403
+    return None
+
+
+@app.route("/autopilot")
+@login_required
+def autopilot_page():
+    gate = _require_autopilot_tier()
+    if gate:
+        return redirect(url_for("billing.billing_page"))
+    configs = db.get_autopilot_configs(current_user.id)
+    accounts = db.get_accounts(user_id=current_user.id)
+    connected = sorted({a["platform"] for a in accounts if a.get("is_active")})
+    for c in configs:
+        c["platforms"] = json.loads(c.get("platforms") or "[]")
+        c["days_of_week"] = json.loads(c.get("days_of_week") or "[]")
+    return render_template("autopilot.html", configs=configs, connected_platforms=connected,
+                           day_names=_AUTOPILOT_DAY_NAMES, active_page="autopilot")
+
+
+@app.route("/api/autopilot", methods=["POST"])
+@login_required
+def api_autopilot_create():
+    gate = _require_autopilot_tier()
+    if gate:
+        return gate
+
+    data = request.json or {}
+    name = (data.get("name") or "").strip()
+    niche = (data.get("niche") or "").strip()
+    platforms = data.get("platforms") or []
+    days_of_week = [int(d) for d in (data.get("days_of_week") or [])]
+    post_time = (data.get("post_time") or "09:00").strip()
+    format = data.get("format") or "short"
+
+    if not name or not niche:
+        return jsonify({"error": "Name and niche/topic description are required"}), 400
+    if not platforms:
+        return jsonify({"error": "Select at least one platform to auto-post to"}), 400
+    if not days_of_week:
+        return jsonify({"error": "Select at least one day of the week"}), 400
+    try:
+        hour, minute = (int(p) for p in post_time.split(":"))
+        assert 0 <= hour <= 23 and 0 <= minute <= 59
+    except Exception:
+        return jsonify({"error": "post_time must be in HH:MM (24h, UTC) format"}), 400
+
+    from generators.autopilot_engine import compute_next_run_at
+    lead_minutes = 45
+    next_run = compute_next_run_at(days_of_week, post_time, lead_minutes)
+
+    config_id = db.create_autopilot_config(
+        user_id=current_user.id, name=name, niche=niche, format=format,
+        audience=data.get("audience") or "general public",
+        voice=data.get("voice") or config.DEFAULT_VOICE,
+        style=data.get("style") or "fire",
+        platforms=platforms, days_of_week=days_of_week, post_time=post_time,
+        lead_minutes=lead_minutes, next_run_at=next_run.isoformat(),
+    )
+    return jsonify({"config_id": config_id, "next_run_at": next_run.isoformat()})
+
+
+@app.route("/api/autopilot/<int:config_id>/toggle", methods=["POST"])
+@login_required
+def api_autopilot_toggle(config_id):
+    cfg = db.get_autopilot_config(config_id, user_id=current_user.id)
+    if not cfg:
+        return jsonify({"error": "Not found"}), 404
+    new_active = not cfg.get("active", True)
+    updates = {"active": new_active, "last_error": None}
+    if new_active:
+        from generators.autopilot_engine import compute_next_run_at
+        next_run = compute_next_run_at(
+            json.loads(cfg.get("days_of_week") or "[]"), cfg.get("post_time", "09:00"),
+            cfg.get("lead_minutes", 45),
+        )
+        updates["next_run_at"] = next_run.isoformat()
+    db.update_autopilot_config(config_id, **updates)
+    return jsonify({"ok": True, "active": new_active})
+
+
+@app.route("/api/autopilot/<int:config_id>", methods=["DELETE"])
+@login_required
+def api_autopilot_delete(config_id):
+    db.delete_autopilot_config(config_id, user_id=current_user.id)
+    return jsonify({"ok": True})
+
+
+def _autopilot_thread():
+    """Check for due Autopilot configs every 5 minutes and run them."""
+    while True:
+        try:
+            for cfg in db.get_due_autopilot_configs():
+                try:
+                    _process_autopilot_config(cfg)
+                except Exception as e:
+                    print(f"[autopilot] config #{cfg['id']} failed: {e}")
+                    try:
+                        db.update_autopilot_config(cfg["id"], last_error=str(e))
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        time.sleep(300)
+
+
+def _process_autopilot_config(cfg: dict):
+    from generators.autopilot_engine import compute_next_run_at, generate_topic
+
+    user_id = cfg["user_id"]
+    user = db.get_user_by_id(user_id)
+    if not user:
+        db.update_autopilot_config(cfg["id"], active=False, last_error="User not found")
+        return
+
+    tier = user.get("subscription_tier", "free")
+    days_of_week = json.loads(cfg.get("days_of_week") or "[]")
+    post_time = cfg.get("post_time", "09:00")
+    lead_minutes = cfg.get("lead_minutes", 45)
+
+    # This run's target post time is this config's stored next_run_at (the
+    # generation kickoff time) plus its own lead time — NOT "now", so late
+    # sweeps don't drift the schedule the user actually configured.
+    run_at = datetime.fromisoformat(cfg["next_run_at"])
+    post_at = run_at + timedelta(minutes=lead_minutes)
+    # Advance the schedule immediately, independent of how long generation
+    # takes, so a slow render never delays the next cycle's due-check.
+    next_run = compute_next_run_at(days_of_week, post_time, lead_minutes, now=run_at)
+
+    if not user.get("is_admin") and tier not in ("pro", "agency"):
+        db.update_autopilot_config(cfg["id"], active=False,
+                                   last_error="Paused: Autopilot requires Pro or Agency.")
+        try:
+            send_notification(user_id, "autopilot_paused", {
+                "name": cfg.get("name"),
+                "reason": "Your plan no longer includes Autopilot (Pro or Agency required).",
+            })
+        except Exception:
+            pass
+        return
+
+    allowed, err = check_usage_gate(user_id)
+    if not allowed:
+        db.update_autopilot_config(cfg["id"], last_error=err, next_run_at=next_run.isoformat())
+        return
+
+    credits = db.get_user_credits(user_id)
+    cost = db.SO_CREDIT_COSTS.get("video_generate", 14)
+    balance = float(credits.get("balance", 0)) + float(credits.get("rollover_balance", 0))
+    if balance < cost:
+        db.update_autopilot_config(cfg["id"], last_error="Skipped this run: insufficient Social Optimize Credits.",
+                                   next_run_at=next_run.isoformat())
+        try:
+            send_notification(user_id, "autopilot_low_credits", {
+                "name": cfg.get("name"), "balance": balance, "needed": cost,
+            })
+        except Exception:
+            pass
+        return
+
+    recent_topics = json.loads(cfg.get("recent_topics") or "[]")
+    topic = generate_topic(cfg["niche"], recent_topics, tier)
+    recent_topics = (recent_topics + [topic])[-20:]
+
+    platforms = json.loads(cfg.get("platforms") or "[]")
+    job_id = db.create_job(
+        topic=topic, format=cfg.get("format", "short"), platforms=platforms,
+        audience=cfg.get("audience", "general public"),
+        voice=cfg.get("voice") or config.DEFAULT_VOICE,
+        style=cfg.get("style", "fire"), privacy="private", skip_research=False, user_id=user_id,
+    )
+    params = {
+        "topic": topic, "format": cfg.get("format", "short"), "platforms": platforms,
+        "audience": cfg.get("audience", "general public"),
+        "voice": cfg.get("voice") or config.DEFAULT_VOICE,
+        "thumbnail_style": cfg.get("style", "fire"), "privacy": "private",
+        "skip_research": False, "ai_model": "auto", "subscription_tier": tier,
+    }
+
+    db.update_autopilot_config(cfg["id"], last_run_at=datetime.utcnow().isoformat(),
+                               next_run_at=next_run.isoformat(), recent_topics=recent_topics,
+                               last_error=None)
+
+    t = threading.Thread(
+        target=_run_autopilot_job_and_schedule,
+        args=(cfg["id"], job_id, params, user_id, platforms, post_at.isoformat()),
+        daemon=True,
+    )
+    t.start()
+
+
+def _run_autopilot_job_and_schedule(config_id: int, job_id: int, params: dict, user_id: int,
+                                     platforms: list, post_at_iso: str):
+    """Run the generation job to completion, then — if it succeeded — queue a
+    scheduled_posts row per platform so the existing scheduler thread
+    publishes it at the configured time."""
+    _run_job_thread(job_id, params, user_id)
+    job = db.get_job(job_id)
+    if job and job.get("status") == "done" and job.get("video_path"):
+        for platform in platforms:
+            db.create_scheduled_post(user_id=user_id, job_id=job_id, platform=platform,
+                                     scheduled_at=post_at_iso)
+        db.update_autopilot_config(config_id, last_job_id=job_id)
+    else:
+        error = (job or {}).get("error_msg") or "Generation failed"
+        db.update_autopilot_config(config_id, last_error=f"Job #{job_id} failed: {error}")
+
+
 # ── The Cut ───────────────────────────────────────────────────────────────────
 
 _editing_jobs: dict = {}
@@ -8049,7 +9697,16 @@ def _push_editing_event(job_id: str, data: dict):
 
 def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
     from generators.editing_room import produce, STUDIO_PRESETS
+    from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
     from pathlib import Path as P
+
+    if user_id:
+        try:
+            _tok = _get_user_higgsfield_token(user_id)
+            _avg._session_token.value = _tok
+            _hmcp._session_token.value = _tok
+        except Exception as e:
+            print(f"[editing] Higgsfield token setup failed (non-fatal): {e}")
 
     def _cb(msg, pct):
         with _editing_lock:
@@ -8071,18 +9728,19 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
         use_ai_clips = params.get("use_ai_clips", False)
         custom_bgm = params.get("custom_bgm_path")
         section_media = params.get("section_media", {})
+        voice = params.get("voice") or config.DEFAULT_VOICE
         result = produce(
             studio=studio, topic=topic, sections=sections,
             output_dir=output_dir, subtitle=subtitle, progress_cb=_cb,
             use_ai_clips=use_ai_clips, custom_bgm_path=custom_bgm,
-            section_media=section_media,
+            section_media=section_media, voice=voice,
         )
 
         # Create a job record in the DB so it shows in /jobs and can be remixed
         db_job_id = db.create_job(
             topic=topic, format=f"editing_{studio}",
             platforms=[], audience="general public",
-            voice="espeak", style=studio, privacy="private",
+            voice=voice, style=studio, privacy="private",
             user_id=user_id,
         )
         db.update_job(
@@ -8101,6 +9759,10 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
 
         if user_id:
             db.increment_user_usage(user_id, videos=1)
+            try:
+                db.deduct_credits(user_id, "remix_generate", "The Cut edit")
+            except Exception as _ue:
+                print(f"[editing #{editing_job_id}] credit tracking failed (non-fatal): {_ue}")
 
         with _editing_lock:
             _editing_jobs[editing_job_id].update({
@@ -8124,7 +9786,60 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
 @login_required
 def editing_room_page():
     jobs = db.get_jobs(limit=50, user_id=current_user.id)
-    return render_template("editing_room.html", jobs=jobs, active_page="editing-room")
+    return render_template("editing_room.html", jobs=jobs, active_page="editing-room",
+                           voices=config.VOICE_CATALOG, user_default_voice=current_user.default_voice)
+
+
+def _load_job_sections(job: dict) -> list:
+    """Load a completed job's real per-section narration so The Cut can re-voice
+    it. Reads the job's script.json (via its manifest) and normalizes each
+    section to {heading, narration}. Returns [] if nothing usable is found —
+    the editor then falls back to the title, as before."""
+    manifest_path = (job or {}).get("manifest_path") or ""
+    candidates = []
+    try:
+        if manifest_path and Path(manifest_path).exists():
+            with open(manifest_path) as f:
+                manifest = json.load(f)
+            script_ref = (manifest.get("files") or {}).get("script")
+            if script_ref:
+                candidates.append(Path(script_ref))
+            # The Cut's own manifests carry the sections inline.
+            if isinstance(manifest.get("sections"), list):
+                candidates.append(manifest)
+            candidates.append(Path(manifest_path).parent / "script.json")
+    except Exception as e:
+        print(f"[editing] could not read manifest for job {job.get('id')}: {e}")
+
+    for cand in candidates:
+        try:
+            if isinstance(cand, dict):
+                data = cand
+            elif cand.exists():
+                with open(cand) as f:
+                    data = json.load(f)
+            else:
+                continue
+            raw = data.get("sections") or []
+            out = []
+            for i, s in enumerate(raw):
+                if not isinstance(s, dict):
+                    continue
+                narration = (s.get("narration") or "").strip()
+                if not narration:
+                    continue
+                heading = (s.get("heading") or s.get("label") or f"SECTION {i + 1}").strip()
+                out.append({"heading": heading, "narration": narration})
+            if out:
+                return out
+            # No per-section text, but a full narration is still re-voiceable.
+            full = (data.get("narration") or data.get("narration_full")
+                    or data.get("voiceover_full") or "").strip()
+            if full:
+                return [{"heading": "SECTION 1", "narration": full}]
+        except Exception as e:
+            print(f"[editing] could not parse sections from {cand}: {e}")
+    return []
 
 
 @app.route("/editing-room/remix/<int:job_id>")
@@ -8134,7 +9849,10 @@ def editing_room_remix(job_id):
     if not job:
         return redirect("/editing-room")
     jobs = db.get_jobs(limit=50, user_id=current_user.id)
-    return render_template("editing_room.html", jobs=jobs, remix_job=job, active_page="editing-room")
+    remix_sections = _load_job_sections(job)
+    return render_template("editing_room.html", jobs=jobs, remix_job=job,
+                           remix_sections=remix_sections, active_page="editing-room",
+                           voices=config.VOICE_CATALOG, user_default_voice=current_user.default_voice)
 
 
 @app.route("/api/editing-room/produce", methods=["POST"])
@@ -8188,6 +9906,7 @@ def api_editing_room_produce():
         "source_job_id": data.get("source_job_id"),
         "use_ai_clips": bool(data.get("use_ai_clips", False)),
         "custom_bgm_path": custom_bgm_path,
+        "voice": data.get("voice") or current_user.default_voice or config.DEFAULT_VOICE,
         "section_media": data.get("section_media", {}),
     }
 
@@ -8332,12 +10051,6 @@ def api_rate_job(job_id):
     return jsonify({"ok": True, "rating": rating})
 
 
-# ── Startup ───────────────────────────────────────────────────────────────────
-
-init_monetizer_tables()
-from generators.studio_intelligence import init_intelligence_tables
-init_intelligence_tables()
-_load_platform_creds_from_db()
 # ── Agency Command Center ─────────────────────────────────────────────────────
 
 @app.route("/agency")
@@ -8347,7 +10060,8 @@ def agency_page():
     clients = db.get_agency_clients(current_user.id)
     deals = db.get_agency_deals(current_user.id)
     projects = db.get_agency_projects(current_user.id)
-    return render_template("agency.html", stats=stats, clients=clients, deals=deals, projects=projects)
+    return render_template("agency.html", stats=stats, clients=clients, deals=deals, projects=projects,
+                           studios=config.STUDIOS)
 
 @app.route("/api/agency/clients", methods=["GET"])
 @login_required
@@ -8610,41 +10324,72 @@ Return JSON with "subject" and "body" keys only."""
         return jsonify({"error": str(e)}), 500
 
 
-start_background_threads()
+# ── Startup ───────────────────────────────────────────────────────────────────
+# Everything below touches the database (DDL, credential loads) or starts
+# worker threads that assume the database exists. It must only run once the
+# database is confirmed reachable — inline on a normal boot, or from the
+# background retry thread after an outage. If any of this ran unconditionally
+# at import time, a database blip at deploy would kill the gunicorn worker and
+# Render would serve a bare 502 for every request until a human intervened.
 
-# Start the job monitor agent (auto-resets stuck jobs every 5 min)
-from agents.job_monitor import start as _start_monitor  # noqa: E402
-_start_monitor()
+def _post_db_startup():
+    init_monetizer_tables()
+    try:
+        init_whop_tables()
+    except Exception as e:
+        # A Whop schema hiccup must never take down the whole app at boot.
+        print(f"[boot] init_whop_tables failed (continuing without Whop): {e}")
+    from generators.studio_intelligence import init_intelligence_tables
+    init_intelligence_tables()
+    _load_platform_creds_from_db()
 
-# Start agency workers
-from agents.followup_agent import start as _start_followup  # noqa: E402
-_start_followup()
-from agents.asset_tracker import start as _start_asset_tracker  # noqa: E402
-_start_asset_tracker()
+    start_background_threads()
 
-# Start executive C-suite agents (IEBC Consultants)
-from agents.executive_bus import init_bus_tables as _init_bus  # noqa: E402
-_init_bus()
-from agents.marcus_growth import start as _start_marcus  # noqa: E402
-_start_marcus()
-from agents.elena_enterprise import start as _start_elena  # noqa: E402
-_start_elena()
-from agents.julian_retention import start as _start_julian  # noqa: E402
-_start_julian()
-from agents.sterling_business import start as _start_sterling  # noqa: E402
-_start_sterling()
-from agents.vivian_finance import start as _start_vivian  # noqa: E402
-_start_vivian()
-from agents.nova_product import start as _start_nova  # noqa: E402
-_start_nova()
-from agents.rex_revops import start as _start_rex  # noqa: E402
-_start_rex()
-from agents.aria_success import start as _start_aria  # noqa: E402
-_start_aria()
-from agents.isabella_email import start as _start_isabella  # noqa: E402
-_start_isabella()
-from agents.sterling_pierce import start as _start_sterling_pierce  # noqa: E402
-_start_sterling_pierce()
+    # Job monitor agent (auto-resets stuck jobs every 5 min)
+    from agents.job_monitor import start as _start_monitor
+    _start_monitor()
+
+    # Agency workers
+    from agents.followup_agent import start as _start_followup
+    _start_followup()
+    from agents.asset_tracker import start as _start_asset_tracker
+    _start_asset_tracker()
+
+    # Executive C-suite agents (IEBC Consultants)
+    from agents.executive_bus import init_bus_tables as _init_bus
+    _init_bus()
+    from agents.marcus_growth import start as _start_marcus
+    _start_marcus()
+    from agents.elena_enterprise import start as _start_elena
+    _start_elena()
+    from agents.julian_retention import start as _start_julian
+    _start_julian()
+    from agents.sterling_business import start as _start_sterling
+    _start_sterling()
+    from agents.vivian_finance import start as _start_vivian
+    _start_vivian()
+    from agents.nova_product import start as _start_nova
+    _start_nova()
+    from agents.rex_revops import start as _start_rex
+    _start_rex()
+    from agents.aria_success import start as _start_aria
+    _start_aria()
+    from agents.isabella_email import start as _start_isabella
+    _start_isabella()
+    from agents.sterling_pierce import start as _start_sterling_pierce
+    _start_sterling_pierce()
+
+
+if _db_ready:
+    # Must not raise: an exception here happens at module import and would crash
+    # the gunicorn worker (502) instead of degrading. The DB-retry path already
+    # wraps this — mirror that resilience on the healthy-DB path too.
+    try:
+        _post_db_startup()
+    except Exception as _startup_err:
+        import traceback as _tb
+        print(f"[boot] _post_db_startup error (serving anyway): {_startup_err}")
+        _tb.print_exc()
 
 if __name__ == "__main__":
     print("\n  Social Money - Command Center")

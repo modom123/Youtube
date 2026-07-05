@@ -176,19 +176,9 @@
 </div>
 
 <script>
-async function purchasePkg(pkgId, name, price) {
-  if (!confirm(`Purchase "${name}" for $${price.toFixed(2)}?`)) return;
-  const r = await fetch('/api/credits/purchase', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({package_id: pkgId})
-  });
-  const d = await r.json();
-  if (d.ok) {
-    alert(`Success! ${d.credits|0} credits added. New balance: ${Math.round(d.balance)} cr`);
-    location.reload();
-  } else {
-    alert('Error: ' + (d.error || 'Unknown error'));
-  }
+function purchasePkg(pkgId, name, price) {
+  if (!confirm(`Purchase "${name}" for $${price.toFixed(2)}? You'll be redirected to secure checkout.`)) return;
+  window.location.href = `/billing/checkout/credits/${pkgId}`;
 }
 
 async function adminTopup() {

@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 
 _client: anthropic.Anthropic | None = None
-_MAX_RETRIES = 3
+_MAX_RETRIES = 5
 
 
 def _get_client() -> anthropic.Anthropic:
@@ -77,19 +77,34 @@ class BaseAgent:
                     self.name, attempt + 1, _MAX_RETRIES, exc,
                 )
                 if attempt < _MAX_RETRIES - 1:
-                    # Feed the error back so Claude can self-correct
+                    # Feed the error back so Claude can self-correct. A field-by-field
+                    # breakdown (rather than the raw exception repr) is much more
+                    # actionable for the model than a wall of pydantic internals —
+                    # this is what actually drives the retry's success rate up.
+                    if isinstance(exc, ValidationError):
+                        field_notes = "\n".join(
+                            f"- '{'.'.join(str(p) for p in e['loc'])}': {e['msg']}"
+                            for e in exc.errors()
+                        )
+                        feedback = (
+                            f"Your previous response failed schema validation on these exact fields:\n"
+                            f"{field_notes}\n\n"
+                            "Fix ONLY these issues. Every list field must be fully populated with "
+                            "real, specific content meeting its minimum length — never leave a "
+                            "required list empty. Return the COMPLETE corrected JSON object with "
+                            "every field present, not just the ones listed above. "
+                            "No markdown, no explanation — pure JSON only."
+                        )
+                    else:
+                        feedback = (
+                            f"Your previous response was not valid JSON: {exc}\n\n"
+                            "Return the complete corrected JSON object. No markdown, no "
+                            "explanation — pure JSON only."
+                        )
                     messages = [
                         {"role": "user", "content": user_message},
                         {"role": "assistant", "content": raw},
-                        {
-                            "role": "user",
-                            "content": (
-                                f"Your previous response failed validation with this error:\n{exc}\n\n"
-                                "Fix the JSON so it matches the schema exactly. "
-                                "Make sure all required list fields have at least the minimum number of items. "
-                                "Return only the corrected JSON object — no markdown, no explanation."
-                            ),
-                        },
+                        {"role": "user", "content": feedback},
                     ]
 
         raise last_error  # all retries exhausted

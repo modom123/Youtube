@@ -115,10 +115,7 @@
       <label>Voice</label>
       <select id="p-voice">
         {% for v in voices %}
-        <option value="{{ v }}">{{ v }}</option>
-        {% endfor %}
-        {% for v in google_tts_voices %}
-        <option value="{{ v.id }}">{{ v.name }} ({{ v.locale }})</option>
+        <option value="{{ v.id }}">{{ v.label }}</option>
         {% endfor %}
       </select>
     </div>
@@ -169,7 +166,7 @@
       <span class="p-tag">{{ p.age_range }}</span>
     </div>
     <div class="p-meta">
-      <span>Voice: {{ p.voice_id.split('-')|last }}</span>
+      <span>Voice: {{ p.voice_id|voice_name }}</span>
       <span>Used {{ p.use_count }}x</span>
     </div>
     <div class="p-actions">
@@ -210,7 +207,7 @@
       <span class="p-tag">{{ p.avatar_style }}</span>
     </div>
     <div class="p-meta">
-      <span>Voice: {{ p.voice_id.split('-')|last }}</span>
+      <span>Voice: {{ p.voice_id|voice_name }}</span>
       <span>Model: {{ p.model_preference }}</span>
       <span>Used {{ p.use_count }}x</span>
     </div>

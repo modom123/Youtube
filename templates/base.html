@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Social Optimize{% endblock %}</title>
 
+  <!-- Studio hubs embed sub-pages in an iframe. If such a page loads without
+       the ?embed flag (e.g. a redirect or an internal link dropped the query
+       string), the full app chrome would reappear inside the hub — a second
+       sidebar ("double left tabs"). Detecting the iframe context here, before
+       first paint, hides the chrome no matter how the page was reached. -->
+  <script>if (window.self !== window.top) document.documentElement.classList.add('embedded-frame');</script>
+
   <!-- PWA -->
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#d4a017">
@@ -31,8 +38,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
-<body>
-<div class="layout">
+<body{% if request.args.get('embed') %} class="embedded"{% endif %}>
+<div class="layout{% if request.args.get('embed') %} embed{% endif %}">
 
   <!-- Sidebar -->
   {% if not request.args.get('embed') %}
@@ -50,35 +57,48 @@
       <a href="/dashboard" class="nav-item {% if active_page=='dashboard' %}active{% endif %}">
         <span class="icon">⚡</span> Dashboard
       </a>
-      <a href="/create" class="nav-item {% if active_page=='create' %}active{% endif %}">
-        <span class="icon">🚀</span> Create Content
-      </a>
-      <a href="/quickpost" class="nav-item {% if active_page=='quickpost' %}active{% endif %}">
-        <span class="icon">📸</span> Quick Post
-      </a>
-      <a href="/studio" class="nav-item {% if active_page=='studio' %}active{% endif %}" title="The Forge — Premium YouTube video production">
-        <span class="icon">🔥</span> The Forge
-      </a>
-      <a href="/commercial" class="nav-item {% if active_page=='commercial' %}active{% endif %}" title="Ad Lab — Scroll-stopping product ads">
-        <span class="icon">📢</span> Ad Lab
-      </a>
-      <a href="/hollywood" class="nav-item {% if active_page=='hollywood' %}active{% endif %}" title="Cinema House — Documentary-grade storytelling">
-        <span class="icon">🎬</span> Cinema House
-      </a>
-      <a href="/music-studio" class="nav-item {% if active_page=='music' %}active{% endif %}" title="Hit Factory — Beats that sound radio-ready">
-        <span class="icon">🎵</span> Hit Factory
-      </a>
-      <a href="/podcast-studio" class="nav-item {% if active_page=='podcast' %}active{% endif %}" title="Podcast Studio — Record, edit, and publish episodes">
-        <span class="icon">🎙️</span> Podcast Studio
-      </a>
-      <a href="/batch" class="nav-item {% if active_page=='batch' %}active{% endif %}">
-        <span class="icon">📦</span> The Forge Batch
-      </a>
       <a href="/jobs" class="nav-item {% if active_page=='jobs' %}active{% endif %}">
         <span class="icon">📋</span> Jobs
       </a>
 
-      <span class="sidebar-section-label">Publishing</span>
+      <span class="sidebar-section-label">Studios</span>
+      <a href="/video-studio" class="nav-item {% if active_page in ('video-studio','create','studio','batch','hollywood','podcast','music','ranking') %}active{% endif %}" title="Video Studio — Shorts, longs, documentaries, podcasts, rankings &amp; soundtracks in one place">
+        <span class="icon">🎬</span> Video Studio
+      </a>
+      <a href="/commercial" class="nav-item {% if active_page=='commercial' %}active{% endif %}" title="Ad Studio — Scroll-stopping product ads">
+        <span class="icon">📢</span> Ad Studio
+      </a>
+      <a href="/clip-studio" class="nav-item {% if active_page in ('clip-studio','clipper','editing-room') %}active{% endif %}" title="Clip &amp; Edit Studio — Turn footage you already have into more content">
+        <span class="icon">✂️</span> Clip &amp; Edit
+      </a>
+      <a href="/images" class="nav-item {% if active_page in ('image-studio','quickpost') %}active{% endif %}" title="Image Studio — Generate images or post your own, published anywhere">
+        <span class="icon">🎨</span> Image Studio
+      </a>
+      {% if current_user.is_authenticated and (current_user.is_admin or current_user.subscription_tier in ('pro','agency')) %}
+      <a href="/autopilot" class="nav-item {% if active_page=='autopilot' %}active{% endif %}" title="Autopilot — Pro &amp; Agency: fully automated recurring content generation and posting">
+        <span class="icon">🤖</span> Autopilot
+      </a>
+      {% endif %}
+      <a href="/templates-library" class="nav-item {% if active_page=='templates' %}active{% endif %}">
+        <span class="icon">📁</span> Templates
+      </a>
+
+      <span class="sidebar-section-label">Sales &amp; Marketing</span>
+      <a href="/madison-avenue" class="nav-item {% if active_page=='madison_avenue' %}active{% endif %}" title="Madison Avenue — Contacts, Inbox, Engagement, Outreach &amp; Competitors in one place">
+        <span class="icon">📇</span> Madison Avenue
+        <span id="inbox-badge" style="display:none;margin-left:auto;background:var(--accent);color:#fff;font-size:9px;font-weight:800;border-radius:10px;padding:1px 6px;"></span>
+      </a>
+      <a href="/agency" class="nav-item {% if active_page=='agency' %}active{% endif %}" title="Agency Command Center — Clients, Deals, Projects, Revenue">
+        <span class="icon">🏢</span> Agency
+      </a>
+      {% if current_user.is_authenticated and (current_user.is_admin or current_user.subscription_tier=='agency') %}
+      <a href="/agency/landing-pages" class="nav-item {% if active_page=='landing_pages' %}active{% endif %}" title="Landing Pages — Agency-tier: generate a real published website via Gamma">
+        <span class="icon">🌐</span> Landing Pages
+      </a>
+      {% endif %}
+      <a href="/crm" class="nav-item {% if active_page=='crm' %}active{% endif %}" title="CRM — Pipeline, Contacts, Companies, Activities, Tasks">
+        <span class="icon">🗂️</span> CRM
+      </a>
       <a href="/calendar" class="nav-item {% if active_page=='calendar' %}active{% endif %}">
         <span class="icon">📅</span> Content Calendar
       </a>
@@ -88,59 +108,41 @@
       <a href="/accounts" class="nav-item {% if active_page=='accounts' %}active{% endif %}">
         <span class="icon">🔗</span> Social Accounts
       </a>
-      <a href="/madison-avenue" class="nav-item {% if active_page=='madison_avenue' %}active{% endif %}" title="Madison Avenue — Contacts, Inbox, Engagement, Outreach &amp; Competitors in one place">
-        <span class="icon">📇</span> Madison Avenue
-        <span id="inbox-badge" style="display:none;margin-left:auto;background:var(--accent);color:#fff;font-size:9px;font-weight:800;border-radius:10px;padding:1px 6px;"></span>
-      </a>
-      <a href="/agency" class="nav-item {% if active_page=='agency' %}active{% endif %}" title="Agency Command Center — Clients, Deals, Projects, Revenue">
-        <span class="icon">🏢</span> Agency
-      </a>
-      <a href="/crm" class="nav-item {% if active_page=='crm' %}active{% endif %}" title="CRM — Pipeline, Contacts, Companies, Activities, Tasks">
-        <span class="icon">🗂️</span> CRM
-      </a>
+
+      <span class="sidebar-section-label">Finance</span>
       <a href="/credits" class="nav-item {% if active_page=='credits' %}active{% endif %}" title="Social Optimize Credits — Balance, Top-ups, History">
         <span class="icon">🪙</span> Credits
       </a>
-
-      <span class="sidebar-section-label">Tools</span>
-      <a href="/clipper" class="nav-item {% if active_page=='clipper' %}active{% endif %}">
-        <span class="icon">✂️</span> The Scalpel
-      </a>
-      <a href="/editing-room" class="nav-item {% if active_page=='editing-room' %}active{% endif %}">
-        <span class="icon">🎛️</span> The Cut
-      </a>
-      <a href="/music-studio" class="nav-item {% if active_page=='music-studio' %}active{% endif %}">
-        <span class="icon">🎵</span> Hit Factory
-      </a>
-      <a href="/templates-library" class="nav-item {% if active_page=='templates' %}active{% endif %}">
-        <span class="icon">📁</span> Templates
-      </a>
-      <a href="/team" class="nav-item {% if active_page=='team' %}active{% endif %}">
-        <span class="icon">🏢</span> Team
-      </a>
-
-      <span class="sidebar-section-label">Account</span>
       <a href="/billing" class="nav-item {% if active_page=='billing' %}active{% endif %}">
         <span class="icon">💳</span> Billing &amp; Plan
       </a>
-      <a href="/settings" class="nav-item {% if active_page=='settings' %}active{% endif %}">
-        <span class="icon">⚙️</span> Settings
-      </a>
       {% if current_user.is_authenticated and current_user.is_admin %}
-      <a href="/admin" class="nav-item {% if active_page=='admin' %}active{% endif %}">
-        <span class="icon">🛡</span> Admin
+      <a href="/finance" class="nav-item {% if active_page=='finance' %}active{% endif %}" title="Finance — IEBC Efficiency Accounting, Subscriptions, Credits">
+        <span class="icon">💵</span> Finance
       </a>
       <a href="/monetizer" class="nav-item {% if active_page=='monetizer' %}active{% endif %}">
         <span class="icon">💰</span> Monetizer
       </a>
-      <a href="/monetizer/executives" class="nav-item {% if active_page=='executives' %}active{% endif %}">
-        <span class="icon">🏛</span> IEBC C-Suite
-      </a>
       <a href="/monetizer/plan" class="nav-item {% if active_page=='plan' %}active{% endif %}">
         <span class="icon">📊</span> Business Plan
       </a>
-      <a href="/finance" class="nav-item {% if active_page=='finance' %}active{% endif %}" title="Finance — IEBC Efficiency Accounting, Subscriptions, Credits">
-        <span class="icon">💵</span> Finance
+      {% endif %}
+
+      <span class="sidebar-section-label">Tools</span>
+      <a href="/team" class="nav-item {% if active_page=='team' %}active{% endif %}">
+        <span class="icon">🏢</span> Team
+      </a>
+      <a href="/settings" class="nav-item {% if active_page=='settings' %}active{% endif %}">
+        <span class="icon">⚙️</span> Settings
+      </a>
+
+      {% if current_user.is_authenticated and current_user.is_admin %}
+      <span class="sidebar-section-label">Admin</span>
+      <a href="/admin" class="nav-item {% if active_page=='admin' %}active{% endif %}">
+        <span class="icon">🛡</span> Admin
+      </a>
+      <a href="/monetizer/executives" class="nav-item {% if active_page=='executives' %}active{% endif %}">
+        <span class="icon">🏛</span> IEBC C-Suite
       </a>
       {% endif %}
     </nav>
@@ -294,6 +296,48 @@ setInterval(loadNotifications, 30000);
   </div>
 </div>
 
+<style>
+.voice-picker { display:flex; flex-direction:column; gap:6px; max-height:320px; overflow-y:auto; padding:2px 6px 2px 2px; }
+.vp-row { display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--border);
+  border-radius:10px; cursor:pointer; background:var(--bg-elevated,var(--bg)); transition:border-color .15s, background .15s; }
+.vp-row:hover { border-color:var(--accent); }
+.vp-row.vp-selected { border-color:var(--accent); background:rgba(212,160,23,.10); }
+.vp-play { flex:0 0 auto; width:34px; height:34px; border-radius:50%; border:1px solid var(--border);
+  background:var(--card); color:var(--text); cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; }
+.vp-play:hover { border-color:var(--accent); color:var(--accent); }
+.vp-play.vp-loading { opacity:.5; }
+.vp-meta { flex:1; min-width:0; }
+.vp-name { font-weight:700; font-size:13px; color:var(--text); display:flex; align-items:center; gap:8px; }
+.vp-style { font-size:11px; color:var(--muted); }
+.vp-badge { font-size:9px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; padding:1px 6px; border-radius:8px; }
+.vp-badge.vp-female { background:rgba(236,72,153,.18); color:#ec4899; }
+.vp-badge.vp-male { background:rgba(59,130,246,.18); color:#3b82f6; }
+.vp-check { flex:0 0 auto; color:var(--accent); font-weight:900; opacity:0; }
+.vp-row.vp-selected .vp-check { opacity:1; }
+</style>
+<script>
+// Shared voice-picker helpers (used by the _voice_picker.html macro).
+var _vpAudio = null;
+function vpSelect(row) {
+  var picker = row.closest('.voice-picker');
+  picker.querySelectorAll('.vp-row').forEach(function(r){ r.classList.remove('vp-selected'); });
+  row.classList.add('vp-selected');
+  var input = document.getElementById(picker.dataset.target);
+  if (input) { input.value = row.dataset.voice; input.dispatchEvent(new Event('change')); }
+}
+function vpPlay(ev, voiceId) {
+  ev.stopPropagation();
+  var btn = ev.currentTarget;
+  if (_vpAudio) { _vpAudio.pause(); _vpAudio = null; }
+  btn.classList.add('vp-loading'); btn.textContent = '…';
+  _vpAudio = new Audio('/api/voice-sample/' + encodeURIComponent(voiceId));
+  var done = function(){ btn.classList.remove('vp-loading'); btn.textContent = '▶'; };
+  _vpAudio.onplaying = function(){ btn.classList.remove('vp-loading'); btn.textContent = '⏸'; };
+  _vpAudio.onended = done;
+  _vpAudio.onerror = function(){ done(); btn.textContent = '⚠'; setTimeout(function(){ btn.textContent='▶'; }, 1500); };
+  _vpAudio.play().catch(done);
+}
+</script>
 <script>
 var _hermesHistory = [];
 var _hermesOpen = false;
