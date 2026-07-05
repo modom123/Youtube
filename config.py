@@ -267,12 +267,12 @@ ANTHROPIC_COST_PER_M_TOKENS = {
     "sonnet": {"input": 3.0, "output": 15.0},  # claude-sonnet-4-6
 }
 
-# Higgsfield credits — real account data (checked via balance/transactions):
-# Starter plan grants 270 credits for $15/mo -> $0.0556/credit base rate.
-# Overage top-ups run $0.10-0.15/credit per https://higgsfield.ai/pricing —
-# using the midpoint. Update HIGGSFIELD_COST_PER_CREDIT_BASE if you change
-# Higgsfield plans.
-HIGGSFIELD_COST_PER_CREDIT_BASE  = float(os.getenv("HIGGSFIELD_COST_PER_CREDIT_BASE", "0.0556"))
+# Higgsfield credits — real account data (checked via balance/transactions).
+# Generation now runs on the Platform API (key+secret) credit pack: 500 credits
+# for $31 -> $0.062/credit. (Subscription base was $0.0556/credit; overage
+# top-ups run $0.10-0.15/credit per https://higgsfield.ai/pricing.) Update
+# HIGGSFIELD_COST_PER_CREDIT_BASE if your credit source/price changes.
+HIGGSFIELD_COST_PER_CREDIT_BASE  = float(os.getenv("HIGGSFIELD_COST_PER_CREDIT_BASE", "0.062"))
 HIGGSFIELD_COST_PER_CREDIT_TOPUP = float(os.getenv("HIGGSFIELD_COST_PER_CREDIT_TOPUP", "0.125"))
 HIGGSFIELD_MONTHLY_BASE_CREDITS  = float(os.getenv("HIGGSFIELD_MONTHLY_BASE_CREDITS", "270"))
 

@@ -1055,7 +1055,8 @@ def job_detail(job_id):
     accounts = db.get_accounts(user_id=current_user.id)
     connected = {a["platform"] for a in accounts if a["is_active"]}
     return render_template("job_detail.html", job=job, dubs=dubs, dub_languages=DUB_LANGUAGES,
-                           connected_platforms=connected)
+                           connected_platforms=connected, voices=config.VOICE_CATALOG,
+                           user_default_voice=current_user.default_voice)
 
 
 @app.route("/api/jobs/<int:job_id>/publish", methods=["POST"])
@@ -1376,6 +1377,95 @@ def upload_job_audio(job_id):
     f.save(str(dest))
     db.update_job(job_id, audio_path=str(dest))
     return jsonify({"ok": True, "audio_path": str(dest)})
+
+
+_revoice_jobs: dict = {}
+_revoice_lock = threading.Lock()
+
+
+def _load_job_narration(job: dict) -> str:
+    """Full narration text for a completed job, for re-voicing."""
+    secs = _load_job_sections(job)
+    return " ".join(s["narration"] for s in secs if s.get("narration")).strip()
+
+
+def _run_revoice_thread(job_id: int, voice: str, user_id: int):
+    import subprocess as _sp
+    import imageio_ffmpeg
+    from generators import audio_generator
+
+    def _set(**kw):
+        with _revoice_lock:
+            st = _revoice_jobs.get(job_id) or {}
+            st.update(kw)
+            _revoice_jobs[job_id] = st
+
+    try:
+        job = db.get_job(job_id, user_id=user_id)
+        if not job:
+            _set(status="error", error="Job not found")
+            return
+        video_path = job.get("video_path") or ""
+        if not video_path or not Path(video_path).exists():
+            _set(status="error", error="This job has no video file on disk to keep.")
+            return
+        narration = _load_job_narration(job)
+        if not narration:
+            _set(status="error", error="Couldn't find this job's script to re-voice.")
+            return
+
+        _set(status="running", step="Generating new voiceover…", progress=20)
+        out_dir = Path(video_path).parent
+        new_audio = out_dir / f"revoice_{int(time.time())}.mp3"
+        audio_generator.generate_audio(text=narration, output_path=new_audio, voice=voice)
+
+        _set(step="Remuxing audio onto video…", progress=70)
+        out_video = out_dir / f"revoiced_{int(time.time())}.mp4"
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        # Keep the original video exactly; pad the new narration with silence and
+        # trim to the video length so the picture is untouched.
+        result = _sp.run(
+            [ffmpeg, "-y", "-i", str(video_path), "-i", str(new_audio),
+             "-filter_complex", "[1:a]apad[aud]",
+             "-map", "0:v:0", "-map", "[aud]",
+             "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
+             str(out_video)],
+            capture_output=True,
+        )
+        if result.returncode != 0 or not out_video.exists():
+            _set(status="error", error="ffmpeg failed to combine the new voice with the video.")
+            return
+
+        db.update_job(job_id, video_path=str(out_video), audio_path=str(new_audio), voice=voice)
+        _set(status="done", progress=100, step="Done", video_path=str(out_video))
+    except Exception as e:
+        _set(status="error", error=str(e))
+
+
+@app.route("/api/jobs/<int:job_id>/revoice", methods=["POST"])
+@login_required
+def api_job_revoice(job_id):
+    """Re-generate a completed job's narration in a new voice and mux it onto the
+    SAME video — keep the picture, swap the voiceover."""
+    job = db.get_job(job_id, user_id=current_user.id)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+    voice = (request.json or {}).get("voice") or current_user.default_voice or config.DEFAULT_VOICE
+    with _revoice_lock:
+        if (_revoice_jobs.get(job_id) or {}).get("status") == "running":
+            return jsonify({"error": "A re-voice is already running for this job."}), 409
+        _revoice_jobs[job_id] = {"status": "running", "progress": 0, "step": "Starting…"}
+    threading.Thread(target=_run_revoice_thread, args=(job_id, voice, current_user.id),
+                     daemon=True).start()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/jobs/<int:job_id>/revoice-status")
+@login_required
+def api_job_revoice_status(job_id):
+    with _revoice_lock:
+        st = _revoice_jobs.get(job_id)
+    return jsonify(st or {"status": "idle"})
 
 
 @app.route("/api/jobs/<int:job_id>/convert", methods=["POST"])
