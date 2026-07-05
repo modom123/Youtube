@@ -394,6 +394,44 @@ def mix_voice_and_music(voice_path: Path, music_path: Path, output_path: Path, m
     return None
 
 
+def trim_audio(input_path: Path, output_path: Path, start: float, duration: float) -> Optional[Path]:
+    """Extract a `duration`-second clip starting at `start` seconds."""
+    import subprocess
+
+    output_path = Path(output_path)
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", str(input_path), "-ss", str(start), "-t", str(duration),
+             "-c:a", "libmp3lame", "-b:a", "192k", str(output_path)],
+            capture_output=True, timeout=30,
+        )
+        if result.returncode == 0 and output_path.exists():
+            return output_path
+        log.warning("Audio trim failed: %s", result.stderr.decode()[:200])
+    except Exception as exc:
+        log.warning("Audio trim failed: %s", exc)
+    return None
+
+
+def set_volume(input_path: Path, output_path: Path, volume: float) -> Optional[Path]:
+    """Re-encode input_path at a flat volume multiplier."""
+    import subprocess
+
+    output_path = Path(output_path)
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", str(input_path), "-filter:a", f"volume={volume}",
+             "-c:a", "libmp3lame", "-b:a", "192k", str(output_path)],
+            capture_output=True, timeout=30,
+        )
+        if result.returncode == 0 and output_path.exists():
+            return output_path
+        log.warning("Volume adjust failed: %s", result.stderr.decode()[:200])
+    except Exception as exc:
+        log.warning("Volume adjust failed: %s", exc)
+    return None
+
+
 # ── Main Engine ────────────────────────────────────────────────────────────────
 
 class MusicEngine:

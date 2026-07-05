@@ -447,6 +447,94 @@ def create_video(
     return output_path
 
 
+def add_outro_splash(
+    video_path: Path,
+    audio_path: Path,
+    output_path: Path,
+    brand: str,
+    tagline: str,
+    splash_duration: float,
+    width: int,
+    height: int,
+) -> Path:
+    """Freeze the last frame of video_path, overlay the brand name (+ tagline)
+    over a darkened scrim, and append it as a splash-duration outro card with
+    audio_path as its soundtrack (already full-volume, no voice — the voice
+    track has ended by this point). Returns output_path: video_path with the
+    outro appended."""
+    ffmpeg = _get_ffmpeg()
+    video_path, audio_path, output_path = Path(video_path), Path(audio_path), Path(output_path)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+
+        # 1. Grab the last frame.
+        last_frame = tmpdir / "last_frame.png"
+        r = subprocess.run(
+            [ffmpeg, "-y", "-sseof", "-1", "-i", str(video_path),
+             "-update", "1", "-q:v", "2", str(last_frame)],
+            capture_output=True, timeout=30,
+        )
+        if r.returncode != 0 or not last_frame.exists():
+            raise RuntimeError(f"Could not extract last frame: {r.stderr.decode('utf-8', errors='replace')[-200:]}")
+
+        # 2. Overlay brand + tagline on a darkened copy of that frame so text stays legible.
+        img = Image.open(last_frame).convert("RGB").resize((width, height))
+        scrim = Image.new("RGB", img.size, (0, 0, 0))
+        img = Image.blend(img, scrim, 0.45)
+        draw = ImageDraw.Draw(img)
+        center_x = width // 2
+
+        brand_font = _load_font(min(64, height // 12))
+        bbox = draw.textbbox((0, 0), brand, font=brand_font)
+        by = int(height * 0.42)
+        draw.text((center_x - (bbox[2] - bbox[0]) // 2, by), brand, font=brand_font, fill=(255, 255, 255))
+
+        if tagline:
+            tagline_font = _load_font(min(28, height // 26), bold=False)
+            ty = by + (bbox[3] - bbox[1]) + 20
+            tbbox = draw.textbbox((0, 0), tagline, font=tagline_font)
+            draw.text((center_x - (tbbox[2] - tbbox[0]) // 2, ty), tagline, font=tagline_font, fill=(230, 230, 230))
+
+        card_path = tmpdir / "splash_card.png"
+        img.save(card_path)
+
+        # 3. Turn the card into a splash_duration clip with the given (music-only) audio.
+        splash_clip = tmpdir / "splash.mp4"
+        r = subprocess.run(
+            [ffmpeg, "-y", "-loop", "1", "-i", str(card_path), "-i", str(audio_path),
+             "-t", f"{splash_duration:.2f}",
+             "-vf", "fade=in:0:8",
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+             "-pix_fmt", "yuv420p", "-r", "24",
+             "-c:a", "aac", "-b:a", "192k",
+             "-shortest",
+             str(splash_clip)],
+            capture_output=True, timeout=30,
+        )
+        if r.returncode != 0 or not splash_clip.exists():
+            raise RuntimeError(f"Could not build outro splash clip: {r.stderr.decode('utf-8', errors='replace')[-200:]}")
+
+        # 4. Append to the main video. Re-encode rather than stream-copy so this
+        # is robust to whichever of create_video()'s two internal encode paths
+        # (primary vs. its own fallback) produced video_path.
+        concat_list = tmpdir / "concat.txt"
+        concat_list.write_text(f"file '{video_path}'\nfile '{splash_clip}'\n")
+        r = subprocess.run(
+            [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+             "-pix_fmt", "yuv420p", "-r", "24",
+             "-c:a", "aac", "-b:a", "192k",
+             "-movflags", "+faststart",
+             str(output_path)],
+            capture_output=True, timeout=60,
+        )
+        if r.returncode != 0 or not output_path.exists():
+            raise RuntimeError(f"Could not append outro splash: {r.stderr.decode('utf-8', errors='replace')[-200:]}")
+
+    return output_path
+
+
 def create_podcast_video(
     audio_path: Path,
     output_path: Path,

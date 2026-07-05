@@ -6076,28 +6076,45 @@ SCRIPT_SECTIONS:
             raise RuntimeError("Voiceover generation failed — couldn't produce narration audio for the commercial.")
 
         # ── Step 5b: Background music bed (ElevenLabs), ducked under the
-        # voiceover -- optional polish, never blocks the commercial if it fails.
+        # voiceover, plus a short music-only outro splash once the voice ends
+        # -- one continuous bed covers both so the music doesn't cut oddly.
+        # Entirely optional polish: any failure just skips it, never blocks
+        # the commercial from completing.
         step("Adding background music...", 60)
+        splash_audio_path = None
+        SPLASH_DUR = 2.5
         try:
             from generators.audio_generator import get_audio_duration
-            from generators.music_generator import generate_background_bed, mix_voice_and_music
+            from generators.music_generator import (
+                generate_background_bed, mix_voice_and_music, trim_audio, set_volume,
+            )
             voice_dur = get_audio_duration(Path(audio_path))
+            use_splash = voice_dur >= 5
+            bed_total = voice_dur + (SPLASH_DUR if use_splash else 0)
             bed_path = generate_background_bed(
                 f"{style} background music for a {duration}-second commercial, "
                 "instrumental only, no vocals, subtle and unobtrusive",
-                voice_dur, out_dir / "bgm.mp3",
+                bed_total, out_dir / "bgm.mp3",
             )
             if bed_path:
-                mixed_path = out_dir / "mixed.mp3"
-                if mix_voice_and_music(Path(audio_path), bed_path, mixed_path, music_vol=0.15):
-                    audio_path = str(mixed_path)
+                body_bed = trim_audio(bed_path, out_dir / "bgm_body.mp3", 0, voice_dur)
+                if body_bed:
+                    mixed_path = out_dir / "mixed.mp3"
+                    if mix_voice_and_music(Path(audio_path), body_bed, mixed_path, music_vol=0.15):
+                        audio_path = str(mixed_path)
+                if use_splash:
+                    splash_bed = trim_audio(bed_path, out_dir / "bgm_splash.mp3", voice_dur, SPLASH_DUR)
+                    if splash_bed:
+                        boosted = set_volume(splash_bed, out_dir / "bgm_splash_boost.mp3", 0.9)
+                        if boosted:
+                            splash_audio_path = str(boosted)
         except Exception as e:
             print(f"[commercial] Background music skipped: {e}")
 
         # ── Step 6: Find 5-7 stock clips that match the story, assemble them ──
         step("Finding clips that match your story...", 65)
         from generators.media_fetcher import fetch_media_for_topic
-        from generators.video_generator import create_video
+        from generators.video_generator import create_video, add_outro_splash
 
         keywords = [brand, product_description, tagline, style]
         keywords = [k for k in keywords if k]
@@ -6126,14 +6143,29 @@ SCRIPT_SECTIONS:
             )
 
         step("Assembling your commercial...", 80)
-        final_video_path = out_dir / "commercial_final.mp4"
+        body_video_path = out_dir / "commercial_body.mp4"
         create_video(
             audio_path=Path(audio_path),
-            output_path=final_video_path,
+            output_path=body_video_path,
             video_clips=video_clips,
             image_clips=image_clips,
             width=720, height=1280,
         )
+        final_video_path = body_video_path
+
+        if splash_audio_path:
+            step("Adding brand outro...", 92)
+            try:
+                spliced_path = out_dir / "commercial_final.mp4"
+                add_outro_splash(
+                    video_path=body_video_path, audio_path=Path(splash_audio_path),
+                    output_path=spliced_path, brand=brand, tagline=tagline,
+                    splash_duration=SPLASH_DUR, width=720, height=1280,
+                )
+                final_video_path = spliced_path
+            except Exception as e:
+                print(f"[commercial] Outro splash skipped: {e}")
+
         final_video = str(final_video_path)
 
         # Save manifest
