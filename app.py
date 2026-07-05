@@ -3317,6 +3317,64 @@ def api_debug_elevenlabs():
     return jsonify(out)
 
 
+@app.route("/api/debug/higgsfield")
+@login_required
+def api_debug_higgsfield():
+    """Diagnose Higgsfield: is a token resolved for this user, and does the MCP
+    endpoint accept it? Turns 'Higgsfield not configured' into a definitive
+    CONNECTED / NO_TOKEN / MCP_REJECTED answer."""
+    from generators import higgsfield_mcp as _hmcp
+
+    tok = (_get_user_higgsfield_token(current_user.id) or "").strip()
+    # Where did the token come from?
+    source = "none"
+    try:
+        for acc in db.get_accounts(user_id=current_user.id):
+            if acc.get("platform") == "higgsfield" and acc.get("is_active") and acc.get("access_token"):
+                source = "oauth_account"
+                break
+        else:
+            if config.HIGGSFIELD_MCP_TOKEN:
+                source = "env_or_settings"
+    except Exception:
+        pass
+
+    out = {
+        "token_resolved": bool(tok),
+        "token_length": len(tok),
+        "token_source": source,
+        "looks_like_url": tok.startswith(("http://", "https://")),
+        "mcp_url": getattr(config, "HIGGSFIELD_MCP_URL", ""),
+    }
+    if not tok:
+        out["status"] = "NO_TOKEN"
+        out["fix"] = ("No Higgsfield token for your account. Go to Social Accounts → "
+                      "Connect Higgsfield (OAuth), or set HIGGSFIELD_MCP_TOKEN.")
+        return jsonify(out)
+    if out["looks_like_url"]:
+        out["status"] = "BAD_TOKEN"
+        out["fix"] = "The saved value is a URL, not a token. Paste the bearer token, not the MCP endpoint."
+        return jsonify(out)
+
+    # Live-test the MCP endpoint with this user's token.
+    _hmcp._session_token.value = tok
+    try:
+        bal = _hmcp.get_balance()
+        if bal is not None:
+            out["status"] = "CONNECTED"
+            out["balance"] = bal
+        else:
+            out["status"] = "MCP_REJECTED"
+            out["fix"] = ("The MCP endpoint didn't accept this token (expired or invalid). "
+                          "Reconnect Higgsfield on the Social Accounts page.")
+    except Exception as e:
+        out["status"] = "MCP_ERROR"
+        out["error"] = str(e)
+    finally:
+        _hmcp._session_token.value = None
+    return jsonify(out)
+
+
 @app.route("/api/test-ai-keys")
 def api_test_ai_keys():
     """Live-test every configured AI key with a minimal real API call."""

@@ -391,13 +391,32 @@ def generate_clips_via_mcp(
     return results
 
 
+def _find_image_url(text: str) -> Optional[str]:
+    for pat in [
+        r'"url"\s*:\s*"(https://[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
+        r'"(?:image_url|download_url|output_url)"\s*:\s*"(https://[^"]+)"',
+        r'(https://\S+\.(?:jpg|jpeg|png|webp)(?:\?\S*)?)',
+    ]:
+        m = re.search(pat, text, re.IGNORECASE)
+        if m:
+            return m.group(1)
+    return None
+
+
 def generate_image_via_mcp(
     prompt: str,
     output_path: Path,
     model_id: str = "flux_2",
     aspect_ratio: str = "16:9",
+    max_poll: int = 240,
 ) -> Optional[Path]:
-    """Generate a single image via Higgsfield MCP. Returns path or None."""
+    """Generate a single image via Higgsfield MCP. Returns path or None.
+
+    Handles both inline results (URL returned immediately) and async jobs
+    (a job id that must be polled via job_display) — the latter is what FLUX.2
+    and other higher-quality models return, and not polling for it was making
+    the Image Studio report 'returned nothing / not connected'.
+    """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -412,16 +431,38 @@ def generate_image_via_mcp(
             }
         })
         text = _text(result)
-        # Look for image URL
-        for pat in [
-            r'"url"\s*:\s*"(https://[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
-            r'(https://\S+\.(?:jpg|jpeg|png|webp)(?:\?\S*)?)',
-        ]:
-            m = re.search(pat, text, re.IGNORECASE)
-            if m:
-                _download(m.group(1), output_path)
-                if output_path.exists() and output_path.stat().st_size > 1_000:
-                    return output_path
+
+        # 1. Inline URL → done immediately.
+        url = _find_image_url(text)
+        if url:
+            _download(url, output_path)
+            if output_path.exists() and output_path.stat().st_size > 1_000:
+                return output_path
+
+        # 2. Otherwise poll the job until the image is ready.
+        job_id = _find_job_id(text)
+        if not job_id:
+            print(f"[higgsfield_mcp] Image gen: no URL or job id in response — {text[:200]}")
+            return None
+
+        elapsed, wait = 0, 8
+        while elapsed < max_poll:
+            time.sleep(wait)
+            elapsed += wait
+            try:
+                poll = session.call("job_display", {"id": job_id})
+                pt = _text(poll)
+                url = _find_image_url(pt)
+                if url:
+                    _download(url, output_path)
+                    if output_path.exists() and output_path.stat().st_size > 1_000:
+                        return output_path
+                if any(s in pt for s in ('"failed"', '"error"', '"cancelled"')):
+                    print(f"[higgsfield_mcp] Image job {job_id} failed — {pt[:200]}")
+                    return None
+            except Exception as pe:
+                print(f"[higgsfield_mcp] Image poll error: {pe}")
+        print(f"[higgsfield_mcp] Image job {job_id} timed out after {max_poll}s")
     except Exception as e:
         print(f"[higgsfield_mcp] Image gen error: {e}")
     return None
