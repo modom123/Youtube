@@ -1712,15 +1712,14 @@ def api_personas_delete(persona_id):
 def accounts_page():
     accounts = db.get_accounts(user_id=current_user.id)
     connected = {a["platform"] for a in accounts if a.get("is_active", True)}
-    higgsfield_connected = any(
-        a.get("platform") == "higgsfield" and a.get("is_active") and a.get("access_token")
-        for a in accounts
-    )
+    higgsfield_via_api = bool(getattr(config, "HIGGSFIELD_API_CREDENTIAL", ""))
+    higgsfield_connected = _higgsfield_connected(current_user.id)
     return render_template(
         "accounts.html",
         accounts=accounts,
         connected=connected,
         higgsfield_connected=higgsfield_connected,
+        higgsfield_via_api=higgsfield_via_api,
         is_admin=current_user.is_admin,
         youtube_configured=bool(config.YOUTUBE_CLIENT_ID),
         tiktok_configured=bool(config.TIKTOK_CLIENT_KEY),
@@ -2488,39 +2487,47 @@ def _hf_discover() -> dict:
 @app.route("/oauth/higgsfield/start")
 @login_required
 def oauth_higgsfield_start():
-    import hashlib
-    import base64
-    import secrets as _sec
-    disc = _hf_discover()
-    auth_ep = disc.get("authorization_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/authorize")
+    # If Platform API key+secret are already configured, OAuth is unnecessary —
+    # send the user back with a clear message instead of into a flow they don't need.
+    if getattr(config, "HIGGSFIELD_API_CREDENTIAL", ""):
+        return redirect(url_for("accounts_page") + "?connected=higgsfield")
+    try:
+        import hashlib
+        import base64
+        import secrets as _sec
+        disc = _hf_discover()
+        auth_ep = disc.get("authorization_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/authorize")
 
-    # PKCE — no client_secret required
-    verifier = _sec.token_urlsafe(64)
-    challenge = base64.urlsafe_b64encode(
-        hashlib.sha256(verifier.encode()).digest()
-    ).rstrip(b"=").decode()
-    state = _sec.token_urlsafe(16)
+        # PKCE — no client_secret required
+        verifier = _sec.token_urlsafe(64)
+        challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(verifier.encode()).digest()
+        ).rstrip(b"=").decode()
+        state = _sec.token_urlsafe(16)
 
-    next_path = request.args.get("next")
-    _hf_pkce_store[state] = {
-        "code_verifier": verifier,
-        "token_endpoint": disc.get("token_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/token"),
-        "user_id": current_user.id,
-        "return_to": next_path if next_path and next_path.startswith("/") and not next_path.startswith("//") else None,
-    }
+        next_path = request.args.get("next")
+        _hf_pkce_store[state] = {
+            "code_verifier": verifier,
+            "token_endpoint": disc.get("token_endpoint", f"{_HIGGSFIELD_MCP_BASE}/oauth/token"),
+            "user_id": current_user.id,
+            "return_to": next_path if next_path and next_path.startswith("/") and not next_path.startswith("//") else None,
+        }
 
-    callback_uri = _public_callback_base() + "/oauth/higgsfield/callback"
-    from urllib.parse import urlencode
-    qs = urlencode({
-        "response_type": "code",
-        "client_id": "social-money",
-        "redirect_uri": callback_uri,
-        "scope": "openid profile",
-        "state": state,
-        "code_challenge": challenge,
-        "code_challenge_method": "S256",
-    })
-    return redirect(f"{auth_ep}?{qs}")
+        callback_uri = _public_callback_base() + "/oauth/higgsfield/callback"
+        from urllib.parse import urlencode
+        qs = urlencode({
+            "response_type": "code",
+            "client_id": "social-money",
+            "redirect_uri": callback_uri,
+            "scope": "openid profile",
+            "state": state,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        })
+        return redirect(f"{auth_ep}?{qs}")
+    except Exception as e:
+        app.logger.exception("Higgsfield OAuth start failed")
+        return redirect(url_for("accounts_page") + "?error=higgsfield_start_failed")
 
 
 @app.route("/oauth/higgsfield/callback")
@@ -2589,9 +2596,12 @@ def _get_user_higgsfield_token(user_id: int) -> str:
 
 
 def _higgsfield_connected(user_id: int) -> bool:
-    """True when Higgsfield is usable for this user — OAuth/MCP connection or env
-    token. Higgsfield has no REST API key, so studios must not gate on the env
-    var alone (that made OAuth-connected users see 'API not configured')."""
+    """True when Higgsfield is usable for this user — via Platform API key+secret,
+    an OAuth/MCP connection, or the env token. Recognizing the key+secret here
+    stops the accounts page from pushing users to the (often-failing) OAuth flow
+    when they've already configured API credentials."""
+    if getattr(config, "HIGGSFIELD_API_CREDENTIAL", ""):
+        return True
     tok = _get_user_higgsfield_token(user_id) or ""
     if tok.startswith("http://") or tok.startswith("https://"):
         return False

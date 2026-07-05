@@ -221,10 +221,16 @@
     <div class="pt-name" style="color:#a855f7;">AI Video Engine</div>
     <div class="pt-desc">Higgsfield AI — powers all video generation for your users</div>
     {% if higgsfield_connected %}
-      <span class="pt-status ok">✓ Connected</span>
-      <a href="/oauth/higgsfield/start" class="btn btn-ghost btn-sm">Reconnect</a>
+      {% if higgsfield_via_api %}
+        <span class="pt-status ok">✓ Connected via API key</span>
+        <div class="text-xs text-dim mt-4">Using HIGGSFIELD_API_KEY + HIGGSFIELD_API_SECRET. Verify at <a href="/api/debug/higgsfield" target="_blank" style="color:#a855f7;">/api/debug/higgsfield</a>.</div>
+      {% else %}
+        <span class="pt-status ok">✓ Connected</span>
+        <a href="/oauth/higgsfield/start" class="btn btn-ghost btn-sm">Reconnect</a>
+      {% endif %}
     {% else %}
       <a href="/oauth/higgsfield/start" class="btn btn-primary btn-sm" style="background:linear-gradient(135deg,#a855f7,#7c3aed);">Connect AI Engine</a>
+      <div class="text-xs text-dim mt-4">Or set HIGGSFIELD_API_KEY + HIGGSFIELD_API_SECRET in your environment (recommended — the OAuth flow depends on Higgsfield's server).</div>
     {% endif %}
   </div>
   {% endif %}
