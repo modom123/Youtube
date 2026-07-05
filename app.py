@@ -3351,9 +3351,15 @@ def api_debug_higgsfield():
         "platform_api_key_secret_set": bool(getattr(config, "HIGGSFIELD_API_CREDENTIAL", "")),
     }
     if not tok:
+        if out["platform_api_key_secret_set"]:
+            out["status"] = "CONNECTED_PLATFORM_API"
+            out["note"] = ("Using Higgsfield Platform API key+secret via the SDK "
+                           "(HF_API_KEY/HF_API_SECRET). Image Studio and AI video use this.")
+            return jsonify(out)
         out["status"] = "NO_TOKEN"
         out["fix"] = ("No Higgsfield token for your account. Go to Social Accounts → "
-                      "Connect Higgsfield (OAuth), or set HIGGSFIELD_MCP_TOKEN.")
+                      "Connect Higgsfield (OAuth), or set HIGGSFIELD_MCP_TOKEN, or set "
+                      "HIGGSFIELD_API_KEY + HIGGSFIELD_API_SECRET.")
         return jsonify(out)
     if out["looks_like_url"]:
         out["status"] = "BAD_TOKEN"
@@ -5239,9 +5245,11 @@ def _run_imgstudio_thread(img_job_id: str, params: dict, user_id: int):
     try:
         tok = _get_user_higgsfield_token(user_id)
         _hmcp._session_token.value = tok
-        if not tok:
+        use_platform = _hmcp.has_platform_credentials()
+        if not tok and not use_platform:
             update(status="error",
-                   error="Higgsfield isn't connected. Go to Social Accounts and click 'Connect Higgsfield'.")
+                   error="Higgsfield isn't connected. Go to Social Accounts and click 'Connect Higgsfield', "
+                         "or set HIGGSFIELD_API_KEY + HIGGSFIELD_API_SECRET.")
             return
 
         out_dir = IMAGE_STUDIO_DIR / img_job_id
@@ -5255,12 +5263,21 @@ def _run_imgstudio_thread(img_job_id: str, params: dict, user_id: int):
         for i in range(count):
             update(step=f"Generating image {i+1}/{count}...", progress=int(100 * i / count) or 5)
             out_path = out_dir / f"img_{i+1}.png"
-            result = _hmcp.generate_image_via_mcp(
-                prompt=full_prompt,
-                output_path=out_path,
-                model_id=params["model"],
-                aspect_ratio=params["aspect"],
-            )
+            # Platform API key+secret → SDK; otherwise the MCP/OAuth endpoint.
+            if use_platform:
+                result = _hmcp.generate_image_via_sdk(
+                    prompt=full_prompt,
+                    output_path=out_path,
+                    model_id=params["model"],
+                    aspect_ratio=params["aspect"],
+                )
+            else:
+                result = _hmcp.generate_image_via_mcp(
+                    prompt=full_prompt,
+                    output_path=out_path,
+                    model_id=params["model"],
+                    aspect_ratio=params["aspect"],
+                )
             if result:
                 images.append(f"images/{img_job_id}/{out_path.name}")
 

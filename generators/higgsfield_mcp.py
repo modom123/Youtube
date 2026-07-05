@@ -35,9 +35,15 @@ def resolve_token() -> str:
     return tok
 
 
+def has_platform_credentials() -> bool:
+    """True when Higgsfield Platform API key+secret are set (used by the SDK)."""
+    return bool(getattr(config, "HIGGSFIELD_API_CREDENTIAL", ""))
+
+
 def is_connected() -> bool:
-    """True when a Higgsfield MCP token is available (OAuth session or env)."""
-    return bool(resolve_token())
+    """True when Higgsfield is reachable — MCP token (OAuth session or env) OR
+    Platform API key+secret."""
+    return bool(resolve_token()) or has_platform_credentials()
 
 
 def _token() -> str:
@@ -52,12 +58,96 @@ def _token() -> str:
 
 def has_key() -> bool:
     """True if this thread has a connected user's token OR the global system
-    token is configured. Callers must check this instead of
-    config.HIGGSFIELD_MCP_TOKEN directly -- otherwise a customer who
-    connected their own Higgsfield account still gets skipped whenever the
+    token is configured OR Platform API key+secret are set. Callers must check
+    this instead of config.HIGGSFIELD_MCP_TOKEN directly -- otherwise a customer
+    who connected their own Higgsfield account still gets skipped whenever the
     system-wide token isn't set."""
     tok = getattr(_session_token, "value", None) or config.HIGGSFIELD_MCP_TOKEN or ""
-    return bool(tok) and not tok.startswith(("http://", "https://"))
+    return (bool(tok) and not tok.startswith(("http://", "https://"))) or has_platform_credentials()
+
+
+# ── Platform API (key+secret) image generation via the higgsfield-client SDK ──
+
+_SDK_IMAGE_PATHS = {
+    "seedream_4":      "bytedance/seedream/v4/text-to-image",
+    "seedream":        "bytedance/seedream/v4/text-to-image",
+    "flux_2":          "flux-pro/kontext/max/text-to-image",
+    "flux":            "flux-pro/kontext/max/text-to-image",
+    "nano_banana_pro": "google/nano-banana/text-to-image",
+    "nano_banana":     "google/nano-banana/text-to-image",
+}
+# Documented, broadly-available default — used when the requested model has no
+# known SDK path or its path fails.
+_SDK_DEFAULT_IMAGE_PATH = "bytedance/seedream/v4/text-to-image"
+
+
+def _extract_image_url(result) -> Optional[str]:
+    """Pull an image URL out of the higgsfield-client SDK result (dict or obj)."""
+    try:
+        if isinstance(result, dict):
+            imgs = result.get("images") or result.get("output") or []
+            if imgs and isinstance(imgs[0], dict):
+                return imgs[0].get("url")
+            return result.get("url") or result.get("image_url")
+        url = getattr(result, "url", None)
+        if url:
+            return url
+        imgs = getattr(result, "images", None)
+        if imgs and hasattr(imgs[0], "url"):
+            return imgs[0].url
+    except Exception:
+        pass
+    return None
+
+
+def generate_image_via_sdk(
+    prompt: str,
+    output_path: Path,
+    model_id: str = "seedream_4",
+    aspect_ratio: str = "1:1",
+    resolution: str = "2K",
+) -> Optional[Path]:
+    """Generate an image via the higgsfield-client SDK using Platform API
+    key+secret (HF_API_KEY/HF_API_SECRET). Returns the path or None.
+
+    Tries the requested model's SDK path, then falls back to the documented
+    default so a wrong/unavailable model id still produces an image.
+    """
+    if not has_platform_credentials():
+        return None
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        import higgsfield_client as hf
+    except Exception as e:
+        print(f"[higgsfield_sdk] higgsfield-client not installed: {e}")
+        return None
+
+    paths = []
+    mapped = _SDK_IMAGE_PATHS.get(model_id)
+    if mapped:
+        paths.append(mapped)
+    if _SDK_DEFAULT_IMAGE_PATH not in paths:
+        paths.append(_SDK_DEFAULT_IMAGE_PATH)
+
+    for path in paths:
+        try:
+            result = hf.subscribe(path, arguments={
+                "prompt": prompt,
+                "aspect_ratio": aspect_ratio,
+                "resolution": resolution,
+                "camera_fixed": False,
+            })
+            url = _extract_image_url(result)
+            if url:
+                _download(url, output_path)
+                if output_path.exists() and output_path.stat().st_size > 1_000:
+                    print(f"[higgsfield_sdk] image via {path}")
+                    return output_path
+            print(f"[higgsfield_sdk] {path} returned no image url")
+        except Exception as e:
+            print(f"[higgsfield_sdk] {path} failed: {e}")
+    return None
 
 
 class _MCPSession:

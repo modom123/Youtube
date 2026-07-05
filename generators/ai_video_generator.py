@@ -29,8 +29,9 @@ def _active_token() -> str:
 
 
 def is_connected() -> bool:
-    """True when Higgsfield is reachable (OAuth session token or env var)."""
-    return bool(_active_token())
+    """True when Higgsfield is reachable — OAuth/MCP token OR Platform API
+    key+secret (the SDK fallback path authenticates with the latter)."""
+    return bool(_active_token()) or bool(getattr(config, "HIGGSFIELD_API_CREDENTIAL", ""))
 
 
 # ── Higgsville model catalog ───────────────────────────────────────────────────────────────────────────────
@@ -229,7 +230,12 @@ def _try_sdk_clip(
     """Attempt generation via higgsfield-client SDK. Returns path or None."""
     try:
         import higgsfield_client as hf
-        os.environ["HF_KEY"] = _active_token()
+        # Prefer the MCP/OAuth token if present; otherwise leave the Platform
+        # API key+secret (HF_API_KEY/HF_API_SECRET/HF_KEY, set in config) in
+        # place — don't blank HF_KEY when there's no MCP token.
+        _tok = _active_token()
+        if _tok:
+            os.environ["HF_KEY"] = _tok
 
         # Map new model IDs to SDK paths where known
         sdk_paths = {
