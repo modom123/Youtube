@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_voice_picker.html" import voice_picker %}
 {% set active_page = "create" %}
 
 {% block title %}Create Content — Social Optimize Machine{% endblock %}
@@ -129,12 +130,8 @@
       <div class="card-title mb-16"><span class="accent">🎙️</span> Voice & Style</div>
       <div class="form-group">
         <label>Narrator Voice</label>
-        <select id="voice">
-          {% for v in voices %}
-          <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
-          {% endfor %}
-        </select>
-        <div class="form-hint">10 premium voices — 6 female, 4 male</div>
+        {{ voice_picker(voices, user_default_voice, 'voice') }}
+        <div class="form-hint">10 premium ElevenLabs voices — 5 female, 5 male · click ▶ to hear a sample</div>
       </div>
       <div class="form-group">
         <label>Script Engine</label>

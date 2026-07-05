@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_voice_picker.html" import voice_picker %}
 {% set active_page = "studio" %}
 
 {% block title %}The Forge — Social Optimize{% endblock %}
@@ -154,11 +155,7 @@
       <div class="form-grid-2">
         <div class="form-row">
           <label>Voice</label>
-          <select id="s-voice">
-            {% for v in voices %}
-            <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
-            {% endfor %}
-          </select>
+          {{ voice_picker(voices, user_default_voice, 's-voice') }}
         </div>
         <div class="form-row">
           <label>Thumbnail Style</label>

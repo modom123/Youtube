@@ -8912,6 +8912,7 @@ _podcast_lock = threading.Lock()
 @login_required
 def podcast_studio():
     return render_template("podcast_studio.html", voices=config.VOICE_CATALOG,
+                           user_default_voice=current_user.default_voice,
                            active_page="podcast")
 
 
