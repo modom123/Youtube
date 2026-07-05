@@ -150,6 +150,111 @@ def generate_image_via_sdk(
     return None
 
 
+_SDK_VIDEO_PATHS = {
+    "kling3_0":                  "kling/v3/video/text-to-video",
+    "kling3_0_turbo":            "kling/v3/video/text-to-video-turbo",
+    "kling2_6":                  "kling/v2.6/video/text-to-video",
+    "wan2_7":                    "wan/v2.7/video/text-to-video",
+    "wan2_6":                    "wan/v2.6/video/text-to-video",
+    "seedance_2_0":              "bytedance/seedance/v2/text-to-video",
+    "seedance_1_5":              "bytedance/seedance/v1.5/text-to-video",
+    "cinematic_studio_3_0":      "higgsfield/cinematic-studio/v3/text-to-video",
+    "cinematic_studio_video_v2": "higgsfield/cinematic-studio/v2/text-to-video",
+    "minimax_hailuo":            "minimax/hailuo/v2.3/text-to-video",
+}
+_SDK_DEFAULT_VIDEO_PATH = "bytedance/seedance/v2/text-to-video"
+
+
+def _extract_video_url(result) -> Optional[str]:
+    """Pull a video URL out of the higgsfield-client SDK result (dict or obj)."""
+    try:
+        if isinstance(result, dict):
+            for key in ("videos", "clips", "output"):
+                v = result.get(key)
+                if v and isinstance(v[0], dict):
+                    return v[0].get("url")
+            return result.get("url") or result.get("video_url") or result.get("download_url")
+        url = getattr(result, "url", None)
+        if url:
+            return url
+        vids = getattr(result, "videos", None)
+        if vids and hasattr(vids[0], "url"):
+            return vids[0].url
+    except Exception:
+        pass
+    return None
+
+
+def generate_clips_via_sdk(
+    prompts: list,
+    output_dir: Path,
+    model_id: str = "kling3_0",
+    aspect_ratio: str = "16:9",
+    duration: int = 5,
+) -> list:
+    """Generate video clips via the higgsfield-client SDK (Platform API
+    key+secret). Returns downloaded .mp4 paths. Errors per clip, never raises."""
+    if not has_platform_credentials():
+        return []
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        import higgsfield_client as hf
+    except Exception as e:
+        print(f"[higgsfield_sdk] higgsfield-client not installed: {e}")
+        return []
+
+    mapped = _SDK_VIDEO_PATHS.get(model_id, _SDK_DEFAULT_VIDEO_PATH)
+    paths = [mapped] + ([_SDK_DEFAULT_VIDEO_PATH] if mapped != _SDK_DEFAULT_VIDEO_PATH else [])
+    results = []
+    for i, prompt in enumerate(prompts):
+        for path in paths:
+            try:
+                result = hf.subscribe(path, arguments={
+                    "prompt": prompt,
+                    "aspect_ratio": aspect_ratio,
+                    "duration": duration,
+                })
+                url = _extract_video_url(result)
+                if url:
+                    out = output_dir / f"sdk_{model_id}_{i:02d}.mp4"
+                    _download(url, out)
+                    if out.exists() and out.stat().st_size > 10_000:
+                        results.append(out)
+                        print(f"[higgsfield_sdk] clip {i+1} via {path}")
+                        break
+            except Exception as e:
+                print(f"[higgsfield_sdk] video {path} failed: {e}")
+    return results
+
+
+# ── Unified entry points: Platform SDK (key+secret) first, MCP fallback ────────
+
+def generate_image(prompt, output_path, model_id="flux_2", aspect_ratio="1:1", **kw) -> Optional[Path]:
+    """Generate one image — Higgsfield Platform SDK (key+secret) first, then the
+    MCP/OAuth endpoint. Every studio should call this."""
+    if has_platform_credentials():
+        r = generate_image_via_sdk(prompt, output_path, model_id=model_id, aspect_ratio=aspect_ratio)
+        if r:
+            return r
+        print("[higgsfield] Platform SDK image failed — falling back to MCP")
+    return generate_image_via_mcp(prompt, output_path, model_id=model_id, aspect_ratio=aspect_ratio)
+
+
+def generate_clips(prompts, output_dir, model_id="kling3_0", aspect_ratio="16:9",
+                   duration=5, max_poll=600, **kw) -> list:
+    """Generate video clips — Higgsfield Platform SDK (key+secret) first, then the
+    MCP/OAuth endpoint. Every studio should call this."""
+    if has_platform_credentials():
+        clips = generate_clips_via_sdk(prompts, output_dir, model_id=model_id,
+                                       aspect_ratio=aspect_ratio, duration=duration)
+        if clips:
+            return clips
+        print("[higgsfield] Platform SDK video failed — falling back to MCP")
+    return generate_clips_via_mcp(prompts, output_dir, model_id=model_id,
+                                  aspect_ratio=aspect_ratio, duration=duration, max_poll=max_poll)
+
+
 class _MCPSession:
     """Minimal MCP over Streamable HTTP session."""
 

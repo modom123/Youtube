@@ -490,7 +490,7 @@ def run(
             _push_progress(58, "Generating AI background images...")
             with logger.spinner("Generating AI background images via Higgsfield..."):
                 try:
-                    from generators.higgsfield_mcp import generate_image_via_mcp
+                    from generators.higgsfield_mcp import generate_image
                     ai_images_dir = job / "ai_images"
                     ai_images_dir.mkdir(parents=True, exist_ok=True)
                     ar = "9:16" if profile["is_portrait"] else "16:9"
@@ -500,7 +500,7 @@ def run(
                     )[:6]
                     for i, prompt in enumerate(img_prompts):
                         out = ai_images_dir / f"ai_bg_{i:02d}.jpg"
-                        result = generate_image_via_mcp(prompt, out, aspect_ratio=ar)
+                        result = generate_image(prompt, out, aspect_ratio=ar)
                         if result:
                             image_clips.append(result)
                             print(f"[pipeline] AI image {i+1}: {result.name}")

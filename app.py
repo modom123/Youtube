@@ -5263,21 +5263,13 @@ def _run_imgstudio_thread(img_job_id: str, params: dict, user_id: int):
         for i in range(count):
             update(step=f"Generating image {i+1}/{count}...", progress=int(100 * i / count) or 5)
             out_path = out_dir / f"img_{i+1}.png"
-            # Platform API key+secret → SDK; otherwise the MCP/OAuth endpoint.
-            if use_platform:
-                result = _hmcp.generate_image_via_sdk(
-                    prompt=full_prompt,
-                    output_path=out_path,
-                    model_id=params["model"],
-                    aspect_ratio=params["aspect"],
-                )
-            else:
-                result = _hmcp.generate_image_via_mcp(
-                    prompt=full_prompt,
-                    output_path=out_path,
-                    model_id=params["model"],
-                    aspect_ratio=params["aspect"],
-                )
+            # Unified: Platform SDK (key+secret) first, MCP/OAuth fallback.
+            result = _hmcp.generate_image(
+                prompt=full_prompt,
+                output_path=out_path,
+                model_id=params["model"],
+                aspect_ratio=params["aspect"],
+            )
             if result:
                 images.append(f"images/{img_job_id}/{out_path.name}")
 

@@ -381,7 +381,7 @@ def _clip_with_overlay(clip_path, heading, palette, w, h, duration, idx, total, 
 
 def generate_section_clips(sections, studio, output_dir, progress_cb=None):
     """Generate Higgsfield AI clips for each section. Returns dict of {index: clip_path}."""
-    from generators.higgsfield_mcp import generate_clips_via_mcp
+    from generators.higgsfield_mcp import generate_clips
     preset = STUDIO_PRESETS[studio]
     w, h = preset["width"], preset["height"]
     ar = "9:16" if h > w else "16:9"
@@ -400,7 +400,7 @@ def generate_section_clips(sections, studio, output_dir, progress_cb=None):
         progress_cb(f"Generating {len(prompts)} AI clips via Higgsfield...", 5)
 
     model = "kling3_0_turbo"
-    clips = generate_clips_via_mcp(
+    clips = generate_clips(
         prompts=prompts,
         output_dir=output_dir / "clips",
         model_id=model,

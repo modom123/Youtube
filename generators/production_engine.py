@@ -341,7 +341,7 @@ class ProductionStudioEngine:
                 prompts = [a.prompt for a in higgsfield_assets[:6]]
                 model_key = higgsfield_assets[0].model_key or "cinematic_studio_3_0"
                 aspect = higgsfield_assets[0].aspect_ratio
-                ai_clips = higgsfield_mcp.generate_clips_via_mcp(
+                ai_clips = higgsfield_mcp.generate_clips(
                     prompts=prompts,
                     output_dir=ai_clips_dir,
                     model_id=model_key,
@@ -372,7 +372,7 @@ class ProductionStudioEngine:
             self.cb("Generating AI thumbnail…", 81)
             try:
                 ai_thumb_path = job_dir / "thumbnail_ai.jpg"
-                result_path = higgsfield_mcp.generate_image_via_mcp(
+                result_path = higgsfield_mcp.generate_image(
                     prompt=script.thumbnail_prompt,
                     output_path=ai_thumb_path,
                     model_id="flux_2",
