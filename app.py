@@ -3345,6 +3345,10 @@ def api_debug_higgsfield():
         "token_source": source,
         "looks_like_url": tok.startswith(("http://", "https://")),
         "mcp_url": getattr(config, "HIGGSFIELD_MCP_URL", ""),
+        # Platform API (key+secret) is a SEPARATE auth used by the SDK/CLI, not
+        # the MCP endpoint the studios call. Report it so a user who set a
+        # key/secret understands why the MCP-based studios still need OAuth.
+        "platform_api_key_secret_set": bool(getattr(config, "HIGGSFIELD_API_CREDENTIAL", "")),
     }
     if not tok:
         out["status"] = "NO_TOKEN"

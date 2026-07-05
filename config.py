@@ -342,16 +342,33 @@ REPLICATE_API_TOKEN = os.getenv("REPLICATE_API_TOKEN", "")
 MUBERT_KEY = os.getenv("MUBERT_KEY", "")
 FREESOUND_API_KEY = os.getenv("FREESOUND_API_KEY", "")
 
-# Higgsfield AI — bearer token for REST + MCP API calls
+# Higgsfield AI — OAuth/MCP bearer token for the MCP endpoint (mcp.higgsfield.ai)
 HIGGSFIELD_MCP_TOKEN = (
     os.getenv("HIGGSFIELD_MCP_TOKEN")
     or os.getenv("HIGGSFIELD_TOKEN")
     or os.getenv("HIGGSVILLE_TOKEN")
     or os.getenv("HIGGSVILLE_MCP_TOKEN")
-    or os.getenv("HIGGSFIELD_API_KEY")
     or ""
 )
 HIGGSFIELD_MCP_URL = os.getenv("HIGGSFIELD_MCP_URL", "https://mcp.higgsfield.ai/mcp")
+
+# ── Higgsfield Platform API — KEY_ID + KEY_SECRET pair ────────────────────────
+# Distinct from the MCP token above. The Platform API (platform.higgsfield.ai),
+# used by the higgsfield-client SDK and CLI, authenticates with a key id + secret
+# and sends `Authorization: Key KEY_ID:KEY_SECRET`. The SDK/CLI read these from
+# HF_API_KEY / HF_API_SECRET (or a combined HF_KEY="KEY_ID:KEY_SECRET").
+HIGGSFIELD_API_KEY    = os.getenv("HIGGSFIELD_API_KEY", "")     # key id (UUID)
+HIGGSFIELD_API_SECRET = os.getenv("HIGGSFIELD_API_SECRET", "")  # key secret
+HIGGSFIELD_API_CREDENTIAL = (
+    f"{HIGGSFIELD_API_KEY}:{HIGGSFIELD_API_SECRET}"
+    if HIGGSFIELD_API_KEY and HIGGSFIELD_API_SECRET else ""
+)
+# Expose the credential to the higgsfield-client SDK / CLI, which resolve it from
+# the environment. setdefault so an explicitly-set HF_* env var still wins.
+if HIGGSFIELD_API_CREDENTIAL:
+    os.environ.setdefault("HF_API_KEY", HIGGSFIELD_API_KEY)
+    os.environ.setdefault("HF_API_SECRET", HIGGSFIELD_API_SECRET)
+    os.environ.setdefault("HF_KEY", HIGGSFIELD_API_CREDENTIAL)
 
 # Gamma — slide-deck generation for ranking/listicle-style videos and other
 # presentation output. Real REST API, not the MCP tool (that's only
