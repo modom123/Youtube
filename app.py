@@ -1707,6 +1707,22 @@ def api_personas_delete(persona_id):
 
 # ── Social Accounts ───────────────────────────────────────────────────────────
 
+def _oauth_error_detail(error: str, detail: str) -> str:
+    """Human-readable guidance for OAuth connect failures shown on the accounts page."""
+    cb = config.APP_BASE_URL.rstrip("/") + "/oauth/youtube/callback"
+    if error == "youtube":
+        if detail == "creds":
+            return ("YouTube isn't set up yet. In Render set YOUTUBE_CLIENT_ID and "
+                    "YOUTUBE_CLIENT_SECRET (from a Google Cloud OAuth 2.0 Client), then redeploy.")
+        return ("YouTube sign-in failed. In Google Cloud Console: enable the YouTube Data "
+                f"API v3, and add this exact Authorized redirect URI: {cb} . Also confirm "
+                "APP_BASE_URL is your public domain.")
+    if error and error.startswith("higgsfield"):
+        return ("Higgsfield OAuth is unreliable — set HIGGSFIELD_API_KEY + HIGGSFIELD_API_SECRET "
+                "instead and check /api/debug/higgsfield.")
+    return ""
+
+
 @app.route("/accounts")
 @login_required
 def accounts_page():
@@ -1731,7 +1747,7 @@ def accounts_page():
         snapchat_configured=bool(config.SNAP_CLIENT_ID),
         connected_platform=request.args.get("connected"),
         error_platform=request.args.get("error"),
-        error_detail=request.args.get("detail"),
+        error_detail=_oauth_error_detail(request.args.get("error"), request.args.get("detail")),
     )
 
 
@@ -1873,31 +1889,37 @@ def _oauth_success(platform: str):
 
 @app.route("/oauth/youtube/start")
 def oauth_youtube_start():
-    if not config.YOUTUBE_CLIENT_ID:
-        return jsonify({"error": "YouTube credentials not configured in .env"}), 400
-    _oauth_remember_return_to()
-    from google_auth_oauthlib.flow import Flow
-    flow = Flow.from_client_config(
-        {"web": {
-            "client_id": config.YOUTUBE_CLIENT_ID,
-            "client_secret": config.YOUTUBE_CLIENT_SECRET,
-            "redirect_uris": [config.APP_BASE_URL + "/oauth/youtube/callback"],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-        }},
-        scopes=config.YOUTUBE_SCOPES + ["https://www.googleapis.com/auth/youtube.readonly"],
-        redirect_uri=config.APP_BASE_URL + "/oauth/youtube/callback",
-    )
-    auth_url, state = flow.authorization_url(prompt="consent", access_type="offline")
-    session["youtube_state"] = state
-    # google-auth-oauthlib >=1.1.0 defaults autogenerate_code_verifier=True,
-    # so authorization_url() just embedded a PKCE code_challenge in that URL
-    # (lazily generating flow.code_verifier as a side effect). Google now
-    # requires the matching code_verifier on token exchange — it has to be
-    # persisted here and restored in the callback's Flow, which otherwise
-    # gets its own unrelated auto-generated verifier that Google never saw.
-    session["youtube_code_verifier"] = flow.code_verifier
-    return redirect(auth_url)
+    if not config.YOUTUBE_CLIENT_ID or not config.YOUTUBE_CLIENT_SECRET:
+        # Friendly banner on the accounts page instead of a raw JSON error.
+        return redirect(url_for("accounts_page") + "?error=youtube&detail=creds")
+    try:
+        _oauth_remember_return_to()
+        from google_auth_oauthlib.flow import Flow
+        redirect_uri = config.APP_BASE_URL.rstrip("/") + "/oauth/youtube/callback"
+        flow = Flow.from_client_config(
+            {"web": {
+                "client_id": config.YOUTUBE_CLIENT_ID,
+                "client_secret": config.YOUTUBE_CLIENT_SECRET,
+                "redirect_uris": [redirect_uri],
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }},
+            scopes=config.YOUTUBE_SCOPES + ["https://www.googleapis.com/auth/youtube.readonly"],
+            redirect_uri=redirect_uri,
+        )
+        auth_url, state = flow.authorization_url(prompt="consent", access_type="offline")
+        session["youtube_state"] = state
+        # google-auth-oauthlib >=1.1.0 defaults autogenerate_code_verifier=True,
+        # so authorization_url() just embedded a PKCE code_challenge in that URL
+        # (lazily generating flow.code_verifier as a side effect). Google now
+        # requires the matching code_verifier on token exchange — it has to be
+        # persisted here and restored in the callback's Flow, which otherwise
+        # gets its own unrelated auto-generated verifier that Google never saw.
+        session["youtube_code_verifier"] = flow.code_verifier
+        return redirect(auth_url)
+    except Exception:
+        app.logger.exception("YouTube OAuth start failed")
+        return redirect(url_for("accounts_page") + "?error=youtube&detail=start")
 
 
 @app.route("/oauth/youtube/callback")
