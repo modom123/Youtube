@@ -690,3 +690,164 @@ def get_transactions(size: int = 50) -> Optional[list]:
     except Exception as e:
         print(f"[higgsfield_mcp] Transactions fetch failed: {e}")
         return None
+
+
+# ── Text-to-speech (Higgsfield Audio) — fallback voice when ElevenLabs is down ──
+# MCP schema: generate_audio(params={model:"seed_audio", prompt, voice_type:"preset",
+# voice_id}) with voice ids from list_voices. Never a computer voice.
+
+def _find_audio_url(text: str) -> Optional[str]:
+    for pat in [
+        r'"url"\s*:\s*"(https://[^"]+\.(?:mp3|wav|m4a|ogg|aac)[^"]*)"',
+        r'"(?:audio_url|download_url|output_url)"\s*:\s*"(https://[^"]+)"',
+        r'(https://\S+\.(?:mp3|wav|m4a|ogg)(?:\?\S*)?)',
+    ]:
+        m = re.search(pat, text, re.IGNORECASE)
+        if m:
+            return m.group(1)
+    return None
+
+
+def _find_voice_pair(text: str, gender: str = "") -> tuple:
+    """Pick a (voice_id, voice_type) from a list_voices result, gender-matched if
+    the gender appears near the id."""
+    pairs = re.findall(
+        r'"voice_id"\s*:\s*"([^"]+)"[^}]*?"voice_type"\s*:\s*"(preset|element)"', text)
+    if not pairs:
+        vid = re.search(r'"voice_id"\s*:\s*"([^"]+)"', text)
+        if vid:
+            return vid.group(1), "preset"
+        return None, None
+    g = (gender or "").lower()
+    if g:
+        for vid, vtype in pairs:
+            window = text[max(0, text.find(vid) - 200): text.find(vid) + 200].lower()
+            if g in window:
+                return vid, vtype
+    return pairs[0][0], pairs[0][1]
+
+
+def _concat_audio(parts: list, out: Path) -> None:
+    import imageio_ffmpeg, tempfile, shutil
+    if len(parts) == 1:
+        shutil.copy(parts[0], out)
+        return
+    with tempfile.TemporaryDirectory() as td:
+        lst = Path(td) / "c.txt"
+        lst.write_text("\n".join(f"file '{p}'" for p in parts))
+        ff = imageio_ffmpeg.get_ffmpeg_exe()
+        try:
+            subprocess.run([ff, "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
+                            "-c", "copy", str(out)], capture_output=True, timeout=180)
+        except Exception:
+            out.write_bytes(b"".join(Path(p).read_bytes() for p in parts))
+
+
+def generate_speech_via_mcp(text: str, output_path: Path, gender: str = "",
+                            max_poll: int = 180) -> Optional[Path]:
+    """Higgsfield TTS via the MCP endpoint (needs an MCP/OAuth token)."""
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    session = _MCPSession()
+    try:
+        session.initialize()
+    except Exception as e:
+        print(f"[higgsfield_audio] MCP session failed: {e}")
+        return None
+    try:
+        vres = session.call("list_voices", {"size": 100})
+        vid, vtype = _find_voice_pair(_text(vres), gender)
+    except Exception as e:
+        print(f"[higgsfield_audio] list_voices failed: {e}")
+        return None
+    if not vid:
+        print("[higgsfield_audio] no preset voice available")
+        return None
+
+    chunks = [text[i:i + 2000] for i in range(0, len(text), 2000)] or [text]
+    parts = []
+    for i, ch in enumerate(chunks):
+        if not ch.strip():
+            continue
+        try:
+            gen = session.call("generate_audio", {"params": {
+                "model": "seed_audio", "prompt": ch,
+                "voice_type": vtype, "voice_id": vid}})
+            gt = _text(gen)
+            url = _find_audio_url(gt)
+            if not url:
+                jid = _find_job_id(gt)
+                elapsed, wait = 0, 6
+                while jid and not url and elapsed < max_poll:
+                    time.sleep(wait); elapsed += wait
+                    pt = _text(session.call("job_display", {"id": jid}))
+                    url = _find_audio_url(pt)
+                    if any(s in pt for s in ('"failed"', '"error"', '"cancelled"')):
+                        break
+            if url:
+                p = output_path.parent / f"_hfspeech_{i:03d}.mp3"
+                _download(url, p)
+                if p.exists() and p.stat().st_size > 500:
+                    parts.append(str(p))
+        except Exception as e:
+            print(f"[higgsfield_audio] chunk {i} failed: {e}")
+    if not parts:
+        return None
+    _concat_audio(parts, output_path)
+    for p in parts:
+        try:
+            Path(p).unlink()
+        except Exception:
+            pass
+    ok = output_path.exists() and output_path.stat().st_size > 500
+    if ok:
+        print(f"[higgsfield_audio] speech via MCP seed_audio ({len(parts)} chunk(s))")
+    return output_path if ok else None
+
+
+def generate_speech_via_sdk(text: str, output_path: Path, gender: str = "") -> Optional[Path]:
+    """Higgsfield TTS via the Platform SDK (key+secret). Best-effort — tries the
+    text2speech model paths; returns None if the SDK can't do it."""
+    if not has_platform_credentials():
+        return None
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        import higgsfield_client as hf
+    except Exception as e:
+        print(f"[higgsfield_audio] SDK not installed: {e}")
+        return None
+    for model in ("text2speech_v2", "seed_audio"):
+        try:
+            args = {"prompt": text}
+            if model == "text2speech_v2":
+                args["variant"] = "elevenlabs"
+            result = hf.subscribe(model, arguments=args)
+            url = _find_audio_url(str(result))
+            if not url and isinstance(result, dict):
+                for k in ("audio", "output", "result"):
+                    v = result.get(k)
+                    if isinstance(v, dict) and v.get("url"):
+                        url = v["url"]; break
+                url = url or result.get("url")
+            if url:
+                _download(url, output_path)
+                if output_path.exists() and output_path.stat().st_size > 500:
+                    print(f"[higgsfield_audio] speech via SDK {model}")
+                    return output_path
+        except Exception as e:
+            print(f"[higgsfield_audio] SDK {model} failed: {e}")
+    return None
+
+
+def generate_speech(text: str, output_path: Path, gender: str = "", **kw) -> Optional[Path]:
+    """Higgsfield TTS fallback (real voice, not a computer voice):
+    Platform SDK (key+secret) first, then the MCP endpoint. Returns None if
+    Higgsfield can't produce speech (caller then errors rather than going robotic)."""
+    if has_platform_credentials():
+        r = generate_speech_via_sdk(text, output_path, gender=gender)
+        if r:
+            return r
+    if resolve_token():
+        return generate_speech_via_mcp(text, output_path, gender=gender)
+    return None
