@@ -576,6 +576,18 @@ VOICE_CATALOG = [
     {"id": "ErXwobaYiN019PkySvjV", "name": "Antoni",    "gender": "Male",   "style": "Warm & Well-Rounded",  "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-D", "edge": "en-US-DavisNeural"},
     {"id": "JBFqnCBsd6RMkjVDRZzb", "name": "George",    "gender": "Male",   "style": "Warm Storyteller",     "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-B", "edge": "en-GB-RyanNeural"},
     {"id": "TxGEqnHWrfWFTfGW9XjX", "name": "Josh",      "gender": "Male",   "style": "Young & Energetic",    "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-I", "edge": "en-US-DavisNeural"},
+    # ── Female (expansion) ────────────────────────────────────────────────────
+    {"id": "AZnzlk1XvdvUeBnXmlld", "name": "Domi",      "gender": "Female", "style": "Confident & Strong",   "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-C", "edge": "en-US-AriaNeural"},
+    {"id": "MF3mGyEYCl7XYWbV9V6O", "name": "Elli",      "gender": "Female", "style": "Youthful & Emotional", "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-F", "edge": "en-US-JennyNeural"},
+    {"id": "EXAVITQu4vr4xnSDxMaL", "name": "Sarah",     "gender": "Female", "style": "Soft & Newsy",         "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-E", "edge": "en-US-JennyNeural"},
+    {"id": "jsCqWAovK2LkecY7zXl4", "name": "Freya",     "gender": "Female", "style": "Expressive & Dynamic", "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-G", "edge": "en-US-AriaNeural"},
+    {"id": "pFZP5JQG7iQjIQuC4Bku", "name": "Lily",      "gender": "Female", "style": "Warm British",         "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-C", "edge": "en-GB-SoniaNeural"},
+    # ── Male (expansion) ──────────────────────────────────────────────────────
+    {"id": "VR6AewLTigWG4xSOukaG", "name": "Arnold",    "gender": "Male",   "style": "Crisp & Assertive",    "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-D", "edge": "en-US-GuyNeural"},
+    {"id": "yoZ06aMxZJJ28mfd3POQ", "name": "Sam",       "gender": "Male",   "style": "Raspy & Casual",       "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-I", "edge": "en-US-DavisNeural"},
+    {"id": "N2lVS1w4EtoT3dr4eOWO", "name": "Callum",    "gender": "Male",   "style": "Intense & Dramatic",   "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-J", "edge": "en-US-GuyNeural"},
+    {"id": "IKne3meq5aSn9XLyUdCD", "name": "Charlie",   "gender": "Male",   "style": "Natural & Aussie",     "locale": "en-AU", "provider": "elevenlabs", "google": "en-AU-Neural2-B", "edge": "en-AU-WilliamNeural"},
+    {"id": "onwK4e9ZLuTAKqWW03F9", "name": "Daniel",    "gender": "Male",   "style": "Deep & Newsy (UK)",    "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-B", "edge": "en-GB-RyanNeural"},
 ]
 for _v in VOICE_CATALOG:
     _v["label"] = f"{_v['name']} — {_v['style']} ({_v['gender']})"
