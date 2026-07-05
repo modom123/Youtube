@@ -1443,15 +1443,29 @@ def _run_revoice_thread(job_id: int, voice: str, user_id: int):
         ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
         # Keep the original video exactly; pad the new narration with silence and
         # trim to the video length so the picture is untouched.
+        #
+        # apad with no bound produces an effectively-infinite silence tail, and
+        # relying on -shortest to cut the output off at the (stream-copied)
+        # video's length doesn't reliably terminate -- confirmed this exact
+        # combination (-c:v copy + -shortest + unbounded apad) hangs
+        # indefinitely rather than stopping at the video's duration. Capping
+        # the output explicitly with -t sidesteps that entirely.
         try:
-            result = _sp.run(
-                [ffmpeg, "-y", "-i", str(video_path), "-i", str(new_audio),
-                 "-filter_complex", "[1:a]apad[aud]",
-                 "-map", "0:v:0", "-map", "[aud]",
-                 "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
-                 str(out_video)],
-                capture_output=True, timeout=600,
-            )
+            from moviepy import VideoFileClip
+            _vclip = VideoFileClip(str(video_path))
+            video_dur = float(_vclip.duration)
+            _vclip.close()
+        except Exception:
+            video_dur = None
+
+        cmd = [ffmpeg, "-y", "-i", str(video_path), "-i", str(new_audio),
+               "-filter_complex", "[1:a]apad[aud]",
+               "-map", "0:v:0", "-map", "[aud]",
+               "-c:v", "copy", "-c:a", "aac", "-b:a", "192k"]
+        cmd += ["-t", f"{video_dur:.2f}"] if video_dur else ["-shortest"]
+        cmd.append(str(out_video))
+        try:
+            result = _sp.run(cmd, capture_output=True, timeout=600)
         except _sp.TimeoutExpired:
             _set(status="error", error="Re-voice timed out combining audio with video.")
             return
