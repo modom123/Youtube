@@ -1400,6 +1400,25 @@ def _run_revoice_thread(job_id: int, voice: str, user_id: int):
             st.update(kw)
             _revoice_jobs[job_id] = st
 
+    # Watchdog: without this, a slow/degraded ElevenLabs response (or a very
+    # long narration cycling through several fallback voices) leaves the UI
+    # showing "Generating new voiceover..." forever with no way to tell
+    # "still working" from "actually hung." Force a clear error instead.
+    _REVOICE_WATCHDOG_SECONDS = 300
+    _revoice_done = threading.Event()
+
+    def _watchdog():
+        time.sleep(_REVOICE_WATCHDOG_SECONDS)
+        if _revoice_done.is_set():
+            return
+        print(f"[revoice] Job #{job_id} exceeded {_REVOICE_WATCHDOG_SECONDS}s — forcing error status")
+        _set(status="error", error=(
+            f"Re-voice timed out after {_REVOICE_WATCHDOG_SECONDS}s — ElevenLabs may be slow or "
+            "unreachable right now. Try again in a bit."
+        ))
+
+    threading.Thread(target=_watchdog, daemon=True).start()
+
     try:
         job = db.get_job(job_id, user_id=user_id)
         if not job:
@@ -1445,6 +1464,8 @@ def _run_revoice_thread(job_id: int, voice: str, user_id: int):
         _set(status="done", progress=100, step="Done", video_path=str(out_video))
     except Exception as e:
         _set(status="error", error=str(e))
+    finally:
+        _revoice_done.set()
 
 
 @app.route("/api/jobs/<int:job_id>/revoice", methods=["POST"])
