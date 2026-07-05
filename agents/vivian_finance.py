@@ -84,8 +84,10 @@ def _get_platform_accounts():
 def _total_monthly_costs():
     subs  = _get_subscriptions()
     plats = _get_platform_accounts()
+    creds = _get_provider_credits()
     return sum(float(s.get("monthly_cost", 0)) for s in subs) + \
-           sum(float(p.get("monthly_cost", 0)) for p in plats)
+           sum(float(p.get("monthly_cost", 0)) for p in plats) + \
+           sum(float(c.get("monthly_spend", 0)) for c in creds)
 
 
 def _total_monthly_revenue():
@@ -364,6 +366,128 @@ def _run_cycle():
         bus.log_msg(AGENT_NAME, f"Error during audit: {exc}", "error")
 
 
+# ── Chat write-tools ────────────────────────────────────────────────────────
+# Lets Vivian actually record what she's told in chat instead of only ever
+# answering questions from data someone else entered through the dashboard
+# forms. Both upsert (by provider / by name) so telling her an updated figure
+# corrects the existing row instead of piling up duplicates.
+
+def _record_api_expense(provider: str, monthly_spend: float, notes: str = "") -> dict:
+    """Record actual usage-based API/provider spend (Anthropic, ElevenLabs,
+    Higgsfield, etc.) into finance_provider_credits.monthly_spend — the same
+    field the automated Higgsfield/ElevenLabs/Anthropic syncs write to, so a
+    manually-reported figure and an auto-synced one both feed the same
+    efficiency-ratio math."""
+    provider = (provider or "").strip()
+    if not provider:
+        return {"ok": False, "error": "provider is required"}
+    monthly_spend = float(monthly_spend)
+    with db.get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM finance_provider_credits WHERE provider=?", (provider,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE finance_provider_credits SET monthly_spend=?, notes=?, "
+                "last_updated=NOW() WHERE provider=?",
+                (monthly_spend, notes or f"Updated via Vivian chat", provider),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO finance_provider_credits (provider, monthly_spend, unit, notes) "
+                "VALUES (?,?,?,?)",
+                (provider, monthly_spend, "USD", notes or "Reported via Vivian chat"),
+            )
+    return {"ok": True, "provider": provider, "monthly_spend": monthly_spend}
+
+
+def _record_subscription(name: str, monthly_cost: float, category: str = "other",
+                          vendor: str = "", notes: str = "") -> dict:
+    """Add or update a fixed-cost recurring subscription/tool."""
+    name = (name or "").strip()
+    if not name:
+        return {"ok": False, "error": "name is required"}
+    monthly_cost = float(monthly_cost)
+    with db.get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM finance_subscriptions WHERE lower(name)=lower(?)", (name,)
+        ).fetchone()
+        if existing:
+            conn.execute(
+                "UPDATE finance_subscriptions SET monthly_cost=?, category=?, vendor=?, notes=? "
+                "WHERE id=?",
+                (monthly_cost, category, vendor or name, notes or "Updated via Vivian chat",
+                 existing["id"]),
+            )
+            return {"ok": True, "id": existing["id"], "action": "updated"}
+        cur = conn.execute(
+            "INSERT INTO finance_subscriptions (name, category, vendor, monthly_cost, notes) "
+            "VALUES (?,?,?,?,?) RETURNING id",
+            (name, category, vendor or name, monthly_cost, notes or "Added via Vivian chat"),
+        )
+        new_id = cur.fetchone()["id"]
+    return {"ok": True, "id": new_id, "action": "created"}
+
+
+_TOOLS = [
+    {
+        "name": "record_api_expense",
+        "description": (
+            "Record or update the ACTUAL monthly spend for an AI/API provider "
+            "(Anthropic, ElevenLabs, Higgsfield, OpenAI, Replicate, etc). Upserts "
+            "by provider name, so calling it again for a provider you already "
+            "have updates that figure instead of duplicating it. Use this for "
+            "usage-based API costs -- for a fixed-price SaaS subscription use "
+            "record_subscription instead."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "provider": {"type": "string", "description": "Provider name, e.g. 'Anthropic'"},
+                "monthly_spend": {"type": "number", "description": "Actual monthly spend in USD"},
+                "notes": {"type": "string", "description": "Optional context"},
+            },
+            "required": ["provider", "monthly_spend"],
+        },
+    },
+    {
+        "name": "record_subscription",
+        "description": (
+            "Add or update a fixed-cost recurring subscription or tool (Canva, "
+            "hosting, a SaaS tool, etc). Upserts by name, so calling it again "
+            "for the same name updates the existing row's cost instead of "
+            "duplicating it. For usage-based AI/API provider costs use "
+            "record_api_expense instead."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "monthly_cost": {"type": "number"},
+                "category": {"type": "string", "enum": [
+                    "ai_api", "hosting", "video", "audio", "marketing",
+                    "crm", "design", "analytics", "storage", "other",
+                ]},
+                "vendor": {"type": "string"},
+                "notes": {"type": "string"},
+            },
+            "required": ["name", "monthly_cost"],
+        },
+    },
+]
+
+
+def _run_tool(name: str, tool_input: dict) -> dict:
+    try:
+        if name == "record_api_expense":
+            return _record_api_expense(**tool_input)
+        if name == "record_subscription":
+            return _record_subscription(**tool_input)
+        return {"ok": False, "error": f"unknown tool '{name}'"}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+
+
 # ── AI chat interface ─────────────────────────────────────────────────────────
 
 def chat(user_message: str) -> str:
@@ -384,31 +508,60 @@ def chat(user_message: str) -> str:
     context = f"""You are Vivian Cross, CFO and IEBC Efficiency Accountant for Social Optimize.
 
 LIVE FINANCE DATA:
-Subscriptions ({len(subs)} active, ${costs:.2f}/mo total):
+Subscriptions ({len(subs)} active):
 {json.dumps([{k: s[k] for k in ('name','category','monthly_cost','status','renewal_date') if k in s} for s in subs[:20]], indent=2)}
 
 Clients ({len(clients)}, ${revenue:.2f}/mo revenue):
 {json.dumps([{k: c[k] for k in ('name','monthly_value','status','billing_cycle') if k in c} for c in clients[:20]], indent=2)}
 
-Provider Credits:
+Provider Credits & API Spend:
 {json.dumps([{k: cr[k] for k in ('provider','balance','credit_cap','monthly_spend') if k in cr} for cr in credits], indent=2)}
 
 Platforms:
 {json.dumps([{k: p[k] for k in ('name','platform_type','monthly_cost','status') if k in p} for p in plats[:20]], indent=2)}
 
+Total Monthly Costs (subscriptions + platforms + provider API spend): ${costs:.2f}
 Gross Margin: {((revenue - costs) / revenue * 100) if revenue > 0 else 0:.1f}%
 
 Answer the user's question with specific numbers from the data above. Be concise, direct, and actionable.
+
+When the user TELLS you a cost -- a subscription price, an API provider's
+actual monthly spend, a corrected figure -- don't just acknowledge it in
+words: call the matching tool to actually save it. Use record_api_expense
+for usage-based AI/API provider costs (Anthropic, ElevenLabs, Higgsfield,
+OpenAI, etc); use record_subscription for fixed-price recurring tools. After
+a tool call succeeds, confirm in plain terms what you saved and how it moves
+the numbers (e.g. the new total monthly cost or margin).
 """
 
+    messages = [{"role": "user", "content": user_message}]
     try:
-        resp = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=600,
-            system=context,
-            messages=[{"role": "user", "content": user_message}],
-        )
-        return resp.content[0].text
+        for _ in range(4):  # bounded tool-use rounds -- never loop forever
+            resp = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=600,
+                system=context,
+                tools=_TOOLS,
+                messages=messages,
+            )
+            if resp.stop_reason != "tool_use":
+                texts = [b.text for b in resp.content if getattr(b, "type", "") == "text"]
+                return "\n".join(texts).strip() or "Done."
+
+            messages.append({"role": "assistant", "content": resp.content})
+            tool_results = []
+            for block in resp.content:
+                if getattr(block, "type", "") != "tool_use":
+                    continue
+                result = _run_tool(block.name, block.input)
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": json.dumps(result),
+                })
+            messages.append({"role": "user", "content": tool_results})
+
+        return "I recorded what I could, but hit my tool-use limit for this message."
     except Exception as exc:
         return f"Error: {exc}"
 
