@@ -1424,16 +1424,21 @@ def _run_revoice_thread(job_id: int, voice: str, user_id: int):
         ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
         # Keep the original video exactly; pad the new narration with silence and
         # trim to the video length so the picture is untouched.
-        result = _sp.run(
-            [ffmpeg, "-y", "-i", str(video_path), "-i", str(new_audio),
-             "-filter_complex", "[1:a]apad[aud]",
-             "-map", "0:v:0", "-map", "[aud]",
-             "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
-             str(out_video)],
-            capture_output=True,
-        )
+        try:
+            result = _sp.run(
+                [ffmpeg, "-y", "-i", str(video_path), "-i", str(new_audio),
+                 "-filter_complex", "[1:a]apad[aud]",
+                 "-map", "0:v:0", "-map", "[aud]",
+                 "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest",
+                 str(out_video)],
+                capture_output=True, timeout=600,
+            )
+        except _sp.TimeoutExpired:
+            _set(status="error", error="Re-voice timed out combining audio with video.")
+            return
         if result.returncode != 0 or not out_video.exists():
-            _set(status="error", error="ffmpeg failed to combine the new voice with the video.")
+            err = (result.stderr or b"")[-300:].decode("utf-8", "replace")
+            _set(status="error", error=f"ffmpeg failed to combine the new voice with the video. {err}")
             return
 
         db.update_job(job_id, video_path=str(out_video), audio_path=str(new_audio), voice=voice)
@@ -1483,7 +1488,8 @@ def api_voice_sample(voice_id):
         return jsonify({"error": "bad voice id"}), 400
     cache_dir = Path(config.DATA_DIR) / "voice_samples"
     cache_dir.mkdir(parents=True, exist_ok=True)
-    sample = cache_dir / f"{safe}.mp3"
+    # Version tag busts stale/robotic cached samples when the voice set changes.
+    sample = cache_dir / f"{safe}_v2.mp3"
     if not sample.exists() or sample.stat().st_size < 512:
         with _voice_sample_lock:
             if not sample.exists() or sample.stat().st_size < 512:

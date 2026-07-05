@@ -1,23 +1,15 @@
-"""Text-to-speech audio generation — ElevenLabs primary, Google Cloud TTS
-Neural2 secondary, edge-tts tertiary, pyttsx3/espeak-ng last-resort fallback.
+"""Text-to-speech audio generation — QUALITY VOICES ONLY.
 
-ElevenLabs goes first because it's the highest quality of the four AND the
-most reliable to actually reach from a cloud server: edge-tts calls
-Microsoft's consumer endpoint, which frequently blocks datacenter/cloud IP
-ranges (Render, AWS, GCP, ...) with 403s — so on a server, edge-tts can fail
-silently far more often than it does on a home connection, and Google Cloud
-TTS requires the API key to have the Cloud Text-to-Speech API specifically
-enabled (a separate scope from Vision/Translate/NLP, easy to miss). When
-both of those fail, this used to fall all the way to espeak-ng/pyttsx3 —
-robotic, 1990s-sounding synthesis — for real customer-facing videos.
+Order: the requested ElevenLabs voice → another same-gender ElevenLabs voice →
+Higgsfield audio. Google/edge/espeak (robotic "computer" voices) are OFF by
+default and only run if ALLOW_ROBOTIC_TTS_FALLBACK=1 is set. If no real voice
+can be produced, generate_audio() raises rather than shipping a robotic voice.
 
-Voice selection is centralized in config.resolve_voice(), which maps any
-identifier (a curated ElevenLabs catalog id, a friendly name, or a legacy
-Google/edge id) to a {elevenlabs, google, edge} triple so every fallback
-layer stays the SAME gender the user picked.
+Voice selection is centralized in config.resolve_voice().
 """
 import asyncio
 import base64
+import os
 import re
 import subprocess
 import sys
@@ -131,12 +123,16 @@ def _stitch_mp3_chunks(mp3_chunks: list, output_path: Path) -> None:
         list_path.write_text("\n".join(f"file '{f}'" for f in chunk_files))
 
         ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
-        result = subprocess.run(
-            [ffmpeg_bin, "-y", "-f", "concat", "-safe", "0", "-i", str(list_path),
-             "-c", "copy", str(output_path)],
-            capture_output=True,
-        )
-        if result.returncode != 0:
+        try:
+            result = subprocess.run(
+                [ffmpeg_bin, "-y", "-f", "concat", "-safe", "0", "-i", str(list_path),
+                 "-c", "copy", str(output_path)],
+                capture_output=True, timeout=180,
+            )
+            failed = result.returncode != 0
+        except subprocess.TimeoutExpired:
+            failed = True
+        if failed:
             # Fallback: raw byte concatenation
             output_path.write_bytes(b"".join(mp3_chunks))
 
@@ -189,34 +185,38 @@ def _elevenlabs_account_voices(api_key: str) -> list:
     return _EL_ACCOUNT_VOICES_CACHE
 
 
-def _elevenlabs_fallback_voice(api_key: str, voice_id: str) -> Optional[str]:
-    """If a catalog voice_id isn't on this account (older/free plans differ),
-    pick a REAL account voice matched to the catalog voice's gender so we still
-    get an ElevenLabs voice of the right gender instead of dropping to espeak."""
+def _elevenlabs_fallback_voices(api_key: str, voice_id: str) -> list:
+    """Ordered list of same-gender ElevenLabs voice ids to try if `voice_id`
+    fails — so we always land on ANOTHER real ElevenLabs voice, never a computer
+    voice. Same-gender catalog voices first (all current default-library ids),
+    then same-gender voices from the account, then anything on the account."""
     entry = next((v for v in config.VOICE_CATALOG if v["id"] == voice_id), None)
     gender = (entry or {}).get("gender", "").lower()
+
+    out = [v["id"] for v in config.VOICE_CATALOG
+           if v["id"] != voice_id and v.get("gender", "").lower() == gender]
+
     voices = _elevenlabs_account_voices(api_key)
-    if not voices:
-        return None
-    same = [v for v in voices if (v.get("labels") or {}).get("gender", "").lower() == gender]
-    pool = same or voices
-    return pool[0].get("voice_id")
+    same = [v.get("voice_id") for v in voices
+            if (v.get("labels") or {}).get("gender", "").lower() == gender]
+    out += [vid for vid in same if vid and vid not in out and vid != voice_id]
+    out += [v.get("voice_id") for v in voices
+            if v.get("voice_id") and v.get("voice_id") not in out and v.get("voice_id") != voice_id]
+    return out
 
 
 def _generate_elevenlabs(text: str, output_path: Path, voice_id: str) -> bool:
     """
-    Generate TTS using the ElevenLabs API — the primary, highest-quality source.
-    Returns True on success, False if ELEVENLABS_API_KEY is not set or on error.
+    Generate TTS with ElevenLabs. Returns True on success, False otherwise.
 
-    Fails LOUDLY (logs the HTTP status) so a silent drop to the robotic espeak
-    voice is diagnosable, and self-heals a bad/unavailable voice id by retrying
-    with a real gender-matched voice from the account.
+    If the requested voice fails (e.g. not on this account), it retries with
+    OTHER ElevenLabs voices of the same gender — never a computer voice. Aborts
+    fast on auth/quota errors (retrying won't help) so callers fail loudly
+    instead of hanging.
     """
     api_key = (getattr(config, "ELEVENLABS_API_KEY", "") or "").strip()
     if not api_key:
-        print("[audio] ElevenLabs SKIPPED — ELEVENLABS_API_KEY is not set. "
-              "Set it in Settings → ElevenLabs (or the env var) or you'll get the "
-              "robotic fallback voice.")
+        print("[audio] ElevenLabs SKIPPED — ELEVENLABS_API_KEY not set.")
         return False
     if not voice_id:
         return False
@@ -224,12 +224,8 @@ def _generate_elevenlabs(text: str, output_path: Path, voice_id: str) -> bool:
     model_id = getattr(config, "ELEVENLABS_MODEL", "eleven_multilingual_v2")
     chunks = _split_into_chunks(text, _ELEVENLABS_CHUNK_SIZE)
 
-    # Try the requested catalog voice first; if it 404/422s (not on this plan),
-    # retry once with a real account voice of the same gender.
-    tried = []
-    attempt = voice_id
-    for _ in range(2):
-        tried.append(attempt)
+    candidates = [voice_id] + _elevenlabs_fallback_voices(api_key, voice_id)
+    for i, attempt in enumerate(candidates):
         try:
             mp3_chunks = [
                 _elevenlabs_tts_chunk(chunk, attempt, api_key, model_id)
@@ -238,7 +234,8 @@ def _generate_elevenlabs(text: str, output_path: Path, voice_id: str) -> bool:
             if not mp3_chunks:
                 return False
             _stitch_mp3_chunks(mp3_chunks, output_path)
-            print(f"[audio] ElevenLabs OK ({model_id}, voice={attempt}) — {len(mp3_chunks)} chunk(s)")
+            tag = "" if i == 0 else " (fallback ElevenLabs voice)"
+            print(f"[audio] ElevenLabs OK ({model_id}, voice={attempt}){tag} — {len(mp3_chunks)} chunk(s)")
             return output_path.exists()
         except Exception as e:
             status = getattr(getattr(e, "response", None), "status_code", None)
@@ -247,20 +244,16 @@ def _generate_elevenlabs(text: str, output_path: Path, voice_id: str) -> bool:
                 body = e.response.text[:200]
             except Exception:
                 pass
-            print(f"[audio] ElevenLabs FAILED voice={attempt} status={status} err={e} {body}")
+            print(f"[audio] ElevenLabs voice={attempt} failed (status={status}) {body or e}")
             if status in (401, 403):
-                print("[audio] ElevenLabs: API key rejected — check ELEVENLABS_API_KEY is valid.")
+                print("[audio] ElevenLabs: API key rejected — nothing else will work, aborting.")
                 return False
             if status == 429:
-                print("[audio] ElevenLabs: quota/credits exhausted (429).")
+                print("[audio] ElevenLabs: quota/credits exhausted (429) — aborting.")
                 return False
-            # 404/422/etc: voice may not exist on this account — self-heal once.
-            fb = _elevenlabs_fallback_voice(api_key, voice_id)
-            if fb and fb not in tried:
-                print(f"[audio] ElevenLabs: retrying with account voice {fb}")
-                attempt = fb
-                continue
-            return False
+            # 404/422/network on this voice: try the next ElevenLabs voice.
+            continue
+    print("[audio] ElevenLabs: exhausted all same-gender voices without success.")
     return False
 
 
@@ -380,6 +373,26 @@ def _tts_fallback(text: str, output_path: Path) -> None:
         print(f"[audio] espeak-ng failed ({e})")
 
 
+def _generate_higgsfield_audio(text: str, output_path: Path, resolved: dict) -> bool:
+    """Best-effort narration via Higgsfield's audio generation (a real voice,
+    not a computer voice). Returns True on success. Fully guarded and time-boxed
+    so it can never hang the caller; returns False if Higgsfield can't do it."""
+    try:
+        from generators import higgsfield_mcp as _hf
+    except Exception:
+        return False
+    fn = getattr(_hf, "generate_speech", None) or getattr(_hf, "generate_audio", None)
+    if not callable(fn):
+        return False
+    try:
+        gender = (resolved or {}).get("gender", "")
+        res = fn(text=text, output_path=Path(output_path), gender=gender)
+        return bool(res) and Path(output_path).exists() and Path(output_path).stat().st_size > 0
+    except Exception as e:
+        print(f"[audio] Higgsfield audio unavailable ({e})")
+        return False
+
+
 def generate_audio(
     text: str,
     output_path: Path,
@@ -387,14 +400,16 @@ def generate_audio(
     rate: str = "+0%",
     pitch: str = "+0Hz",
 ) -> Path:
-    """Convert text to speech and save as MP3.
+    """Convert text to speech and save as MP3 — QUALITY VOICES ONLY.
 
-    Priority (each fallback stays the SAME gender the user selected):
-    1. ElevenLabs (if ELEVENLABS_API_KEY set) — highest quality, most
-       reliable to reach from a cloud server
-    2. Google Cloud TTS Neural2 (if GOOGLE_API_KEY set)
-    3. edge-tts
-    4. espeak-ng / pyttsx3 fallback
+    Order (no computer/robotic voices, ever):
+    1. The requested ElevenLabs voice
+    2. Another ElevenLabs voice of the same gender (catalog then account)
+    3. Higgsfield audio (if available)
+    If all of those fail it raises — better a clear error than a robotic voice.
+
+    Set ALLOW_ROBOTIC_TTS_FALLBACK=1 to re-enable Google/edge/espeak as an
+    absolute last resort (off by default).
     """
     voice = voice or config.DEFAULT_VOICE
     resolved = config.resolve_voice(voice)
@@ -403,36 +418,36 @@ def generate_audio(
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     def _has_real_audio() -> bool:
-        # edge-tts (and some failure paths) can leave a 0-byte file behind
-        # when the connection drops mid-write — exists() alone would treat
-        # that empty stub as a successful result.
         return output_path.exists() and output_path.stat().st_size > 0
 
-    # 1. Try ElevenLabs — the primary, highest-quality source
+    # 1 + 2. ElevenLabs (requested voice, then other same-gender ElevenLabs voices)
     if _generate_elevenlabs(clean_text, output_path, resolved["elevenlabs"]):
         if _has_real_audio():
             return output_path
 
-    # 2. Try Google Cloud TTS Neural2 (gender-matched fallback voice)
-    if getattr(config, "GOOGLE_API_KEY", ""):
-        if _generate_google_tts(clean_text, output_path, resolved["google"]):
+    # 3. Higgsfield audio — still a real (non-robotic) voice.
+    if _generate_higgsfield_audio(clean_text, output_path, resolved):
+        if _has_real_audio():
+            return output_path
+
+    # Opt-in only: robotic fallbacks. Default OFF — we don't ship computer voices.
+    if os.getenv("ALLOW_ROBOTIC_TTS_FALLBACK", "0") not in ("", "0", "false", "no"):
+        if getattr(config, "GOOGLE_API_KEY", "") and _generate_google_tts(clean_text, output_path, resolved["google"]):
             if _has_real_audio():
                 return output_path
+        try:
+            asyncio.run(_generate_speech(clean_text, output_path, resolved["edge"], rate, pitch))
+        except Exception as e:
+            print(f"[audio] edge-tts failed ({e}) — using espeak fallback")
+            _tts_fallback(clean_text, output_path)
+        if _has_real_audio():
+            return output_path
 
-    # 3. Try edge-tts (gender-matched fallback voice — never a raw Google id,
-    #    which edge-tts would reject and drop us to the robotic espeak voice)
-    try:
-        asyncio.run(_generate_speech(clean_text, output_path, resolved["edge"], rate, pitch))
-        if not _has_real_audio():
-            raise RuntimeError("edge-tts produced no audio content")
-    except Exception as e:
-        print(f"[audio] edge-tts failed ({e}) — using fallback TTS")
-        _tts_fallback(clean_text, output_path)
-
-    if not _has_real_audio():
-        raise RuntimeError(f"Audio generation failed — no output at {output_path}")
-
-    return output_path
+    raise RuntimeError(
+        "Audio generation failed — ElevenLabs (and Higgsfield) unavailable. "
+        "Check ELEVENLABS_API_KEY at /api/debug/elevenlabs. Refusing to ship a "
+        "robotic voice (set ALLOW_ROBOTIC_TTS_FALLBACK=1 to override)."
+    )
 
 
 def get_audio_duration(audio_path: Path) -> float:

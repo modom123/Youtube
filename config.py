@@ -555,39 +555,39 @@ STUDIOS = [
 ]
 
 # Single canonical voice catalog used across every studio (Create, Studio,
-# Hollywood, Ad Lab, Batch, Settings). 10 premium ElevenLabs voices — 5 female,
-# 5 male — each carrying a same-gender Google Neural2 and edge-tts fallback so
-# a user's choice never silently flips gender (or drops to a robotic espeak
-# voice) when ElevenLabs is unavailable.
+# Hollywood, Ad Lab, Batch, Settings). 20 ElevenLabs voices — 10 female, 10 male.
 #
-# `id` is the ElevenLabs voice_id — the primary, high-quality source. The
-# `google`/`edge` keys are graceful, gender-matched degradations used only when
-# ElevenLabs can't be reached. These IDs are ElevenLabs' stable premade library.
+# IMPORTANT: every id below is from ElevenLabs' CURRENT default voice library,
+# which is present on every account. Legacy voices (Adam/Antoni/Josh/Arnold/
+# Sam/Domi/Elli/Freya/Grace/Dorothy...) were removed because newer accounts
+# don't have them — those 404 and used to drop to the robotic fallback.
+#
+# The `google`/`edge` keys are kept only for back-compat with resolve_voice;
+# narration NEVER falls back to them anymore (see audio_generator: ElevenLabs
+# voice → another ElevenLabs voice → Higgsfield, never a computer voice).
 VOICE_CATALOG = [
-    # ── Female ────────────────────────────────────────────────────────────────
-    {"id": "21m00Tcm4TlvDq8ikWAM", "name": "Rachel",    "gender": "Female", "style": "Calm & Narrative",     "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Studio-O",  "edge": "en-US-AriaNeural"},
-    {"id": "XrExE9yKIg1WjnnlVkGX", "name": "Matilda",   "gender": "Female", "style": "Warm & Friendly",      "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-F", "edge": "en-US-JennyNeural"},
-    {"id": "XB0fDUnXU5powFXDhCwa", "name": "Charlotte", "gender": "Female", "style": "Expressive & Engaging", "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-H", "edge": "en-US-AriaNeural"},
-    {"id": "oWAxZDx7w5VEj9dCyTzz", "name": "Grace",     "gender": "Female", "style": "Soft & Soothing",      "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-G", "edge": "en-US-JennyNeural"},
-    {"id": "ThT5KcBeYPX3keUQqHPh", "name": "Dorothy",   "gender": "Female", "style": "Bright & Pleasant",    "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-A", "edge": "en-GB-SoniaNeural"},
-    # ── Male ──────────────────────────────────────────────────────────────────
-    {"id": "pNInz6obpgDQGcFmaJgB", "name": "Adam",      "gender": "Male",   "style": "Deep & Authoritative", "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Studio-Q",  "edge": "en-US-GuyNeural"},
-    {"id": "nPczCjzI2devNBz1zQrb", "name": "Brian",     "gender": "Male",   "style": "Rich Narration",       "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-A", "edge": "en-US-GuyNeural"},
-    {"id": "ErXwobaYiN019PkySvjV", "name": "Antoni",    "gender": "Male",   "style": "Warm & Well-Rounded",  "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-D", "edge": "en-US-DavisNeural"},
-    {"id": "JBFqnCBsd6RMkjVDRZzb", "name": "George",    "gender": "Male",   "style": "Warm Storyteller",     "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-B", "edge": "en-GB-RyanNeural"},
-    {"id": "TxGEqnHWrfWFTfGW9XjX", "name": "Josh",      "gender": "Male",   "style": "Young & Energetic",    "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-I", "edge": "en-US-DavisNeural"},
-    # ── Female (expansion) ────────────────────────────────────────────────────
-    {"id": "AZnzlk1XvdvUeBnXmlld", "name": "Domi",      "gender": "Female", "style": "Confident & Strong",   "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-C", "edge": "en-US-AriaNeural"},
-    {"id": "MF3mGyEYCl7XYWbV9V6O", "name": "Elli",      "gender": "Female", "style": "Youthful & Emotional", "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-F", "edge": "en-US-JennyNeural"},
+    # ── Female (current ElevenLabs default library) ───────────────────────────
+    {"id": "9BWtsMINqrJLrRacOk9x", "name": "Aria",      "gender": "Female", "style": "Expressive & Modern",  "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Studio-O",  "edge": "en-US-AriaNeural"},
+    {"id": "21m00Tcm4TlvDq8ikWAM", "name": "Rachel",    "gender": "Female", "style": "Calm & Narrative",     "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-C", "edge": "en-US-AriaNeural"},
     {"id": "EXAVITQu4vr4xnSDxMaL", "name": "Sarah",     "gender": "Female", "style": "Soft & Newsy",         "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-E", "edge": "en-US-JennyNeural"},
-    {"id": "jsCqWAovK2LkecY7zXl4", "name": "Freya",     "gender": "Female", "style": "Expressive & Dynamic", "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-G", "edge": "en-US-AriaNeural"},
+    {"id": "FGY2WhTYpPnrIDTdsKH5", "name": "Laura",     "gender": "Female", "style": "Young & Upbeat",       "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-F", "edge": "en-US-JennyNeural"},
+    {"id": "XB0fDUnXU5powFXDhCwa", "name": "Charlotte", "gender": "Female", "style": "Smooth & Engaging",    "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-H", "edge": "en-US-AriaNeural"},
+    {"id": "Xb7hH8MSUJpSbSDYk0k2", "name": "Alice",     "gender": "Female", "style": "Confident British",    "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-A", "edge": "en-GB-SoniaNeural"},
+    {"id": "XrExE9yKIg1WjnnlVkGX", "name": "Matilda",   "gender": "Female", "style": "Warm & Friendly",      "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-G", "edge": "en-US-JennyNeural"},
+    {"id": "cgSgspJ2msm6clMCkdW9", "name": "Jessica",   "gender": "Female", "style": "Playful & Expressive", "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-C", "edge": "en-US-AriaNeural"},
     {"id": "pFZP5JQG7iQjIQuC4Bku", "name": "Lily",      "gender": "Female", "style": "Warm British",         "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-C", "edge": "en-GB-SoniaNeural"},
-    # ── Male (expansion) ──────────────────────────────────────────────────────
-    {"id": "VR6AewLTigWG4xSOukaG", "name": "Arnold",    "gender": "Male",   "style": "Crisp & Assertive",    "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-D", "edge": "en-US-GuyNeural"},
-    {"id": "yoZ06aMxZJJ28mfd3POQ", "name": "Sam",       "gender": "Male",   "style": "Raspy & Casual",       "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-I", "edge": "en-US-DavisNeural"},
-    {"id": "N2lVS1w4EtoT3dr4eOWO", "name": "Callum",    "gender": "Male",   "style": "Intense & Dramatic",   "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-J", "edge": "en-US-GuyNeural"},
-    {"id": "IKne3meq5aSn9XLyUdCD", "name": "Charlie",   "gender": "Male",   "style": "Natural & Aussie",     "locale": "en-AU", "provider": "elevenlabs", "google": "en-AU-Neural2-B", "edge": "en-AU-WilliamNeural"},
-    {"id": "onwK4e9ZLuTAKqWW03F9", "name": "Daniel",    "gender": "Male",   "style": "Deep & Newsy (UK)",    "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-B", "edge": "en-GB-RyanNeural"},
+    {"id": "SAz9YHcvj6GT2YYXdXww", "name": "River",     "gender": "Female", "style": "Relaxed & Neutral",    "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-F", "edge": "en-US-JennyNeural"},
+    # ── Male (current ElevenLabs default library) ─────────────────────────────
+    {"id": "nPczCjzI2devNBz1zQrb", "name": "Brian",     "gender": "Male",   "style": "Deep Narration",       "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Studio-Q",  "edge": "en-US-GuyNeural"},
+    {"id": "JBFqnCBsd6RMkjVDRZzb", "name": "George",    "gender": "Male",   "style": "Warm Storyteller",     "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-B", "edge": "en-GB-RyanNeural"},
+    {"id": "CwhRBWXzGAHq8TQ4Fs17", "name": "Roger",     "gender": "Male",   "style": "Confident & Easy",     "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-A", "edge": "en-US-GuyNeural"},
+    {"id": "IKne3meq5aSn9XLyUdCD", "name": "Charlie",   "gender": "Male",   "style": "Natural Australian",   "locale": "en-AU", "provider": "elevenlabs", "google": "en-AU-Neural2-B", "edge": "en-AU-WilliamNeural"},
+    {"id": "N2lVS1w4EtoT3dr4eOWO", "name": "Callum",    "gender": "Male",   "style": "Intense & Dramatic",   "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-D", "edge": "en-US-GuyNeural"},
+    {"id": "TX3LPaxmHKxFdv7VOQHJ", "name": "Liam",      "gender": "Male",   "style": "Young & Articulate",   "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-I", "edge": "en-US-DavisNeural"},
+    {"id": "bIHbv24MWmeRgasZH58o", "name": "Will",      "gender": "Male",   "style": "Friendly & Warm",      "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-J", "edge": "en-US-GuyNeural"},
+    {"id": "cjVigY5qzO86Huf0OWal", "name": "Eric",      "gender": "Male",   "style": "Smooth & Mature",      "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-A", "edge": "en-US-DavisNeural"},
+    {"id": "iP95p4xoKVk53GoZ742B", "name": "Chris",     "gender": "Male",   "style": "Casual & Real",        "locale": "en-US", "provider": "elevenlabs", "google": "en-US-Neural2-D", "edge": "en-US-GuyNeural"},
+    {"id": "onwK4e9ZLuTAKqWW03F9", "name": "Daniel",    "gender": "Male",   "style": "Authoritative News",   "locale": "en-GB", "provider": "elevenlabs", "google": "en-GB-Neural2-B", "edge": "en-GB-RyanNeural"},
 ]
 for _v in VOICE_CATALOG:
     _v["label"] = f"{_v['name']} — {_v['style']} ({_v['gender']})"
