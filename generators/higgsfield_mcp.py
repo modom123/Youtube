@@ -11,7 +11,7 @@ import time
 import threading
 import requests
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 import config
 
 # Per-thread Higgsfield token override (set by app.py thread functions)
@@ -191,6 +191,7 @@ def generate_clips_via_sdk(
     model_id: str = "kling3_0",
     aspect_ratio: str = "16:9",
     duration: int = 5,
+    cancel_check: Optional[Callable[[], bool]] = None,
 ) -> list:
     """Generate video clips via the higgsfield-client SDK (Platform API
     key+secret). Returns downloaded .mp4 paths. Errors per clip, never raises."""
@@ -208,6 +209,9 @@ def generate_clips_via_sdk(
     paths = [mapped] + ([_SDK_DEFAULT_VIDEO_PATH] if mapped != _SDK_DEFAULT_VIDEO_PATH else [])
     results = []
     for i, prompt in enumerate(prompts):
+        if cancel_check and cancel_check():
+            print(f"[higgsfield_sdk] Cancelled before clip {i+1}/{len(prompts)}")
+            break
         for path in paths:
             try:
                 result = hf.subscribe(path, arguments={
@@ -242,17 +246,23 @@ def generate_image(prompt, output_path, model_id="flux_2", aspect_ratio="1:1", *
 
 
 def generate_clips(prompts, output_dir, model_id="kling3_0", aspect_ratio="16:9",
-                   duration=5, max_poll=600, **kw) -> list:
+                   duration=5, max_poll=600, cancel_check: Optional[Callable[[], bool]] = None, **kw) -> list:
     """Generate video clips — Higgsfield Platform SDK (key+secret) first, then the
     MCP/OAuth endpoint. Every studio should call this."""
+    if cancel_check and cancel_check():
+        return []
     if has_platform_credentials():
         clips = generate_clips_via_sdk(prompts, output_dir, model_id=model_id,
-                                       aspect_ratio=aspect_ratio, duration=duration)
+                                       aspect_ratio=aspect_ratio, duration=duration,
+                                       cancel_check=cancel_check)
         if clips:
             return clips
+        if cancel_check and cancel_check():
+            return []
         print("[higgsfield] Platform SDK video failed — falling back to MCP")
     return generate_clips_via_mcp(prompts, output_dir, model_id=model_id,
-                                  aspect_ratio=aspect_ratio, duration=duration, max_poll=max_poll)
+                                  aspect_ratio=aspect_ratio, duration=duration, max_poll=max_poll,
+                                  cancel_check=cancel_check)
 
 
 class _MCPSession:
@@ -506,6 +516,7 @@ def generate_clips_via_mcp(
     aspect_ratio: str = "16:9",
     duration: int = 5,
     max_poll: int = 600,
+    cancel_check: Optional[Callable[[], bool]] = None,
 ) -> list[Path]:
     """
     Generate video clips via the Higgsfield MCP endpoint.
@@ -525,6 +536,9 @@ def generate_clips_via_mcp(
     results: list[Path] = []
 
     for i, prompt in enumerate(prompts):
+        if cancel_check and cancel_check():
+            print(f"[higgsfield_mcp] Cancelled before clip {i+1}/{len(prompts)}")
+            break
         print(f"[higgsfield_mcp:{model_id}] Clip {i+1}/{len(prompts)}: {prompt[:60]}...")
         try:
             gen = session.call("generate_video", {
@@ -557,6 +571,9 @@ def generate_clips_via_mcp(
             elapsed, wait = 0, 15
             video_url: Optional[str] = None
             while elapsed < max_poll:
+                if cancel_check and cancel_check():
+                    print(f"[higgsfield_mcp] Cancelled while polling job {job_id}")
+                    break
                 time.sleep(wait)
                 elapsed += wait
                 try:

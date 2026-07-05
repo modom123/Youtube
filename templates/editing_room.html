@@ -123,6 +123,10 @@
           <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
             <div id="progress-bar" style="height:100%;background:linear-gradient(90deg,#e53e3e,#dd6b20);width:0%;transition:width .4s;border-radius:3px;"></div>
           </div>
+          <button onclick="cancelProduction()" id="cancel-btn"
+            style="width:100%;margin-top:10px;padding:8px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
+            Cancel
+          </button>
         </div>
         <!-- Result -->
         <div id="result-area" style="display:none;margin-top:14px;">
@@ -166,6 +170,7 @@ let visualMode = 'gradient';
 let bgmTrackId = new URLSearchParams(window.location.search).get('bgm') || null;
 let bgmType = new URLSearchParams(window.location.search).get('bgm_type') || 'track';
 let sectionMedia = {};  // {sectionIndex: [{media_id, path, type, filename}]}
+let currentEditingJobId = null;
 
 const SO_JOB_KEY = 'so_editing_active_job';
 const SO_JOB_MAX_AGE_MS = 60 * 60 * 1000;
@@ -413,6 +418,7 @@ function startProduction() {
       return;
     }
     // Stream progress
+    currentEditingJobId = data.editing_job_id;
     saveActiveJob(data.editing_job_id);
     attachEditingStream(data.editing_job_id);
   })
@@ -424,8 +430,25 @@ function startProduction() {
   });
 }
 
+function cancelProduction() {
+  if (!currentEditingJobId) return;
+  const btn = document.getElementById('cancel-btn');
+  btn.disabled = true;
+  btn.textContent = 'Cancelling…';
+  fetch(`/api/editing-room/cancel/${currentEditingJobId}`, {method: 'POST'})
+    .catch(err => alert('Cancel request failed: ' + err));
+}
+
 function attachEditingStream(editing_job_id) {
   const btn = document.getElementById('produce-btn');
+  const cancelBtn = document.getElementById('cancel-btn');
+  const resetButtons = () => {
+    btn.disabled = false;
+    btn.textContent = 'Start Production';
+    btn.style.opacity = '1';
+    cancelBtn.disabled = false;
+    cancelBtn.textContent = 'Cancel';
+  };
   const es = new EventSource(`/api/editing-room/stream/${editing_job_id}`);
   es.onmessage = (e) => {
     const d = JSON.parse(e.data);
@@ -440,9 +463,9 @@ function attachEditingStream(editing_job_id) {
       es.close();
       stopTimer();
       clearActiveJob();
-      btn.disabled = false;
-      btn.textContent = 'Start Production';
-      btn.style.opacity = '1';
+      currentEditingJobId = null;
+      resetButtons();
+      document.getElementById('progress-area').style.display = 'none';
       document.getElementById('result-area').style.display = 'block';
       const r = d.result || {};
       document.getElementById('result-info').textContent =
@@ -455,17 +478,22 @@ function attachEditingStream(editing_job_id) {
       es.close();
       stopTimer();
       clearActiveJob();
-      btn.disabled = false;
-      btn.textContent = 'Start Production';
-      btn.style.opacity = '1';
+      currentEditingJobId = null;
+      resetButtons();
       alert('Production failed: ' + (d.step || 'Unknown error'));
+    }
+    if (d.status === 'cancelled') {
+      es.close();
+      stopTimer();
+      clearActiveJob();
+      currentEditingJobId = null;
+      resetButtons();
+      document.getElementById('progress-area').style.display = 'none';
     }
   };
   es.onerror = () => {
     es.close();
-    btn.disabled = false;
-    btn.textContent = 'Start Production';
-    btn.style.opacity = '1';
+    resetButtons();
   };
 }
 
@@ -509,6 +537,7 @@ function attachEditingStream(editing_job_id) {
         btn.textContent = 'Start Production';
         btn.style.opacity = '1';
       } else {
+        currentEditingJobId = jobId;
         attachEditingStream(jobId);
       }
     })

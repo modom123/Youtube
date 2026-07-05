@@ -9685,6 +9685,7 @@ def _run_autopilot_job_and_schedule(config_id: int, job_id: int, params: dict, u
 _editing_jobs: dict = {}
 _editing_events: dict = {}
 _editing_lock = threading.Lock()
+_editing_cancelled: set = set()
 
 
 def _push_editing_event(job_id: str, data: dict):
@@ -9696,9 +9697,12 @@ def _push_editing_event(job_id: str, data: dict):
 
 
 def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
-    from generators.editing_room import produce, STUDIO_PRESETS
+    from generators.editing_room import produce, STUDIO_PRESETS, ProductionCancelled
     from generators import ai_video_generator as _avg, higgsfield_mcp as _hmcp
     from pathlib import Path as P
+
+    def _is_cancelled():
+        return editing_job_id in _editing_cancelled
 
     if user_id:
         try:
@@ -9733,7 +9737,7 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
             studio=studio, topic=topic, sections=sections,
             output_dir=output_dir, subtitle=subtitle, progress_cb=_cb,
             use_ai_clips=use_ai_clips, custom_bgm_path=custom_bgm,
-            section_media=section_media, voice=voice,
+            section_media=section_media, voice=voice, cancel_check=_is_cancelled,
         )
 
         # Create a job record in the DB so it shows in /jobs and can be remixed
@@ -9774,12 +9778,18 @@ def _run_editing_thread(editing_job_id: str, params: dict, user_id: int = None):
             "result": result, "db_job_id": db_job_id,
         })
 
+    except ProductionCancelled:
+        with _editing_lock:
+            _editing_jobs[editing_job_id].update({"status": "cancelled", "step": "Cancelled by user"})
+        _push_editing_event(editing_job_id, {"status": "cancelled", "step": "Cancelled by user"})
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
         with _editing_lock:
             _editing_jobs[editing_job_id].update({"status": "error", "step": f"Error: {e}", "traceback": tb})
         _push_editing_event(editing_job_id, {"status": "error", "step": f"Error: {e}", "traceback": tb})
+    finally:
+        _editing_cancelled.discard(editing_job_id)
 
 
 @app.route("/editing-room")
@@ -9958,6 +9968,24 @@ def editing_room_status(editing_job_id):
     if job is None:
         return jsonify({"error": "Not found"}), 404
     return jsonify(job)
+
+
+@app.route("/api/editing-room/cancel/<editing_job_id>", methods=["POST"])
+@login_required
+def editing_room_cancel(editing_job_id):
+    """Stop a running Cut production. The running thread checks this flag at
+    every progress step (including inside the Higgsfield polling loop), so
+    it takes effect within seconds instead of only after the whole job ends."""
+    with _editing_lock:
+        job = _editing_jobs.get(editing_job_id)
+        if job is None:
+            return jsonify({"error": "Not found"}), 404
+        if job.get("status") not in ("running",):
+            return jsonify({"ok": True, "status": job.get("status")})
+        _editing_cancelled.add(editing_job_id)
+        job.update({"status": "cancelling", "step": "Cancelling…"})
+    _push_editing_event(editing_job_id, {"status": "cancelling", "step": "Cancelling…"})
+    return jsonify({"ok": True})
 
 
 # ── The Cut Media Upload ──────────────────────────────────────────────────

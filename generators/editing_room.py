@@ -34,6 +34,13 @@ from moviepy.video.fx import FadeIn, FadeOut
 
 from generators import audio_generator
 
+
+class ProductionCancelled(Exception):
+    """Raised mid-produce() when the caller's cancel_check() reports the user
+    cancelled the job — lets the thread stop cleanly instead of grinding
+    through the remaining (often Higgsfield-bound) steps."""
+
+
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 FONT_PATH_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
@@ -379,7 +386,7 @@ def _clip_with_overlay(clip_path, heading, palette, w, h, duration, idx, total, 
         return None
 
 
-def generate_section_clips(sections, studio, output_dir, progress_cb=None):
+def generate_section_clips(sections, studio, output_dir, progress_cb=None, cancel_check=None):
     """Generate Higgsfield AI clips for each section. Returns dict of {index: clip_path}."""
     from generators.higgsfield_mcp import generate_clips
     preset = STUDIO_PRESETS[studio]
@@ -406,6 +413,7 @@ def generate_section_clips(sections, studio, output_dir, progress_cb=None):
         model_id=model,
         aspect_ratio=ar,
         duration=5,
+        cancel_check=cancel_check,
     )
 
     clip_map = {}
@@ -487,6 +495,7 @@ def produce(
     custom_bgm_path: Optional[str] = None,
     section_media: Optional[dict] = None,
     voice: Optional[str] = None,
+    cancel_check: Optional[Callable[[], bool]] = None,
 ) -> dict:
     """
     Produce a complete enhanced video.
@@ -503,6 +512,10 @@ def produce(
         voice: Voice catalog id for narration -- routed through the same
             ElevenLabs -> Google Neural2 -> edge-tts -> espeak-ng cascade
             every other studio uses, instead of always using espeak-ng.
+        cancel_check: Optional callable returning True once the caller wants
+            this job stopped. Checked at every progress checkpoint (including
+            inside the Higgsfield polling loop) so a cancel takes effect within
+            seconds instead of only after the whole production finishes.
 
     Returns:
         dict with output path, duration, resolution, etc.
@@ -514,6 +527,8 @@ def produce(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     def _progress(msg, pct):
+        if cancel_check and cancel_check():
+            raise ProductionCancelled("Cancelled by user")
         if progress_cb:
             progress_cb(msg, pct)
 
@@ -523,7 +538,10 @@ def produce(
     if use_ai_clips and not clip_paths:
         try:
             _progress("Generating AI video clips...", 5)
-            clip_paths = generate_section_clips(sections, studio, output_dir, progress_cb)
+            clip_paths = generate_section_clips(sections, studio, output_dir, progress_cb,
+                                                 cancel_check=cancel_check)
+        except ProductionCancelled:
+            raise
         except Exception as e:
             _progress(f"AI clip generation failed ({e}), using gradient visuals", 8)
             clip_paths = {}
