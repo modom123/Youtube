@@ -236,6 +236,17 @@ body {
 .layout.embed .main { min-height: auto; }
 .layout.embed .content { padding: 24px; }
 body.embedded { background: transparent; }
+
+/* Iframe-context safety net: any page rendered inside an iframe (studio hubs,
+   Whop app) must hide the app chrome even if the ?embed flag was lost on a
+   redirect/nav — otherwise a second sidebar renders ("double left tabs"). */
+html.embedded-frame .sidebar,
+html.embedded-frame .topbar { display: none !important; }
+html.embedded-frame .layout { grid-template-columns: 1fr !important; min-height: auto; }
+html.embedded-frame body { background: transparent; }
+html.embedded-frame #hermesBubble,
+html.embedded-frame #hermesPanel { display: none !important; }
+
 /* The hub page already shows the assistant bubble — hide the duplicate that
    each embedded iframe would otherwise stack on top of it. */
 body.embedded #hermesBubble,

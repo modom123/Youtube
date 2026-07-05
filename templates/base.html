@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Social Optimize{% endblock %}</title>
 
+  <!-- Studio hubs embed sub-pages in an iframe. If such a page loads without
+       the ?embed flag (e.g. a redirect or an internal link dropped the query
+       string), the full app chrome would reappear inside the hub — a second
+       sidebar ("double left tabs"). Detecting the iframe context here, before
+       first paint, hides the chrome no matter how the page was reached. -->
+  <script>if (window.self !== window.top) document.documentElement.classList.add('embedded-frame');</script>
+
   <!-- PWA -->
   <link rel="manifest" href="/static/manifest.json">
   <meta name="theme-color" content="#d4a017">
