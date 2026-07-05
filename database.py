@@ -158,19 +158,19 @@ def init_db():
             subscription_external_id TEXT DEFAULT '',
             referred_by             TEXT DEFAULT '',
             assistant_enabled       INTEGER DEFAULT 1,
-            default_voice           TEXT DEFAULT 'en-US-Journey-D',
+            default_voice           TEXT DEFAULT 'nPczCjzI2devNBz1zQrb',
             created_at              TIMESTAMP DEFAULT NOW()
         )
         """)
         conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS assistant_enabled INTEGER DEFAULT 1")
-        conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS default_voice TEXT DEFAULT 'en-US-Journey-D'")
+        conn.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS default_voice TEXT DEFAULT 'nPczCjzI2devNBz1zQrb'")
         # ADD COLUMN IF NOT EXISTS only runs once -- on a database where this
         # column already exists (i.e. every real deployment so far), it never
         # re-applies, so the column's actual DEFAULT stays whatever it was
         # first created with. This explicitly updates it so new signups
         # going forward get the current default, not a stale one baked in
         # from months ago.
-        conn.execute("ALTER TABLE users ALTER COLUMN default_voice SET DEFAULT 'en-US-Journey-D'")
+        conn.execute("ALTER TABLE users ALTER COLUMN default_voice SET DEFAULT 'nPczCjzI2devNBz1zQrb'")
         conn.execute("""
         CREATE TABLE IF NOT EXISTS social_accounts (
             id          SERIAL PRIMARY KEY,

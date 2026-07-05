@@ -438,7 +438,7 @@ PINTEREST_BOARD_ID = os.getenv("PINTEREST_BOARD_ID", "")
 
 # Video settings
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en-US")
-DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "en-US-Journey-D")
+DEFAULT_VOICE = os.getenv("DEFAULT_VOICE", "nPczCjzI2devNBz1zQrb")  # Brian — deep male narrator (ElevenLabs default library)
 VIDEO_WIDTH = int(os.getenv("DEFAULT_VIDEO_WIDTH", "1280"))
 VIDEO_HEIGHT = int(os.getenv("DEFAULT_VIDEO_HEIGHT", "720"))
 SHORT_WIDTH = int(os.getenv("SHORT_VIDEO_WIDTH", "720"))
@@ -649,7 +649,7 @@ def resolve_voice(voice: str) -> dict:
 
     # Unknown/legacy id — preserve gender where we can, else use a neutral narrator.
     gender = _LEGACY_VOICE_GENDER.get(v)
-    base = _VOICE_BY_NAME["rachel"] if gender == "Female" else _VOICE_BY_NAME["adam"]
+    base = _VOICE_BY_NAME["rachel"] if gender == "Female" else _VOICE_BY_NAME["brian"]
     return {
         "elevenlabs": base["id"],
         "google": v if _looks_like_google_voice(v) else base["google"],
