@@ -6075,6 +6075,25 @@ SCRIPT_SECTIONS:
         if not audio_path:
             raise RuntimeError("Voiceover generation failed — couldn't produce narration audio for the commercial.")
 
+        # ── Step 5b: Background music bed (ElevenLabs), ducked under the
+        # voiceover -- optional polish, never blocks the commercial if it fails.
+        step("Adding background music...", 60)
+        try:
+            from generators.audio_generator import get_audio_duration
+            from generators.music_generator import generate_background_bed, mix_voice_and_music
+            voice_dur = get_audio_duration(Path(audio_path))
+            bed_path = generate_background_bed(
+                f"{style} background music for a {duration}-second commercial, "
+                "instrumental only, no vocals, subtle and unobtrusive",
+                voice_dur, out_dir / "bgm.mp3",
+            )
+            if bed_path:
+                mixed_path = out_dir / "mixed.mp3"
+                if mix_voice_and_music(Path(audio_path), bed_path, mixed_path, music_vol=0.15):
+                    audio_path = str(mixed_path)
+        except Exception as e:
+            print(f"[commercial] Background music skipped: {e}")
+
         # ── Step 6: Find 5-7 stock clips that match the story, assemble them ──
         step("Finding clips that match your story...", 65)
         from generators.media_fetcher import fetch_media_for_topic

@@ -344,6 +344,56 @@ def _try_elevenlabs(
         return None
 
 
+def generate_background_bed(description: str, duration_seconds: float, output_path: Path) -> Optional[Path]:
+    """A short, looped ElevenLabs Sound-Generation clip sized to exactly
+    duration_seconds — a subtle instrumental bed for things like Ad Lab
+    commercials, not a substitute for a real song. Returns output_path on
+    success, None if ElevenLabs isn't configured or generation fails."""
+    import subprocess
+
+    output_path = Path(output_path)
+    raw = _try_elevenlabs(description, min(int(duration_seconds) or 1, 22), output_path.parent)
+    if not raw:
+        return None
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-stream_loop", "-1", "-i", raw,
+             "-t", str(duration_seconds), "-c:a", "libmp3lame", "-b:a", "192k", str(output_path)],
+            capture_output=True, timeout=60,
+        )
+        if result.returncode == 0 and output_path.exists():
+            return output_path
+        log.warning("Looping background bed failed: %s", result.stderr.decode()[:200])
+    except Exception as exc:
+        log.warning("Looping background bed failed: %s", exc)
+    return None
+
+
+def mix_voice_and_music(voice_path: Path, music_path: Path, output_path: Path, music_vol: float = 0.15) -> Optional[Path]:
+    """Duck background music under a voice track. No padding -- the caller's
+    music is already sized to the voice's duration, and duration=first pins
+    the result to the voice length regardless of tiny mismatches."""
+    import subprocess
+
+    output_path = Path(output_path)
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", str(voice_path), "-i", str(music_path),
+             "-filter_complex",
+             f"[1:a]volume={music_vol}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2",
+             "-c:a", "libmp3lame", "-b:a", "192k", str(output_path)],
+            capture_output=True, timeout=60,
+        )
+        if result.returncode == 0 and output_path.exists():
+            return output_path
+        log.warning("Voice+music mix failed: %s", result.stderr.decode()[:200])
+    except Exception as exc:
+        log.warning("Voice+music mix failed: %s", exc)
+    return None
+
+
 # ── Main Engine ────────────────────────────────────────────────────────────────
 
 class MusicEngine:
