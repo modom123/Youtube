@@ -1468,6 +1468,34 @@ def api_job_revoice_status(job_id):
     return jsonify(st or {"status": "idle"})
 
 
+_VOICE_SAMPLE_TEXT = ("Hi there — this is a sample of my voice. "
+                      "I can narrate your videos in this style.")
+_voice_sample_lock = threading.Lock()
+
+
+@app.route("/api/voice-sample/<voice_id>")
+@login_required
+def api_voice_sample(voice_id):
+    """Return a short spoken sample for a catalog voice (generated once, cached).
+    Powers the 'hear a sample and choose' voice picker."""
+    safe = "".join(c for c in voice_id if c.isalnum() or c in "-_")[:48]
+    if not safe:
+        return jsonify({"error": "bad voice id"}), 400
+    cache_dir = Path(config.DATA_DIR) / "voice_samples"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    sample = cache_dir / f"{safe}.mp3"
+    if not sample.exists() or sample.stat().st_size < 512:
+        with _voice_sample_lock:
+            if not sample.exists() or sample.stat().st_size < 512:
+                from generators import audio_generator
+                try:
+                    audio_generator.generate_audio(text=_VOICE_SAMPLE_TEXT,
+                                                    output_path=sample, voice=voice_id)
+                except Exception as e:
+                    return jsonify({"error": f"Could not generate sample: {e}"}), 500
+    return send_file(str(sample), mimetype="audio/mpeg")
+
+
 @app.route("/api/jobs/<int:job_id>/convert", methods=["POST"])
 @login_required
 def convert_job_video(job_id):

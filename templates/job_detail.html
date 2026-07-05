@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_voice_picker.html" import voice_picker %}
 {% set active_page = "jobs" %}
 
 {% block title %}Job #{{ job.id }} — Social Optimize Machine{% endblock %}
@@ -315,14 +316,9 @@
 
       <!-- New Voice tab: keep the video, swap the voiceover -->
       <div id="edit-tab-voice" style="display:none;">
-        <div class="text-xs text-dim mb-12">Re-narrate this video's script in a new voice and keep the exact same video. Uses the premium ElevenLabs voices.</div>
-        <label class="text-xs text-dim">Voice</label>
-        <select id="revoice-select" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-elevated);color:var(--text);font-size:14px;margin:4px 0 12px;">
-          {% for v in voices %}
-          <option value="{{ v.id }}" {% if v.id == user_default_voice %}selected{% endif %}>{{ v.label }}</option>
-          {% endfor %}
-        </select>
-        <button class="btn btn-primary btn-block" id="revoice-btn" onclick="revoiceJob({{ job.id }})">🎙 Re-voice &amp; keep video</button>
+        <div class="text-xs text-dim mb-12">Re-narrate this video's script in a new voice and keep the exact same video. Click ▶ to hear a sample, then choose.</div>
+        {{ voice_picker(voices, user_default_voice, 'revoice-select') }}
+        <button class="btn btn-primary btn-block mt-12" id="revoice-btn" onclick="revoiceJob({{ job.id }})">🎙 Re-voice &amp; keep video</button>
         <div id="revoice-progress" style="display:none;margin-top:12px;">
           <div class="progress-track"><div class="progress-bar" id="revoice-bar" style="width:0%"></div></div>
           <div class="text-xs text-dim mt-4" id="revoice-txt">Starting…</div>
