@@ -331,13 +331,21 @@ def _prepare_clip_segment(source: Path, duration: float, width: int, height: int
         frames = max(1, int(duration * fps))
         zoom_in = idx % 2 == 0
         zoom_expr = "min(zoom+0.0015,1.3)" if zoom_in else "if(eq(on,0),1.3,max(zoom-0.0015,1.0))"
+        # zoompan's x/y (the crop window's top-left corner) default to 0,0 --
+        # anchored to the image's top-left corner, not its center. On a
+        # vertical card with centered text, that crops progressively toward
+        # the top-left as zoom increases, dragging the (visually centered)
+        # title/text off to one side instead of zooming in "on" it. Centering
+        # the crop window on every frame keeps it anchored on the content
+        # regardless of zoom level.
         cmd = [
             ffmpeg, "-y",
             "-loop", "1",
             "-i", str(source),
             "-t", f"{duration:.2f}",
             "-vf", (f"scale=iw*3:ih*3,"
-                    f"zoompan=z='{zoom_expr}':d={frames}:s={width}x{height}:fps={fps}"),
+                    f"zoompan=z='{zoom_expr}':x='(iw-iw/zoom)/2':y='(ih-ih/zoom)/2':"
+                    f"d={frames}:s={width}x{height}:fps={fps}"),
             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
             "-pix_fmt", "yuv420p",
             str(out),
