@@ -8764,7 +8764,10 @@ def mon_system_health():
     if not current_user.is_admin:
         return jsonify({"error": "forbidden"}), 403
     import shutil as _shutil
-    disk  = _shutil.disk_usage("/")
+    # config.DATA_DIR is the mounted persistent disk (20GB on Render), not "/"
+    # (the ephemeral container root) -- that's the volume generated
+    # video/audio output actually fills up.
+    disk  = _shutil.disk_usage(str(config.DATA_DIR))
     disk_pct  = (disk.used / disk.total * 100) if disk.total else 0
     disk_free = round(disk.free / (1024**3), 2)
 

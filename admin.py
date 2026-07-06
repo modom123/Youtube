@@ -516,7 +516,10 @@ def admin_health_api():
         for root, _, files in os.walk(upload_dir):
             for f in files:
                 upload_size += os.path.getsize(os.path.join(root, f))
-    disk = shutil.disk_usage("/")
+    # config.DATA_DIR is the mounted persistent disk (20GB on Render), not "/"
+    # (the ephemeral container root) -- that's the volume that actually fills
+    # up with generated video/audio output.
+    disk = shutil.disk_usage(str(config.DATA_DIR))
     return jsonify({
         "db_size_bytes": db_size,
         "upload_size_bytes": upload_size,

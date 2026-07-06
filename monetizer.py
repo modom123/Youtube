@@ -1125,7 +1125,10 @@ def system_health():
     output_dir = config.OUTPUT_DIR
     output_size = sum(f.stat().st_size for f in output_dir.rglob("*") if f.is_file()) if output_dir.exists() else 0
 
-    disk = shutil.disk_usage("/")
+    # config.DATA_DIR is the mounted persistent disk (20GB on Render), not "/"
+    # (the ephemeral container root) -- that's where output_dir above actually
+    # lives, and where space actually runs out.
+    disk = shutil.disk_usage(str(config.DATA_DIR))
 
     with _conn() as conn:
         stuck_jobs = conn.execute("""

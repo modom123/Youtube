@@ -12,6 +12,8 @@ import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import config
+
 SCALE_OPS_INTERVAL = 1800  # 30 minutes
 
 # ── Infrastructure Phases ─────────────────────────────────────────────────────
@@ -161,8 +163,12 @@ def _collect_metrics() -> dict:
     db_path = Path(os.environ.get("DB_PATH", "database.db"))
     m["db_size_mb"] = round(db_path.stat().st_size / (1024 * 1024), 2) if db_path.exists() else 0
 
-    # Disk usage
-    disk = shutil.disk_usage("/")
+    # Disk usage -- config.DATA_DIR (the mounted persistent disk on Render,
+    # 20GB per render.yaml), NOT "/" (the container's ephemeral root
+    # filesystem). Videos/audio pile up on the mounted disk; checking "/"
+    # would report a mostly-empty, irrelevant filesystem and never catch the
+    # actual 20GB volume filling up.
+    disk = shutil.disk_usage(str(config.DATA_DIR))
     m["disk_usage_pct"] = round((disk.used / disk.total) * 100, 1)
 
     # Job error rate (last 24h)
