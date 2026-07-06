@@ -533,8 +533,9 @@ def add_commercial_polish(
     call-outs, and a subtle unified color grade -- the things that make
     assembled stock footage read as a produced commercial instead of a
     slideshow. One re-encode pass over the assembled body video; call this
-    BEFORE add_outro_splash() so the splash's frozen last frame inherits the
-    same graded/watermarked look."""
+    BEFORE add_brand_splash() so an outro splash's frozen last frame inherits
+    the same graded/watermarked look. (An intro splash freezes the first
+    frame instead, so it's unaffected either way.)"""
     ffmpeg = _get_ffmpeg()
     video_path, output_path = Path(video_path), Path(output_path)
     dur = _get_video_duration(video_path) or 15.0
@@ -588,7 +589,7 @@ def add_commercial_polish(
     return output_path
 
 
-def add_outro_splash(
+def add_brand_splash(
     video_path: Path,
     audio_path: Path,
     output_path: Path,
@@ -597,30 +598,40 @@ def add_outro_splash(
     splash_duration: float,
     width: int,
     height: int,
+    position: str = "outro",
 ) -> Path:
-    """Freeze the last frame of video_path, overlay the brand name (+ tagline)
-    over a darkened scrim, and append it as a splash-duration outro card with
-    audio_path as its soundtrack (already full-volume, no voice — the voice
-    track has ended by this point). Returns output_path: video_path with the
-    outro appended."""
+    """Freeze a frame of video_path, overlay the brand name (+ tagline) over
+    a darkened scrim, and attach it as a splash_duration card with
+    audio_path as its soundtrack (full-volume, no voice).
+
+    position="outro" (default): freezes the LAST frame and APPENDS the card
+    after video_path -- a closing brand/CTA card once the voice has ended.
+    position="intro": freezes the FIRST frame and PREPENDS the card before
+    video_path -- a brief brand flash before the voiceover begins.
+
+    Returns output_path: video_path with the card attached."""
+    if position not in ("intro", "outro"):
+        raise ValueError(f"position must be 'intro' or 'outro', got {position!r}")
     ffmpeg = _get_ffmpeg()
     video_path, audio_path, output_path = Path(video_path), Path(audio_path), Path(output_path)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = Path(tmpdir)
 
-        # 1. Grab the last frame.
-        last_frame = tmpdir / "last_frame.png"
-        r = subprocess.run(
-            [ffmpeg, "-y", "-sseof", "-1", "-i", str(video_path),
-             "-update", "1", "-q:v", "2", str(last_frame)],
-            capture_output=True, timeout=30,
-        )
-        if r.returncode != 0 or not last_frame.exists():
-            raise RuntimeError(f"Could not extract last frame: {r.stderr.decode('utf-8', errors='replace')[-200:]}")
+        # 1. Grab the anchor frame.
+        frame_path = tmpdir / "anchor_frame.png"
+        if position == "outro":
+            frame_cmd = [ffmpeg, "-y", "-sseof", "-1", "-i", str(video_path),
+                         "-update", "1", "-q:v", "2", str(frame_path)]
+        else:
+            frame_cmd = [ffmpeg, "-y", "-i", str(video_path),
+                         "-vframes", "1", "-q:v", "2", str(frame_path)]
+        r = subprocess.run(frame_cmd, capture_output=True, timeout=30)
+        if r.returncode != 0 or not frame_path.exists():
+            raise RuntimeError(f"Could not extract {position} frame: {r.stderr.decode('utf-8', errors='replace')[-200:]}")
 
         # 2. Overlay brand + tagline on a darkened copy of that frame so text stays legible.
-        img = Image.open(last_frame).convert("RGB").resize((width, height))
+        img = Image.open(frame_path).convert("RGB").resize((width, height))
         scrim = Image.new("RGB", img.size, (0, 0, 0))
         img = Image.blend(img, scrim, 0.45)
         draw = ImageDraw.Draw(img)
@@ -654,13 +665,15 @@ def add_outro_splash(
             capture_output=True, timeout=30,
         )
         if r.returncode != 0 or not splash_clip.exists():
-            raise RuntimeError(f"Could not build outro splash clip: {r.stderr.decode('utf-8', errors='replace')[-200:]}")
+            raise RuntimeError(f"Could not build {position} splash clip: {r.stderr.decode('utf-8', errors='replace')[-200:]}")
 
-        # 4. Append to the main video. Re-encode rather than stream-copy so this
-        # is robust to whichever of create_video()'s two internal encode paths
-        # (primary vs. its own fallback) produced video_path.
+        # 4. Splice with the main video -- splash first for an intro, last for
+        # an outro. Re-encode rather than stream-copy so this is robust to
+        # whichever of create_video()'s two internal encode paths (primary vs.
+        # its own fallback) produced video_path.
         concat_list = tmpdir / "concat.txt"
-        concat_list.write_text(f"file '{video_path}'\nfile '{splash_clip}'\n")
+        ordered = [splash_clip, video_path] if position == "intro" else [video_path, splash_clip]
+        concat_list.write_text("".join(f"file '{p}'\n" for p in ordered))
         r = subprocess.run(
             [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
              "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
@@ -671,7 +684,7 @@ def add_outro_splash(
             capture_output=True, timeout=60,
         )
         if r.returncode != 0 or not output_path.exists():
-            raise RuntimeError(f"Could not append outro splash: {r.stderr.decode('utf-8', errors='replace')[-200:]}")
+            raise RuntimeError(f"Could not append {position} splash: {r.stderr.decode('utf-8', errors='replace')[-200:]}")
 
     return output_path
 

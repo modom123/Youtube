@@ -6160,10 +6160,10 @@ SCRIPT_SECTIONS:
             raise RuntimeError("Voiceover generation failed — couldn't produce narration audio for the commercial.")
 
         # ── Step 5b: Background music bed (ElevenLabs), ducked under the
-        # voiceover, plus a short music-only outro splash once the voice ends
-        # -- one continuous bed covers both so the music doesn't cut oddly.
-        # Entirely optional polish: any failure just skips it, never blocks
-        # the commercial from completing.
+        # voiceover, plus a short music-only brand intro splash before the
+        # voice starts -- one continuous bed covers both so the music
+        # doesn't cut oddly. Entirely optional polish: any failure just
+        # skips it, never blocks the commercial from completing.
         step("Adding background music...", 60)
         splash_audio_path = None
         SPLASH_DUR = 2.5
@@ -6181,13 +6181,16 @@ SCRIPT_SECTIONS:
                 bed_total, out_dir / "bgm.mp3",
             )
             if bed_path:
-                body_bed = trim_audio(bed_path, out_dir / "bgm_body.mp3", 0, voice_dur)
+                # Splash (if any) plays over the bed's first SPLASH_DUR seconds;
+                # the voiced body takes the remainder, offset past the splash.
+                body_offset = SPLASH_DUR if use_splash else 0
+                body_bed = trim_audio(bed_path, out_dir / "bgm_body.mp3", body_offset, voice_dur)
                 if body_bed:
                     mixed_path = out_dir / "mixed.mp3"
                     if mix_voice_and_music(Path(audio_path), body_bed, mixed_path, music_vol=0.15):
                         audio_path = str(mixed_path)
                 if use_splash:
-                    splash_bed = trim_audio(bed_path, out_dir / "bgm_splash.mp3", voice_dur, SPLASH_DUR)
+                    splash_bed = trim_audio(bed_path, out_dir / "bgm_splash.mp3", 0, SPLASH_DUR)
                     if splash_bed:
                         boosted = set_volume(splash_bed, out_dir / "bgm_splash_boost.mp3", 0.9)
                         if boosted:
@@ -6198,7 +6201,7 @@ SCRIPT_SECTIONS:
         # ── Step 6: Find 5-7 stock clips that match the story, assemble them ──
         step("Finding clips that match your story...", 65)
         from generators.media_fetcher import fetch_media_for_topic
-        from generators.video_generator import create_video, add_outro_splash, add_commercial_polish
+        from generators.video_generator import create_video, add_brand_splash, add_commercial_polish
 
         keywords = [brand, product_description, tagline, style]
         keywords = [k for k in keywords if k]
@@ -6257,17 +6260,18 @@ SCRIPT_SECTIONS:
             print(f"[commercial] Polish skipped: {e}")
 
         if splash_audio_path:
-            step("Adding brand outro...", 92)
+            step("Adding brand intro...", 92)
             try:
                 spliced_path = out_dir / "commercial_final.mp4"
-                add_outro_splash(
+                add_brand_splash(
                     video_path=final_video_path, audio_path=Path(splash_audio_path),
                     output_path=spliced_path, brand=brand, tagline=tagline,
                     splash_duration=SPLASH_DUR, width=720, height=1280,
+                    position="intro",
                 )
                 final_video_path = spliced_path
             except Exception as e:
-                print(f"[commercial] Outro splash skipped: {e}")
+                print(f"[commercial] Intro splash skipped: {e}")
 
         final_video = str(final_video_path)
 
