@@ -6149,7 +6149,7 @@ SCRIPT_SECTIONS:
         # ── Step 6: Find 5-7 stock clips that match the story, assemble them ──
         step("Finding clips that match your story...", 65)
         from generators.media_fetcher import fetch_media_for_topic
-        from generators.video_generator import create_video, add_outro_splash
+        from generators.video_generator import create_video, add_outro_splash, add_commercial_polish
 
         keywords = [brand, product_description, tagline, style]
         keywords = [k for k in keywords if k]
@@ -6185,15 +6185,34 @@ SCRIPT_SECTIONS:
             video_clips=video_clips,
             image_clips=image_clips,
             width=720, height=1280,
+            punchy_cuts=True,
         )
         final_video_path = body_video_path
+
+        # ── Step 6b: Commercial polish — brand watermark, on-screen call-outs
+        # for the headline and CTA, and a subtle unified color grade. Never
+        # blocks the commercial: any failure just skips straight to the
+        # unpolished body.
+        step("Adding on-screen text and color grade...", 88)
+        try:
+            hero_text = ad_copy.variants[0].headline if ad_copy.variants else ""
+            cta_text = tagline or brand
+            polished_path = out_dir / "commercial_polished.mp4"
+            add_commercial_polish(
+                video_path=body_video_path, output_path=polished_path,
+                width=720, height=1280, brand=brand,
+                hero_text=hero_text, cta_text=cta_text, color_grade=True,
+            )
+            final_video_path = polished_path
+        except Exception as e:
+            print(f"[commercial] Polish skipped: {e}")
 
         if splash_audio_path:
             step("Adding brand outro...", 92)
             try:
                 spliced_path = out_dir / "commercial_final.mp4"
                 add_outro_splash(
-                    video_path=body_video_path, audio_path=Path(splash_audio_path),
+                    video_path=final_video_path, audio_path=Path(splash_audio_path),
                     output_path=spliced_path, brand=brand, tagline=tagline,
                     splash_duration=SPLASH_DUR, width=720, height=1280,
                 )

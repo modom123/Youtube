@@ -266,8 +266,13 @@ def _generate_section_cards(
     return cards
 
 
-def _prepare_clip_segment(source: Path, duration: float, width: int, height: int, tmpdir: Path, idx: int) -> Optional[Path]:
-    """Use ffmpeg to create a scaled/cropped segment from a source file."""
+def _prepare_clip_segment(source: Path, duration: float, width: int, height: int, tmpdir: Path, idx: int,
+                           punchy: bool = False) -> Optional[Path]:
+    """Use ffmpeg to create a scaled/cropped segment from a source file.
+
+    punchy=True swaps the uniform soft fade-in/out every clip gets (which,
+    at commercial pacing, reads as a slow, cinematic edit) for mostly hard
+    cuts with an occasional quick dip -- closer to how real ads are cut."""
     ffmpeg = _get_ffmpeg()
     out = tmpdir / f"seg_{idx:04d}.mp4"
 
@@ -283,12 +288,21 @@ def _prepare_clip_segment(source: Path, duration: float, width: int, height: int
         if actual_dur < 0.5:
             start = 0
             actual_dur = min(duration, src_dur)
+
+        if punchy:
+            fade_vf = (f"fade=in:0:4,fade=out:st={max(0, actual_dur-0.2):.2f}:d=0.2"
+                       if idx % 3 == 0 else "")
+        else:
+            fade_vf = f"fade=in:0:6,fade=out:st={max(0, actual_dur-0.3):.2f}:d=0.3"
+        base_vf = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}"
+        vf = f"{base_vf},{fade_vf}" if fade_vf else base_vf
+
         cmd = [
             ffmpeg, "-y",
             "-ss", f"{start:.2f}",
             "-i", str(source),
             "-t", f"{actual_dur:.2f}",
-            "-vf", f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},fade=in:0:6,fade=out:st={max(0, actual_dur-0.3):.2f}:d=0.3",
+            "-vf", vf,
             "-an",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
             "-pix_fmt", "yuv420p",
@@ -340,6 +354,7 @@ def create_video(
     sections: list[dict] = None,
     add_subtitles: bool = False,
     narration_text: str = "",
+    punchy_cuts: bool = False,
 ) -> Path:
     """Assemble the final video from audio and visual assets using ffmpeg directly."""
     output_path = Path(output_path)
@@ -372,7 +387,7 @@ def create_video(
                 if clip_duration < 0.5:
                     break
                 source = all_visuals[idx % len(all_visuals)]
-                seg = _prepare_clip_segment(source, clip_duration, width, height, tmpdir, idx)
+                seg = _prepare_clip_segment(source, clip_duration, width, height, tmpdir, idx, punchy=punchy_cuts)
                 if seg:
                     segments.append(seg)
                     elapsed += clip_duration
@@ -453,6 +468,103 @@ def create_video(
         )
 
     print(f"[video] Video assembled: {final_size / 1024 / 1024:.1f} MB")
+    return output_path
+
+
+def _text_overlay_png(text: str, width: int, height: int, fontsize: int, position: str) -> Path:
+    """Render a full-canvas transparent PNG with just the given text (+ a
+    semi-transparent backing box) at the given position, for compositing via
+    ffmpeg's overlay filter.
+
+    Not drawtext: this build's static ffmpeg binary doesn't include the
+    drawtext filter (confirmed directly -- "Unknown filter 'drawtext'" even
+    though libfreetype/fontconfig are otherwise linked in), so text has to be
+    rendered with PIL and composited as an image instead, same as every other
+    text card in this codebase.
+    """
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    font = _load_font(fontsize)
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    pad = 14
+    if position == "bottom_right":
+        x, y = width - tw - 24, height - th - 24
+    else:  # "lower_third", centered
+        x, y = (width - tw) // 2, int(height * 0.74)
+    draw.rectangle([x - pad, y - pad, x + tw + pad, y + th + pad], fill=(0, 0, 0, 140))
+    draw.text((x, y - bbox[1]), text, font=font, fill=(255, 255, 255, 255))
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    img.save(tmp.name)
+    return Path(tmp.name)
+
+
+def add_commercial_polish(
+    video_path: Path,
+    output_path: Path,
+    width: int,
+    height: int,
+    brand: str = "",
+    hero_text: str = "",
+    cta_text: str = "",
+    color_grade: bool = True,
+) -> Path:
+    """Bake in a persistent corner watermark, one or two timed on-screen text
+    call-outs, and a subtle unified color grade -- the things that make
+    assembled stock footage read as a produced commercial instead of a
+    slideshow. One re-encode pass over the assembled body video; call this
+    BEFORE add_outro_splash() so the splash's frozen last frame inherits the
+    same graded/watermarked look."""
+    ffmpeg = _get_ffmpeg()
+    video_path, output_path = Path(video_path), Path(output_path)
+    dur = _get_video_duration(video_path) or 15.0
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        overlays = []  # list of (png_path, enable_expr_or_None)
+
+        if brand:
+            overlays.append((_text_overlay_png(brand, width, height, 26, "bottom_right"), None))
+        if hero_text:
+            hs = max(1.0, dur * 0.15)
+            he = min(dur - 1.0, hs + 3.5)
+            if he > hs:
+                overlays.append((_text_overlay_png(hero_text, width, height, 46, "lower_third"),
+                                  f"between(t,{hs:.2f},{he:.2f})"))
+        if cta_text:
+            ce, cs = dur, max(1.0, dur - 4.0)
+            if ce > cs:
+                overlays.append((_text_overlay_png(cta_text, width, height, 46, "lower_third"),
+                                  f"between(t,{cs:.2f},{ce:.2f})"))
+
+        if not overlays and not color_grade:
+            import shutil
+            shutil.copy(str(video_path), str(output_path))
+            return output_path
+
+        cmd = [ffmpeg, "-y", "-i", str(video_path)]
+        for png, _ in overlays:
+            cmd += ["-i", str(png)]
+
+        base = "[0:v]eq=contrast=1.08:saturation=1.15:brightness=0.02,curves=preset=medium_contrast[v0]" \
+            if color_grade else "[0:v]null[v0]"
+        chain = [base]
+        for i, (_, enable) in enumerate(overlays):
+            src, dst = f"v{i}", f"v{i+1}"
+            ov = f"overlay=0:0" + (f":enable='{enable}'" if enable else "")
+            chain.append(f"[{src}][{i+1}:v]{ov}[{dst}]")
+        filter_complex = ";".join(chain)
+        final_label = f"v{len(overlays)}"
+
+        cmd += ["-filter_complex", filter_complex, "-map", f"[{final_label}]", "-map", "0:a",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-pix_fmt", "yuv420p", "-r", "24",
+                "-c:a", "copy",
+                str(output_path)]
+
+        result = subprocess.run(cmd, capture_output=True, timeout=max(120, int(dur * 6)))
+        if result.returncode != 0 or not output_path.exists():
+            raise RuntimeError(f"Could not apply commercial polish: {result.stderr.decode('utf-8', errors='replace')[-300:]}")
     return output_path
 
 
