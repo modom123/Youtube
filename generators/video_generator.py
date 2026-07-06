@@ -296,15 +296,24 @@ def _prepare_clip_segment(source: Path, duration: float, width: int, height: int
             str(out),
         ]
     elif is_image:
+        # Slow Ken Burns zoom instead of a flat static frame -- a plain still
+        # held for 4-8s with zero motion reads as the video "stopping" next to
+        # real video-clip segments. zoompan needs a heavily upscaled source
+        # (the 8000px scale is the standard workaround for its low-res jitter)
+        # and a real frame rate to look smooth, unlike the old 8fps-static path.
+        fps = 25
+        frames = max(1, int(duration * fps))
+        zoom_in = idx % 2 == 0
+        zoom_expr = "min(zoom+0.0015,1.3)" if zoom_in else "if(eq(on,0),1.3,max(zoom-0.0015,1.0))"
         cmd = [
             ffmpeg, "-y",
             "-loop", "1",
             "-i", str(source),
             "-t", f"{duration:.2f}",
-            "-vf", f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height}",
+            "-vf", (f"scale=8000:-1,"
+                    f"zoompan=z='{zoom_expr}':d={frames}:s={width}x{height}:fps={fps}"),
             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
             "-pix_fmt", "yuv420p",
-            "-r", "8",  # 8fps is fine for static images — 3x faster to encode
             str(out),
         ]
     else:
