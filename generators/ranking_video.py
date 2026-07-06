@@ -23,8 +23,8 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import config
-from generators import gamma_client
 from generators.audio_generator import generate_audio, get_audio_duration
+from generators.chart_cards import countdown_card
 from generators.video_generator import _prepare_clip_segment, _get_ffmpeg
 
 ProgressCallback = Optional[Callable[[str, int, str], None]]
@@ -67,13 +67,19 @@ For each item provide:
 - title: a short punchy name for this item (a few words)
 - blurb: 2-3 sentences of narration text explaining why it's ranked here — written
   to be read aloud, conversational, engaging, with a hook
+- value: a number from 1-100 representing how this item stacks up relative to
+  the others in this specific ranking (100 = the #1 spot). If the topic has a
+  real underlying quantity (revenue, population, box office, whatever it is),
+  base it on that, scaled to 1-100. If it's a purely qualitative ranking,
+  give your best-judgment relative score anyway — every slide shows this as a
+  bar, so it needs a number even for "best movies" style topics.
 
 Response format (JSON only, no markdown fence):
 {{
   "items": [
-    {{"rank": {count}, "title": "...", "blurb": "..."}},
+    {{"rank": {count}, "title": "...", "blurb": "...", "value": 42}},
     ...
-    {{"rank": 1, "title": "...", "blurb": "..."}}
+    {{"rank": 1, "title": "...", "blurb": "...", "value": 100}}
   ]
 }}
 """
@@ -115,14 +121,29 @@ Response format (JSON only, no markdown fence):
     raise RuntimeError(f"Failed to get {count} valid ranked items from Claude after 3 attempts: {last_error}")
 
 
-def _build_gamma_input_text(topic: str, items: list[dict]) -> str:
-    """Build a structured outline for Gamma to turn into a slide deck."""
-    lines = [f"# Top {len(items)}: {topic}", ""]
-    for item in items:
-        lines.append(f"## #{item['rank']}: {item['title']}")
-        lines.append(item.get("blurb", ""))
-        lines.append("")
-    return "\n".join(lines)
+def _generate_native_slides(items: list[dict], slides_dir: Path, ratio: str) -> list[Path]:
+    """Render one countdown card per ranked item natively (PIL) -- no
+    external design API required, no separate account/key to configure.
+    Each card shows the rank, title, blurb, and a value bar when the items
+    carry a numeric value (see _generate_ranked_items' prompt)."""
+    import shutil
+    width, height = RATIO_SIZES.get(ratio, RATIO_SIZES["9:16"])
+    values = [item.get("value") for item in items if item.get("value") is not None]
+    max_value = max(values) if values else None
+
+    slides_dir.mkdir(parents=True, exist_ok=True)
+    images = []
+    for i, item in enumerate(items):
+        card_path = countdown_card(
+            rank=item["rank"], title=item["title"], blurb=item.get("blurb", ""),
+            width=width, height=height,
+            value=item.get("value"), max_value=max_value,
+            palette_idx=i,
+        )
+        dest = slides_dir / f"slide_{i:03d}.png"
+        shutil.move(str(card_path), str(dest))
+        images.append(dest)
+    return images
 
 
 def _assemble_video(
@@ -219,7 +240,6 @@ def generate_ranking_video(job_id: str, job_config: dict, progress_callback: Pro
                              skips the Claude auto-write step
         voice: str — TTS voice (optional)
         ratio: "9:16" | "1:1" | "16:9" | "4:5" (default "9:16")
-        theme: str — optional Gamma theme name
         user_id: int
 
     Returns dict: {status, video_path, thumbnail_path, items, error}
@@ -229,7 +249,6 @@ def generate_ranking_video(job_id: str, job_config: dict, progress_callback: Pro
     count = int(job_config.get("count", 10))
     voice = job_config.get("voice")
     ratio = job_config.get("ratio", "9:16")
-    theme = job_config.get("theme")
 
     out_dir = Path(config.OUTPUT_DIR) / "rankings" / job_id
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -242,16 +261,9 @@ def generate_ranking_video(job_id: str, job_config: dict, progress_callback: Pro
             _progress(cb, "writing", 5, "Writing ranked list...")
             items = _generate_ranked_items(topic, count)
 
-        _progress(cb, "designing", 20, "Designing slide deck with Gamma...")
-        input_text = _build_gamma_input_text(topic, items)
+        _progress(cb, "designing", 20, "Designing countdown slides...")
         slides_dir = out_dir / "slides"
-        slide_images = gamma_client.generate_slide_deck(
-            input_text, slides_dir, num_cards=len(items) + 1, theme=theme,
-        )
-        # Gamma may add a title card — if so, drop it and keep exactly one
-        # slide per ranked item, in order.
-        if len(slide_images) == len(items) + 1:
-            slide_images = slide_images[1:]
+        slide_images = _generate_native_slides(items, slides_dir, ratio)
 
         narration_texts = [f"Number {item['rank']}: {item['title']}. {item.get('blurb', '')}" for item in items]
 

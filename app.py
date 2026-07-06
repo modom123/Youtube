@@ -9468,7 +9468,6 @@ def api_ranking_create():
         "count": int(data.get("count", 10)),
         "voice": data.get("voice") or config.DEFAULT_VOICE,
         "ratio": data.get("ratio", "9:16"),
-        "theme": data.get("theme"),
         "user_id": current_user.id,
     }
 
