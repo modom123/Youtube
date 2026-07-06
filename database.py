@@ -1924,6 +1924,21 @@ def get_jobs_needing_archive(limit: int = 20) -> list:
     return [row_to_dict(r) for r in rows]
 
 
+def get_jobs_ready_for_reclaim(grace_days: float = 14, limit: int = 20) -> list:
+    """Archived jobs old enough that their local copy is a candidate for
+    reclaiming -- the caller (storage archiver agent) still has to verify
+    the remote copy right before actually deleting anything."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT * FROM jobs
+               WHERE archived_at IS NOT NULL
+                 AND archived_at < NOW() - make_interval(days => %s)
+               ORDER BY archived_at ASC LIMIT %s""",
+            (grace_days, limit),
+        ).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
 def get_all_running_jobs():
     """Return all jobs currently in 'running' or 'pending' status (for monitor agent)."""
     with get_conn() as conn:

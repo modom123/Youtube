@@ -1180,9 +1180,13 @@ def download_video(job_id):
     if not job or not job.get("video_path"):
         return jsonify({"error": "Video not found"}), 404
     path = Path(job["video_path"])
-    if not path.exists():
-        return jsonify({"error": "File missing"}), 404
-    return send_file(str(path), as_attachment=True, download_name=f"som_{job_id}.mp4")
+    if path.exists():
+        return send_file(str(path), as_attachment=True, download_name=f"som_{job_id}.mp4")
+    # Local copy reclaimed after being archived to object storage -- send the
+    # browser straight to the durable copy instead of a dead end.
+    if job.get("video_storage_url"):
+        return redirect(job["video_storage_url"])
+    return jsonify({"error": "File missing"}), 404
 
 
 @app.route("/api/jobs/<int:job_id>/retry", methods=["POST"])
@@ -1371,6 +1375,8 @@ def stream_audio(job_id):
         return jsonify({"error": "Audio not found"}), 404
     path = Path(job["audio_path"])
     if not path.exists():
+        if job.get("audio_storage_url"):
+            return redirect(job["audio_storage_url"])
         return jsonify({"error": "File missing on disk"}), 404
     mime = "audio/mpeg" if str(path).endswith(".mp3") else "audio/wav"
     return send_file(str(path), mimetype=mime, conditional=True)
@@ -1460,10 +1466,17 @@ def _run_revoice_thread(job_id: int, voice: str, user_id: int):
         if not job:
             _set(status="error", error="Job not found")
             return
-        video_path = job.get("video_path") or ""
-        if not video_path or not Path(video_path).exists():
-            _set(status="error", error="This job has no video file on disk to keep.")
+        # Falls back to re-downloading from object storage if the local copy
+        # was reclaimed after being archived (see storage_archiver agent) --
+        # without this, any job old enough to have been cleaned up locally
+        # would be permanently un-re-voiceable even though a durable copy
+        # still exists.
+        import media_host
+        resolved_video = media_host.resolve_or_download(job, "video_path", "video_storage_url")
+        if not resolved_video:
+            _set(status="error", error="This job has no video file on disk (or in storage) to keep.")
             return
+        video_path = str(resolved_video)
         narration = _load_job_narration(job)
         if not narration:
             _set(status="error", error="Couldn't find this job's script to re-voice.")

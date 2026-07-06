@@ -97,6 +97,27 @@ def _upload_s3(video_path: Path) -> str:
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 
+def verify_archived(local_path) -> bool:
+    """Re-check, right before deleting a local file, that the object storage
+    copy genuinely exists and matches the local file's size. The DB's
+    video_storage_url being set only means the upload succeeded at the time
+    it ran -- this is the actual safety check that has to pass immediately
+    before any local deletion, not a cached assumption from days ago."""
+    if not _s3_configured():
+        return False
+    try:
+        local_path = Path(local_path)
+        if not local_path.is_file():
+            return False
+        client = _s3_client()
+        key = _s3_key(local_path)
+        head = client.head_object(Bucket=config.S3_BUCKET, Key=key)
+        return head.get("ContentLength", -1) == local_path.stat().st_size
+    except Exception as e:
+        logger.warn(f"media_host.verify_archived failed for {local_path}: {e}")
+        return False
+
+
 def get_public_url(video_path) -> str:
     """Return a publicly reachable URL for a local media file, or "" if none
     can be produced. Never raises."""
@@ -113,6 +134,42 @@ def get_public_url(video_path) -> str:
     except Exception as e:
         logger.warn(f"media_host.get_public_url failed: {e}")
         return ""
+
+
+def resolve_or_download(job: dict, path_field: str, url_field: str) -> "Path | None":
+    """Return a usable LOCAL path for a job's media, for callers (ffmpeg
+    remux, re-voice, editing) that need real bytes on disk, not a redirect.
+
+    If the local file still exists, returns it as-is -- zero extra cost, the
+    common case. If it's been reclaimed after being archived, downloads the
+    durable copy into a local cache directory and returns that path instead,
+    so editing operations keep working transparently after local cleanup.
+    Returns None if neither a local file nor an archived URL is available.
+    """
+    local = job.get(path_field)
+    if local and Path(local).is_file():
+        return Path(local)
+
+    url = job.get(url_field)
+    if not url:
+        return None
+
+    try:
+        import requests
+        cache_dir = Path(config.OUTPUT_DIR) / "_storage_cache"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        dest = cache_dir / f"{job.get('id', 'x')}_{Path(url).name.split('?')[0] or 'media'}"
+        if dest.exists() and dest.stat().st_size > 0:
+            return dest
+        resp = requests.get(url, stream=True, timeout=120)
+        resp.raise_for_status()
+        with open(dest, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=1 << 20):
+                f.write(chunk)
+        return dest if dest.exists() and dest.stat().st_size > 0 else None
+    except Exception as e:
+        logger.warn(f"media_host.resolve_or_download failed for job {job.get('id')}: {e}")
+        return None
 
 
 def archive_to_storage(path) -> str:
