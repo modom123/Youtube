@@ -312,9 +312,21 @@ def _prepare_clip_segment(source: Path, duration: float, width: int, height: int
     elif is_image:
         # Slow Ken Burns zoom instead of a flat static frame -- a plain still
         # held for 4-8s with zero motion reads as the video "stopping" next to
-        # real video-clip segments. zoompan needs a heavily upscaled source
-        # (the 8000px scale is the standard workaround for its low-res jitter)
-        # and a real frame rate to look smooth, unlike the old 8fps-static path.
+        # real video-clip segments. zoompan needs an upscaled source (the
+        # standard workaround for its low-res jitter) and a real frame rate
+        # to look smooth, unlike the old 8fps-static path.
+        #
+        # The upscale must be relative to the SOURCE image (iw*N/ih*N), not a
+        # fixed absolute width like "scale=8000:-1" -- that assumes a
+        # landscape source, and blows up into a ~14,000px-tall intermediate
+        # canvas for a portrait 1080x1920 image (any pre-rendered card:
+        # countdown slides, title cards, the Ad Lab outro splash, ...),
+        # which measured at ~28s to encode a single 5s segment -- dangerously
+        # close to this call's own 30s timeout, and the actual cause of
+        # "Failed to render slide" errors on ranking/countdown videos. A
+        # proportional 3x upscale keeps every aspect ratio fast (~1-5s
+        # measured across portrait and landscape) while still giving zoompan
+        # enough resolution headroom to avoid visible jitter.
         fps = 25
         frames = max(1, int(duration * fps))
         zoom_in = idx % 2 == 0
@@ -324,7 +336,7 @@ def _prepare_clip_segment(source: Path, duration: float, width: int, height: int
             "-loop", "1",
             "-i", str(source),
             "-t", f"{duration:.2f}",
-            "-vf", (f"scale=8000:-1,"
+            "-vf", (f"scale=iw*3:ih*3,"
                     f"zoompan=z='{zoom_expr}':d={frames}:s={width}x{height}:fps={fps}"),
             "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
             "-pix_fmt", "yuv420p",
