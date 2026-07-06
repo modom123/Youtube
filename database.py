@@ -339,6 +339,13 @@ def init_db():
             completed_at TIMESTAMP
         )
         """)
+        # Durable off-disk copy tracking -- populated by the storage archiver
+        # agent once a completed job's media is uploaded to S3-compatible
+        # object storage, so the local disk copy can eventually be reclaimed
+        # without losing the file.
+        conn.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS video_storage_url TEXT DEFAULT ''")
+        conn.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS audio_storage_url TEXT DEFAULT ''")
+        conn.execute("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP")
         conn.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             key   TEXT PRIMARY KEY,
@@ -1850,7 +1857,7 @@ def delete_job(job_id, user_id=None):
             conn.execute("DELETE FROM jobs WHERE id=%s", (job_id,))
 
 
-def get_jobs(limit=50, user_id=None, team_id=None, status=None):
+def get_jobs(limit=50, user_id=None, team_id=None, status=None, offset=0, search=None):
     with get_conn() as conn:
         if team_id:
             q = """SELECT j.* FROM jobs j
@@ -1860,8 +1867,8 @@ def get_jobs(limit=50, user_id=None, team_id=None, status=None):
             if status:
                 q += " AND j.status = %s"
                 params.append(status)
-            q += " ORDER BY j.created_at DESC LIMIT %s"
-            params.append(limit)
+            q += " ORDER BY j.created_at DESC LIMIT %s OFFSET %s"
+            params += [limit, offset]
             rows = conn.execute(q, params).fetchall()
         elif user_id:
             q = "SELECT * FROM jobs WHERE user_id=%s"
@@ -1869,8 +1876,11 @@ def get_jobs(limit=50, user_id=None, team_id=None, status=None):
             if status:
                 q += " AND status=%s"
                 params.append(status)
-            q += " ORDER BY created_at DESC LIMIT %s"
-            params.append(limit)
+            if search:
+                q += " AND (topic ILIKE %s OR title ILIKE %s)"
+                params += [f"%{search}%", f"%{search}%"]
+            q += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+            params += [limit, offset]
             rows = conn.execute(q, params).fetchall()
         else:
             q = "SELECT * FROM jobs"
@@ -1878,9 +1888,39 @@ def get_jobs(limit=50, user_id=None, team_id=None, status=None):
             if status:
                 q += " WHERE status=%s"
                 params.append(status)
-            q += " ORDER BY created_at DESC LIMIT %s"
-            params.append(limit)
+            q += " ORDER BY created_at DESC LIMIT %s OFFSET %s"
+            params += [limit, offset]
             rows = conn.execute(q, params).fetchall()
+    return [row_to_dict(r) for r in rows]
+
+
+def count_jobs(user_id=None, status=None, search=None) -> int:
+    """Total matching row count for get_jobs' user_id branch, for pagination."""
+    with get_conn() as conn:
+        q = "SELECT COUNT(*) AS c FROM jobs WHERE user_id=%s"
+        params = [user_id]
+        if status:
+            q += " AND status=%s"
+            params.append(status)
+        if search:
+            q += " AND (topic ILIKE %s OR title ILIKE %s)"
+            params += [f"%{search}%", f"%{search}%"]
+        row = conn.execute(q, params).fetchone()
+    return int(row["c"]) if row else 0
+
+
+def get_jobs_needing_archive(limit: int = 20) -> list:
+    """Completed jobs with a local video file that haven't been uploaded to
+    durable object storage yet. Used by the storage archiver agent -- batched
+    so a large backlog doesn't try to upload everything in one pass."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            """SELECT * FROM jobs
+               WHERE status='done' AND video_path IS NOT NULL AND video_path != ''
+                 AND (video_storage_url IS NULL OR video_storage_url = '')
+               ORDER BY created_at ASC LIMIT %s""",
+            (limit,),
+        ).fetchall()
     return [row_to_dict(r) for r in rows]
 
 

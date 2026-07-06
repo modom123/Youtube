@@ -38,6 +38,31 @@ from whop_integration import whop_bp, init_whop_tables
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
+# ── Generation concurrency gate ──────────────────────────────────────────────
+# Every studio (Create, Studio, Hollywood, Batch, Podcast, The Cut, Ad Lab,
+# Re-voice, Image Studio, Music, Dub, Clipper, Ranking, ...) spawns an
+# unbounded daemon thread per request with zero throttling -- nothing stops a
+# burst of concurrent requests from firing that many simultaneous Higgsfield/
+# ElevenLabs/Anthropic calls at once. At meaningful scale that's how you get
+# provider rate-limit errors, runaway API cost spikes, and starved server
+# resources during a burst, even though the server is fine on average.
+#
+# gated() wraps a thread's target function so at most
+# MAX_CONCURRENT_GENERATIONS run their actual work at once; anything beyond
+# that blocks on the semaphore INSIDE its own daemon thread (never the HTTP
+# request/response) until a slot frees up -- a burst queues instead of all
+# firing at once.
+MAX_CONCURRENT_GENERATIONS = int(os.getenv("MAX_CONCURRENT_GENERATIONS", "6"))
+_generation_semaphore = threading.Semaphore(MAX_CONCURRENT_GENERATIONS)
+
+
+def gated(fn):
+    def _wrapped(*args, **kwargs):
+        with _generation_semaphore:
+            return fn(*args, **kwargs)
+    _wrapped.__name__ = getattr(fn, "__name__", "gated_thread")
+    return _wrapped
+
 # Every OAuth redirect_uri in this app is built from APP_BASE_URL / the
 # per-platform *_REDIRECT_URI configs, all of which point at the bare domain
 # (e.g. https://socialoptimize.online) — but the site is actually served at
@@ -483,7 +508,7 @@ def api_quickpost_generate():
     params = {"tone": tone, "extra_ctx": extra_ctx, "platforms": platforms,
               "media_path": str(media_path), "ext": ext}
 
-    t = threading.Thread(target=_run_quickpost_thread,
+    t = threading.Thread(target=gated(_run_quickpost_thread),
                          args=(job_id, params, current_user.id), daemon=True)
     t.start()
     return jsonify({"job_id": job_id})
@@ -996,7 +1021,7 @@ def api_create():
         "tone": (data.get("tone") or "").strip(),
         "keywords": [k.strip() for k in (data.get("keywords") or "").split(",") if k.strip()],
     }
-    t = threading.Thread(target=_run_job_thread, args=(job_id, params, current_user.id), daemon=True)
+    t = threading.Thread(target=gated(_run_job_thread), args=(job_id, params, current_user.id), daemon=True)
     t.start()
     return jsonify({"job_id": job_id})
 
@@ -1038,11 +1063,22 @@ def api_get_job(job_id):
     return jsonify(job)
 
 
+JOBS_PAGE_SIZE = 30
+
+
 @app.route("/jobs")
 @login_required
 def jobs_page():
-    jobs = db.get_jobs(limit=100, user_id=current_user.id)
-    return render_template("jobs.html", jobs=jobs)
+    page = max(1, request.args.get("page", 1, type=int))
+    search = (request.args.get("q") or "").strip()
+    status = (request.args.get("status") or "").strip() or None
+    offset = (page - 1) * JOBS_PAGE_SIZE
+    jobs = db.get_jobs(limit=JOBS_PAGE_SIZE, user_id=current_user.id, offset=offset,
+                        search=search or None, status=status)
+    total = db.count_jobs(user_id=current_user.id, search=search or None, status=status)
+    total_pages = max(1, (total + JOBS_PAGE_SIZE - 1) // JOBS_PAGE_SIZE)
+    return render_template("jobs.html", jobs=jobs, page=page, total_pages=total_pages,
+                           total=total, search=search, status=status or "")
 
 
 @app.route("/jobs/<int:job_id>")
@@ -1187,7 +1223,7 @@ def retry_job(job_id):
         "cleanup": False,
         "subscription_tier": (db.get_user_by_id(current_user.id) or {}).get("subscription_tier", "starter"),
     }
-    threading.Thread(target=_run_job_thread, args=(job_id, params, current_user.id), daemon=True).start()
+    threading.Thread(target=gated(_run_job_thread), args=(job_id, params, current_user.id), daemon=True).start()
     return jsonify({"job_id": job_id})
 
 
@@ -1495,7 +1531,7 @@ def api_job_revoice(job_id):
         if (_revoice_jobs.get(job_id) or {}).get("status") == "running":
             return jsonify({"error": "A re-voice is already running for this job."}), 409
         _revoice_jobs[job_id] = {"status": "running", "progress": 0, "step": "Starting…"}
-    threading.Thread(target=_run_revoice_thread, args=(job_id, voice, current_user.id),
+    threading.Thread(target=gated(_run_revoice_thread), args=(job_id, voice, current_user.id),
                      daemon=True).start()
     return jsonify({"ok": True})
 
@@ -3808,7 +3844,7 @@ def api_studio_run():
         "competitor_titles": data.get("competitor_titles") or [],
         "platforms": data.get("platforms") or [],
     }
-    t = threading.Thread(target=_run_studio_thread, args=(studio_job_id, params, current_user.id), daemon=True)
+    t = threading.Thread(target=gated(_run_studio_thread), args=(studio_job_id, params, current_user.id), daemon=True)
     t.start()
     return jsonify({"studio_job_id": studio_job_id})
 
@@ -4002,7 +4038,7 @@ def api_hollywood_run():
         "research_enabled": bool(data.get("research_enabled", True)),
         "competitor_titles": data.get("competitor_titles") or [],
     }
-    t = threading.Thread(target=_run_hw_thread, args=(hw_job_id, params, current_user.id), daemon=True)
+    t = threading.Thread(target=gated(_run_hw_thread), args=(hw_job_id, params, current_user.id), daemon=True)
     t.start()
     return jsonify({"hw_job_id": hw_job_id})
 
@@ -4204,7 +4240,7 @@ def api_music_generate():
         "beat_pads": (data.get("beat_pads") or "").strip(),
         "beat_bpm": int(data.get("beat_bpm") or 0),
     }
-    t = threading.Thread(target=_run_music_thread, args=(job_id, params, current_user.id), daemon=True)
+    t = threading.Thread(target=gated(_run_music_thread), args=(job_id, params, current_user.id), daemon=True)
     t.start()
     return jsonify({"job_id": job_id})
 
@@ -4841,7 +4877,7 @@ def api_batch_create():
     common_config = data.get("common_config", {})
     batch_id = db.create_batch_job(user_id=current_user.id, topics=topics)
     t = threading.Thread(
-        target=_run_batch_thread, args=(batch_id, topics, common_config, current_user.id), daemon=True,
+        target=gated(_run_batch_thread), args=(batch_id, topics, common_config, current_user.id), daemon=True,
     )
     t.start()
     return jsonify({"batch_id": batch_id})
@@ -5122,7 +5158,7 @@ def api_dub():
         user_id=current_user.id, source_job_id=int(job_id), target_language=target_language,
     )
     t = threading.Thread(
-        target=_run_dub_thread,
+        target=gated(_run_dub_thread),
         args=(dub_id, video_path, target_language, current_user.id, int(job_id)), daemon=True,
     )
     t.start()
@@ -5494,7 +5530,7 @@ def api_imgstudio_generate():
             "status": "running", "progress": 0, "step": "Starting...",
             "images": [], "user_id": current_user.id, "prompt": prompt,
         }
-    threading.Thread(target=_run_imgstudio_thread, args=(img_job_id, params, current_user.id),
+    threading.Thread(target=gated(_run_imgstudio_thread), args=(img_job_id, params, current_user.id),
                      daemon=True).start()
     return jsonify({"img_job_id": img_job_id})
 
@@ -5649,7 +5685,7 @@ def api_clipper_create():
             "step_label": "Starting...", "config": clip_config, "clips": [],
         }
 
-    t = threading.Thread(target=_run_clipper_thread, args=(clip_job_id, clip_config), daemon=True)
+    t = threading.Thread(target=gated(_run_clipper_thread), args=(clip_job_id, clip_config), daemon=True)
     t.start()
 
     return jsonify({"clip_job_id": clip_job_id})
@@ -5897,7 +5933,7 @@ def api_commercial_run():
         "all_media": media_paths,
     }
 
-    t = threading.Thread(target=_run_commercial_thread,
+    t = threading.Thread(target=gated(_run_commercial_thread),
                          args=(job_id, params, current_user.id), daemon=True)
     t.start()
     return jsonify({"job_id": job_id})
@@ -9278,7 +9314,7 @@ def api_podcast_generate():
     with _podcast_lock:
         _podcast_jobs[pod_job_id] = {"status": "running", "progress": 0, "step": "Queued…"}
     threading.Thread(
-        target=_run_podcast_thread,
+        target=gated(_run_podcast_thread),
         args=(pod_job_id, data, current_user.id),
         daemon=True,
     ).start()
@@ -9306,7 +9342,7 @@ def api_podcast_upload():
     with _podcast_lock:
         _podcast_jobs[pod_job_id] = {"status": "running", "progress": 0, "step": "Queued…"}
     threading.Thread(
-        target=_run_podcast_upload_thread,
+        target=gated(_run_podcast_upload_thread),
         args=(pod_job_id, params, audio_path, current_user.id),
         daemon=True,
     ).start()
@@ -9426,7 +9462,7 @@ def api_ranking_create():
     with _ranking_lock:
         _ranking_jobs[job_id] = {"status": "processing", "progress": 0, "config": job_config}
 
-    t = threading.Thread(target=_run_ranking_thread, args=(job_id, job_config), daemon=True)
+    t = threading.Thread(target=gated(_run_ranking_thread), args=(job_id, job_config), daemon=True)
     t.start()
     return jsonify({"job_id": job_id})
 
@@ -9538,7 +9574,7 @@ def api_agency_landing_page_create():
 
     page_id = db.create_landing_page(current_user.id, business_name, prompt, client_id=client_id)
 
-    t = threading.Thread(target=_run_landing_page_thread, args=(page_id, prompt), daemon=True)
+    t = threading.Thread(target=gated(_run_landing_page_thread), args=(page_id, prompt), daemon=True)
     t.start()
     return jsonify({"page_id": page_id})
 
@@ -10029,7 +10065,7 @@ def api_editing_room_produce():
     }
 
     t = threading.Thread(
-        target=_run_editing_thread,
+        target=gated(_run_editing_thread),
         args=(editing_job_id, params, current_user.id),
         daemon=True,
     )
@@ -10484,6 +10520,11 @@ def _post_db_startup():
     # Job monitor agent (auto-resets stuck jobs every 5 min)
     from agents.job_monitor import start as _start_monitor
     _start_monitor()
+
+    # Storage archiver agent (uploads completed jobs to S3-compatible storage
+    # when configured; no-op otherwise)
+    from agents.storage_archiver import start as _start_archiver
+    _start_archiver()
 
     # Agency workers
     from agents.followup_agent import start as _start_followup

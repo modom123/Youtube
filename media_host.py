@@ -113,3 +113,22 @@ def get_public_url(video_path) -> str:
     except Exception as e:
         logger.warn(f"media_host.get_public_url failed: {e}")
         return ""
+
+
+def archive_to_storage(path) -> str:
+    """Upload a local file to S3-compatible object storage and return its
+    durable URL, or "" if S3 isn't configured or the upload fails. Unlike
+    get_public_url(), this never falls back to a self-serve signed URL --
+    that URL only works while the local file still exists, which defeats the
+    point of archiving it. Never raises; never deletes the local file itself
+    (that's the caller's decision once it has confirmed the archive)."""
+    if not _s3_configured():
+        return ""
+    try:
+        path = Path(path)
+        if not path.is_file():
+            return ""
+        return _upload_s3(path)
+    except Exception as e:
+        logger.warn(f"media_host.archive_to_storage failed for {path}: {e}")
+        return ""
