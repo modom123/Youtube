@@ -344,31 +344,56 @@ def _try_elevenlabs(
         return None
 
 
-def generate_background_bed(description: str, duration_seconds: float, output_path: Path) -> Optional[Path]:
-    """A short, looped ElevenLabs Sound-Generation clip sized to exactly
-    duration_seconds — a subtle instrumental bed for things like Ad Lab
-    commercials, not a substitute for a real song. Returns output_path on
-    success, None if ElevenLabs isn't configured or generation fails."""
-    import subprocess
-
-    output_path = Path(output_path)
-    raw = _try_elevenlabs(description, min(int(duration_seconds) or 1, 22), output_path.parent)
-    if not raw:
+def _elevenlabs_music_compose(prompt: str, length_ms: int, output_path: Path) -> Optional[Path]:
+    """Generate real instrumental music via the ElevenLabs Music API
+    (POST /v1/music) — the studio music generator, NOT the Sound-Generation
+    SFX/ambience endpoint (which returns broadband noise for a "music"
+    prompt). Returns output_path (raw MP3 bytes) on success, else None."""
+    key = getattr(config, "ELEVENLABS_API_KEY", "") or ""
+    if not key:
+        log.info("ElevenLabs Music: ELEVENLABS_API_KEY not set, skipping")
         return None
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    # The API accepts 3,000–600,000 ms; clamp to stay inside that window.
+    length_ms = int(max(3000, min(length_ms, 600000)))
+    model_id = getattr(config, "ELEVENLABS_MUSIC_MODEL", "music_v2")
     try:
-        result = subprocess.run(
-            ["ffmpeg", "-y", "-stream_loop", "-1", "-i", raw,
-             "-t", str(duration_seconds), "-c:a", "libmp3lame", "-b:a", "192k", str(output_path)],
-            capture_output=True, timeout=60,
+        r = requests.post(
+            "https://api.elevenlabs.io/v1/music",
+            headers={"xi-api-key": key, "Content-Type": "application/json"},
+            json={
+                "prompt": prompt[:2000],
+                "music_length_ms": length_ms,
+                "model_id": model_id,
+                "force_instrumental": True,
+            },
+            timeout=180,
         )
-        if result.returncode == 0 and output_path.exists():
+        r.raise_for_status()
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(r.content)
+        if output_path.exists() and output_path.stat().st_size > 1000:
+            log.info("ElevenLabs Music (%s): %d ms -> %s", model_id, length_ms, output_path)
             return output_path
-        log.warning("Looping background bed failed: %s", result.stderr.decode()[:200])
+        log.warning("ElevenLabs Music returned empty/too-small audio")
     except Exception as exc:
-        log.warning("Looping background bed failed: %s", exc)
+        log.warning("ElevenLabs Music failed: %s", exc)
     return None
+
+
+def generate_background_bed(description: str, duration_seconds: float, output_path: Path) -> Optional[Path]:
+    """Full-length instrumental bed sized to duration_seconds via the
+    ElevenLabs Music API. Returns output_path on success, None if ElevenLabs
+    isn't configured or generation fails.
+
+    Unlike the old approach (a 22s Sound-Generation SFX clip looped to
+    length, which produced static, not music), the Music endpoint generates
+    a single coherent instrumental of the exact duration — no looping, no
+    noise."""
+    return _elevenlabs_music_compose(
+        description, int(duration_seconds * 1000), Path(output_path)
+    )
 
 
 def mix_voice_and_music(voice_path: Path, music_path: Path, output_path: Path, music_vol: float = 0.15) -> Optional[Path]:
@@ -379,10 +404,19 @@ def mix_voice_and_music(voice_path: Path, music_path: Path, output_path: Path, m
 
     output_path = Path(output_path)
     try:
+        # normalize=0 is essential: amix's default normalize=1 divides every
+        # input by the input count, silently halving the voice (-6 dB) and
+        # leaving it fighting the music. With normalize=0 the voice stays at
+        # full level and the music sits under it at exactly music_vol. A
+        # sidechain compressor ducks the music down further whenever the
+        # voice is actually speaking, so narration always stays on top.
         result = subprocess.run(
             ["ffmpeg", "-y", "-i", str(voice_path), "-i", str(music_path),
              "-filter_complex",
-             f"[1:a]volume={music_vol}[bg];[0:a][bg]amix=inputs=2:duration=first:dropout_transition=2",
+             f"[0:a]asplit=2[vox][sc];"
+             f"[1:a]volume={music_vol}[bglow];"
+             f"[bglow][sc]sidechaincompress=threshold=0.02:ratio=8:attack=5:release=300[bg];"
+             f"[vox][bg]amix=inputs=2:duration=first:dropout_transition=2:normalize=0",
              "-c:a", "libmp3lame", "-b:a", "192k", str(output_path)],
             capture_output=True, timeout=60,
         )

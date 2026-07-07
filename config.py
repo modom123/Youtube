@@ -311,6 +311,10 @@ ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "pNInz6obpgDQGcFmaJgB")  
 # Highest-quality multilingual model for narration. Override to
 # "eleven_turbo_v2_5" for faster/cheaper synthesis at a small quality cost.
 ELEVENLABS_MODEL = os.getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2")
+# ElevenLabs Music model for instrumental background beds (POST /v1/music).
+# This is the real music generator — distinct from the Sound-Generation SFX
+# endpoint. Override to "music_v1" for the legacy model.
+ELEVENLABS_MUSIC_MODEL = os.getenv("ELEVENLABS_MUSIC_MODEL", "music_v2")
 
 # Google Cloud Storage — used ONLY as a scratch pad for audio files that
 # exceed Speech-to-Text's ~10MB inline-content limit (a real podcast episode
